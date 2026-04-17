@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraForex - Plataforma de Trading</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060810; --surface: rgba(13, 17, 23, 0.7); --surface2: rgba(19, 25, 34, 0.8); --border: rgba(30, 45, 61, 0.5);
+      --text: #fafafa; --muted: #94a3b8; --accent: #00d4ff; --accent-hover: #00b8e6;
+      --danger: #ff4444; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Syne', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; overflow: hidden;
+      position: relative;
+    }
+
+    /* Background Animation */
+    .bg-main {
+      position: fixed; inset: 0;
+      background: url('/aura_bot.png') no-repeat center center;
+      background-size: cover;
+      filter: brightness(0.4) saturate(1.2);
+      z-index: -2;
+      animation: breatheBot 12s ease-in-out infinite;
+    }
+
+    @keyframes breatheBot {
+      0%, 100% { transform: scale(1.0); filter: brightness(0.4) saturate(1.2); }
+      50% { transform: scale(1.05); filter: brightness(0.5) saturate(1.4); }
+    }
+    .bg-overlay {
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 50% 50%, transparent 20%, var(--bg) 90%);
+      z-index: -1;
+    }
+
+    /* Candle Animations */
+    .candles { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.3; }
+    .candle {
+      position: absolute;
+      width: 4px;
+      bottom: -100px;
+      border-radius: 2px;
+      animation: rise linear infinite;
+    }
+    .candle::after {
+      content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 1px; height: 100%; height: 150%; 
+    }
+    @keyframes rise {
+      0% { transform: translateY(0); opacity: 0; }
+      20% { opacity: 0.7; }
+      80% { opacity: 0.7; }
+      100% { transform: translateY(-110vh); opacity: 0; }
+    }
+
+    .auth-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Animated Text / Banner */
+    .moving-text {
+      position: fixed;
+      top: 15%;
+      left: 10%;
+      font-family: 'Space Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 5;
+      text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff;
+      animation: floatPath 15s ease-in-out infinite, colorShift 8s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes colorShift {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+
+    @keyframes floatPath {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(15vw, 10vh); }
+      50% { transform: translate(30vw, 0vh); }
+      75% { transform: translate(15vw, -10vh); }
+      100% { transform: translate(0, 0); }
+    }
+    .logo-container { text-align: center; margin-bottom: 30px; }
+    .logo-container h1 { font-size: 2rem; letter-spacing:-1px; }
+    .logo-container .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 5px; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--muted); }
+    .form-input {
+      width: 100%; background: var(--surface2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; padding: 12px;
+      font-size: 0.9rem; transition: border 0.3s;
+    }
+    .form-input:focus { outline: none; border-color: var(--accent); }
+    
+    .btn {
+      width: 100%; background: var(--accent); color: white;
+      border: none; border-radius: 6px; padding: 12px;
+      font-weight: 600; font-family: 'Syne', sans-serif;
+      cursor: pointer; transition: background 0.2s; margin-top: 10px;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .toggle-text {
+      text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--muted);
+    }
+    .toggle-text a {
+      color: var(--accent); text-decoration: none; cursor: pointer;
+    }
+    .toggle-text a:hover { text-decoration: underline; }
+    
+    .error-msg { background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 0.8rem; padding: 10px; border-radius: 6px; margin-bottom: 20px; display: none; text-align:center; }
+    .success-msg { background: rgba(34, 197, 94, 0.1); color: #22c55e; font-size: 0.8rem; padding: 10px; border-radius: 6px; margin-bottom: 20px; display: none; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="bg-main"></div>
+  <div class="bg-overlay"></div>
+  <div class="candles" id="candleLane"></div>
+  <div class="moving-text">AURATRADE, FOREX BOTS</div>
+
+  <div class="auth-container">
+    <div class="logo-container">
+      <h1>AuraForex</h1>
+      <div class="subtitle">Faça login para aceder ao Trading Bot</div>
+    </div>
+
+    <div id="errorBox" class="error-msg"></div>
+    <div id="successBox" class="success-msg"></div>
+
+    <div id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" class="form-input" placeholder="exemplo@auraforex.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" class="form-input" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="doLogin(this)">Entrar na Plataforma</button>
+      <div class="toggle-text">Não tem conta? <a onclick="toggleMode()">Registar-se</a></div>
+    </div>
+
+    <div id="registerForm" style="display:none;">
+      <div class="form-group">
+        <label>Novo Email</label>
+        <input type="email" id="regEmail" class="form-input" placeholder="exemplo@auraforex.com">
+      </div>
+      <div class="form-group">
+        <label>Password (Mín. 6 careteres)</label>
+        <input type="password" id="regPass" class="form-input" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="doRegister(this)" style="background:#10b981;">Criar Conta</button>
+      <div class="toggle-text">Já tem conta? <a onclick="toggleMode()">Voltar ao Login</a></div>
+    </div>
+  </div>
+
+  <script>
+    let mode = 'login';
+    
+    // Check if already logged in
+    async function checkAuth() {
+      const token = localStorage.getItem("aura_token");
+      if (token) {
+        try {
+          const res = await fetch("/api/auth/me", { headers: { "Authorization": "Bearer " + token }});
+          if(res.ok) window.location.href = "/dashboard";
+        } catch(e) {}
+      }
+    }
+    checkAuth();
+
+    function toggleMode() {
+      mode = mode === 'login' ? 'register' : 'login';
+      document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
+      document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
+      document.getElementById('errorBox').style.display = 'none';
+      document.getElementById('successBox').style.display = 'none';
+      document.querySelector('.subtitle').textContent = mode === 'login' ? 'Faça login para aceder à Plataforma' : 'Crie a sua conta de Trading';
+    }
+
+    function showErr(msg) {
+      const b = document.getElementById('errorBox');
+      b.textContent = msg; b.style.display = 'block';
+      document.getElementById('successBox').style.display = 'none';
+    }
+    function showSucc(msg) {
+      const b = document.getElementById('successBox');
+      b.textContent = msg; b.style.display = 'block';
+      document.getElementById('errorBox').style.display = 'none';
+    }
+
+    async function doLogin(btn) {
+      const email = document.getElementById('loginEmail').value;
+      const pass = document.getElementById('loginPass').value;
+      if(!email || !pass) return showErr("Preencha todos os campos.");
+      
+      btn.disabled = true; btn.textContent = "A entrar...";
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({email, password: pass})
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || "Erro ao entrar.");
+        
+        localStorage.setItem("aura_token", data.token);
+        if(data.autoConnected) localStorage.setItem("aura_startup_broker", data.broker);
+        
+        window.location.href = "/dashboard";
+      } catch(e) {
+        showErr(e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = "Entrar na Plataforma";
+      }
+    }
+
+    async function doRegister(btn) {
+      const email = document.getElementById('regEmail').value;
+      const pass = document.getElementById('regPass').value;
+      if(!email || pass.length < 6) return showErr("O email é obrigatório e a password deve ter pelo menos 6 caracteres.");
+      
+      btn.disabled = true; btn.textContent = "A criar...";
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({email, password: pass})
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro no registo.");
+        
+        showSucc("Conta criada de forma segura! Por favor faça Login.");
+        setTimeout(() => toggleMode(), 2000);
+      } catch(e) {
+        showErr(e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = "Criar Conta";
+      }
+    }
+
+    // Animation Generator
+    function initCandles() {
+      const lane = document.getElementById('candleLane');
+      const colors = ['#00e676', '#ff4444'];
+      for(let i=0; i<25; i++) {
+        const c = document.createElement('div');
+        c.className = 'candle';
+        const color = colors[Math.floor(Math.random()*colors.length)];
+        const h = Math.random() * 40 + 20;
+        c.style.height = h + 'px';
+        c.style.backgroundColor = color;
+        c.style.left = Math.random() * 100 + '%';
+        c.style.animationDuration = Math.random() * 10 + 5 + 's';
+        c.style.animationDelay = Math.random() * 5 + 's';
+        c.style.boxShadow = `0 0 10px ${color}`;
+        lane.appendChild(c);
+      }
+    }
+    initCandles();
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String             @id @default(uuid())
+  email        String             @unique
+  passwordHash String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  connections  BrokerConnection[]
+}
+
+model BrokerConnection {
+  id                String   @id @default(uuid())
+  userId            String
+  brokerName        String   // "OANDA", "Capital.com", "MetaTrader"
+  brokerType        String   // "oanda", "capital", "metaapi"
+  environment       String   // "demo" ou "live"
+  
+  // Dados de Conta
+  accountId         String
+  
+  // Credenciais (Encriptadas antes de guardar)
+  apiTokenEncrypted String?  // OANDA ou MetaApi Token
+  capitalIdentifier String?  // Capital email (encrypted)
+  capitalPassword   String?  // Capital pw (encrypted)
+  
+  // MetaApi
+  region            String?  // "vint-hill"
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

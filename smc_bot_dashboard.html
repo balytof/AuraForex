@@ -70,6 +70,18 @@
   .logo span { color:var(--accent); }
   .logo p { font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; margin-top:2px; }
 
+  .welcome-text {
+    flex-grow: 1;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .welcome-text span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
   .status-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .status-badge {
     display:flex; align-items:center; gap:7px;
@@ -267,11 +279,11 @@
 
   .slider-row { display:flex; align-items:center; gap:10px; }
   .slider {
-    flex:1; -webkit-appearance:none; height:4px;
+    flex:1; -webkit-appearance:none; appearance:none; height:4px;
     border-radius:999px; background:var(--border); outline:none;
   }
   .slider::-webkit-slider-thumb {
-    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%;
     background:var(--accent); cursor:pointer;
     box-shadow:0 0 8px rgba(0,212,255,0.5);
   }
@@ -550,6 +562,9 @@
         <p>Smart Money Concepts · AI Studio Integration</p>
       </div>
     </div>
+    <div class="welcome-text" id="welcomeMsg">
+      Seja bem-vindo, <span id="userEmail">...</span>
+    </div>
     <div class="status-row">
       <div class="broker-badge disconnected" id="brokerBadge" onclick="openConnectModal()">
         <div class="dot danger"></div>
@@ -568,6 +583,7 @@
       <button class="btn btn-connect" id="connectBtn" onclick="openConnectModal()">🔗 Conectar Corretora</button>
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
+      <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
     </div>
   </header>
 
@@ -761,6 +777,10 @@
         <div class="broker-grid" id="brokerGrid">
           <!-- Populated by JS -->
         </div>
+        <div style="margin-top:20px; display:flex; align-items:center; gap:10px; padding:0 10px;">
+          <input type="checkbox" id="rememberCredentials" checked style="width:16px;height:16px;cursor:pointer;">
+          <label for="rememberCredentials" style="font-size:0.82rem;color:var(--muted);cursor:pointer;">Lembrar credenciais (Salvar na Nuvem)</label>
+        </div>
       </div>
 
       <!-- STEP 2: Credenciais -->
@@ -786,12 +806,45 @@
     </div>
     <div class="modal-footer" id="modalFooter">
       <button class="btn btn-secondary" id="modalBackBtn" onclick="modalBack()" style="display:none;">← Voltar</button>
-      <button class="btn btn-primary" id="modalNextBtn" onclick="modalNext()" disabled>Selecione uma corretora →</button>
+      <button class="btn btn-primary" id="modalNextBtn" onclick="modalNext(event)" disabled>Selecione uma corretora →</button>
     </div>
   </div>
 </div>
 
+
 <script>
+// ─── DIAGNÓSTICO REMOTO (Expert) ───────────────
+async function remoteLog(msg, level = "INFO") {
+  try {
+    fetch("/api/debug/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ msg, level })
+    }).catch(e => {});
+  } catch(e) {}
+}
+
+// ─── AUTH CHECK (Auditado) ────────────────────────
+if (!localStorage.getItem("aura_token")) {
+  remoteLog("AUTH_FAIL: Token ausente no carregamento", "WARN");
+  // Bloqueado para diagnóstico: window.location.href = "/login.html";
+} else {
+  try {
+    const token = localStorage.getItem("aura_token");
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    document.getElementById("userEmail").textContent = payload.email || "Utilizador";
+    remoteLog(`AUTH_SUCCESS: Logado como ${payload.email}`);
+  } catch(e) {
+    remoteLog("AUTH_ERROR: Falha ao decodificar token: " + e.message, "ERROR");
+  }
+}
+
+function logout() {
+  localStorage.removeItem("aura_token");
+  localStorage.removeItem("aura_startup_broker");
+  window.location.href = "/login.html";
+}
+
 // ─── ESTADO ───────────────────────────────────
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
 let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
@@ -957,17 +1010,60 @@ function addSignalCard(sig, execResult) {
 }
 
 // ═══════════════════════════════════════════════
-//  BROKER API CALLS
+//  BROKER API CALLS & AUTH
 // ═══════════════════════════════════════════════
+
+function logout() {
+  localStorage.removeItem("aura_token");
+  localStorage.removeItem("aura_startup_broker");
+  window.location.href = "/login.html";
+}
+
 async function apiFetch(endpoint, method = "GET", body = null) {
-  const opts = { method, headers: { "Content-Type": "application/json" } };
+  const token = localStorage.getItem("aura_token");
+  remoteLog(`API_CALL: ${method} ${endpoint} (Token local: ${token ? 'Presente' : 'Ausente'})`);
+
+  if (!token) {
+    remoteLog("API_ABORT: Chamada abortada por falta de token", "ERROR");
+    // Bloqueado para diagnóstico: window.location.href = "/login.html";
+    return { success: false, error: "Sem sessão." };
+  }
+
+  const opts = { 
+    method, 
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    } 
+  };
+  
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(endpoint, opts);
-  return res.json();
+  
+  try {
+    const res = await fetch(endpoint, opts);
+    remoteLog(`API_RESPONSE: ${endpoint} Status=${res.status}`);
+
+    if (res.status === 401) {
+      remoteLog("API_401: Servidor rejeitou o token", "ERROR");
+      // Desativado para auditoria: logout();
+      return { success: false, error: "DEBUG: Sessão rejeitada pelo servidor (401)." };
+    }
+    
+    // Tenta ler JSON, se falhar, retorna erro amigável em vez de crashar
+    try {
+      return await res.json();
+    } catch(e) {
+      return { success: false, error: "Resposta inválida do servidor." };
+    }
+  } catch (err) {
+    console.error("Erro de Rede:", err);
+    return { success: false, error: "Erro de ligação ao servidor. Verifique a sua internet." };
+  }
 }
 
 async function connectToBroker(brokerType, credentials) {
-  return apiFetch("/api/broker/connect", "POST", { brokerType, credentials });
+  const remember = document.getElementById("rememberCredentials").checked;
+  return apiFetch("/api/broker/connect", "POST", { brokerType, credentials, remember });
 }
 
 async function disconnectBroker() {
@@ -1220,7 +1316,8 @@ function modalBack() {
   if (currentModalStep > 1) showModalStep(currentModalStep - 1);
 }
 
-async function modalNext() {
+async function modalNext(e) {
+  if (e) e.preventDefault();
   if (currentModalStep === 1) {
     showModalStep(2);
   } else if (currentModalStep === 2) {
@@ -1272,12 +1369,12 @@ async function doConnect() {
       document.getElementById("connectResult").innerHTML = `
         <div class="result-icon">✅</div>
         <div class="result-title">Conectado com Sucesso!</div>
-        <div class="result-balance">${formatCurrency(brokerInfo.balance, brokerInfo.currency)}</div>
+        <div class="result-balance">${formatCurrency(brokerInfo ? brokerInfo.balance : 0, brokerInfo ? brokerInfo.currency : 'USD')}</div>
         <div class="result-detail">
-          ${brokerInfo.broker} · ${brokerInfo.accountType}
-          <br>Conta: ${brokerInfo.accountId}
-          <br>Moeda: ${brokerInfo.currency}
-          ${brokerInfo.leverage ? `<br>Alavancagem: 1:${brokerInfo.leverage}` : ''}
+          ${brokerInfo ? `${brokerInfo.broker} · ${brokerInfo.accountType}` : ''}
+          <br>Conta: ${brokerInfo ? brokerInfo.accountId : ''}
+          <br>Moeda: ${brokerInfo ? brokerInfo.currency : ''}
+          ${brokerInfo && brokerInfo.leverage ? `<br>Alavancagem: 1:${brokerInfo.leverage}` : ''}
         </div>
       `;
 
@@ -1321,9 +1418,8 @@ async function loadHistory() {
   if (btn) btn.textContent = "A carregar...";
 
   try {
-    const res = await fetch("/api/broker/history");
-    const data = await res.json();
-    if (res.ok && data.history) {
+    const data = await apiFetch("/api/broker/history");
+    if (data && data.history) {
       tradeHistoryRaw = data.history;
       renderHistory();
     }
@@ -1394,7 +1490,7 @@ function renderHistory() {
 // (chamado de modais ou updates)
 
 // ─── UPDATES ──────────────────────────────────
-async function updateBrokerState() {
+async function updateBrokerUI() {
   const badge = document.getElementById("brokerBadge");
   const statusText = document.getElementById("brokerStatusText");
   const mainBtn = document.getElementById("mainBtn");

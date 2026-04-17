@@ -1,17 +1,21 @@
-/**
- * ============================================================
- *  AuraForex — API Server
- *  Serves dashboard + proxies broker API calls
- * ============================================================
- */
-
 const express = require("express");
-const session = require("express-session");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const helmet = require("helmet");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
+
+const { PrismaClient } = require("@prisma/client");
+const { Pool } = require("pg");
+const { PrismaPg } = require("@prisma/adapter-pg");
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+const { encrypt, decrypt } = require("./utils/encryption");
 
 // Broker Adapters
 const OandaAdapter = require("./broker-adapters/oanda");
@@ -19,51 +23,47 @@ const CapitalAdapter = require("./broker-adapters/capital");
 const MetaApiAdapter = require("./broker-adapters/metaapi");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const ROOT = __dirname;
 const isProd = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
+
+// ── GLOBAL REQUEST LOGGER (Diagnóstico) ───────────────────────────
+app.use((req, res, next) => {
+  console.log(`[REQ] ${req.method} ${req.url} - ${new Date().toISOString()}`);
+  next();
+});
 
 // ── Security Middlewares ─────────────────────────────────────────
-app.set("trust proxy", 1); // Trus proxy se estiver atrás de um Nginx
-
-// 1. Helmet para Security Headers (configurando Content-Security-Policy para aceitar scripts inline pelo Live Reload caso não esteja em PROD)
+app.set("trust proxy", 1);
 app.use(helmet({
   contentSecurityPolicy: isProd ? undefined : false,
 }));
 
-// 2. CORS Limits
 app.use(cors({
-  origin: "*", // Mude para o seu domínio real em produção ex: "https://auraforex.com"
+  origin: "*", 
   credentials: true
 }));
 
-// 3. Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 4. Rate Limiting (Proteção contra Brute Force)
+// ── DEBUG BRIDGE ──────────────────────────────────────────────────
+app.post("/api/debug/log", (req, res) => {
+  const { msg, level } = req.body;
+  console.log(`[BROWSER-${level || 'INFO'}] ${msg}`);
+  res.sendStatus(200);
+});
+
+// Limites globais
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 200, // Limite de 200 requests por IP
-  message: { error: "Muitas requisições deste IP, tente mais tarde." }
+  windowMs: 15 * 60 * 1000, 
+  max: 1000, // Aumentado para desenvolvimento e configuração inicial
+  message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
 
-// 5. Sessões Seguras em Memória (Isolamento Multi-Utilizador)
-app.use(session({
-  secret: process.env.SESSION_SECRET || "auraforex_super_secret_key_123!@#",
-  resave: false,
-  saveUninitialized: true,
-  cookie: {
-    secure: isProd, // Deve ser true em Produção (requer HTTPS validado pelo Nginx)
-    httpOnly: true, // Bloqueia acesso ao cookie via JS e evita XSS
-    maxAge: 4 * 60 * 60 * 1000, // Sessão de 4 horas
-    sameSite: 'lax'
-  }
-}));
-
-// ── Active Brokers Map (Segregação de Usuários) ───────────────────
-// Em vez de 1 variável, usamos um Map mapeando o sessionId do Express à instância da corretora
+// ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
 
 function getBrokerAdapter(type) {
@@ -75,72 +75,104 @@ function getBrokerAdapter(type) {
   }
 }
 
-// ── Live Reload (Apenas Modo Desenvolvedor) ───────────────────────
-let lastModTimes = {};
-function getFileModTimes() {
-  const exts = [".html", ".css", ".js"];
-  const times = {};
-  try {
-    const files = fs.readdirSync(ROOT);
-    for (const file of files) {
-      if (exts.includes(path.extname(file).toLowerCase())) {
-        times[file] = fs.statSync(path.join(ROOT, file)).mtimeMs;
-      }
-    }
-  } catch (e) {}
-  return times;
-}
-lastModTimes = getFileModTimes();
-
-function hasFilesChanged() {
-  const current = getFileModTimes();
-  for (const [file, mtime] of Object.entries(current)) {
-    if (!lastModTimes[file] || lastModTimes[file] !== mtime) {
-      lastModTimes = current;
-      return true;
-    }
+// ── Middleware Autenticação via JWT ───────────────────────────────
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Token JWT não providenciado." });
   }
-  return false;
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Token JWT inválido ou expirado." });
+  }
 }
 
-if (!isProd) {
-  app.get("/__reload_check", (req, res) => {
-    res.json({ changed: hasFilesChanged() });
-  });
-}
-
-// ── Middleware para verificar Autenticação do Broker ────────────
+// Middleware garante Corretora Conectada
 function requireBrokerAuth(req, res, next) {
-  const activeBroker = userBrokers.get(req.sessionID);
+  const activeBroker = userBrokers.get(req.user.id);
   if (!activeBroker || !activeBroker.connected) {
-    return res.status(403).json({ error: "Nenhuma corretora conectada nesta sessão." });
+    return res.status(403).json({ error: "Nenhuma corretora conectada neste momento." });
   }
   req.broker = activeBroker;
   next();
 }
 
-// ── API Router ──────────────────────────────────────────────────
+// ── Auth Endpoints (SaaS) ─────────────────────────────────────────
+// Rotas movidas para cima para diagnóstico
 
-// Status (Aberto)
-app.get("/api/broker/status", (req, res) => {
-  const activeBroker = userBrokers.get(req.sessionID);
-  if (!activeBroker) {
-    return res.json({ connected: false, broker: null });
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Dados inválidos." });
+
+  try {
+    console.log(`[AUTH] Tentativa de login: ${email}`);
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(401).json({ error: "Credenciais erradas." });
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: "Credenciais erradas." });
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Auto-Connect Corretora Gravada
+    let autoConnected = false;
+    let bType = null;
+    const connection = await prisma.brokerConnection.findFirst({ where: { userId: user.id } });
+    if (connection) {
+       try {
+         const credentials = {
+           environment: connection.environment,
+           accountId: connection.accountId,
+           apiToken: decrypt(connection.apiTokenEncrypted),
+           metaApiToken: decrypt(connection.apiTokenEncrypted),
+           identifier: decrypt(connection.capitalIdentifier),
+           password: decrypt(connection.capitalPassword),
+           apiKey: decrypt(connection.apiTokenEncrypted),
+           region: connection.region
+         };
+         const adapter = getBrokerAdapter(connection.brokerType);
+         const resConn = await adapter.connect(credentials);
+         if (resConn.success) {
+           userBrokers.set(user.id, adapter);
+           autoConnected = true;
+           bType = connection.brokerName;
+         }
+       } catch(e) { console.error("Erro Auto-Connect:", e.message); }
+    }
+
+    res.json({ success: true, token, autoConnected, broker: bType });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno no servidor." });
   }
+});
+
+// Verifica se token do cache UI ainda está ativo
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+
+// ── Broker Endpoints ──────────────────────────────────────────────
+
+app.get("/api/broker/status", requireAuth, async (req, res) => {
+  const activeBroker = userBrokers.get(req.user.id);
+  if (!activeBroker) return res.json({ connected: false, broker: null });
   return res.json(activeBroker.getStatus());
 });
 
-// Substituir brokers em RAM no servidor
-app.post("/api/broker/connect", async (req, res) => {
-  const { brokerType, credentials } = req.body;
-
-  if (!brokerType || !credentials) {
-    return res.status(400).json({ success: false, error: "brokerType e credentials são obrigatórios" });
-  }
+app.post("/api/broker/connect", requireAuth, async (req, res) => {
+  const { brokerType, credentials, remember } = req.body;
+  console.log(`[DEBUG] Tentativa de conexão broker: ${brokerType} (User: ${req.user.id.substring(0,8)})`);
+  if (!brokerType || !credentials) return res.status(400).json({ success: false, error: "Dados incompletos." });
 
   try {
-    // Desconectar corretora existente deste mesmo utilizador
-    let activeBroker = userBrokers.get(req.sessionID);
+    let activeBroker = userBrokers.get(req.user.id);
     if (activeBroker && activeBroker.connected) {
       try { await activeBroker.disconnect(); } catch (e) {}
     }
@@ -148,133 +180,119 @@ app.post("/api/broker/connect", async (req, res) => {
     activeBroker = getBrokerAdapter(brokerType);
     const result = await activeBroker.connect(credentials);
 
-    if (!result.success) {
-      return res.status(401).json(result);
+    if (!result.success) return res.status(401).json(result);
+
+    userBrokers.set(req.user.id, activeBroker);
+
+    // Gravar/Atualizar na BD se tiver checkbox marcardo "Remember My Keys"
+    // Caso padrão, vamos sempre gravar se for fornecido.
+    if (remember !== false) {
+       await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+       
+       await prisma.brokerConnection.create({
+         data: {
+           userId: req.user.id,
+           brokerName: activeBroker.name,
+           brokerType: activeBroker.type,
+           environment: credentials.environment || "demo",
+           accountId: credentials.accountId || credentials.identifier || "unknown",
+           apiTokenEncrypted: encrypt(credentials.apiToken || credentials.metaApiToken || credentials.apiKey),
+           capitalIdentifier: encrypt(credentials.identifier),
+           capitalPassword: encrypt(credentials.password),
+           region: credentials.region
+         }
+       });
+       console.log("💾 Credenciais salvas na DB para o user ID: " + req.user.id.substring(0,8));
     }
 
-    // Vincular instância de corretora à sessão atual
-    userBrokers.set(req.sessionID, activeBroker);
-
-    console.log(`✅ [Sessão: ${req.sessionID.substring(0,8)}] Conectado: ${activeBroker.name} | Saldo: ${result.accountInfo.balance}`);
     return res.json(result);
   } catch (e) {
-    console.error("❌ Erro no Connect:", e.message);
+    console.error(e);
     return res.status(500).json({ success: false, error: "Erro interno no servidor ao conectar." });
   }
 });
 
-app.post("/api/broker/disconnect", async (req, res) => {
-  const activeBroker = userBrokers.get(req.sessionID);
+app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
+  const { forgetDb } = req.body;
+  const activeBroker = userBrokers.get(req.user.id);
+  
   if (activeBroker) {
-    const name = activeBroker.name;
     await activeBroker.disconnect();
-    userBrokers.delete(req.sessionID);
-    console.log(`🔌 [Sessão: ${req.sessionID.substring(0,8)}] Desconectado: ${name}`);
+    userBrokers.delete(req.user.id);
   }
+
+  if (forgetDb !== false) {
+    await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+  }
+
   return res.json({ success: true });
 });
 
-// Endpoints Protegidos
-app.get("/api/broker/account", requireBrokerAuth, async (req, res) => {
-  try {
-    const info = await req.broker.getAccountInfo();
-    res.json(info);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+app.get("/api/broker/account", requireAuth, requireBrokerAuth, async (req, res) => {
+  try { res.json(await req.broker.getAccountInfo()); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/broker/positions", requireBrokerAuth, async (req, res) => {
-  try {
-    const positions = await req.broker.getOpenPositions();
-    res.json({ positions });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res) => {
+  try { res.json({ positions: await req.broker.getOpenPositions() }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/broker/history", requireBrokerAuth, async (req, res) => {
-  try {
-    const history = await req.broker.getHistory(req.query);
-    res.json({ history });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
+  try { res.json({ history: await req.broker.getHistory(req.query) }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post("/api/broker/order", requireBrokerAuth, async (req, res) => {
+app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
   const { pair, direction, lotSize, sl, tp } = req.body;
-  if (!pair || !direction || !lotSize) {
-    return res.status(400).json({ error: "pair, direction e lotSize são obrigatórios" });
-  }
+  if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    console.log(`📊 [Sessão: ${req.sessionID.substring(0,8)}] Ordem: ${direction} ${pair} | Lote: ${lotSize}`);
     const result = await req.broker.placeOrder({ pair, direction, lotSize, sl, tp });
     return res.status(result.success ? 200 : 400).json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete("/api/broker/position/:id", requireBrokerAuth, async (req, res) => {
+app.delete("/api/broker/position/:id", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
     const result = await req.broker.closePosition(req.params.id);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/broker/candles", requireBrokerAuth, async (req, res) => {
+app.get("/api/broker/candles", requireAuth, requireBrokerAuth, async (req, res) => {
   const { pair, timeframe, count } = req.query;
-  if (!pair) return res.status(400).json({ error: "pair é obrigatório" });
-  try {
-    const candles = await req.broker.getCandles(pair, timeframe || "H1", parseInt(count) || 250);
-    res.json({ candles });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json({ candles: await req.broker.getCandles(pair, timeframe || "H1", parseInt(count) || 250) }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/broker/price", requireBrokerAuth, async (req, res) => {
+app.get("/api/broker/price", requireAuth, requireBrokerAuth, async (req, res) => {
   const { pair } = req.query;
-  if (!pair) return res.status(400).json({ error: "pair é obrigatório" });
-  try {
-    const price = await req.broker.getPrice(pair);
-    res.json(price);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await req.broker.getPrice(pair)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Static Files & Catch All ──────────────────────────────────────
+// ── Static Files & Login Page ──────────────────────────────────────
 
-const LIVE_RELOAD_SCRIPT = `
-<script>
-  (function() {
-    setInterval(async () => {
-      try {
-        const res = await fetch('/__reload_check');
-        const data = await res.json();
-        if (data.changed) location.reload();
-      } catch(e) {}
-    }, 1500);
-  })();
-</script>
-`;
+let lastModTimes = {};
+if (!isProd) {
+  app.get("/__reload_check", (req, res) => { res.json({ changed: false }); }); // Desativado dev reload auto para n quebrar requests jwt
+}
 
 app.use((req, res) => {
   let urlPath = req.path;
-  if (urlPath === "/" || urlPath === "") urlPath = "/smc_bot_dashboard.html";
+  
+  if (urlPath === "/" || urlPath === "" || urlPath === "/login") {
+    urlPath = "/login.html";
+  } else if (urlPath === "/dashboard") {
+    urlPath = "/smc_bot_dashboard.html";
+  }
 
   const filePath = path.join(ROOT, urlPath);
   
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    if (urlPath !== "/smc_bot_dashboard.html") return res.status(404).send("Not Found");
-    return res.status(404).send("Dashboard file not found.");
+    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html") return res.status(404).send("Not Found");
+    return res.status(404).send("Arquivo não encontrado.");
   }
 
-  // Directory Traversal Security
-  const resolvedRoot = path.resolve(ROOT);
-  const resolvedFilePath = path.resolve(filePath);
-  if (!resolvedFilePath.startsWith(resolvedRoot)) {
-    return res.status(403).send("Forbidden");
-  }
+  // Prevenir Directory Traversal Attack
+  if (!path.resolve(filePath).startsWith(path.resolve(ROOT))) return res.status(403).send("Forbidden");
 
-  if (urlPath.endsWith(".html") && !isProd) {
-    let html = fs.readFileSync(filePath, "utf-8");
-    html = html.replace("</body>", `${LIVE_RELOAD_SCRIPT}\n</body>`);
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.send(html);
-  }
-
-  res.sendFile(resolvedFilePath);
+  res.sendFile(filePath);
 });
 
 // ── Startup ───────────────────────────────────────────────────────
@@ -282,13 +300,20 @@ app.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
-  console.log("  ║   🔒  AuraForex — Secure API Server                 ║");
-  console.log("  ║                                                      ║");
+  console.log("  ║   🔒  AuraForex SaaS API Server                     ║");
+  console.log("  ║   📦  PostgreSQL & JWT Auth Ready                   ║");
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
-  console.log(`  ║   🛡️  Sessões Seguras: ATIVADO                      ║`);
-  console.log(`  ║   ⏱️  Rate Limiting:   ATIVADO                      ║`);
-  console.log(`  ║   🔄  Live reload:     ${!isProd ? "ATIVADO                      " : "DESATIVADO (PROD)            "}║`);
   console.log("  ║                                                      ║");
   console.log("  ╚══════════════════════════════════════════════════════╝");
-  console.log("  Ctrl+C para parar o servidor\n");
+  console.log("");
+});
+
+// Tratamento de Erros Globais para o Expert
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ ERROR [Unhandled Rejection]:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("❌ ERROR [Uncaught Exception]:", err.message);
+  console.error(err.stack);
 });
