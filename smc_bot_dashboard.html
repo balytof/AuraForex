@@ -575,6 +575,10 @@
         <span id="botStatus">Parado</span>
       </div>
       <div class="status-badge">
+        <div class="dot" id="uptimeDot"></div>
+        <span id="botUptime">00:00:00</span>
+      </div>
+      <div class="status-badge">
         <div class="dot warn"></div>
         <span id="sessionStatus">Fora de Sessão</span>
       </div>
@@ -855,6 +859,8 @@ let signals = [];
 let openTrades = [];
 let tradeCount = 0;
 let wins = 0;
+let botStartTime = null;
+let uptimeInterval = null;
 
 const BIASES = {};
 PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
@@ -958,6 +964,20 @@ function addLog(msg, type = "") {
 }
 
 function clearLog() { document.getElementById("logArea").innerHTML = ""; }
+
+// ─── UPTIME TIMER ─────────────────────────────
+function updateUptime() {
+  if (!botStartTime) return;
+  const diff = Date.now() - botStartTime;
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  const formatted = 
+    String(hours).padStart(2, '0') + ":" + 
+    String(minutes).padStart(2, '0') + ":" + 
+    String(seconds).padStart(2, '0');
+  document.getElementById("botUptime").textContent = formatted;
+}
 
 // ─── SIGNALS UI ───────────────────────────────
 function addSignalCard(sig, execResult) {
@@ -1664,6 +1684,11 @@ function startBot() {
   document.getElementById("mainBtn").textContent = "⏹ Parar Bot";
   document.getElementById("mainBtn").className = "btn btn-danger";
   addLog("🚀 Bot SMC iniciado — Execução automática na corretora ativada.", "buy");
+  
+  botStartTime = Date.now();
+  document.getElementById("uptimeDot").classList.add("active");
+  uptimeInterval = setInterval(updateUptime, 1000);
+  
   botLoop();
 }
 
@@ -1676,6 +1701,9 @@ function stopBot() {
   document.getElementById("mainBtn").className = "btn btn-primary";
   if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
   addLog("⏹ Bot SMC parado.");
+
+  clearInterval(uptimeInterval);
+  document.getElementById("uptimeDot").classList.remove("active");
 }
 
 function resetBot() {
@@ -1692,6 +1720,8 @@ function resetBot() {
   clearLog();
   initBiases();
   updateStats();
+  document.getElementById("botUptime").textContent = "00:00:00";
+  botStartTime = null;
   addLog("Bot reiniciado.");
 }
 
