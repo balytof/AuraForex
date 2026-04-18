@@ -149,12 +149,37 @@
   .btn-danger { background:#ff4444; color:#fff; }
   .btn-danger:hover { background:#ff2222; }
   .btn-secondary { background: var(--surface2); color:var(--text); border:1px solid var(--border); }
-  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
-  .btn-connect {
-    background: linear-gradient(135deg, var(--accent2), #9333ea);
-    color:#fff; box-shadow: 0 0 15px rgba(124,58,237,0.3);
-  }
   .btn-connect:hover { transform:translateY(-1px); box-shadow: 0 0 25px rgba(124,58,237,0.5); }
+
+  /* License Alert Layer */
+  .license-alert-bar {
+    display: none;
+    background: linear-gradient(90deg, #ffb300, #ff8f00);
+    color: #000;
+    padding: 8px 24px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    position: relative;
+    z-index: 100;
+    animation: slideDown 0.5s ease;
+  }
+  .license-alert-bar.visible { display: block; }
+  @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+
+  .license-badge {
+    padding: 4px 12px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px;
+    color: #a78bfa;
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .license-badge b { color: var(--accent); }
 
   /* Stats row */
   .stats-grid {
@@ -548,9 +573,21 @@
     .stats-grid { grid-template-columns:repeat(2,1fr); }
     header { flex-direction:column; align-items:stretch; }
   }
+  /* Utility copy button */
+  .copy-btn {
+    padding: 4px 8px; font-size: 0.65rem; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px; color: var(--accent);
+    cursor: pointer; transition: all 0.2s; font-family: 'Space Mono', monospace;
+  }
+  .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+  .copy-btn:active { transform: scale(0.95); }
+
 </style>
 </head>
 <body>
+<div id="licenseAlert" class="license-alert-bar">
+    ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+</div>
 <div class="wrapper">
 
   <!-- HEADER -->
@@ -578,6 +615,10 @@
         <div class="dot" id="uptimeDot"></div>
         <span id="botUptime">00:00:00</span>
       </div>
+      <div class="license-badge" id="licenseStatusHeader" onclick="openBuyModal()">
+        <span>Status: <b id="licenseLevel">Carregando...</b></span>
+        <span id="licenseCountdown" style="opacity:0.8;">...</span>
+      </div>
       <div class="status-badge">
         <div class="dot warn"></div>
         <span id="sessionStatus">Fora de Sessão</span>
@@ -587,6 +628,7 @@
       <button class="btn btn-connect" id="connectBtn" onclick="openConnectModal()">🔗 Conectar Corretora</button>
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
+      <button class="btn btn-danger" id="buyLicenseBtn" style="background:var(--warn);color:#000;margin-left:10px;" onclick="openBuyModal()">💎 Comprar Licença</button>
       <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
     </div>
   </header>
@@ -758,6 +800,75 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
+     MODAL — Comprar Licença
+     ═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="buyModal">
+  <div class="modal" style="width:550px;">
+    <div class="modal-header">
+      <h2>💎 Planos de Licença</h2>
+      <button class="modal-close" onclick="closeBuyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <!-- Passo 1: Seleção -->
+      <div id="buyStep1" class="buy-step active">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:20px;">Escolha o plano ideal para sua conta:</p>
+        <div id="plansContainer" style="display:grid;gap:12px;margin-bottom:20px;">
+          <!-- Carregado via API -->
+          <div style="text-align:center;padding:20px;">A carregar planos...</div>
+        </div>
+      </div>
+
+      <!-- Passo 2: Pagamento -->
+      <div id="buyStep2" class="buy-step" style="display:none;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:0.85rem;color:var(--muted);">Você selecionou o plano:</div>
+          <div id="selectedPlanName" style="font-size:1.2rem;font-weight:800;color:var(--accent);">—</div>
+          <div id="selectedPlanPrice" style="font-size:1.5rem;font-weight:800;margin-top:5px;">—</div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+          <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
+          <div id="walletsContainer" style="display:grid;gap:10px;">
+            <!-- Carregado via API -->
+          </div>
+        </div>
+
+        <p style="font-size:0.75rem;color:var(--muted);text-align:center;">Após realizar a transferência, clique no botão abaixo para inserir o comprovante (Hash).</p>
+      </div>
+
+      <!-- Passo 3: Inserir Hash -->
+      <div id="buyStep3" class="buy-step" style="display:none;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:0.85rem;color:var(--muted);">Quase lá!</div>
+          <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;">Insira o <b>ID da Transação (Hash/TxID)</b> para que possamos validar o seu pagamento mais rapidamente.</p>
+        </div>
+
+        <div class="form-group" style="margin-bottom:20px;">
+          <label class="form-label">Hash da Transação</label>
+          <input type="text" id="transactionHash" class="form-input" placeholder="Cole aqui o hash ou ID da operação">
+        </div>
+      </div>
+
+      <!-- Passo 4: Sucesso -->
+      <div id="buyStep4" class="buy-step" style="display:none;text-align:center;padding:20px;">
+        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
+        <h3 style="margin-bottom:10px;">Solicitação Enviada!</h3>
+        <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">
+          O administrador foi notificado. Assim que o pagamento for confirmado, seu acesso será liberado automaticamente.
+        </p>
+      </div>
+
+    </div>
+    <div class="modal-footer" id="buyModalFooter">
+      <button class="btn btn-secondary" id="buyBackBtn" onclick="buyBack()" style="display:none;">Voltar</button>
+      <button class="btn btn-primary" id="buyConfirmBtn" onclick="goToHashStep()" style="display:none;">Já Realizei o Pagamento</button>
+      <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
      MODAL — Conectar Corretora
      ═══════════════════════════════════════════ -->
 <div class="modal-overlay" id="connectModal">
@@ -829,18 +940,172 @@ async function remoteLog(msg, level = "INFO") {
 }
 
 // ─── AUTH CHECK (Auditado) ────────────────────────
-if (!localStorage.getItem("aura_token")) {
-  remoteLog("AUTH_FAIL: Token ausente no carregamento", "WARN");
-  // Bloqueado para diagnóstico: window.location.href = "/login.html";
-} else {
-  try {
-    const token = localStorage.getItem("aura_token");
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    document.getElementById("userEmail").textContent = payload.email || "Utilizador";
-    remoteLog(`AUTH_SUCCESS: Logado como ${payload.email}`);
-  } catch(e) {
-    remoteLog("AUTH_ERROR: Falha ao decodificar token: " + e.message, "ERROR");
+let currentUser = null;
+
+async function checkAuth() {
+  console.log("%c[AuraAuth] Iniciando verificação de segurança...", "color: cyan; font-weight: bold; font-size: 12px;");
+  const token = localStorage.getItem("aura_token");
+  if (!token) {
+    window.location.href = "/login.html";
+    return;
   }
+
+  // 1. Mostrar email IMEDIATAMENTE do token
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    const payload = JSON.parse(jsonPayload);
+    
+    if (payload.email) {
+      document.getElementById("userEmail").textContent = payload.email;
+      console.log("[AuraAuth] Email extraído do token:", payload.email);
+    }
+    
+    // Se o token já diz que é ADMIN, injeta logo o botão
+    if (payload.role === "ADMIN") injectAdminButton();
+  } catch(e) {
+    console.error("[AuraAuth] Falha na leitura rápida do token:", e);
+  }
+  
+  // 2. Sincronização em tempo real com o servidor para garantir
+  retrySync(3);
+}
+
+async function retrySync(attempts) {
+  console.log(`[AuraAuth] Sincronizando com o servidor... (Tentativas: ${attempts})`);
+  try {
+    const data = await apiFetch("/api/auth/me");
+    if (data.success && data.user) {
+      currentUser = data.user;
+      
+      // Atualiza email com dado oficial do servidor
+      document.getElementById("userEmail").textContent = currentUser.email;
+      console.log("[AuraAuth] Sessão sincronizada com o servidor para:", currentUser.email);
+      
+      if (currentUser.role === "ADMIN") {
+        injectAdminButton();
+      }
+      
+      userLicense = currentUser.license;
+      updateLicenseUI();
+    } else if (attempts > 0) {
+      setTimeout(() => retrySync(attempts - 1), 1000);
+    }
+  } catch(e) {
+    if (attempts > 0) setTimeout(() => retrySync(attempts - 1), 2000);
+  }
+}
+
+function injectAdminButton() {
+  const controls = document.querySelector(".controls");
+  if (!controls) {
+    console.warn("[AuraAuth] Container '.controls' não encontrado ainda. Retentando em 500ms...");
+    setTimeout(injectAdminButton, 500);
+    return;
+  }
+
+  if (document.getElementById("adminPanelBtn")) return;
+  
+  const adminBtn = document.createElement("button");
+  adminBtn.className = "btn btn-secondary";
+  adminBtn.id = "adminPanelBtn";
+  adminBtn.innerHTML = "🛡️ PAINEL ADMIN";
+  adminBtn.style.marginRight = "10px";
+  adminBtn.style.border = "2px solid #00d4ff";
+  adminBtn.style.boxShadow = "0 0 15px rgba(0,212,255,0.4)";
+  adminBtn.style.fontWeight = "bold";
+  adminBtn.onclick = () => window.location.href = "/admin_dashboard.html";
+  
+  controls.prepend(adminBtn);
+  console.log("%c[AuraAuth] BOTÃO INJETADO COM SUCESSO!", "color: yellow; font-weight: bold;");
+}
+
+if (document.readyState === 'complete') {
+  checkAuth();
+} else {
+  window.addEventListener('load', checkAuth);
+}
+
+let userLicense = null;
+
+// Removida checkLicenseStatus antiga, agora integrada no syncSession
+
+function updateLicenseUI() {
+  const header = document.getElementById("licenseLevel");
+  const count = document.getElementById("licenseCountdown");
+  const alertBar = document.getElementById("licenseAlert");
+  const daysLeftEl = document.getElementById("licenseDaysLeft");
+
+  if (!userLicense) {
+    header.textContent = "NENHUMA";
+    header.style.color = "var(--bear)";
+    count.textContent = "Expira em: —";
+    alertBar.classList.remove("visible");
+    return;
+  }
+
+  const expires = new Date(userLicense.expiresAt);
+  const now = new Date();
+  const diffTime = expires - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  header.textContent = userLicense.type;
+  header.style.color = "var(--accent)";
+
+  if (diffTime <= 0) {
+    count.textContent = "EXPIRADA";
+    count.style.color = "var(--bear)";
+    userLicense = null; // Mark as null so startBot fails
+  } else {
+    count.textContent = diffDays + " dias";
+    
+    if (diffDays <= 5) {
+      alertBar.classList.add("visible");
+      daysLeftEl.textContent = diffDays;
+    } else {
+      alertBar.classList.remove("visible");
+    }
+  }
+}
+
+function openModal(id) { document.getElementById(id).classList.add("active"); }
+function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+function openBuyModal() { openModal("buyModal"); loadPaymentMethods(); }
+
+let selectedPlan = null;
+function selectPlan(type, price) {
+    selectedPlan = { type, price };
+    document.getElementById("selectedPlanName").textContent = `${type} ($${price})`;
+    document.getElementById("paymentInstructions").style.display = "block";
+}
+
+async function loadPaymentMethods() {
+    const data = await apiFetch("/api/payment-methods");
+    const list = document.getElementById("adminWalletsList");
+    if (data.success && data.methods.length > 0) {
+        list.innerHTML = data.methods.map(m => `
+            <div style="margin-bottom:8px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+                <div style="font-size:0.75rem; color:var(--muted);">${m.name}</div>
+                <div style="font-size:0.82rem; font-family:'Space Mono'; color:var(--accent); word-break:break-all;">${m.details}</div>
+            </div>
+        `).join('');
+    } else {
+        list.innerHTML = `<p style="font-size:0.8rem; color:var(--bear);">Nenhum método de pagamento configurado pelo admin.</p>`;
+    }
+}
+
+async function submitPurchaseRequest() {
+    if (!selectedPlan) return;
+    const data = await apiFetch("/api/purchase/request", "POST", {
+        licenseType: selectedPlan.type,
+        paymentMethodId: "manual", // O admin já listou, apenas sinaliza
+        amount: selectedPlan.price
+    });
+    if (data.success) {
+        alert("Solicitação enviada! Aguarde a aprovação do administrador.");
+        closeModal("buyModal");
+    } else alert(data.error);
 }
 
 function logout() {
@@ -1593,6 +1858,19 @@ function updateSessionStatus() {
 // ─── BOT LOOP ─────────────────────────────────
 async function botLoop() {
   if (!isRunning) return;
+
+  // VERIFICAÇÃO DE EXPIRAÇÃO (Auto-Stop)
+  if (userLicense && userLicense.expiresAt) {
+    const expires = new Date(userLicense.expiresAt);
+    if (new Date() > expires) {
+      console.warn("[AuraBot] Licença expirada durante execução. Parando bot...");
+      stopBot();
+      window.alert("Sua licença expirou. O bot foi desligado automaticamente por segurança. Por favor, renove sua licença.");
+      openBuyModal();
+      return;
+    }
+  }
+
   updateSessionStatus();
 
   for (const pair of activePairs) {
@@ -1674,6 +1952,11 @@ function toggleBot() {
 }
 
 function startBot() {
+  if (!userLicense) {
+    addLog("❌ ACESSO NEGADO: Você precisa de uma licença ativa para iniciar o bot.", "bear");
+    openBuyModal();
+    return;
+  }
   if (!brokerConnected) {
     addLog("⚠️ Conecte uma corretora antes de iniciar o bot.", "warn");
     return;
@@ -1725,16 +2008,178 @@ function resetBot() {
   addLog("Bot reiniciado.");
 }
 
-// ─── CHECK EXISTING CONNECTION ON LOAD ────────
-async function checkBrokerConnection() {
-  try {
-    const status = await getBrokerStatus();
-    if (status.connected && status.accountInfo) {
-      brokerConnected = true;
-      brokerInfo = status.accountInfo;
-      updateBrokerUI();
+// ─── LICENSING UI LOGIC ───────────────────────
+function updateLicenseUI() {
+  const header = document.getElementById("licenseLevel");
+  const count = document.getElementById("licenseCountdown");
+  const alertBar = document.getElementById("licenseAlert");
+  const daysLeftEl = document.getElementById("licenseDaysLeft");
+  const startBtn = document.getElementById("mainBtn");
+  const buyBtn = document.getElementById("buyLicenseBtn");
+
+  if (userLicense && userLicense.status === "ACTIVE") {
+    const expires = new Date(userLicense.expiresAt);
+    const now = new Date();
+    const diff = expires - now;
+    const days = Math.floor(diff / (1000 * 3600 * 24));
+    const hours = Math.floor((diff % (1000 * 3600 * 24)) / (1000 * 3600));
+
+    header.textContent = userLicense.type || "PRO";
+    count.textContent = diff > 0 ? `${days}d ${hours}h restantes` : "Expirada";
+    // buyBtn.style.display = "none";  // COMENTADO: O usuário agora pode comprar mesmo tendo licença ativa
+    
+    if (diff > 0 && days <= 5) {
+      alertBar.classList.add("visible");
+      daysLeftEl.textContent = days;
+    } else {
+      alertBar.classList.remove("visible");
     }
-  } catch (e) {}
+
+    if (diff <= 0) {
+      header.textContent = "EXPIRADA";
+      startBtn.disabled = true;
+      buyBtn.style.display = "block";
+    }
+  } else {
+    header.textContent = "NENHUMA";
+    count.textContent = "Sem licença ativa";
+    alertBar.classList.remove("visible");
+    startBtn.disabled = true;
+    // buyBtn.style.display = "block"; // Já está sempre visível no HTML agora
+  }
+}
+
+function openBuyModal() {
+  document.getElementById("buyModal").classList.add("active");
+  loadPlans();
+}
+
+function closeBuyModal() {
+  document.getElementById("buyModal").classList.remove("active");
+  resetBuyModal();
+}
+
+function resetBuyModal() {
+  document.getElementById("buyStep1").style.display = "block";
+  document.getElementById("buyStep2").style.display = "none";
+  document.getElementById("buyStep3").style.display = "none";
+  document.getElementById("buyStep4").style.display = "none";
+  document.getElementById("buyBackBtn").style.display = "none";
+  document.getElementById("buyConfirmBtn").style.display = "none";
+  document.getElementById("buyFinishBtn").style.display = "none";
+  document.getElementById("buyModalFooter").style.display = "none";
+}
+
+async function loadPlans() {
+  const container = document.getElementById("plansContainer");
+  const data = await apiFetch("/api/plans");
+  if (data.success && data.plans) {
+    container.innerHTML = data.plans.map(p => `
+      <div class="broker-card" onclick="selectPlan('${p.id}', '${p.name}', ${p.price})">
+        <div class="broker-logo">💎</div>
+        <div class="broker-card-info">
+          <h4>${p.name}</h4>
+          <p>${p.durationDays} dias de acesso ilimitado</p>
+        </div>
+        <div style="font-weight:800;color:var(--accent);">$${p.price.toFixed(0)}</div>
+      </div>
+    `).join("");
+  } else {
+    container.innerHTML = `<p style="color:var(--bear)">Erro ao carregar planos.</p>`;
+  }
+}
+
+let selectedPlanId = null;
+let selectedAmount = 0;
+
+async function selectPlan(id, name, price) {
+  selectedPlanId = id;
+  selectedAmount = price;
+  document.getElementById("selectedPlanName").textContent = name;
+  document.getElementById("selectedPlanPrice").textContent = `$${price.toFixed(2)}`;
+  
+  // Show next step
+  document.getElementById("buyStep1").style.display = "none";
+  document.getElementById("buyStep2").style.display = "block";
+  document.getElementById("buyBackBtn").style.display = "block";
+  document.getElementById("buyConfirmBtn").style.display = "block";
+  document.getElementById("buyModalFooter").style.display = "flex";
+  
+  loadWallets();
+}
+
+async function loadWallets() {
+  const container = document.getElementById("walletsContainer");
+  const data = await apiFetch("/api/payment-methods");
+  if (data.success && data.methods) {
+    container.innerHTML = data.methods.map(m => `
+      <div style="background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">${m.name}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:0.75rem;word-break:break-all;margin-top:4px;color:var(--accent);">${m.details}</div>
+        </div>
+        <button class="copy-btn" onclick="copyToClipboard('${m.details}')">Copiar</button>
+      </div>
+    `).join("") || '<p>Contate o suporte para pagamento.</p>';
+  }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    // Basic toast-like feedback
+    const originalBtn = event.target;
+    const originalText = originalBtn.textContent;
+    originalBtn.textContent = 'Copiado!';
+    originalBtn.style.borderColor = 'var(--bull)';
+    originalBtn.style.color = 'var(--bull)';
+    setTimeout(() => {
+        originalBtn.textContent = originalText;
+        originalBtn.style.borderColor = '';
+        originalBtn.style.color = '';
+    }, 2000);
+  });
+}
+
+function goToHashStep() {
+  document.getElementById("buyStep2").style.display = "none";
+  document.getElementById("buyStep3").style.display = "block";
+  document.getElementById("buyConfirmBtn").style.display = "none";
+  document.getElementById("buyFinishBtn").style.display = "block";
+}
+
+async function finishPurchase() {
+  const hash = document.getElementById("transactionHash").value.trim();
+  if (!hash) {
+      alert("Por favor, insira o hash da transação para validar o pagamento.");
+      return;
+  }
+
+  const btn = document.getElementById("buyFinishBtn");
+  btn.disabled = true;
+  btn.textContent = "A carregar...";
+
+  const res = await apiFetch("/api/purchase/request", "POST", {
+    planId: selectedPlanId,
+    amount: selectedAmount,
+    transactionHash: hash
+  });
+  
+  btn.disabled = false;
+  btn.textContent = "Finalizar Solicitação";
+
+  if (res.success) {
+    document.getElementById("buyStep3").style.display = "none";
+    document.getElementById("buyStep4").style.display = "block";
+    document.getElementById("buyBackBtn").style.display = "none";
+    document.getElementById("buyFinishBtn").style.display = "none";
+  } else {
+    alert("Erro: " + res.error);
+  }
+}
+
+async function confirmPayment() {
+    // Redundant now, but kept for compatibility or updated to finish later
+    finishPurchase();
 }
 
 // ─── BOOT ─────────────────────────────────────
@@ -1743,6 +2188,7 @@ initBiases();
 updateStats();
 updateSessionStatus();
 checkBrokerConnection();
+checkAuth(); // Já faz o sync e updateLicenseUI
 </script>
 </body>
 </html>

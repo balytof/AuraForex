@@ -10,9 +10,64 @@ model User {
   id           String             @id @default(uuid())
   email        String             @unique
   passwordHash String
+  role         String             @default("USER") // "USER" ou "ADMIN"
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
   connections  BrokerConnection[]
+  licenses     License[]
+  requests     PurchaseRequest[]
+}
+
+model LicensePlan {
+  id           String   @id @default(uuid())
+  name         String   // "Mensal", "Anual", etc.
+  price        Float
+  durationDays Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  licenses License[]
+  requests PurchaseRequest[]
+}
+
+model License {
+  id        String   @id @default(uuid())
+  userId    String
+  planId    String?
+  type      String   // "PRO", "VIP" (kept for compatibility)
+  status    String   // "ACTIVE", "EXPIRED", "SUSPENDED"
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan LicensePlan? @relation(fields: [planId], references: [id])
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  name      String   // "USDT-TRC20", "PIX", "Bank"
+  details   String   // Endereço da carteira ou chave
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseRequest {
+  id              String   @id @default(uuid())
+  userId          String
+  planId          String?
+  licenseType     String?
+  paymentMethodId String?
+  transactionHash String?
+  amount          Float
+  status          String   @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan LicensePlan? @relation(fields: [planId], references: [id])
 }
 
 model BrokerConnection {

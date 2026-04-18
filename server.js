@@ -92,6 +92,36 @@ function requireAuth(req, res, next) {
   }
 }
 
+// Middleware garante que o usuário é ADMIN
+function requireAdmin(req, res, next) {
+  if (req.user && req.user.role === "ADMIN") {
+    next();
+  } else {
+    return res.status(403).json({ error: "Acesso negado. Apenas administradores." });
+  }
+}
+
+// Middleware garante que o usuário tem licença ativa
+async function requireActiveLicense(req, res, next) {
+  try {
+    const license = await prisma.license.findFirst({
+      where: {
+        userId: req.user.id,
+        status: "ACTIVE",
+        expiresAt: { gt: new Date() }
+      }
+    });
+
+    if (!license && req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Licença inválida ou expirada. Compre uma licença para continuar." });
+    }
+    req.license = license;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao verificar licença." });
+  }
+}
+
 // Middleware garante Corretora Conectada
 function requireBrokerAuth(req, res, next) {
   const activeBroker = userBrokers.get(req.user.id);
@@ -112,13 +142,21 @@ app.post("/api/auth/login", async (req, res) => {
 
   try {
     console.log(`[AUTH] Tentativa de login: ${email}`);
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: { licenses: { where: { status: "ACTIVE" }, orderBy: { expiresAt: 'desc' }, take: 1 } }
+    });
     if (!user) return res.status(401).json({ error: "Credenciais erradas." });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: "Credenciais erradas." });
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    const license = user.licenses[0] || null;
+    const token = jwt.sign({ 
+      id: user.id, 
+      email: user.email, 
+      role: user.role 
+    }, JWT_SECRET, { expiresIn: '7d' });
 
     // Auto-Connect Corretora Gravada
     let autoConnected = false;
@@ -146,7 +184,17 @@ app.post("/api/auth/login", async (req, res) => {
        } catch(e) { console.error("Erro Auto-Connect:", e.message); }
     }
 
-    res.json({ success: true, token, autoConnected, broker: bType });
+    res.json({ 
+      success: true, 
+      token, 
+      autoConnected, 
+      broker: bType,
+      user: {
+        email: user.email,
+        role: user.role,
+        license: license ? { type: license.type, expiresAt: license.expiresAt } : null
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erro interno no servidor." });
@@ -155,7 +203,26 @@ app.post("/api/auth/login", async (req, res) => {
 
 // Verifica se token do cache UI ainda está ativo
 app.get("/api/auth/me", requireAuth, async (req, res) => {
-  res.json({ success: true, user: req.user });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { licenses: { where: { status: "ACTIVE", expiresAt: { gt: new Date() } }, orderBy: { expiresAt: 'desc' }, take: 1 } }
+    });
+    
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+    
+    res.json({ 
+      success: true, 
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        license: user.licenses[0] || null
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar dados do usuário." });
+  }
 });
 
 // ── Broker Endpoints ──────────────────────────────────────────────
@@ -261,9 +328,255 @@ app.get("/api/broker/candles", requireAuth, requireBrokerAuth, async (req, res) 
   try { res.json({ candles: await req.broker.getCandles(pair, timeframe || "H1", parseInt(count) || 250) }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/broker/price", requireAuth, requireBrokerAuth, async (req, res) => {
+app.get("/api/broker/price", requireAuth, requireBrokerAuth, requireActiveLicense, async (req, res) => {
   const { pair } = req.query;
   try { res.json(await req.broker.getPrice(pair)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin Endpoints ──────────────────────────────────────────────
+
+app.get("/api/admin/stats", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const userCount = await prisma.user.count();
+    const activeLicenses = await prisma.license.count({ where: { status: "ACTIVE", expiresAt: { gt: new Date() } } });
+    const pendingRequests = await prisma.purchaseRequest.count({ where: { status: "PENDING" } });
+    
+    res.json({
+      success: true,
+      stats: {
+        totalUsers: userCount,
+        activeLicenses,
+        pendingRequests,
+        uptime: process.uptime()
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar stats." });
+  }
+});
+
+// Gestão de Planos
+app.get("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const plans = await prisma.licensePlan.findMany({ orderBy: { price: 'asc' } });
+    res.json({ success: true, plans });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar planos." });
+  }
+});
+
+app.post("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
+  const { name, price, durationDays } = req.body;
+  try {
+    const plan = await prisma.licensePlan.create({
+      data: { name, price: parseFloat(price), durationDays: parseInt(durationDays) }
+    });
+    res.json({ success: true, plan });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao criar plano." });
+  }
+});
+
+app.put("/api/admin/plans/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, price, durationDays, isActive } = req.body;
+  try {
+    const plan = await prisma.licensePlan.update({
+      where: { id },
+      data: { name, price, durationDays, isActive }
+    });
+    res.json({ success: true, plan });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar plano." });
+  }
+});
+
+app.delete("/api/admin/plans/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await prisma.licensePlan.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar plano. Verifique se existem licenças vinculadas." });
+  }
+});
+
+app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        licenses: { orderBy: { expiresAt: 'desc' }, take: 1, include: { plan: true } },
+        connections: { take: 1 }
+      }
+    });
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar usuários." });
+  }
+});
+
+app.get("/api/admin/requests", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requests = await prisma.purchaseRequest.findMany({
+      where: { status: "PENDING" },
+      include: { 
+        user: { select: { email: true } },
+        plan: true
+      }
+    });
+    res.json({ success: true, requests });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar solicitações." });
+  }
+});
+
+app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const purchaseRequest = await prisma.purchaseRequest.findUnique({ 
+      where: { id },
+      include: { plan: true }
+    });
+    if (!purchaseRequest) return res.status(404).json({ error: "Solicitação não encontrada." });
+
+    const days = purchaseRequest.plan ? purchaseRequest.plan.durationDays : 30;
+    
+    // Buscar licença anterior (pode estar ativa ou expirada)
+    const existingLicense = await prisma.license.findFirst({
+      where: { userId: purchaseRequest.userId, status: "ACTIVE" },
+      orderBy: { expiresAt: 'desc' }
+    });
+
+    let expiresAt = new Date();
+    if (existingLicense && existingLicense.expiresAt > new Date()) {
+      // SOMA ao tempo restante se ainda for válida
+      expiresAt = new Date(existingLicense.expiresAt);
+      expiresAt.setDate(expiresAt.getDate() + days);
+    } else {
+      // Começa de HOJE se não tiver ativa
+      expiresAt.setDate(expiresAt.getDate() + days);
+    }
+
+    // Desativar licenças anteriores ATIVAS (para criar uma nova consolidada ou apenas estender)
+    // Para simplificar e manter histórico, vamos expirar as anteriores e criar uma nova com a data somada
+    await prisma.license.updateMany({
+      where: { userId: purchaseRequest.userId, status: "ACTIVE" },
+      data: { status: "EXPIRED" }
+    });
+
+    // Criar nova licença
+    await prisma.license.create({
+      data: {
+        userId: purchaseRequest.userId,
+        planId: purchaseRequest.planId,
+        type: purchaseRequest.plan?.name || "PRO",
+        status: "ACTIVE",
+        expiresAt: expiresAt
+      }
+    });
+
+    // Atualizar status da solicitação
+    await prisma.purchaseRequest.update({
+      where: { id },
+      data: { status: "APPROVED" }
+    });
+
+    res.json({ success: true, message: "Pagamento aprovado e licença emitida." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao aprovar solicitação." });
+  }
+});
+
+app.patch("/api/admin/licenses/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { expiresAt, status } = req.body;
+
+  try {
+    const updated = await prisma.license.update({
+      where: { id },
+      data: { 
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        status: status || undefined
+      }
+    });
+    res.json({ success: true, license: updated });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar licença." });
+  }
+});
+
+app.post("/api/admin/payment-methods", requireAuth, requireAdmin, async (req, res) => {
+  const { name, details } = req.body;
+  try {
+    const pm = await prisma.paymentMethod.create({ data: { name, details } });
+    res.json({ success: true, paymentMethod: pm });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao criar método de pagamento." });
+  }
+});
+
+app.put("/api/admin/payment-methods/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, details, isActive } = req.body;
+  try {
+    const pm = await prisma.paymentMethod.update({
+      where: { id },
+      data: { name, details, isActive }
+    });
+    res.json({ success: true, paymentMethod: pm });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar método de pagamento." });
+  }
+});
+
+app.delete("/api/admin/payment-methods/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await prisma.paymentMethod.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar método de pagamento." });
+  }
+});
+
+// ── User Payment Endpoints ───────────────────────────────────────
+
+app.get("/api/plans", requireAuth, async (req, res) => {
+  try {
+    const plans = await prisma.licensePlan.findMany({ where: { isActive: true }, orderBy: { price: 'asc' } });
+    res.json({ success: true, plans });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar planos." });
+  }
+});
+
+app.get("/api/payment-methods", requireAuth, async (req, res) => {
+  try {
+    const methods = await prisma.paymentMethod.findMany({ where: { isActive: true } });
+    res.json({ success: true, methods });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar métodos de pagamento." });
+  }
+});
+
+app.post("/api/purchase/request", requireAuth, async (req, res) => {
+  const { planId, amount, transactionHash, paymentMethodId } = req.body;
+  try {
+    const request = await prisma.purchaseRequest.create({
+      data: {
+        userId: req.user.id,
+        planId,
+        paymentMethodId: paymentMethodId || "manual",
+        transactionHash: transactionHash || null,
+        amount: parseFloat(amount),
+        status: "PENDING"
+      }
+    });
+    res.json({ success: true, message: "Solicitação enviada. Aguarde a aprovação do admin.", request });
+  } catch (err) {
+    console.error("Erro ao criar PurchaseRequest:", err);
+    res.status(500).json({ error: "Erro ao enviar solicitação." });
+  }
 });
 
 // ── Static Files & Login Page ──────────────────────────────────────
