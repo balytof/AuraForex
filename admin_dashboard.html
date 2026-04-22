@@ -512,12 +512,29 @@
                     <td>${u.role}</td>
                     <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
-                    <td>
-                        —
+                    <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset PW</button>
+                        <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="deleteUser('${u.id}', '${u.email}')">🗑️ Eliminar</button>
                     </td>
                 </tr>
             `;
         }).join('');
+    }
+
+    function openResetPwModal(userId, email) {
+        const pw = prompt(`Definir nova password para:\n${email}\n\n(mín. 6 caracteres)`);
+        if (!pw) return;
+        if (pw.length < 6) { alert('A password deve ter pelo menos 6 caracteres.'); return; }
+        api(`/api/admin/users/${userId}/reset-password`, 'POST', { newPassword: pw })
+            .then(r => { if(r.success) alert('✅ Password redefinida com sucesso!'); else alert('❌ ' + r.error); })
+            .catch(() => alert('Erro de ligação.'));
+    }
+
+    async function deleteUser(userId, email) {
+        if (!confirm(`⚠️ Tem a certeza que deseja ELIMINAR a conta de:\n${email}\n\nEsta ação é IRREVERSíVEL!`)) return;
+        const r = await api(`/api/admin/users/${userId}`, 'DELETE');
+        if (r.success) { alert('✅ Conta eliminada.'); loadUsers(); }
+        else alert('❌ ' + r.error);
     }
 
     let currentRequestId = null;

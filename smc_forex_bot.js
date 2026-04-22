@@ -252,9 +252,19 @@ class SignalEngine {
         };
         const score = this.calcConfluence(factors);
         if (score >= 55) {
-          const sl = lastClose - lastAtr * this.config.atr.slMultiplier;
-          const tp = lastClose + lastAtr * this.config.atr.tpMultiplier;
-          return { pair, direction: "BUY", score, entry: lastClose, sl, tp, rr: ((tp - lastClose) / (lastClose - sl)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
+          let entryPrice = lastClose;
+          let orderType = "MARKET";
+          
+          const zone = nearBullOB[0] || nearBullFVG[0];
+          const idealEntry = zone.high || zone.top;
+          if (zone && lastClose > idealEntry + (lastAtr * 0.1)) {
+            entryPrice = idealEntry;
+            orderType = "LIMIT";
+          }
+
+          const sl = parseFloat((entryPrice - lastAtr * this.config.atr.slMultiplier).toFixed(5));
+          const tp = parseFloat((entryPrice + lastAtr * this.config.atr.tpMultiplier).toFixed(5));
+          return { pair, direction: "BUY", score, orderType, entry: entryPrice, sl, tp, rr: ((tp - entryPrice) / (entryPrice - sl)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
         }
       }
     }
@@ -272,9 +282,19 @@ class SignalEngine {
         };
         const score = this.calcConfluence(factors);
         if (score >= 55) {
-          const sl = lastClose + lastAtr * this.config.atr.slMultiplier;
-          const tp = lastClose - lastAtr * this.config.atr.tpMultiplier;
-          return { pair, direction: "SELL", score, entry: lastClose, sl, tp, rr: ((lastClose - tp) / (sl - lastClose)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
+          let entryPrice = lastClose;
+          let orderType = "MARKET";
+          
+          const zone = nearBearOB[0] || nearBearFVG[0];
+          const idealEntry = zone.low || zone.bottom;
+          if (zone && lastClose < idealEntry - (lastAtr * 0.1)) {
+            entryPrice = idealEntry;
+            orderType = "LIMIT";
+          }
+
+          const sl = parseFloat((entryPrice + lastAtr * this.config.atr.slMultiplier).toFixed(5));
+          const tp = parseFloat((entryPrice - lastAtr * this.config.atr.tpMultiplier).toFixed(5));
+          return { pair, direction: "SELL", score, orderType, entry: entryPrice, sl, tp, rr: ((entryPrice - tp) / (sl - entryPrice)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
         }
       }
     }
@@ -314,17 +334,22 @@ class RiskManager {
 
   updateTrailingStop(trade, currentPrice, atr) {
     const mult = 1.5;
+    let moved = false;
     if (trade.direction === "BUY") {
       const newSl = currentPrice - atr * mult;
-      if (newSl > trade.sl) { trade.sl = parseFloat(newSl.toFixed(5)); return true; }
+      if (newSl > trade.sl) { trade.sl = parseFloat(newSl.toFixed(5)); moved = true; }
     } else {
       const newSl = currentPrice + atr * mult;
-      if (newSl < trade.sl) { trade.sl = parseFloat(newSl.toFixed(5)); return true; }
+      if (newSl < trade.sl) { trade.sl = parseFloat(newSl.toFixed(5)); moved = true; }
     }
-    return false;
+    if (moved) this.saveState();
+    return moved;
   }
 
-  registerTrade(trade) { this.openTrades.push({ ...trade, id: `T${Date.now()}`, status: "OPEN" }); }
+  registerTrade(trade) { 
+    this.openTrades.push({ ...trade, id: `T${Date.now()}`, status: "OPEN" }); 
+    this.saveState();
+  }
 
   closeTrade(tradeId, closePrice) {
     const idx = this.openTrades.findIndex(t => t.id === tradeId);
@@ -335,7 +360,40 @@ class RiskManager {
     const pnl = pnlPips * 10 * (trade.lotSize || 0.1);
     this.dailyPnl += pnl;
     this.openTrades.splice(idx, 1);
+    this.saveState();
     return { ...trade, closePrice, pnl, status: "CLOSED", closedAt: new Date().toISOString() };
+  }
+
+  saveState() {
+    try {
+      if (typeof require !== 'undefined') {
+        const fs = require('fs');
+        const path = require('path');
+        const state = { openTrades: this.openTrades, dailyPnl: this.dailyPnl, dailyStartBalance: this.dailyStartBalance };
+        fs.writeFileSync(path.join(__dirname, 'bot_state.json'), JSON.stringify(state, null, 2));
+      }
+    } catch(e) {
+      console.error("Erro ao guardar estado do bot:", e.message);
+    }
+  }
+
+  loadState() {
+    try {
+      if (typeof require !== 'undefined') {
+        const fs = require('fs');
+        const path = require('path');
+        const p = path.join(__dirname, 'bot_state.json');
+        if (fs.existsSync(p)) {
+          const state = JSON.parse(fs.readFileSync(p, 'utf8'));
+          this.openTrades = state.openTrades || [];
+          this.dailyPnl = state.dailyPnl || 0;
+          this.dailyStartBalance = state.dailyStartBalance || 0;
+          console.log(`[RiskManager] Estado recuperado: ${this.openTrades.length} trades abertos.`);
+        }
+      }
+    } catch(e) {
+      console.error("Erro ao carregar estado do bot:", e.message);
+    }
   }
 }
 
@@ -364,6 +422,7 @@ class SMCForexBot {
   init(accountBalance) {
     this.balance = accountBalance;
     this.risk.setBalance(accountBalance);
+    this.risk.loadState();
     this.log(`Bot SMC iniciado | Saldo: $${accountBalance} | Pares: ${this.config.pairs.join(", ")}`);
   }
 

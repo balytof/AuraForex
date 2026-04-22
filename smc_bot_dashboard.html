@@ -54,7 +54,8 @@
     border-radius: 16px;
     margin-bottom: 24px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
+    row-gap: 12px;
   }
 
   .logo { display:flex; align-items:center; gap:14px; }
@@ -130,7 +131,17 @@
   .account-type-badge.live { background:rgba(255,68,68,0.2); color:var(--bear); }
 
   /* Controls */
-  .controls { display:flex; gap:10px; align-items:center; }
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls .btn {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 8px 14px;
+  }
   .btn {
     padding: 9px 20px; border-radius: 10px; border: none;
     cursor: pointer; font-family:'Syne',sans-serif;
@@ -377,10 +388,10 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius:20px;
-    width:480px;
-    max-width:95vw;
-    max-height:90vh;
-    overflow-y:auto;
+    width: 700px;
+    max-width: 96vw;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 40px rgba(124,58,237,0.15);
     animation: slideUp 0.3s ease;
   }
@@ -445,9 +456,12 @@
   .cat-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.1); }
 
   .broker-grid {
-    display:grid; grid-template-columns:1fr 1fr;
-    gap:8px; max-height:340px; overflow-y:auto;
-    padding-right:4px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
   }
   .broker-grid::-webkit-scrollbar { width:4px; }
   .broker-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
@@ -481,14 +495,14 @@
   }
   .broker-card-info { flex:1; min-width:0; }
   .broker-card-info h4 {
-    font-size:0.95rem; font-weight:700;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    margin-bottom:2px;
+    font-size: 0.9rem; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 2px;
   }
   .broker-card-info p {
-    font-size:0.75rem; color:var(--muted);
-    font-family:'Syne',sans-serif;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size: 0.72rem; color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .platform-badge {
     padding:1px 6px; border-radius:4px;
@@ -499,6 +513,35 @@
   .platform-badge.mt { background:rgba(102,126,234,0.15); color:#667eea; }
   .platform-badge.api { background:rgba(0,212,255,0.12); color:var(--accent); }
   .platform-badge.ct { background:rgba(124,58,237,0.15); color:#a78bfa; }
+
+  /* Custom Broker */
+  .custom-broker-btn {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 13px 18px;
+    background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(0,212,255,0.06));
+    border: 1px dashed rgba(124,58,237,0.45);
+    border-radius: 12px; color: #a78bfa;
+    font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    transition: all 0.2s; font-family: 'Syne', sans-serif;
+    box-sizing: border-box; text-align: left;
+  }
+  .custom-broker-btn:hover {
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(0,212,255,0.1));
+    border-color: #a78bfa; box-shadow: 0 0 20px rgba(124,58,237,0.25);
+    transform: translateY(-1px);
+  }
+  .adapter-selector {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;
+  }
+  .adapter-btn {
+    padding: 10px 12px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+    font-size: 0.75rem; font-weight: 600; text-align: center;
+    font-family: 'Space Mono', monospace;
+  }
+  .adapter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .adapter-btn.selected { border-color: #a78bfa; color: #a78bfa; background: rgba(124,58,237,0.12); }
 
   .no-results {
     grid-column:1/3; text-align:center; padding:30px;
@@ -630,8 +673,42 @@
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
       <button class="btn btn-danger" id="buyLicenseBtn" style="background:var(--warn);color:#000;margin-left:10px;" onclick="openBuyModal()">💎 Comprar Licença</button>
       <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
+      <button class="btn btn-secondary" style="margin-left: 6px; border-color: var(--accent2);" onclick="openChangePwModal()">🔑 Password</button>
     </div>
   </header>
+
+  <!-- MODAL: CHANGE PASSWORD -->
+  <div id="changePwModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:400px; margin:20px;">
+      <h3 style="margin-bottom:20px; font-size:1rem;">🔑 Alterar Password</h3>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Password Atual</label>
+        <div style="position:relative;">
+          <input type="password" id="cpCurrentPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpCurrentPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Nova Password (mín. 6 caracteres)</label>
+        <div style="position:relative;">
+          <input type="password" id="cpNewPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpNewPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Confirmar Nova Password</label>
+        <div style="position:relative;">
+          <input type="password" id="cpConfirmPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpConfirmPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div id="cpMsg" style="display:none; margin-bottom:12px; font-size:0.8rem; padding:8px 12px; border-radius:6px;"></div>
+      <div style="display:flex; gap:10px;">
+        <button onclick="doChangePassword()" style="flex:1; background:var(--accent2); color:#fff; border:none; border-radius:8px; padding:11px; font-weight:bold; cursor:pointer; font-size:0.85rem;">Confirmar</button>
+        <button onclick="closeChangePwModal()" style="flex:1; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:11px; cursor:pointer; font-size:0.85rem;">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- STATS -->
   <div class="stats-grid">
@@ -892,7 +969,17 @@
         <div class="broker-grid" id="brokerGrid">
           <!-- Populated by JS -->
         </div>
-        <div style="margin-top:20px; display:flex; align-items:center; gap:10px; padding:0 10px;">
+        <div style="margin-top:12px;">
+          <button class="custom-broker-btn" onclick="selectCustomBroker()">
+            <span style="font-size:1.3rem;">⚙️</span>
+            <div style="text-align:left;">
+              <div>Configurar Corretora Personalizada</div>
+              <div style="font-size:0.7rem; font-weight:400; color:var(--muted); font-family:'Space Mono',monospace;">Qualquer broker MT4/MT5, API OANDA, Capital.com ou REST personalizado</div>
+            </div>
+            <span style="margin-left:auto; font-size:1.1rem;">→</span>
+          </button>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:center; gap:10px; padding:0 4px;">
           <input type="checkbox" id="rememberCredentials" checked style="width:16px;height:16px;cursor:pointer;">
           <label for="rememberCredentials" style="font-size:0.82rem;color:var(--muted);cursor:pointer;">Lembrar credenciais (Salvar na Nuvem)</label>
         </div>
@@ -1130,6 +1217,68 @@ function logout() {
   localStorage.removeItem("aura_token");
   localStorage.removeItem("aura_startup_broker");
   window.location.href = "/login.html";
+}
+
+function dashTogglePass(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁️';
+}
+
+function openChangePwModal() {
+  document.getElementById('cpCurrentPw').value = '';
+  document.getElementById('cpNewPw').value = '';
+  document.getElementById('cpConfirmPw').value = '';
+  const msg = document.getElementById('cpMsg');
+  msg.style.display = 'none';
+  document.getElementById('changePwModal').style.display = 'flex';
+}
+
+function closeChangePwModal() {
+  document.getElementById('changePwModal').style.display = 'none';
+}
+
+async function doChangePassword() {
+  const currentPassword = document.getElementById('cpCurrentPw').value;
+  const newPassword = document.getElementById('cpNewPw').value;
+  const confirmPassword = document.getElementById('cpConfirmPw').value;
+  const msg = document.getElementById('cpMsg');
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'Preencha todos os campos.';
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'As novas passwords não coincidem.';
+    return;
+  }
+  if (newPassword.length < 6) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'A nova password deve ter pelo menos 6 caracteres.';
+    return;
+  }
+
+  const data = await apiFetch('/api/user/change-password', 'POST', { currentPassword, newPassword });
+  msg.style.display = 'block';
+  if (data.success) {
+    msg.style.background = 'rgba(0,230,118,0.1)';
+    msg.style.color = 'var(--bull)';
+    msg.textContent = '✅ Password alterada com sucesso!';
+    setTimeout(closeChangePwModal, 1500);
+  } else {
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = '❌ ' + (data.error || 'Erro desconhecido.');
+  }
 }
 
 // ─── ESTADO ───────────────────────────────────
@@ -1479,6 +1628,29 @@ function selectBrokerCard(id) {
   document.getElementById("modalNextBtn").textContent = `Continuar com ${entry.name} →`;
 }
 
+function selectCustomBroker() {
+  // Set a special "custom" broker entry
+  selectedBrokerEntry = {
+    id: "custom",
+    name: "Corretora Personalizada",
+    adapter: "metaapi", // default, changeable in form
+    platform: "MT4/MT5",
+    cat: "custom",
+    icon: "⚙️",
+    region: "🌐",
+    desc: "Configuração personalizada",
+    isCustom: true
+  };
+  selectedBrokerType = "metaapi";
+  // Go directly to credentials step
+  showModalStep(2);
+  buildCredForm();
+  document.getElementById("modalBackBtn").style.display = "block";
+  document.getElementById("modalNextBtn").textContent = "🔗 Conectar →";
+  document.getElementById("modalNextBtn").disabled = false;
+  document.getElementById("modalFooter").style.display = "flex";
+}
+
 function openConnectModal() {
   document.getElementById("connectModal").classList.add("active");
   selectedBrokerType = null;
@@ -1531,7 +1703,30 @@ function buildCredForm() {
   const b = selectedBrokerEntry;
   let html = '';
 
-  // Broker header
+  // ── Custom Broker: adapter selector + name ──────────────────
+  if (b.isCustom) {
+    title.textContent = "⚙️ Configurar Corretora Personalizada";
+    html += `
+      <div class="form-group">
+        <label class="form-label">Nome da Corretora</label>
+        <input type="text" class="form-input" id="customBrokerName" placeholder="Ex: MyFXBroker, TradeStation..." oninput="selectedBrokerEntry.name = this.value || 'Personalizada'">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Ligação</label>
+        <div class="adapter-selector" id="adapterSelector">
+          <div class="adapter-btn selected" onclick="setCustomAdapter('metaapi', this)">📈 MetaAPI<br><span style="font-weight:400;font-size:0.65rem;">MT4 / MT5</span></div>
+          <div class="adapter-btn" onclick="setCustomAdapter('oanda', this)">📊 OANDA<br><span style="font-weight:400;font-size:0.65rem;">API v20 REST</span></div>
+          <div class="adapter-btn" onclick="setCustomAdapter('capital', this)">💹 Capital.com<br><span style="font-weight:400;font-size:0.65rem;">REST API</span></div>
+        </div>
+      </div>
+      <div id="customAdapterFields"></div>
+    `;
+    form.innerHTML = html;
+    renderCustomAdapterFields('metaapi');
+    return;
+  }
+
+  // ── Standard Broker ──────────────────────────────────────────
   html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;margin-bottom:6px;">
     <span style="font-size:1.4rem;">${b.icon}</span>
     <div>
@@ -1605,6 +1800,79 @@ function buildCredForm() {
   }
 
   form.innerHTML = html;
+}
+
+function setCustomAdapter(type, btn) {
+  selectedBrokerType = type;
+  selectedBrokerEntry.adapter = type;
+  document.querySelectorAll(".adapter-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  renderCustomAdapterFields(type);
+}
+
+function renderCustomAdapterFields(type) {
+  const el = document.getElementById("customAdapterFields");
+  if (!el) return;
+  let html = '';
+
+  // Environment toggle for all custom types
+  html += `
+    <div class="form-group">
+      <label class="form-label">Ambiente</label>
+      <div class="env-toggle">
+        <div class="env-btn demo active" id="envDemo" onclick="setEnv('demo')">🟢 Demo</div>
+        <div class="env-btn live" id="envLive" onclick="setEnv('live')">🔴 Live</div>
+      </div>
+      <div class="live-warning" id="liveWarning">⚠️ ATENÇÃO: Modo LIVE usa dinheiro real.</div>
+    </div>
+  `;
+
+  if (type === "metaapi") {
+    html += `
+      <div style="padding:10px 14px;border-radius:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);font-size:0.72rem;color:var(--accent);font-family:'Space Mono',monospace;margin-bottom:8px;">
+        ℹ️ Registe a conta MT4/MT5 no <a href="https://app.metaapi.cloud" target="_blank" style="color:var(--accent);font-weight:700;">MetaApi Cloud</a> (gratuito) e copie o token e o ID.
+      </div>
+      <div class="form-group">
+        <label class="form-label">MetaApi Access Token</label>
+        <input type="password" class="form-input" id="credMetaToken" placeholder="Token de acesso MetaApi Cloud">
+        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Settings → API Access Token</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Account ID (MetaApi)</label>
+        <input type="text" class="form-input" id="credMtAccountId" placeholder="ID da conta no MetaApi">
+        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Accounts → copiar ID</span>
+      </div>
+    `;
+  } else if (type === "oanda") {
+    html += `
+      <div class="form-group">
+        <label class="form-label">API Token (OANDA)</label>
+        <input type="password" class="form-input" id="credToken" placeholder="Token de acesso pessoal OANDA">
+        <span style="font-size:0.65rem;color:var(--muted);">HUB → Tools → API → Generate</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Account ID</label>
+        <input type="text" class="form-input" id="credAccountId" placeholder="xxx-xxx-xxxxxxx-xxx">
+      </div>
+    `;
+  } else if (type === "capital") {
+    html += `
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input type="password" class="form-input" id="credApiKey" placeholder="Chave API Capital.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email de Login</label>
+        <input type="email" class="form-input" id="credEmail" placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="credPassword" placeholder="Password da conta Capital.com">
+      </div>
+    `;
+  }
+
+  el.innerHTML = html;
 }
 
 let selectedEnv = "demo";

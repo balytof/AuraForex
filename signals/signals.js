@@ -92,16 +92,26 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     log.debug(`${pair} BUY score: ${score}`, factors);
 
     if (score >= cfg.risk.minConfluence) {
-      const sl = parseFloat((last.close - last.atr * atrCfg.slMultiplier).toFixed(5));
-      const tp = parseFloat((last.close + last.atr * atrCfg.tpMultiplier).toFixed(5));
-      const rr = ((tp - last.close) / (last.close - sl));
+      let entryPrice = last.close;
+      let orderType = "MARKET";
+      
+      const zone = smc.nearBullOB[0] || smc.nearBullFVG[0];
+      const idealEntry = zone ? (zone.high || zone.top) : null;
+      if (idealEntry && last.close > idealEntry + (last.atr * 0.1)) {
+        entryPrice = idealEntry;
+        orderType = "LIMIT";
+      }
+
+      const sl = parseFloat((entryPrice - last.atr * atrCfg.slMultiplier).toFixed(5));
+      const tp = parseFloat((entryPrice + last.atr * atrCfg.tpMultiplier).toFixed(5));
+      const rr = ((tp - entryPrice) / (entryPrice - sl));
 
       if (rr < cfg.risk.minRR) {
         log.debug(`${pair} BUY descartado — R:R ${rr.toFixed(2)} < ${cfg.risk.minRR}`);
       } else {
         return {
-          pair, direction: "BUY", score,
-          entry:    last.close,
+          pair, direction: "BUY", score, orderType,
+          entry:    entryPrice,
           sl, tp,
           rr:       parseFloat(rr.toFixed(2)),
           atr:      last.atr,
@@ -138,16 +148,26 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     log.debug(`${pair} SELL score: ${score}`, factors);
 
     if (score >= cfg.risk.minConfluence) {
-      const sl = parseFloat((last.close + last.atr * atrCfg.slMultiplier).toFixed(5));
-      const tp = parseFloat((last.close - last.atr * atrCfg.tpMultiplier).toFixed(5));
-      const rr = ((last.close - tp) / (sl - last.close));
+      let entryPrice = last.close;
+      let orderType = "MARKET";
+      
+      const zone = smc.nearBearOB[0] || smc.nearBearFVG[0];
+      const idealEntry = zone ? (zone.low || zone.bottom) : null;
+      if (idealEntry && last.close < idealEntry - (last.atr * 0.1)) {
+        entryPrice = idealEntry;
+        orderType = "LIMIT";
+      }
+
+      const sl = parseFloat((entryPrice + last.atr * atrCfg.slMultiplier).toFixed(5));
+      const tp = parseFloat((entryPrice - last.atr * atrCfg.tpMultiplier).toFixed(5));
+      const rr = ((entryPrice - tp) / (sl - entryPrice));
 
       if (rr < cfg.risk.minRR) {
         log.debug(`${pair} SELL descartado — R:R ${rr.toFixed(2)} < ${cfg.risk.minRR}`);
       } else {
         return {
-          pair, direction: "SELL", score,
-          entry:    last.close,
+          pair, direction: "SELL", score, orderType,
+          entry:    entryPrice,
           sl, tp,
           rr:       parseFloat(rr.toFixed(2)),
           atr:      last.atr,

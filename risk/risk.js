@@ -26,7 +26,9 @@ class RiskManager {
     this.dailyDate         = null;
     this.circuitBreaker    = false;  // true = bot parado por perda diária
     this.historyFile       = path.join(__dirname, "../logs/trade_history.json");
+    this.stateFile         = path.join(__dirname, "../logs/bot_state.json");
     this._loadHistory();
+    this._loadState();
   }
 
   // ── INICIALIZAÇÃO ─────────────────────────────────────
@@ -107,6 +109,7 @@ class RiskManager {
     };
     this.openTrades.push(trade);
     log.info(`Trade registado: ${trade.id} | ${trade.direction} ${trade.pair} | ${lotSize} lotes`);
+    this._saveState();
     return trade;
   }
 
@@ -141,6 +144,7 @@ class RiskManager {
 
     log.trade(closed);
     this._saveHistory();
+    this._saveState();
     return closed;
   }
 
@@ -169,6 +173,7 @@ class RiskManager {
 
     if (moved) {
       log.debug(`Trailing SL atualizado | ${trade.pair} ${trade.direction} | Novo SL: ${trade.sl}`);
+      this._saveState();
     }
     return moved;
   }
@@ -223,6 +228,9 @@ class RiskManager {
   // ── PERSISTÊNCIA ─────────────────────────────────────
   _saveHistory() {
     try {
+      if (!fs.existsSync(path.dirname(this.historyFile))) {
+        fs.mkdirSync(path.dirname(this.historyFile), { recursive: true });
+      }
       fs.writeFileSync(this.historyFile, JSON.stringify(this.tradeHistory, null, 2));
     } catch (e) { /* ignora erro de escrita */ }
   }
@@ -234,6 +242,34 @@ class RiskManager {
         log.info(`Histórico carregado: ${this.tradeHistory.length} trades`);
       }
     } catch (e) { this.tradeHistory = []; }
+  }
+
+  _saveState() {
+    try {
+      if (!fs.existsSync(path.dirname(this.stateFile))) {
+        fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+      }
+      const state = {
+        openTrades: this.openTrades,
+        dailyPnl: this.dailyPnl,
+        dailyStartBalance: this.dailyStartBalance,
+        balance: this.balance
+      };
+      fs.writeFileSync(this.stateFile, JSON.stringify(state, null, 2));
+    } catch (e) { /* ignora erro de escrita */ }
+  }
+
+  _loadState() {
+    try {
+      if (fs.existsSync(this.stateFile)) {
+        const state = JSON.parse(fs.readFileSync(this.stateFile, "utf8"));
+        this.openTrades = state.openTrades || [];
+        this.dailyPnl = state.dailyPnl || 0;
+        this.dailyStartBalance = state.dailyStartBalance || 0;
+        this.balance = state.balance || this.balance;
+        log.info(`Estado carregado: ${this.openTrades.length} trades abertos`);
+      }
+    } catch (e) { this.openTrades = []; }
   }
 }
 

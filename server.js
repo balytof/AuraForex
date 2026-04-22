@@ -6,6 +6,7 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 require("dotenv").config();
 
 const { PrismaClient } = require("@prisma/client");
@@ -23,7 +24,7 @@ const CapitalAdapter = require("./broker-adapters/capital");
 const MetaApiAdapter = require("./broker-adapters/metaapi");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
@@ -155,7 +156,8 @@ app.post("/api/auth/register", async (req, res) => {
       data: {
         email,
         passwordHash,
-        sponsorId
+        sponsorId,
+        referralCode: crypto.randomBytes(4).toString('hex').toUpperCase() // 8 chars ex: A3F8C2D1
       }
     });
 
@@ -741,7 +743,84 @@ app.get("/api/affiliate/withdrawals", requireAuth, async (req, res) => {
   }
 });
 
+// ── User Account Management ──────────────────────────────────────
+
+app.post("/api/user/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: "Dados inválidos. A nova password deve ter pelo menos 6 caracteres." });
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: "Password atual incorreta." });
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: newHash } });
+    res.json({ success: true, message: "Password alterada com sucesso." });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ error: "Erro interno." });
+  }
+});
+
+// ── Admin User Management ─────────────────────────────────────────
+
+app.delete("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user.id) {
+      return res.status(400).json({ error: "Não pode eliminar a sua própria conta." });
+    }
+
+    // Verifica se o utilizador existe
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: "Utilizador não encontrado." });
+
+    // Apaga registos dependentes em cascata (ordem importa)
+    await prisma.bonusTransaction.deleteMany({ where: { OR: [{ receiverId: id }, { sourceUserId: id }] } });
+    await prisma.withdrawalRequest.deleteMany({ where: { userId: id } });
+    await prisma.purchaseRequest.deleteMany({ where: { userId: id } });
+    await prisma.license.deleteMany({ where: { userId: id } });
+    await prisma.brokerConnection.deleteMany({ where: { userId: id } });
+
+    // Remove o sponsorId dos utilizadores que foram indicados por esta conta
+    await prisma.user.updateMany({ where: { sponsorId: id }, data: { sponsorId: null } });
+
+    // Finalmente, apaga o utilizador
+    await prisma.user.delete({ where: { id } });
+
+    res.json({ success: true, message: `Conta de ${target.email} eliminada com sucesso.` });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ error: "Erro ao eliminar conta: " + err.message });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-password", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "A nova password deve ter pelo menos 6 caracteres." });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: "Utilizador não encontrado." });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id }, data: { passwordHash: hash } });
+
+    res.json({ success: true, message: `Password de ${target.email} redefinida com sucesso.` });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Erro ao redefinir password: " + err.message });
+  }
+});
+
 // ── Admin Affiliate Endpoints ────────────────────────────────────
+
 
 app.get("/api/admin/finance", requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -836,7 +915,12 @@ if (!isProd) {
 
 app.use((req, res) => {
   let urlPath = req.path;
-  
+
+  // Rotas /api/ não encontradas devem retornar JSON, nunca HTML
+  if (urlPath.startsWith("/api/")) {
+    return res.status(404).json({ error: `Rota não encontrada: ${req.method} ${urlPath}` });
+  }
+
   if (urlPath === "/" || urlPath === "" || urlPath === "/login") {
     urlPath = "/login.html";
   } else if (urlPath === "/dashboard") {
@@ -846,7 +930,7 @@ app.use((req, res) => {
   }
 
   const filePath = path.join(ROOT, urlPath);
-  
+
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
     return res.status(404).send("Arquivo não encontrado.");

@@ -45,13 +45,13 @@
         .wrapper { position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:24px; }
 
         header {
-            display:flex; align-items:center; justify-content:space-between;
+            display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
             padding: 20px 28px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 16px;
             margin-bottom: 24px;
-            gap: 12px;
+            gap: 14px;
         }
 
         .logo { display:flex; align-items:center; gap:14px; }
@@ -109,9 +109,34 @@
             background: var(--surface2); border: 1px solid var(--border);
             border-radius: 10px; padding: 10px 14px; color: var(--text); outline: none;
             font-family: 'Space Mono', monospace; font-size: 0.82rem;
-            width: 100%;
+            width: 100%; box-sizing: border-box;
         }
         .form-input:focus { border-color: var(--accent); }
+        .ref-link-box {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface2); padding: 8px 14px;
+            border-radius: 12px; border: 1px solid var(--border);
+            flex: 1; min-width: 260px; max-width: 560px;
+        }
+        .ref-link-box .ref-label {
+            font-size: 0.65rem; color: var(--muted);
+            white-space: nowrap; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .ref-link-box input {
+            flex: 1; min-width: 0; width: auto;
+            background: transparent; border: none;
+            color: var(--accent); font-family: 'Space Mono', monospace;
+            font-size: 0.72rem; outline: none; cursor: text;
+        }
+        .ref-code-badge {
+            background: linear-gradient(135deg, var(--accent2), #4f1dc8);
+            color: #fff; font-family: 'Space Mono', monospace;
+            font-size: 0.8rem; font-weight: bold;
+            padding: 5px 12px; border-radius: 8px;
+            letter-spacing: 2px; white-space: nowrap;
+            box-shadow: 0 0 12px rgba(124,58,237,0.5);
+        }
     </style>
 </head>
 <body>
@@ -124,10 +149,11 @@
                 <p>O seu Programa de Ganhos</p>
             </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px; background:var(--surface2); padding:10px 16px; border-radius:12px; border:1px solid var(--border); flex:1; max-width: 500px;">
-            <span style="font-size:0.8rem; color:var(--muted); white-space:nowrap; font-weight:bold;">Link de afiliação</span>
-            <input type="text" id="refLinkInput" readonly class="form-input" style="flex:1; padding:6px 10px; font-size:0.75rem;">
-            <button class="btn" style="background:var(--accent); color:#000; border:none; padding:6px 12px; font-weight:bold;" onclick="copyRefLink()">Copiar</button>
+        <div class="ref-link-box">
+            <span class="ref-label">Link de afiliação:</span>
+            <input type="text" id="refLinkInput" readonly placeholder="A carregar...">
+            <span class="ref-code-badge" id="refCodeBadge" title="O seu código de referência">——</span>
+            <button class="btn" style="background:var(--accent2); color:#fff; border:none; padding:6px 12px; font-weight:bold; white-space:nowrap; font-size:0.75rem;" onclick="copyRefLink()">Copiar</button>
         </div>
         <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Dashboard</button>
     </header>
@@ -212,35 +238,54 @@
     async function loadAffiliateStats() {
         try {
             const res = await fetch("/api/affiliate/stats", { headers: {"Authorization": "Bearer "+token} });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error("Affiliate stats error:", res.status, errText);
+                document.getElementById("refLinkInput").value = "Erro ao carregar (" + res.status + ")";
+                return;
+            }
+            
             const data = await res.json();
+            console.log("Affiliate data:", data);
+            
             if(data.success) {
                 const s = data.stats;
-                const refUrl = window.location.origin + "/login?ref=" + s.referralCode;
-                document.getElementById("refLinkInput").value = refUrl;
-                document.getElementById("affTotalEarned").textContent = "$" + s.totalBonusEarned.toFixed(2);
-                document.getElementById("affAvailable").textContent = "$" + s.availableBonus.toFixed(2);
-                document.getElementById("withdrawMax").textContent = "$" + s.availableBonus.toFixed(2);
-                document.getElementById("affWithdrawn").textContent = "$" + s.totalBonusWithdrawn.toFixed(2);
+                const code = s.referralCode;
+                if (code) {
+                    const refUrl = window.location.origin + "/login?ref=" + code;
+                    document.getElementById("refLinkInput").value = refUrl;
+                    document.getElementById("refCodeBadge").textContent = code;
+                } else {
+                    document.getElementById("refLinkInput").value = "Código a gerar...";
+                    document.getElementById("refCodeBadge").textContent = "N/A";
+                }
+                document.getElementById("affTotalEarned").textContent = "$" + (s.totalBonusEarned || 0).toFixed(2);
+                document.getElementById("affAvailable").textContent = "$" + (s.availableBonus || 0).toFixed(2);
+                document.getElementById("withdrawMax").textContent = "$" + (s.availableBonus || 0).toFixed(2);
+                document.getElementById("affWithdrawn").textContent = "$" + (s.totalBonusWithdrawn || 0).toFixed(2);
                 
                 const tbody = document.getElementById("affTeamTable");
-                if(s.referrals.length === 0) {
+                if(!s.referrals || s.referrals.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Você ainda não tem nenhum afiliado. Convide amigos usando seu link!</td></tr>';
                 } else {
                     tbody.innerHTML = s.referrals.map(r => `
                         <tr>
                             <td>${r.email}</td>
                             <td>${new Date(r.createdAt).toLocaleDateString()}</td>
-                            <td>${r._count.referrals}</td>
+                            <td>${r._count ? r._count.referrals : 0}</td>
                         </tr>
                     `).join("");
                 }
+            } else {
+                document.getElementById("refLinkInput").value = "Erro: " + (data.error || "Desconhecido");
             }
             
             const wRes = await fetch("/api/affiliate/withdrawals", { headers: {"Authorization": "Bearer "+token} });
             const wData = await wRes.json();
             if(wData.success) {
                 const wtbody = document.getElementById("affWithdrawalsTable");
-                if(wData.withdrawals.length === 0) {
+                if(!wData.withdrawals || wData.withdrawals.length === 0) {
                     wtbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Nenhum pedido de saque.</td></tr>';
                 } else {
                     wtbody.innerHTML = wData.withdrawals.map(w => {
@@ -258,7 +303,10 @@
                     }).join("");
                 }
             }
-        } catch(e) { console.error("Error loading affiliates", e); }
+        } catch(e) {
+            console.error("Error loading affiliates", e);
+            document.getElementById("refLinkInput").value = "Erro de ligação: " + e.message;
+        }
     }
 
     async function requestWithdraw() {
