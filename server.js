@@ -841,12 +841,14 @@ app.use((req, res) => {
     urlPath = "/login.html";
   } else if (urlPath === "/dashboard") {
     urlPath = "/smc_bot_dashboard.html";
+  } else if (urlPath === "/affiliate") {
+    urlPath = "/affiliate_dashboard.html";
   }
 
   const filePath = path.join(ROOT, urlPath);
   
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html") return res.status(404).send("Not Found");
+    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
     return res.status(404).send("Arquivo não encontrado.");
   }
 

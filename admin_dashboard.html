@@ -172,6 +172,7 @@
             <button class="tab-btn" onclick="showPanel('requests')">Solicitações</button>
             <button class="tab-btn" onclick="showPanel('plans')">Planos</button>
             <button class="tab-btn" onclick="showPanel('users')">Usuários</button>
+            <button class="tab-btn" onclick="showPanel('finance')">Financeiro</button>
             <button class="tab-btn" onclick="showPanel('settings')">Configurações</button>
         </div>
         <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Bot</button>
@@ -266,6 +267,48 @@
                     <!-- Dynamic -->
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- PANEL: FINANCE -->
+    <div id="panel-finance" class="panel">
+        <div class="panel-header">
+            <h3>Saques & Gestão Financeira</h3>
+            <button class="btn" onclick="loadFinance()">Atualizar</button>
+        </div>
+        <div style="padding: 20px;">
+            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Total Receitas</div>
+                    <div class="stat-value" id="finRevenue" style="color:var(--bull);">...</div>
+                </div>
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Total Pago (Bónus)</div>
+                    <div class="stat-value" id="finPaid" style="color:var(--bear);">...</div>
+                </div>
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Balanço Líquido</div>
+                    <div class="stat-value" id="finBalance" style="color:var(--accent);">...</div>
+                </div>
+            </div>
+            
+            <h4 style="margin-bottom:12px; font-size:0.9rem; color:var(--muted);">Pedidos de Saque Pendentes</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Carteira/Rede</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="withdrawalsTable">
+                        <!-- Dynamic -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -367,6 +410,7 @@
         if (id === 'requests') loadRequests();
         if (id === 'plans') loadPlans();
         if (id === 'users') loadUsers();
+        if (id === 'finance') loadFinance();
         if (id === 'settings') loadPaymentMethods();
     }
 
@@ -542,6 +586,50 @@
         const res = await api(`/api/admin/payment-methods/${id}`, "DELETE");
         if (res.success) loadPaymentMethods();
         else alert(res.error);
+    }
+
+    async function loadFinance() {
+        const fRes = await api("/api/admin/finance");
+        if(fRes.success) {
+            document.getElementById("finRevenue").textContent = "$" + fRes.finance.totalRevenue.toFixed(2);
+            document.getElementById("finPaid").textContent = "$" + fRes.finance.totalPaid.toFixed(2);
+            document.getElementById("finBalance").textContent = "$" + fRes.finance.balance.toFixed(2);
+        }
+        
+        const wRes = await api("/api/admin/withdrawals");
+        if(wRes.success) {
+            const tbody = document.getElementById("withdrawalsTable");
+            tbody.innerHTML = wRes.withdrawals.map(w => `
+                <tr>
+                    <td>${w.user.email}</td>
+                    <td>${new Date(w.createdAt).toLocaleDateString()}</td>
+                    <td style="font-weight:bold; color:var(--accent);">$${w.amount.toFixed(2)}</td>
+                    <td style="font-family:'Space Mono'; font-size:0.75rem;">${w.network}<br>${w.walletAddress}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn btn-success" onclick="approveWithdraw('${w.id}')">Aprovar</button>
+                        <button class="btn" style="background:var(--bear);color:#fff;border:none;" onclick="rejectWithdraw('${w.id}')">Rejeitar</button>
+                    </td>
+                </tr>
+            `).join("") || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum pedido de saque pendente.</td></tr>';
+        }
+    }
+    
+    async function approveWithdraw(id) {
+        if(!confirm("Aprovar saque? Certifique-se de que o pagamento já foi enviado para a carteira do usuário.")) return;
+        const res = await api("/api/admin/withdrawals/" + id + "/approve", "POST");
+        if(res.success) {
+            alert("Saque aprovado com sucesso!");
+            loadFinance();
+        } else alert(res.error);
+    }
+    
+    async function rejectWithdraw(id) {
+        if(!confirm("Rejeitar saque? O valor será devolvido ao saldo disponível do usuário.")) return;
+        const res = await api("/api/admin/withdrawals/" + id + "/reject", "POST");
+        if(res.success) {
+            alert("Saque rejeitado com sucesso!");
+            loadFinance();
+        } else alert(res.error);
     }
 
     loadStats();

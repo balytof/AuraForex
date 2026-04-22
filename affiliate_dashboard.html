@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraForex — Programa de Afiliação</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+        :root {
+            --bg: #060810;
+            --surface: #0d1117;
+            --surface2: #131922;
+            --border: #1e2d3d;
+            --accent: #00d4ff;
+            --accent2: #7c3aed;
+            --bull: #00e676;
+            --bear: #ff4444;
+            --warn: #ffb300;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --glow: 0 0 20px rgba(0,212,255,0.3);
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Syne', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content:'';
+            position:fixed; inset:0;
+            background-image:
+                linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events:none; z-index:0;
+        }
+
+        .wrapper { position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:24px; }
+
+        header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding: 20px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            gap: 12px;
+        }
+
+        .logo { display:flex; align-items:center; gap:14px; }
+        .logo-icon {
+            width:44px; height:44px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius:12px;
+            display:flex; align-items:center; justify-content:center;
+            font-size:22px;
+            box-shadow: var(--glow);
+        }
+        .logo h1 { font-size:1.3rem; font-weight:800; letter-spacing:-0.5px; }
+        .logo span { color:var(--accent); }
+
+        .btn {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface2); color: var(--text); cursor: pointer;
+            font-size: 0.75rem; transition: all 0.2s;
+        }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--bull); color: #000; border: none; font-weight:bold; padding: 10px 20px;}
+        .btn-success:hover { background: #00c853; }
+
+        .panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius:16px; overflow:hidden; margin-bottom:24px;
+        }
+
+        .panel-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .stats-grid {
+            display:grid; grid-template-columns: repeat(3, 1fr); gap:16px;
+            padding: 20px;
+        }
+        .stat-card {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius:14px; padding:18px 20px;
+        }
+        .stat-label {
+            font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace;
+            text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+        }
+        .stat-value { font-size:1.65rem; font-weight:800; letter-spacing:-1px; }
+
+        .table-container { overflow-x: auto; padding: 20px;}
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 14px 20px; color: var(--muted); border-bottom: 1px solid var(--border); }
+        td { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        
+        .form-input {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 14px; color: var(--text); outline: none;
+            font-family: 'Space Mono', monospace; font-size: 0.82rem;
+            width: 100%;
+        }
+        .form-input:focus { border-color: var(--accent); }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <header>
+        <div class="logo">
+            <div class="logo-icon">👥</div>
+            <div>
+                <h1>Aura<span>Afiliados</span></h1>
+                <p>O seu Programa de Ganhos</p>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; background:var(--surface2); padding:10px 16px; border-radius:12px; border:1px solid var(--border); flex:1; max-width: 500px;">
+            <span style="font-size:0.8rem; color:var(--muted); white-space:nowrap; font-weight:bold;">Link de afiliação</span>
+            <input type="text" id="refLinkInput" readonly class="form-input" style="flex:1; padding:6px 10px; font-size:0.75rem;">
+            <button class="btn" style="background:var(--accent); color:#000; border:none; padding:6px 12px; font-weight:bold;" onclick="copyRefLink()">Copiar</button>
+        </div>
+        <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Dashboard</button>
+    </header>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h3>Visão Geral</h3>
+            <button class="btn" onclick="loadAffiliateStats()">Atualizar</button>
+        </div>
+        
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Ganhos Totais</div>
+                <div class="stat-value" id="affTotalEarned" style="color:var(--bull);">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disponível p/ Saque</div>
+                <div class="stat-value" id="affAvailable" style="color:var(--accent);">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Sacado</div>
+                <div class="stat-value" id="affWithdrawn" style="color:var(--warn);">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px;">
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Sua Equipa (Nível 1)</h3>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Email</th><th>Registado em</th><th>Sub-Afiliados</th></tr></thead>
+                    <tbody id="affTeamTable"><tr><td colspan="3" style="text-align:center;">Carregando...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Solicitar Saque</h3>
+            </div>
+            <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <label style="font-size:0.75rem; color:var(--muted); margin-bottom:6px; display:block;">Montante Disponível: <b id="withdrawMax" style="color:var(--accent);">$0.00</b></label>
+                    <input type="number" id="withdrawAmount" class="form-input" placeholder="Montante (USD)">
+                </div>
+                <div>
+                    <input type="text" id="withdrawWallet" class="form-input" placeholder="Endereço da Carteira Crypto">
+                </div>
+                <div>
+                    <select id="withdrawNetwork" class="form-input">
+                        <option value="TRC20">USDT TRC20</option>
+                        <option value="BEP20">USDT BEP20</option>
+                    </select>
+                </div>
+                <button class="btn-success" style="width:100%; margin-top:10px;" onclick="requestWithdraw()">Confirmar Pedido</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-header">
+            <h3>Histórico de Saques</h3>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Data</th><th>Montante</th><th>Rede/Carteira</th><th>Status</th></tr></thead>
+                <tbody id="affWithdrawalsTable"><tr><td colspan="4" style="text-align:center;">Carregando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const token = localStorage.getItem("aura_token");
+    if (!token) window.location.href = "/login";
+
+    async function loadAffiliateStats() {
+        try {
+            const res = await fetch("/api/affiliate/stats", { headers: {"Authorization": "Bearer "+token} });
+            const data = await res.json();
+            if(data.success) {
+                const s = data.stats;
+                const refUrl = window.location.origin + "/login?ref=" + s.referralCode;
+                document.getElementById("refLinkInput").value = refUrl;
+                document.getElementById("affTotalEarned").textContent = "$" + s.totalBonusEarned.toFixed(2);
+                document.getElementById("affAvailable").textContent = "$" + s.availableBonus.toFixed(2);
+                document.getElementById("withdrawMax").textContent = "$" + s.availableBonus.toFixed(2);
+                document.getElementById("affWithdrawn").textContent = "$" + s.totalBonusWithdrawn.toFixed(2);
+                
+                const tbody = document.getElementById("affTeamTable");
+                if(s.referrals.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Você ainda não tem nenhum afiliado. Convide amigos usando seu link!</td></tr>';
+                } else {
+                    tbody.innerHTML = s.referrals.map(r => `
+                        <tr>
+                            <td>${r.email}</td>
+                            <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                            <td>${r._count.referrals}</td>
+                        </tr>
+                    `).join("");
+                }
+            }
+            
+            const wRes = await fetch("/api/affiliate/withdrawals", { headers: {"Authorization": "Bearer "+token} });
+            const wData = await wRes.json();
+            if(wData.success) {
+                const wtbody = document.getElementById("affWithdrawalsTable");
+                if(wData.withdrawals.length === 0) {
+                    wtbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Nenhum pedido de saque.</td></tr>';
+                } else {
+                    wtbody.innerHTML = wData.withdrawals.map(w => {
+                        let c = 'var(--muted)';
+                        if(w.status === 'APPROVED') c = 'var(--bull)';
+                        if(w.status === 'REJECTED') c = 'var(--bear)';
+                        return `
+                            <tr>
+                                <td>${new Date(w.createdAt).toLocaleDateString()}</td>
+                                <td style="font-weight:bold;">$${w.amount.toFixed(2)}</td>
+                                <td style="font-family:'Space Mono';font-size:0.75rem;">${w.network} | ${w.walletAddress.substring(0,10)}...</td>
+                                <td><span style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;color:${c};font-size:0.75rem;">${w.status}</span></td>
+                            </tr>
+                        `;
+                    }).join("");
+                }
+            }
+        } catch(e) { console.error("Error loading affiliates", e); }
+    }
+
+    async function requestWithdraw() {
+        const amount = document.getElementById("withdrawAmount").value;
+        const walletAddress = document.getElementById("withdrawWallet").value;
+        const network = document.getElementById("withdrawNetwork").value;
+        
+        if(!amount || !walletAddress) {
+            alert("Preencha todos os campos do formulário de saque.");
+            return;
+        }
+        
+        try {
+            const res = await fetch("/api/affiliate/withdraw", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer "+token },
+                body: JSON.stringify({ amount, walletAddress, network })
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert("Pedido efetuado com sucesso. Aguarde a aprovação do admin.");
+                document.getElementById("withdrawAmount").value = "";
+                document.getElementById("withdrawWallet").value = "";
+                loadAffiliateStats();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        } catch(e) {
+            alert("Erro na rede.");
+        }
+    }
+
+    function copyRefLink() {
+        const input = document.getElementById("refLinkInput");
+        input.select();
+        input.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        alert("Link de indicação copiado!");
+    }
+
+    loadAffiliateStats();
+</script>
+</body>
+</html>

@@ -735,75 +735,6 @@
 
     </div>
 
-      <!-- AFILIADOS -->
-      <div class="panel" id="affiliatesPanel">
-        <div class="panel-header">
-          <div class="panel-title"><span class="icon">👥</span> Rede de Afiliados</div>
-          <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadAffiliateStats()">Atualizar</button>
-        </div>
-        <div style="padding:16px;">
-          <div style="margin-bottom:20px;">
-            <p style="font-size:0.75rem; color:var(--muted); margin-bottom:8px;">O seu Link de Indicação (Envie para convidar e ganhar bónus em 5 níveis):</p>
-            <div style="display:flex; gap:10px;">
-              <input type="text" id="refLinkInput" readonly class="form-input" style="flex:1;">
-              <button class="btn btn-primary" onclick="copyRefLink()">Copiar</button>
-            </div>
-          </div>
-          
-          <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:20px;">
-            <div class="stat-card" style="padding:12px;">
-              <div class="stat-label">Ganhos Totais</div>
-              <div class="stat-value bull" id="affTotalEarned">$0.00</div>
-            </div>
-            <div class="stat-card" style="padding:12px;">
-              <div class="stat-label">Disponível p/ Saque</div>
-              <div class="stat-value accent" id="affAvailable">$0.00</div>
-            </div>
-            <div class="stat-card" style="padding:12px;">
-              <div class="stat-label">Já Sacado</div>
-              <div class="stat-value bear" id="affWithdrawn">$0.00</div>
-            </div>
-          </div>
-
-          <div style="background:var(--surface2); padding:16px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border);">
-            <h4 style="margin-bottom:12px; font-size:0.9rem;">Solicitar Saque</h4>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <input type="number" id="withdrawAmount" class="form-input" placeholder="Montante ($)" style="flex:1; min-width:120px;">
-              <input type="text" id="withdrawWallet" class="form-input" placeholder="Endereço da Carteira" style="flex:2; min-width:200px;">
-              <select id="withdrawNetwork" class="form-input" style="flex:1; min-width:120px;">
-                <option value="TRC20">USDT TRC20</option>
-                <option value="BEP20">USDT BEP20</option>
-                <option value="PIX">PIX</option>
-              </select>
-              <button class="btn btn-primary" onclick="requestWithdraw()">Solicitar</button>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <div>
-              <h4 style="margin-bottom:10px; font-size:0.85rem; color:var(--muted);">Sua Equipa (Nível 1)</h4>
-              <div class="history-wrapper" style="max-height:200px;">
-                <table class="history-table">
-                  <thead><tr><th>Email</th><th>Data</th><th>Afiliados</th></tr></thead>
-                  <tbody id="affTeamTable"><tr><td colspan="3">Carregando...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-            <div>
-              <h4 style="margin-bottom:10px; font-size:0.85rem; color:var(--muted);">Histórico de Saques</h4>
-              <div class="history-wrapper" style="max-height:200px;">
-                <table class="history-table">
-                  <thead><tr><th>Data</th><th>Quantia</th><th>Status</th></tr></thead>
-                  <tbody id="affWithdrawalsTable"><tr><td colspan="3">Carregando...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
     <!-- RIGHT SIDEBAR -->
     <div class="sidebar">
 
@@ -1052,6 +983,8 @@ async function retrySync(attempts) {
       document.getElementById("userEmail").textContent = currentUser.email;
       console.log("[AuraAuth] Sessão sincronizada com o servidor para:", currentUser.email);
       
+      injectAffiliateButton();
+      
       if (currentUser.role === "ADMIN") {
         injectAdminButton();
       }
@@ -1088,6 +1021,22 @@ function injectAdminButton() {
   
   controls.prepend(adminBtn);
   console.log("%c[AuraAuth] BOTÃO INJETADO COM SUCESSO!", "color: yellow; font-weight: bold;");
+}
+
+function injectAffiliateButton() {
+  const controls = document.querySelector(".controls");
+  if (!controls) return;
+  if (document.getElementById("affiliatePanelBtn")) return;
+  const affiliateBtn = document.createElement("button");
+  affiliateBtn.className = "btn btn-secondary";
+  affiliateBtn.id = "affiliatePanelBtn";
+  affiliateBtn.innerHTML = "👥 AFILIADOS";
+  affiliateBtn.style.marginRight = "10px";
+  affiliateBtn.style.border = "2px solid var(--accent2)";
+  affiliateBtn.style.boxShadow = "0 0 15px rgba(124,58,237,0.4)";
+  affiliateBtn.style.fontWeight = "bold";
+  affiliateBtn.onclick = () => window.location.href = "/affiliate_dashboard.html";
+  controls.prepend(affiliateBtn);
 }
 
 if (document.readyState === 'complete') {
@@ -2251,100 +2200,6 @@ async function confirmPayment() {
     finishPurchase();
 }
 
-// ── AFFILIATE FUNCTIONS ───────────────────────────────────────
-
-async function loadAffiliateStats() {
-  const token = localStorage.getItem("aura_token");
-  if(!token) return;
-  
-  try {
-    const res = await fetch("/api/affiliate/stats", { headers: {"Authorization": "Bearer "+token} });
-    const data = await res.json();
-    if(data.success) {
-      const s = data.stats;
-      const refUrl = window.location.origin + "/login?ref=" + s.referralCode;
-      document.getElementById("refLinkInput").value = refUrl;
-      document.getElementById("affTotalEarned").textContent = "$" + s.totalBonusEarned.toFixed(2);
-      document.getElementById("affAvailable").textContent = "$" + s.availableBonus.toFixed(2);
-      document.getElementById("affWithdrawn").textContent = "$" + s.totalBonusWithdrawn.toFixed(2);
-      
-      const tbody = document.getElementById("affTeamTable");
-      if(s.referrals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Nenhum afiliado.</td></tr>';
-      } else {
-        tbody.innerHTML = s.referrals.map(r => `
-          <tr>
-            <td>${r.email}</td>
-            <td>${new Date(r.createdAt).toLocaleDateString()}</td>
-            <td>${r._count.referrals}</td>
-          </tr>
-        `).join("");
-      }
-    }
-    
-    const wRes = await fetch("/api/affiliate/withdrawals", { headers: {"Authorization": "Bearer "+token} });
-    const wData = await wRes.json();
-    if(wData.success) {
-      const wtbody = document.getElementById("affWithdrawalsTable");
-      if(wData.withdrawals.length === 0) {
-        wtbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Nenhum saque.</td></tr>';
-      } else {
-        wtbody.innerHTML = wData.withdrawals.map(w => {
-          let c = 'var(--muted)';
-          if(w.status === 'APPROVED') c = 'var(--bull)';
-          if(w.status === 'REJECTED') c = 'var(--bear)';
-          return `
-            <tr>
-              <td>${new Date(w.createdAt).toLocaleDateString()}</td>
-              <td>$${w.amount.toFixed(2)}</td>
-              <td style="color:${c};font-weight:700;">${w.status}</td>
-            </tr>
-          `;
-        }).join("");
-      }
-    }
-  } catch(e) { console.error("Error loading affiliates", e); }
-}
-
-async function requestWithdraw() {
-  const token = localStorage.getItem("aura_token");
-  const amount = document.getElementById("withdrawAmount").value;
-  const walletAddress = document.getElementById("withdrawWallet").value;
-  const network = document.getElementById("withdrawNetwork").value;
-  
-  if(!amount || !walletAddress) {
-    alert("Preencha todos os campos do formulário de saque.");
-    return;
-  }
-  
-  try {
-    const res = await fetch("/api/affiliate/withdraw", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer "+token },
-      body: JSON.stringify({ amount, walletAddress, network })
-    });
-    const data = await res.json();
-    if(data.success) {
-      alert("Pedido efetuado com sucesso.");
-      document.getElementById("withdrawAmount").value = "";
-      document.getElementById("withdrawWallet").value = "";
-      loadAffiliateStats();
-    } else {
-      alert("Erro: " + data.error);
-    }
-  } catch(e) {
-    alert("Erro na rede.");
-  }
-}
-
-function copyRefLink() {
-  const input = document.getElementById("refLinkInput");
-  input.select();
-  input.setSelectionRange(0, 99999);
-  document.execCommand("copy");
-  alert("Link copiado!");
-}
-
 // ─── BOOT ─────────────────────────────────────
 initPairsGrid();
 initBiases();
@@ -2352,7 +2207,6 @@ updateStats();
 updateSessionStatus();
 checkBrokerConnection();
 checkAuth(); // Já faz o sync e updateLicenseUI
-loadAffiliateStats();
 </script>
 </body>
 </html>
