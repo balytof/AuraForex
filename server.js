@@ -135,6 +135,36 @@ function requireBrokerAuth(req, res, next) {
 // ── Auth Endpoints (SaaS) ─────────────────────────────────────────
 // Rotas movidas para cima para diagnóstico
 
+app.post("/api/auth/register", async (req, res) => {
+  const { email, password, referralCode } = req.body;
+  if (!email || !password || !referralCode) return res.status(400).json({ error: "Email, password e código de indicação são obrigatórios." });
+
+  try {
+    let sponsorId = null;
+    if (referralCode !== "AURA-MASTER") {
+      const sponsor = await prisma.user.findUnique({ where: { referralCode } });
+      if (!sponsor) return res.status(400).json({ error: "Código de indicação inválido." });
+      sponsorId = sponsor.id;
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return res.status(400).json({ error: "Email já registado." });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        sponsorId
+      }
+    });
+
+    res.json({ success: true, message: "Conta criada com sucesso." });
+  } catch (err) {
+    console.error("Register Error:", err);
+    res.status(500).json({ error: "Erro interno no servidor." });
+  }
+});
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -475,11 +505,53 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
       }
     });
 
-    // Atualizar status da solicitação
-    await prisma.purchaseRequest.update({
-      where: { id },
-      data: { status: "APPROVED" }
-    });
+    // Distribuir Bónus de Afiliação se ainda não foi processado
+    if (!purchaseRequest.isBonusProcessed) {
+      const baseAmount = purchaseRequest.amount;
+      const bonusLevels = [0.06, 0.04, 0.02, 0.01, 0.01]; // 6%, 4%, 2%, 1%, 1%
+      
+      let currentUser = await prisma.user.findUnique({ where: { id: purchaseRequest.userId }});
+      
+      for (let i = 0; i < bonusLevels.length; i++) {
+        if (!currentUser || !currentUser.sponsorId) break;
+        
+        const sponsor = await prisma.user.findUnique({ where: { id: currentUser.sponsorId }});
+        if (!sponsor) break;
+        
+        const bonusAmount = parseFloat((baseAmount * bonusLevels[i]).toFixed(2));
+        
+        await prisma.bonusTransaction.create({
+          data: {
+            receiverId: sponsor.id,
+            sourceUserId: purchaseRequest.userId,
+            purchaseId: purchaseRequest.id,
+            amount: bonusAmount,
+            level: i + 1,
+            status: "COMPLETED"
+          }
+        });
+        
+        await prisma.user.update({
+          where: { id: sponsor.id },
+          data: {
+            totalBonusEarned: { increment: bonusAmount },
+            availableBonus: { increment: bonusAmount }
+          }
+        });
+        
+        currentUser = sponsor;
+      }
+      
+      await prisma.purchaseRequest.update({
+        where: { id },
+        data: { status: "APPROVED", isBonusProcessed: true }
+      });
+    } else {
+      await prisma.purchaseRequest.update({
+        where: { id },
+        data: { status: "APPROVED" }
+      });
+    }
 
     res.json({ success: true, message: "Pagamento aprovado e licença emitida." });
   } catch (err) {
@@ -576,6 +648,182 @@ app.post("/api/purchase/request", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Erro ao criar PurchaseRequest:", err);
     res.status(500).json({ error: "Erro ao enviar solicitação." });
+  }
+});
+
+// ── Affiliate Endpoints ─────────────────────────────────────────
+
+app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        referrals: {
+          select: { id: true, email: true, createdAt: true, _count: { select: { referrals: true } } }
+        }
+      }
+    });
+    
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+
+    // Buscar histórico de bónus
+    const bonuses = await prisma.bonusTransaction.findMany({
+      where: { receiverId: user.id },
+      include: { sourceUser: { select: { email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        referralCode: user.referralCode,
+        totalBonusEarned: user.totalBonusEarned,
+        totalBonusWithdrawn: user.totalBonusWithdrawn,
+        availableBonus: user.availableBonus,
+        referrals: user.referrals,
+        recentBonuses: bonuses
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar dados de afiliados." });
+  }
+});
+
+app.post("/api/affiliate/withdraw", requireAuth, async (req, res) => {
+  const { amount, walletAddress, network } = req.body;
+  const withdrawAmount = parseFloat(amount);
+
+  if (!withdrawAmount || withdrawAmount <= 0 || !walletAddress || !network) {
+    return res.status(400).json({ error: "Dados inválidos." });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user || user.availableBonus < withdrawAmount) {
+      return res.status(400).json({ error: "Saldo insuficiente." });
+    }
+
+    // Deduzir do availableBonus e criar o request numa transação
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { availableBonus: { decrement: withdrawAmount } }
+      }),
+      prisma.withdrawalRequest.create({
+        data: {
+          userId: user.id,
+          amount: withdrawAmount,
+          walletAddress,
+          network,
+          status: "PENDING"
+        }
+      })
+    ]);
+
+    res.json({ success: true, message: "Pedido de saque efetuado com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao solicitar saque." });
+  }
+});
+
+app.get("/api/affiliate/withdrawals", requireAuth, async (req, res) => {
+  try {
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, withdrawals });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar histórico de saques." });
+  }
+});
+
+// ── Admin Affiliate Endpoints ────────────────────────────────────
+
+app.get("/api/admin/finance", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const revenueObj = await prisma.purchaseRequest.aggregate({
+      where: { status: "APPROVED" },
+      _sum: { amount: true }
+    });
+    const paidObj = await prisma.withdrawalRequest.aggregate({
+      where: { status: "APPROVED" },
+      _sum: { amount: true }
+    });
+
+    const totalRevenue = revenueObj._sum.amount || 0;
+    const totalPaid = paidObj._sum.amount || 0;
+    const balance = totalRevenue - totalPaid;
+
+    res.json({
+      success: true,
+      finance: { totalRevenue, totalPaid, balance }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar finanças." });
+  }
+});
+
+app.get("/api/admin/withdrawals", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { status: "PENDING" },
+      include: { user: { select: { email: true } } },
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json({ success: true, withdrawals });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar saques." });
+  }
+});
+
+app.post("/api/admin/withdrawals/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
+    if (!wr || wr.status !== "PENDING") return res.status(400).json({ error: "Pedido não encontrado ou já processado." });
+
+    await prisma.$transaction([
+      prisma.withdrawalRequest.update({
+        where: { id },
+        data: { status: "APPROVED" }
+      }),
+      prisma.user.update({
+        where: { id: wr.userId },
+        data: { totalBonusWithdrawn: { increment: wr.amount } }
+      })
+    ]);
+
+    res.json({ success: true, message: "Saque aprovado com sucesso." });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao aprovar saque." });
+  }
+});
+
+app.post("/api/admin/withdrawals/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
+    if (!wr || wr.status !== "PENDING") return res.status(400).json({ error: "Pedido não encontrado ou já processado." });
+
+    // Estornar o saldo para o availableBonus
+    await prisma.$transaction([
+      prisma.withdrawalRequest.update({
+        where: { id },
+        data: { status: "REJECTED" }
+      }),
+      prisma.user.update({
+        where: { id: wr.userId },
+        data: { availableBonus: { increment: wr.amount } }
+      })
+    ]);
+
+    res.json({ success: true, message: "Saque rejeitado e saldo estornado." });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao rejeitar saque." });
   }
 });
 

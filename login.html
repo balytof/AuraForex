@@ -175,6 +175,10 @@
         <label>Password (Mín. 6 careteres)</label>
         <input type="password" id="regPass" class="form-input" placeholder="••••••••">
       </div>
+      <div class="form-group">
+        <label>Código de Indicação (Obrigatório)</label>
+        <input type="text" id="regRef" class="form-input" placeholder="O seu código de indicação" required>
+      </div>
       <button class="btn" onclick="doRegister(this)" style="background:#10b981;">Criar Conta</button>
       <div class="toggle-text">Já tem conta? <a onclick="toggleMode()">Voltar ao Login</a></div>
     </div>
@@ -182,6 +186,18 @@
 
   <script>
     let mode = 'login';
+    
+    // Check referral link
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      setTimeout(() => {
+        document.getElementById('regRef').value = refCode;
+        document.getElementById('regRef').readOnly = true;
+        document.getElementById('regRef').style.opacity = '0.7';
+        if (mode === 'login') toggleMode();
+      }, 100);
+    }
     
     // Check if already logged in
     async function checkAuth() {
@@ -244,13 +260,16 @@
     async function doRegister(btn) {
       const email = document.getElementById('regEmail').value;
       const pass = document.getElementById('regPass').value;
+      const referralCode = document.getElementById('regRef').value;
+      
       if(!email || pass.length < 6) return showErr("O email é obrigatório e a password deve ter pelo menos 6 caracteres.");
+      if(!referralCode) return showErr("O código de indicação é obrigatório.");
       
       btn.disabled = true; btn.textContent = "A criar...";
       try {
         const res = await fetch("/api/auth/register", {
           method: "POST", headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({email, password: pass})
+          body: JSON.stringify({email, password: pass, referralCode})
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Erro no registo.");

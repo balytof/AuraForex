@@ -7,15 +7,29 @@ datasource db {
 }
 
 model User {
-  id           String             @id @default(uuid())
-  email        String             @unique
-  passwordHash String
-  role         String             @default("USER") // "USER" ou "ADMIN"
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  connections  BrokerConnection[]
-  licenses     License[]
-  requests     PurchaseRequest[]
+  id                  String             @id @default(uuid())
+  email               String             @unique
+  passwordHash        String
+  role                String             @default("USER") // "USER" ou "ADMIN"
+  
+  // Sistema de Afiliação
+  referralCode        String?            @unique @default(uuid())
+  sponsorId           String?
+  sponsor             User?              @relation("Sponsor", fields: [sponsorId], references: [id])
+  referrals           User[]             @relation("Sponsor")
+  totalBonusEarned    Float              @default(0)
+  totalBonusWithdrawn Float              @default(0)
+  availableBonus      Float              @default(0)
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  connections         BrokerConnection[]
+  licenses            License[]
+  requests            PurchaseRequest[]
+  bonusesReceived     BonusTransaction[] @relation("BonusReceiver")
+  bonusesGenerated    BonusTransaction[] @relation("BonusSource")
+  withdrawals         WithdrawalRequest[]
 }
 
 model LicensePlan {
@@ -63,11 +77,13 @@ model PurchaseRequest {
   transactionHash String?
   amount          Float
   status          String   @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  isBonusProcessed Boolean @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan LicensePlan? @relation(fields: [planId], references: [id])
+  bonuses BonusTransaction[]
 }
 
 model BrokerConnection {
@@ -92,4 +108,33 @@ model BrokerConnection {
   updatedAt         DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BonusTransaction {
+  id          String   @id @default(uuid())
+  receiverId  String
+  sourceUserId String
+  purchaseId  String?
+  amount      Float
+  level       Int
+  status      String   @default("COMPLETED")
+  createdAt   DateTime @default(now())
+
+  receiver    User     @relation("BonusReceiver", fields: [receiverId], references: [id])
+  sourceUser  User     @relation("BonusSource", fields: [sourceUserId], references: [id])
+  purchase    PurchaseRequest? @relation(fields: [purchaseId], references: [id])
+}
+
+model WithdrawalRequest {
+  id            String   @id @default(uuid())
+  userId        String
+  amount        Float
+  walletAddress String
+  network       String
+  status        String   @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  adminNotes    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
 }
