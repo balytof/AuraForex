@@ -294,9 +294,14 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
     }
 
     activeBroker = getBrokerAdapter(brokerType);
-    const result = await activeBroker.connect(credentials);
+    const connectWithTimeout = new Promise(async (resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('A corretora não respondeu em 15 segundos. Verifique as credenciais e tente novamente.')), 15000);
+      try { const rConnect = await activeBroker.connect(credentials); clearTimeout(timer); resolve(rConnect); } 
+      catch(err) { clearTimeout(timer); reject(err); }
+    });
+    const result = await connectWithTimeout;
 
-    if (!result.success) return res.status(401).json(result);
+    if (!result.success) return res.status(400).json(result);
 
     userBrokers.set(req.user.id, activeBroker);
 
@@ -324,7 +329,7 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
     return res.json(result);
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ success: false, error: "Erro interno no servidor ao conectar." });
+    return res.status(400).json({ success: false, error: e.message || "Erro ao conectar." });
   }
 });
 
