@@ -9,8 +9,8 @@
 const BrokerAdapter = require("./base");
 const fetch = require("node-fetch");
 
-const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.ai";
-const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.ai";
+const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
+const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
 
 const TF_MAP = {
   M1: "1m", M5: "5m", M15: "15m", M30: "30m",
