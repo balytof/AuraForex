@@ -9,8 +9,8 @@
 const BrokerAdapter = require("./base");
 const fetch = require("node-fetch");
 
-const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
-const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
+const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.ai";
+const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.ai";
 
 const TF_MAP = {
   M1: "1m", M5: "5m", M15: "15m", M30: "30m",
@@ -28,6 +28,9 @@ class MetaApiAdapter extends BrokerAdapter {
   async connect(credentials) {
     try {
       const { metaApiToken, accountId } = credentials;
+      console.log("[DEBUG] MetaApi Token Length:", metaApiToken ? metaApiToken.length : 0);
+      console.log("[DEBUG] MetaApi Token Start:", metaApiToken ? metaApiToken.substring(0, 5) : "none");
+      console.log("[DEBUG] MetaApi Account ID:", accountId);
       if (!metaApiToken || !accountId) {
         return { success: false, error: "MetaApi Token e Account ID são obrigatórios" };
       }

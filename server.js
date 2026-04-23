@@ -267,7 +267,24 @@ app.get("/api/broker/status", requireAuth, async (req, res) => {
 
 app.post("/api/broker/connect", requireAuth, async (req, res) => {
   const { brokerType, credentials, remember } = req.body;
+  
+  // Limpeza super agressiva de espaços invisíveis
+  if (credentials) {
+    for (let key in credentials) {
+      if (typeof credentials[key] === 'string') {
+        credentials[key] = credentials[key].trim();
+      }
+    }
+  }
+  
   console.log(`[DEBUG] Tentativa de conexão broker: ${brokerType} (User: ${req.user.id.substring(0,8)})`);
+  console.log(`[DEBUG] Dados limpos:`, { 
+    ...credentials, 
+    password: credentials.password ? '***' : undefined,
+    apiKey: credentials.apiKey ? credentials.apiKey.substring(0,4)+'***' : undefined,
+    metaApiToken: credentials.metaApiToken ? credentials.metaApiToken.substring(0,4)+'***' : undefined
+  });
+  
   if (!brokerType || !credentials) return res.status(400).json({ success: false, error: "Dados incompletos." });
 
   try {
