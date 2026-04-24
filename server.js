@@ -18,10 +18,8 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 const { encrypt, decrypt } = require("./utils/encryption");
 
-// Broker Adapters
-const OandaAdapter = require("./broker-adapters/oanda");
-const CapitalAdapter = require("./broker-adapters/capital");
-const MetaApiAdapter = require("./broker-adapters/metaapi");
+// APEX SMC Broker Layer
+const { createBroker } = require("./apex_broker");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -67,13 +65,8 @@ app.use("/api/", apiLimiter);
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
 
-function getBrokerAdapter(type) {
-  switch (type) {
-    case "oanda":   return new OandaAdapter();
-    case "capital": return new CapitalAdapter();
-    case "metaapi": return new MetaApiAdapter();
-    default:        throw new Error(`Corretora desconhecida: ${type}`);
-  }
+function getBrokerAdapter(config) {
+  return createBroker(config);
 }
 
 // ── Middleware Autenticação via JWT ───────────────────────────────
@@ -196,18 +189,22 @@ app.post("/api/auth/login", async (req, res) => {
     const connection = await prisma.brokerConnection.findFirst({ where: { userId: user.id } });
     if (connection) {
        try {
-         const credentials = {
-           environment: connection.environment,
-           accountId: connection.accountId,
-           apiToken: decrypt(connection.apiTokenEncrypted),
-           metaApiToken: decrypt(connection.apiTokenEncrypted),
-           identifier: decrypt(connection.capitalIdentifier),
-           password: decrypt(connection.capitalPassword),
-           apiKey: decrypt(connection.apiTokenEncrypted),
-           region: connection.region
-         };
-         const adapter = getBrokerAdapter(connection.brokerType);
-         const resConn = await adapter.connect(credentials);
+          const config = {
+            provider: connection.brokerType,
+            environment: connection.environment,
+            accountId: connection.accountId,
+            apiToken: decrypt(connection.apiTokenEncrypted),
+            metaApiToken: decrypt(connection.apiTokenEncrypted),
+            metaApiAccountId: connection.accountId,
+            oandaAccountId: connection.accountId,
+            oandaApiKey: decrypt(connection.apiTokenEncrypted),
+            capitalIdentifier: decrypt(connection.capitalIdentifier),
+            capitalPassword: decrypt(connection.capitalPassword),
+            capitalApiKey: decrypt(connection.apiTokenEncrypted),
+            region: connection.region
+          };
+          const adapter = getBrokerAdapter(config);
+          const resConn = await adapter.connect();
          if (resConn.success) {
            userBrokers.set(user.id, adapter);
            autoConnected = true;
@@ -293,10 +290,24 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
       try { await activeBroker.disconnect(); } catch (e) {}
     }
 
-    activeBroker = getBrokerAdapter(brokerType);
+    const config = {
+      provider: brokerType,
+      environment: credentials.environment,
+      accountId: credentials.accountId || credentials.identifier,
+      apiToken: credentials.apiToken || credentials.metaApiToken || credentials.apiKey,
+      metaApiToken: credentials.metaApiToken,
+      metaApiAccountId: credentials.accountId,
+      oandaAccountId: credentials.accountId,
+      oandaApiKey: credentials.apiToken,
+      capitalIdentifier: credentials.identifier,
+      capitalPassword: credentials.password,
+      capitalApiKey: credentials.apiKey,
+      region: credentials.region
+    };
+    activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('A corretora não respondeu em 15 segundos. Verifique as credenciais e tente novamente.')), 15000);
-      try { const rConnect = await activeBroker.connect(credentials); clearTimeout(timer); resolve(rConnect); } 
+      try { const rConnect = await activeBroker.connect(); clearTimeout(timer); resolve(rConnect); }
       catch(err) { clearTimeout(timer); reject(err); }
     });
     const result = await connectWithTimeout;
@@ -365,7 +376,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
   const { pair, direction, lotSize, sl, tp } = req.body;
   if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    const result = await req.broker.placeOrder({ pair, direction, lotSize, sl, tp });
+    const result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
