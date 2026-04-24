@@ -178,8 +178,32 @@ class MetaApiAdapter extends BrokerBase {
            } catch(err) {}
         }
       }
-      return { success: false, error: e.message };
     }
+  }
+
+  async getOpenPositions() {
+    try {
+      await this.connect();
+      const positions = await this.connection.getPositions();
+      return (positions || []).map(p => ({
+        id: p.id, pair: p.symbol, direction: p.type === "POSITION_TYPE_BUY" ? "BUY" : "SELL",
+        lotSize: p.volume, openPrice: p.openPrice, pnl: p.profit
+      }));
+    } catch(e) { return []; }
+  }
+
+  async getHistory() {
+    try {
+      await this.connect();
+      const startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias
+      const deals = await this.connection.getDealsByTimeRange(startTime, new Date());
+      return (deals.deals || []).map(d => ({
+        id: d.id, broker: "MetaTrader", pair: d.symbol,
+        direction: d.type === "DEAL_TYPE_BUY" ? "BUY" : "SELL",
+        lotSize: d.volume, pnl: d.profit + d.commission + d.swap,
+        closeTime: d.time
+      })).filter(d => d.pnl !== 0).reverse();
+    } catch(e) { return []; }
   }
 }
 
