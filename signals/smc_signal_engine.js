@@ -1,20 +1,21 @@
 // ============================================================
-// APEX SMC — SIGNAL ENGINE PRO (ULTRA STOPS FIXED)
+// APEX SMC — SIGNAL ENGINE PRO (HARDCORE PRECISION FIXED)
 // ============================================================
 
 const config = require("../config/config");
 const { calcAll } = require("../indicators/indicators");
-const { analyzeAll } = require("../smc/smc");
 
-function getPrecision(price, pair = "") {
-  if (pair.includes("XAU") || price > 1000) return 2; // Ouro: 2 casas
-  if (pair.includes("JPY") || price > 100) return 3;  // JPY: 3 casas
-  return 5;                                           // Forex: 5 casas
+function getPrecision(pair = "") {
+  if (pair.includes("XAU") || pair.includes("GOLD")) return 2;
+  if (pair.includes("JPY")) return 3;
+  if (pair.includes("BTC") || pair.includes("ETH")) return 2;
+  return 5;
 }
 
 function normalizePrice(price, pair = "") {
-  const p = getPrecision(price, pair);
-  return parseFloat(price.toFixed(p));
+  const p = getPrecision(pair);
+  // Força arredondamento matemático rigoroso
+  return Number(Math.round(price + "e" + p) + "e-" + p);
 }
 
 function safeRR(entry, sl, tp) {
@@ -43,29 +44,22 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const { last } = ind;
     if (!last || !last.atr) return { signal: null, reason: "Erro indicadores" };
 
-    // DISTÂNCIA MÍNIMA ULTRA SEGURA (Evitar Invalid Stops)
-    // Forex: Min 20 pips (0.00020)
-    // JPY/Ouro: Min 50 pips (0.50)
+    // DISTÂNCIA DE SEGURANÇA AUMENTADA (30 Pips)
     const isSpecial = pair.includes("JPY") || pair.includes("XAU");
-    const minStopGap = isSpecial ? 0.60 : 0.00025; 
-    
-    // Calcula Stop baseado em 3.0 * ATR mas garante o GAP MÍNIMO
-    const stopDist = Math.max(last.atr * 3.5, minStopGap);
+    const minStopGap = isSpecial ? 0.80 : 0.00030; 
+    const stopDist = Math.max(last.atr * 4.0, minStopGap);
+
+    const entry = normalizePrice(last.close, pair);
 
     // ================= BUY =================
     if (htfBias === "BULLISH" || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow)) {
       if (isDuplicate(pair, "BUY")) return { signal: null, reason: "Sinal duplicado" };
 
-      let sl = last.close - stopDist;
-      let tp = last.close + (stopDist * 2.0); 
+      const sl = normalizePrice(entry - stopDist, pair);
+      const tp = normalizePrice(entry + (stopDist * 2.5), pair);
 
-      sl = normalizePrice(sl, pair);
-      tp = normalizePrice(tp, pair);
-      const entry = normalizePrice(last.close, pair);
-
-      const rr = safeRR(entry, sl, tp);
       return {
-        signal: { pair, direction: "BUY", entry, sl, tp, rr, timestamp: Date.now(), score: 85 },
+        signal: { pair, direction: "BUY", entry, sl, tp, rr: 2.5, timestamp: Date.now(), score: 92 },
         reason: "Sinal COMPRA PRO"
       };
     }
@@ -74,16 +68,11 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     if (htfBias === "BEARISH" || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow)) {
       if (isDuplicate(pair, "SELL")) return { signal: null, reason: "Sinal duplicado" };
 
-      let sl = last.close + stopDist;
-      let tp = last.close - (stopDist * 2.0);
+      const sl = normalizePrice(entry + stopDist, pair);
+      const tp = normalizePrice(entry - (stopDist * 2.5), pair);
 
-      sl = normalizePrice(sl, pair);
-      tp = normalizePrice(tp, pair);
-      const entry = normalizePrice(last.close, pair);
-
-      const rr = safeRR(entry, sl, tp);
       return {
-        signal: { pair, direction: "SELL", entry, sl, tp, rr, timestamp: Date.now(), score: 85 },
+        signal: { pair, direction: "SELL", entry, sl, tp, rr: 2.5, timestamp: Date.now(), score: 92 },
         reason: "Sinal VENDA PRO"
       };
     }

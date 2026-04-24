@@ -239,17 +239,19 @@
   /* Signal cards */
   .signals-list { padding:16px; display:flex; flex-direction:column; gap:12px; max-height:500px; overflow-y:auto; }
   .signal-card {
-     background: var(--surface2); border: 1px solid var(--border);
-     border-radius:16px; padding:20px; position:relative;
+     background: var(--surface2); border: 2px solid var(--border);
+     border-radius:20px; padding:24px; position:relative;
      overflow:hidden; animation: slideIn 0.4s ease;
-     margin-bottom: 16px;
-     min-height: 140px; /* Garante altura mínima */
+     margin-bottom: 20px;
+     min-height: 180px;
      display: flex;
      flex-direction: column;
-     justify-content: space-between;
-     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+     justify-content: center;
+     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+     transition: transform 0.3s;
    }
-   .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; }
+   .signal-card:hover { transform: scale(1.02); border-color: var(--accent); }
+   .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:6px; }
    .signal-card.buy::before  { background:var(--bull); box-shadow: 2px 0 10px var(--bull); }
    .signal-card.sell::before { background:var(--bear); box-shadow: 2px 0 10px var(--bear); }
 
