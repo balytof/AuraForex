@@ -1463,6 +1463,14 @@ async function loadConfig() {
 }
 
 // ─── ESTADO ───────────────────────────────────
+window.onerror = function(msg, url, line, col, error) {
+  if (typeof addLog === 'function') {
+    addLog(`❌ ERRO NO CÓDIGO: ${msg} (Linha: ${line})`, "sell");
+  }
+  console.error("Global error:", msg, "at line", line);
+  return false;
+};
+
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
 let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
@@ -2498,7 +2506,13 @@ function startBot() {
       uptimeInterval = setInterval(updateUptime, 1000);
     }
     
-    botLoop();
+    // Pequeno delay para garantir estabilidade antes do loop
+    setTimeout(() => {
+      if (isRunning) {
+        addLog("⚙️ Motor de execução ativado.");
+        botLoop();
+      }
+    }, 500);
   } catch (e) {
     addLog("❌ FALHA AO INICIAR: " + e.message, "sell");
     console.error(e);
