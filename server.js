@@ -804,6 +804,50 @@ app.post("/api/user/change-password", requireAuth, async (req, res) => {
   }
 });
 
+// ─── Bot Settings Persistence ───────────────────────────────────
+
+app.get("/api/user/settings", requireAuth, async (req, res) => {
+  try {
+    let settings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+    if (!settings) {
+      settings = await prisma.userSettings.create({
+        data: { userId: req.user.id }
+      });
+    }
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar configurações." });
+  }
+});
+
+app.post("/api/user/settings", requireAuth, async (req, res) => {
+  const { risk, score, interval, activePairs, geminiKey } = req.body;
+  try {
+    const settings = await prisma.userSettings.upsert({
+      where: { userId: req.user.id },
+      update: {
+        risk: risk !== undefined ? parseFloat(risk) : undefined,
+        score: score !== undefined ? parseInt(score) : undefined,
+        interval: interval !== undefined ? parseInt(interval) : undefined,
+        activePairs: activePairs || undefined,
+        geminiKey: geminiKey || undefined
+      },
+      create: {
+        userId: req.user.id,
+        risk: parseFloat(risk) || 1.5,
+        score: parseInt(score) || 55,
+        interval: parseInt(interval) || 60,
+        activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
+        geminiKey: geminiKey || null
+      }
+    });
+    res.json({ success: true, settings });
+  } catch (err) {
+    console.error("Save settings error:", err);
+    res.status(500).json({ error: "Erro ao salvar configurações no servidor." });
+  }
+});
+
 // ── Admin User Management ─────────────────────────────────────────
 
 app.delete("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {

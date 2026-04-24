@@ -1385,18 +1385,54 @@ async function checkBrokerConnection() {
 }
 
 // ─── PERSISTÊNCIA DE CONFIGURAÇÕES ─────────────
-function saveConfig() {
+async function saveConfig() {
   const config = {
     risk: document.getElementById("riskSlider").value,
     score: document.getElementById("scoreSlider").value,
     interval: document.getElementById("interval").value,
-    activePairs: Array.from(activePairs)
+    activePairs: Array.from(activePairs).join(","),
+    geminiKey: localStorage.getItem("aura_gemini_key")
   };
+  
+  // Backup local
   localStorage.setItem("aura_bot_config", JSON.stringify(config));
-  remoteLog("Configurações do bot guardadas no localStorage.");
+  
+  // Sincronização com Servidor
+  try {
+    await apiFetch("/api/user/settings", "POST", config);
+    remoteLog("Configurações sincronizadas com o servidor.");
+  } catch(e) {
+    console.warn("Falha ao sincronizar com o servidor, guardado localmente.");
+  }
 }
 
-function loadConfig() {
+async function loadConfig() {
+  // 1. Tentar carregar do servidor (Nuvem)
+  try {
+    const data = await apiFetch("/api/user/settings");
+    if (data.success && data.settings) {
+      const s = data.settings;
+      document.getElementById("riskSlider").value = s.risk;
+      document.getElementById("riskVal").textContent = s.risk;
+      document.getElementById("scoreSlider").value = s.score;
+      document.getElementById("scoreVal").textContent = s.score;
+      document.getElementById("interval").value = s.interval;
+      if (s.activePairs) activePairs = new Set(s.activePairs.split(","));
+      
+      if (s.geminiKey) {
+        localStorage.setItem("aura_gemini_key", s.geminiKey);
+        loadSavedGeminiKey();
+      }
+      
+      initPairsGrid();
+      addLog("⚙️ Definições sincronizadas com a nuvem.");
+      return;
+    }
+  } catch(e) {
+    console.warn("Erro ao carregar da nuvem, tentando local...");
+  }
+
+  // 2. Fallback para localStorage
   const saved = localStorage.getItem("aura_bot_config");
   if (saved) {
     try {
@@ -1406,12 +1442,10 @@ function loadConfig() {
       document.getElementById("scoreSlider").value = config.score;
       document.getElementById("scoreVal").textContent = config.score;
       document.getElementById("interval").value = config.interval;
-      activePairs = new Set(config.activePairs);
+      if (config.activePairs) activePairs = new Set(Array.isArray(config.activePairs) ? config.activePairs : config.activePairs.split(","));
       initPairsGrid();
-      addLog("⚙️ Configurações personalizadas carregadas.");
-    } catch(e) { 
-      console.error("Erro ao carregar aura_bot_config", e); 
-    }
+      addLog("⚙️ Configurações locais carregadas.");
+    } catch(e) {}
   }
 }
 
