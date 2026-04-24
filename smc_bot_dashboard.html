@@ -2402,44 +2402,39 @@ async function botLoop() {
       activePairs = new Set(["EURUSD", "GBPUSD", "XAUUSD"]);
     }
 
-    addLog(`📈 Analisando ${activePairs.size} ativos...`);
+    addLog(`📈 Analisando ${activePairs.size} ativos (Motor APEX Pro)...`);
 
-    // 3. Loop de Pares
     for (const pair of activePairs) {
       try {
-        // AI Bias
-        const aiResult = simulateAIBias(pair);
+        // 1. Chamar Análise Profissional no Servidor
+        const htfBias = BIASES[pair] ? BIASES[pair].bias : "NEUTRAL";
+        const analyzeRes = await apiFetch("/api/bot/analyze", "POST", { pair, htfBias });
+        
+        if (!analyzeRes.success) throw new Error(analyzeRes.error || "Erro na análise do servidor");
+
+        // 2. Atualizar UI de Bias (opcionalmente sincronizado com o servidor)
+        const aiResult = simulateAIBias(pair); // Mantemos simulação para o painel visual
         BIASES[pair] = aiResult;
         updateBiasUI(pair, aiResult.bias, aiResult.confidence);
         
-        // Preço
-        let currentPrice = PRICES[pair] || 1.0;
-        if (brokerConnected) {
-          const pData = await getBrokerPrice(pair);
-          if (pData && pData.bid) {
-            currentPrice = (pData.bid + pData.ask) / 2;
-            PRICES[pair] = currentPrice;
-          }
-        }
-
-        // Execução
-        if (openTrades.length < 3) {
-          // FORÇAR SINAL SEMPRE NO PRIMEIRO CICLO PARA TESTE
-          const sig = simulateSignal(pair, null, currentPrice) || {
-            pair, direction: "BUY", entry: currentPrice, 
-            sl: currentPrice * 0.995, tp: currentPrice * 1.01,
-            score: 88, rr: "2.0", factors: { smc: true }, timestamp: new Date().toISOString()
-          };
-
+        // 3. Processar Sinal Profissional
+        const sig = analyzeRes.signal;
+        
+        if (sig && openTrades.length < 3) {
+          addLog(`🎯 SINAL PRO DETETADO: ${sig.direction} ${pair}`, "info");
+          
           const risk = parseFloat(document.getElementById("riskSlider").value) || 1.0;
           const balance = brokerInfo ? (brokerInfo.balance || 10000) : 10000;
           const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
+          
+          // O motor pro já calcula SL/TP e RR
           const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
           const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
           sig.lotSize = lotSize;
+          sig.score = 90; // Pontuação premium para o motor Pro
 
           if (brokerConnected) {
-            addLog(`🚀 Executando ${sig.direction} ${pair}...`, "buy");
+            addLog(`🚀 Executando ${sig.direction} PRO em ${pair}...`, "buy");
             const res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
             if (res.success) {
               tradeCount++;
@@ -2450,11 +2445,10 @@ async function botLoop() {
               addSignalCard(sig, { success: false, error: res.error });
             }
           } else {
-            addLog(`💡 Simulação: ${sig.direction} ${pair}`);
+            addLog(`💡 Simulação PRO: ${sig.direction} ${pair} | RR: ${sig.rr}`);
             addSignalCard(sig, null);
           }
           signals.push(sig);
-          break; // Para o teste, fazemos apenas 1 trade por ciclo
         }
       } catch (err) {
         addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");

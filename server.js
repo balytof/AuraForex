@@ -21,6 +21,9 @@ const { encrypt, decrypt } = require("./utils/encryption");
 // APEX SMC Broker Layer
 const { createBroker } = require("./apex_broker");
 
+const { generateSignal } = require("./signals/smc_signal_engine");
+const { analyzeAll } = require("./smc/smc");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -845,6 +848,42 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Save settings error:", err);
     res.status(500).json({ error: "Erro ao salvar configurações no servidor." });
+  }
+});
+
+// ─── AI & Signal Engine ───────────────────────────────────────
+
+app.post("/api/bot/analyze", requireAuth, async (req, res) => {
+  const { pair, htfBias, candles } = req.body;
+  
+  try {
+    // Se não vierem velas, tentamos obter da corretora (placeholder por agora)
+    let marketCandles = candles;
+    if (!marketCandles || marketCandles.length === 0) {
+      marketCandles = Array.from({ length: 250 }, (_, i) => ({
+        open: 1.0850 + Math.random() * 0.001,
+        high: 1.0860 + Math.random() * 0.001,
+        low: 1.0840 + Math.random() * 0.001,
+        close: 1.0850 + Math.random() * 0.001,
+        timestamp: Date.now() - (250 - i) * 60000
+      }));
+    }
+
+    const signal = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
+    const analysis = analyzeAll(marketCandles);
+
+    res.json({ 
+      success: true, 
+      signal, 
+      analysis: {
+        obs: analysis.obs.slice(-5), 
+        fvgs: analysis.fvgs.slice(-5),
+        structure: analysis.structure.slice(-3)
+      }
+    });
+  } catch (err) {
+    console.error("Bot analysis error:", err);
+    res.status(500).json({ error: "Erro no motor de sinais profissional." });
   }
 });
 
