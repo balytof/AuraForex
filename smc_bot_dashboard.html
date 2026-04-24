@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AuraForex — SMC Forex Bot</title>
+<title>AuraForex SMC Bot v2.5.0 (PRO)</title>
 <meta name="description" content="Bot de trading forex com Smart Money Concepts, integração com corretoras OANDA, Capital.com e MetaTrader">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
@@ -1465,12 +1465,12 @@ async function loadConfig() {
 // ─── ESTADO ───────────────────────────────────
 window.onerror = function(msg, url, line, col, error) {
   if (typeof addLog === 'function') {
-    addLog(`❌ ERRO NO CÓDIGO: ${msg} (Linha: ${line})`, "sell");
+    addLog(`❌ ERRO CRÍTICO: ${msg} (Linha: ${line})`, "sell");
   }
-  console.error("Global error:", msg, "at line", line);
   return false;
 };
 
+const VERSION = "2.5.0-PRO";
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
 let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
@@ -2384,11 +2384,10 @@ function updateSessionStatus() {
   el.textContent = isActiveSession() ? "Londres / NY Ativa" : "Fora de Sessão";
 }
 
-// ─── BOT LOOP (Versão Ultra-Segura) ───────────────────
 async function botLoop() {
   if (!isRunning) return;
   
-  addLog("🔍 AuraBot: A iniciar ciclo de análise...", "info");
+  addLog(`🔍 AuraBot [${VERSION}]: A iniciar análise...`, "info");
 
   try {
     // 1. Verificar Sessão
