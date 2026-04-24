@@ -855,7 +855,7 @@
             <label class="form-label">Risco por Trade: <span id="riskVal">1.5</span>%</label>
             <div class="slider-row">
               <input type="range" class="slider" min="0.5" max="3" step="0.1" value="1.5" id="riskSlider"
-                oninput="document.getElementById('riskVal').textContent=this.value">
+                oninput="document.getElementById('riskVal').textContent=this.value; saveConfig();">
             </div>
           </div>
 
@@ -863,7 +863,7 @@
             <label class="form-label">Score Mínimo: <span id="scoreVal">55</span></label>
             <div class="slider-row">
               <input type="range" class="slider" min="40" max="90" step="5" value="55" id="scoreSlider"
-                oninput="document.getElementById('scoreVal').textContent=this.value">
+                oninput="document.getElementById('scoreVal').textContent=this.value; saveConfig();">
             </div>
           </div>
 
@@ -876,7 +876,7 @@
 
           <div class="form-group">
             <label class="form-label">Intervalo (segundos)</label>
-            <input type="number" class="form-input" id="interval" value="60" min="15">
+            <input type="number" class="form-input" id="interval" value="60" min="15" onchange="saveConfig()">
           </div>
 
         </div>
@@ -1320,6 +1320,100 @@ async function doChangePassword() {
     msg.textContent = '❌ ' + (data.error || 'Erro desconhecido.');
   }
 }
+// ─── UTILITÁRIOS E SIMULADORES ────────────────
+const PRICES = { EURUSD:1.0850, GBPUSD:1.2650, USDJPY:149.50, XAUUSD:2320.0, GBPJPY:189.0, EURGBP:0.8580 };
+
+function isActiveSession() {
+  const hour = new Date().getUTCHours();
+  return (hour >= 7 && hour < 16) || (hour >= 12 && hour < 21);
+}
+
+function simulateAIBias(pair) {
+  const biases = ["BULLISH", "BEARISH", "NEUTRAL"];
+  const random = Math.random();
+  const bias = random > 0.6 ? biases[0] : (random > 0.2 ? biases[1] : biases[2]);
+  return { 
+    bias, 
+    confidence: Math.floor(Math.random() * 30) + 60, 
+    reasoning: "Análise SMC confirmada em H1/M15 com fluxo de ordens institucional." 
+  };
+}
+
+function simulateSignal(pair, candles, price) {
+  // 15% de chance de gerar um sinal por par em cada ciclo para simular raridade SMC
+  if (Math.random() > 0.15) return null; 
+  
+  const direction = Math.random() > 0.5 ? "BUY" : "SELL";
+  const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") ? 1 : 0.0001);
+  const slPips = 20 + Math.floor(Math.random() * 15);
+  const tpPips = slPips * (2 + Math.random());
+  
+  const sl = direction === "BUY" ? price - (slPips * pip) : price + (slPips * pip);
+  const tp = direction === "BUY" ? price + (tpPips * pip) : price - (tpPips * pip);
+  
+  return {
+    pair, direction, entry: price, sl, tp,
+    score: Math.floor(Math.random() * 25) + 60,
+    rr: (tpPips / slPips).toFixed(1),
+    factors: { 
+      smcStructure: true, 
+      orderBlock: Math.random() > 0.4, 
+      fvg: Math.random() > 0.5,
+      emaAlignment: true 
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+function updatePositionsUI(positions) {
+  document.getElementById("statOpen").textContent = `${positions.length} / 3`;
+  // PNL e Equity já são tratados no updateStats()
+}
+
+async function checkBrokerConnection() {
+  try {
+    const data = await getBrokerStatus();
+    if (data && data.connected) {
+      brokerConnected = true;
+      brokerInfo = data.accountInfo;
+      updateBrokerUI();
+      addLog(`🔄 Conexão restaurada automaticamente: ${brokerInfo.broker}`, "buy");
+    }
+  } catch(e) {
+    console.warn("Falha ao verificar status inicial do broker.");
+  }
+}
+
+// ─── PERSISTÊNCIA DE CONFIGURAÇÕES ─────────────
+function saveConfig() {
+  const config = {
+    risk: document.getElementById("riskSlider").value,
+    score: document.getElementById("scoreSlider").value,
+    interval: document.getElementById("interval").value,
+    activePairs: Array.from(activePairs)
+  };
+  localStorage.setItem("aura_bot_config", JSON.stringify(config));
+  remoteLog("Configurações do bot guardadas no localStorage.");
+}
+
+function loadConfig() {
+  const saved = localStorage.getItem("aura_bot_config");
+  if (saved) {
+    try {
+      const config = JSON.parse(saved);
+      document.getElementById("riskSlider").value = config.risk;
+      document.getElementById("riskVal").textContent = config.risk;
+      document.getElementById("scoreSlider").value = config.score;
+      document.getElementById("scoreVal").textContent = config.score;
+      document.getElementById("interval").value = config.interval;
+      activePairs = new Set(config.activePairs);
+      initPairsGrid();
+      addLog("⚙️ Configurações personalizadas carregadas.");
+    } catch(e) { 
+      console.error("Erro ao carregar aura_bot_config", e); 
+    }
+  }
+}
 
 // ─── ESTADO ───────────────────────────────────
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
@@ -1404,6 +1498,7 @@ function initPairsGrid() {
     btn.onclick = () => {
       activePairs.has(p) ? activePairs.delete(p) : activePairs.add(p);
       btn.classList.toggle("active");
+      saveConfig();
     };
     g.appendChild(btn);
   });
@@ -1505,11 +1600,8 @@ function addSignalCard(sig, execResult) {
 //  BROKER API CALLS & AUTH
 // ═══════════════════════════════════════════════
 
-function logout() {
-  localStorage.removeItem("aura_token");
-  localStorage.removeItem("aura_startup_broker");
-  window.location.href = "/login.html";
-}
+// Logout centralizado removido por duplicidade (já existe na linha 1256)
+
 
 async function apiFetch(endpoint, method = "GET", body = null) {
   const token = localStorage.getItem("aura_token");
@@ -1559,8 +1651,11 @@ async function connectToBroker(brokerType, credentials) {
 }
 
 async function disconnectBroker() {
-  return apiFetch("/api/broker/disconnect", "POST");
+  // Importante: Passamos forgetDb: false para NÃO apagar as credenciais da BD do servidor.
+  // Assim o auto-connect funcionará no próximo login.
+  return apiFetch("/api/broker/disconnect", "POST", { forgetDb: false });
 }
+
 
 async function getBrokerAccount() {
   return apiFetch("/api/broker/account");
@@ -2560,11 +2655,12 @@ async function confirmPayment() {
 // ─── BOOT ─────────────────────────────────────
 initPairsGrid();
 initBiases();
+loadConfig(); // Carrega configs antes do resto
 updateStats();
 updateSessionStatus();
 checkBrokerConnection();
-loadSavedGeminiKey(); // Carrega API Key guardada
-checkAuth(); // Já faz o sync e updateLicenseUI
+loadSavedGeminiKey(); 
+checkAuth(); 
 
 </script>
 </body>
