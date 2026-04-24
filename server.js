@@ -354,12 +354,13 @@ app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
       userBrokers.delete(req.user.id);
     }
 
-    if (forgetDb !== false) {
+    // Mudança importante: Padrão agora é NÃO apagar da BD a menos que explicitamente pedido
+    if (forgetDb === true) {
       await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+      console.log(`[BROKER] Conexão apagada da DB para user ${req.user.id}`);
     }
   } catch(e) {
     console.error("Disconnect error:", e.message);
-    // Still remove from memory even if API call failed
     userBrokers.delete(req.user.id);
   }
 

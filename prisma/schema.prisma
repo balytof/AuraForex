@@ -30,6 +30,7 @@ model User {
   bonusesReceived     BonusTransaction[] @relation("BonusReceiver")
   bonusesGenerated    BonusTransaction[] @relation("BonusSource")
   withdrawals         WithdrawalRequest[]
+  settings            UserSettings?
 }
 
 model LicensePlan {
@@ -137,4 +138,16 @@ model WithdrawalRequest {
   updatedAt     DateTime @updatedAt
 
   user          User     @relation(fields: [userId], references: [id])
+}
+
+model UserSettings {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  risk        Float    @default(1.5)
+  score       Int      @default(55)
+  interval    Int      @default(60)
+  activePairs String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
+  geminiKey   String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
