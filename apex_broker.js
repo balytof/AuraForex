@@ -93,6 +93,7 @@ class OandaAdapter extends BrokerBase {
         brokerName: "OANDA",
         brokerType: "oanda",
         currency: res.account.currency || "USD",
+        accountType: this.environment === 'live' ? "LIVE" : "DEMO",
         region: "🌎"
       };
       return { success: true, accountInfo: this.accountInfo };
@@ -136,6 +137,10 @@ class MetaApiAdapter extends BrokerBase {
       await this.connection.connect();
       const info = await this.connection.getAccountInformation();
       this.connected = true;
+      
+      // Deteção robusta de Live vs Demo
+      const isLive = this.account.type === 'CLOUD-LIVE' || this.account.type === 'SELF-HOSTED';
+      
       this.accountInfo = { 
         balance: info.balance, 
         broker: "MetaTrader",
@@ -143,6 +148,7 @@ class MetaApiAdapter extends BrokerBase {
         brokerType: "metaapi",
         currency: info.currency || "USD",
         platform: "MT4/MT5",
+        accountType: isLive ? "LIVE" : "DEMO",
         region: "🌐"
       };
       return { success: true, accountInfo: this.accountInfo };
@@ -204,6 +210,7 @@ class CapitalAdapter extends BrokerBase {
          brokerName: "Capital.com",
          brokerType: "capital",
          currency: "USD",
+         accountType: (this.config.environment || "demo") === "live" ? "LIVE" : "DEMO",
          region: "🇪🇺"
        };
        return { success: true, accountInfo: this.accountInfo };
