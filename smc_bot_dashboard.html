@@ -2392,78 +2392,79 @@ async function botLoop() {
     }
   }
 
-  updateSessionStatus();
+  console.log("[AuraBot] Iniciando ciclo de análise...");
+  try {
+    updateSessionStatus();
+  } catch(e) {
+    console.error("[AuraBot] Erro em updateSessionStatus:", e);
+  }
+
+  if (!activePairs || !(activePairs instanceof Set) || activePairs.size === 0) {
+    console.warn("[AuraBot] Lista de pares inválida ou vazia. Restaurando padrão...");
+    activePairs = new Set(["EURUSD","GBPUSD","XAUUSD"]);
+  }
 
   for (const pair of activePairs) {
-    // 1. AI Bias (simulado por enquanto)
-    const aiResult = simulateAIBias(pair);
-    BIASES[pair] = aiResult;
-    updateBiasUI(pair, aiResult.bias, aiResult.confidence);
-    addLog(`[AI] ${pair}: ${aiResult.bias} (${aiResult.confidence}%)`, aiResult.bias === "BULLISH" ? "buy" : aiResult.bias === "BEARISH" ? "sell" : "");
-
-    // 2. Obter preço atual da corretora
-    let currentPrice = PRICES[pair];
-    if (brokerConnected) {
-      try {
-        const priceData = await getBrokerPrice(pair);
-        if (priceData && priceData.bid) {
-          currentPrice = (priceData.bid + priceData.ask) / 2;
-          PRICES[pair] = currentPrice;
+    try {
+      console.log(`[AuraBot] Analisando ${pair}...`);
+      
+      // 1. AI Bias
+      const aiResult = simulateAIBias(pair);
+      BIASES[pair] = aiResult;
+      updateBiasUI(pair, aiResult.bias, aiResult.confidence);
+      
+      // 2. Preço atual
+      let currentPrice = PRICES[pair] || 1.0;
+      if (brokerConnected) {
+        try {
+          const priceData = await getBrokerPrice(pair);
+          if (priceData && priceData.bid) {
+            currentPrice = (priceData.bid + priceData.ask) / 2;
+            PRICES[pair] = currentPrice;
+          }
+        } catch (e) {
+          console.warn(`[AuraBot] Falha ao obter preço real para ${pair}, usando simulado.`);
         }
-      } catch (e) {
-        addLog(`⚠️ Erro ao obter preço ${pair}: ${e.message}`, "warn");
       }
-    }
 
-    // 3. Verificar posições abertas
-    if (brokerConnected) {
-      try {
-        const posData = await getBrokerPositions();
-        openTrades = posData.positions || [];
-      } catch (e) {}
-    }
+      // 3. Execução de Sinal
+      if (openTrades.length < 3) {
+        const sig = simulateSignal(pair, null, currentPrice);
+        if (sig) {
+          sigCount++;
+          const risk = parseFloat(document.getElementById("riskSlider").value) || 1.0;
+          const balance = brokerInfo ? brokerInfo.balance : 10000;
+          const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
+          const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
+          const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
+          sig.lotSize = lotSize;
 
-    // 4. Gerar sinal se há espaço para trades
-    if (openTrades.length < 3) {
-      const sig = simulateSignal(pair, null, currentPrice);
-      if (sig) {
-        sigCount++;
-        const risk = parseFloat(document.getElementById("riskSlider").value);
-        const balance = brokerInfo ? brokerInfo.balance : 10000;
-        const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
-        const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
-        const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
-        sig.lotSize = lotSize;
-
-        // 5. EXECUTAR NA CORRETORA
-        let execResult = null;
-        if (brokerConnected) {
-          addLog(`📊 Executando ${sig.direction} ${pair} | Lote: ${lotSize} | SL: ${sig.sl.toFixed(5)} | TP: ${sig.tp.toFixed(5)}`, sig.direction === "BUY" ? "buy" : "sell");
-          try {
-            execResult = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
+          if (brokerConnected) {
+            addLog(`📊 Executando ${sig.direction} ${pair} | Lote: ${lotSize}`, sig.direction === "BUY" ? "buy" : "sell");
+            const execResult = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
             if (execResult.success) {
               tradeCount++;
-              wins++; // Será atualizado quando fechar
-              addLog(`✅ Ordem executada: ${sig.direction} ${pair} #${execResult.orderId} @ ${execResult.fillPrice || sig.entry}`, "buy");
+              addLog(`✅ Ordem executada: ${sig.direction} ${pair} #${execResult.orderId}`, "buy");
+              addSignalCard(sig, execResult);
             } else {
               addLog(`❌ Ordem rejeitada: ${execResult.error}`, "sell");
+              addSignalCard(sig, { success: false, error: execResult.error });
             }
-          } catch (e) {
-            execResult = { success: false, error: e.message };
-            addLog(`❌ Erro de execução: ${e.message}`, "sell");
+          } else {
+            addLog(`SINAL ${sig.direction} ${pair} | RR ${sig.rr} (simulação)`, sig.direction === "BUY" ? "buy" : "sell");
+            addSignalCard(sig, null);
           }
-        } else {
-          addLog(`SINAL ${sig.direction} ${pair} | Score:${sig.score} | R:R ${sig.rr} (simulação)`, sig.direction === "BUY" ? "buy" : "sell");
+          signals.push(sig);
         }
-
-        addSignalCard(sig, execResult);
-        signals.push(sig);
       }
+    } catch (pairErr) {
+      console.error(`[AuraBot] Erro crítico no par ${pair}:`, pairErr);
     }
   }
 
   await updateStats();
   const ms = parseInt(document.getElementById("interval").value) * 1000;
+  console.log(`[AuraBot] Ciclo concluído. Próximo em ${ms/1000}s`);
   loopTimer = setTimeout(botLoop, ms);
 }
 
