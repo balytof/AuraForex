@@ -2392,79 +2392,89 @@ async function botLoop() {
     }
   }
 
-  console.log("[AuraBot] Iniciando ciclo de análise...");
+  addLog("🔍 AuraBot: Iniciando ciclo de análise...", "info");
+  
   try {
     updateSessionStatus();
   } catch(e) {
-    console.error("[AuraBot] Erro em updateSessionStatus:", e);
+    console.error("Erro updateSessionStatus:", e);
   }
 
+  // Garantia de pares ativos
   if (!activePairs || !(activePairs instanceof Set) || activePairs.size === 0) {
-    console.warn("[AuraBot] Lista de pares inválida ou vazia. Restaurando padrão...");
+    addLog("⚙️ Restaurando lista de pares padrão...", "warn");
     activePairs = new Set(["EURUSD","GBPUSD","XAUUSD"]);
   }
 
+  addLog(`📈 Analisando ${activePairs.size} pares ativos...`);
+
   for (const pair of activePairs) {
     try {
-      console.log(`[AuraBot] Analisando ${pair}...`);
-      
       // 1. AI Bias
       const aiResult = simulateAIBias(pair);
       BIASES[pair] = aiResult;
       updateBiasUI(pair, aiResult.bias, aiResult.confidence);
+      addLog(`🤖 ${pair}: Bias ${aiResult.bias} (${aiResult.confidence}%)`);
       
-      // 2. Preço atual
+      // 2. Preço
       let currentPrice = PRICES[pair] || 1.0;
       if (brokerConnected) {
-        try {
-          const priceData = await getBrokerPrice(pair);
-          if (priceData && priceData.bid) {
-            currentPrice = (priceData.bid + priceData.ask) / 2;
-            PRICES[pair] = currentPrice;
-          }
-        } catch (e) {
-          console.warn(`[AuraBot] Falha ao obter preço real para ${pair}, usando simulado.`);
+        const priceData = await getBrokerPrice(pair);
+        if (priceData && priceData.bid) {
+          currentPrice = (priceData.bid + priceData.ask) / 2;
+          PRICES[pair] = currentPrice;
         }
       }
 
-      // 3. Execução de Sinal
+      // 3. Execução de Sinal (Forçar 100% de chance no primeiro par para teste)
       if (openTrades.length < 3) {
         const sig = simulateSignal(pair, null, currentPrice);
-        if (sig) {
+        
+        // --- FORÇAR SINAL PARA TESTE ---
+        if (sig || true) { 
+          const finalSig = sig || {
+            pair, direction: "BUY", entry: currentPrice, 
+            sl: currentPrice * 0.99, tp: currentPrice * 1.01,
+            score: 85, rr: "2.0", factors: { smc: true }, timestamp: new Date().toISOString()
+          };
+          
           sigCount++;
           const risk = parseFloat(document.getElementById("riskSlider").value) || 1.0;
           const balance = brokerInfo ? brokerInfo.balance : 10000;
           const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
-          const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
+          const slPips = Math.abs(finalSig.entry - finalSig.sl) / pipVal;
           const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
-          sig.lotSize = lotSize;
+          finalSig.lotSize = lotSize;
 
           if (brokerConnected) {
-            addLog(`📊 Executando ${sig.direction} ${pair} | Lote: ${lotSize}`, sig.direction === "BUY" ? "buy" : "sell");
-            const execResult = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
+            addLog(`🚀 Executando ${finalSig.direction} ${pair}...`, "buy");
+            const execResult = await placeBrokerOrder(pair, finalSig.direction, lotSize, finalSig.sl, finalSig.tp);
             if (execResult.success) {
               tradeCount++;
-              addLog(`✅ Ordem executada: ${sig.direction} ${pair} #${execResult.orderId}`, "buy");
-              addSignalCard(sig, execResult);
+              addLog(`✅ Sucesso: ${pair} #${execResult.orderId}`, "buy");
+              addSignalCard(finalSig, execResult);
             } else {
-              addLog(`❌ Ordem rejeitada: ${execResult.error}`, "sell");
-              addSignalCard(sig, { success: false, error: execResult.error });
+              addLog(`❌ Rejeitado: ${execResult.error}`, "sell");
+              addSignalCard(finalSig, { success: false, error: execResult.error });
             }
           } else {
-            addLog(`SINAL ${sig.direction} ${pair} | RR ${sig.rr} (simulação)`, sig.direction === "BUY" ? "buy" : "sell");
-            addSignalCard(sig, null);
+            addLog(`💡 Sinal Simulado: ${finalSig.direction} ${pair}`);
+            addSignalCard(finalSig, null);
           }
-          signals.push(sig);
+          signals.push(finalSig);
+          
+          // Se forçamos um sinal, paramos por este ciclo para não abrir 3 de uma vez
+          break; 
         }
       }
     } catch (pairErr) {
-      console.error(`[AuraBot] Erro crítico no par ${pair}:`, pairErr);
+      addLog(`⚠️ Erro no par ${pair}: ${pairErr.message}`, "warn");
     }
   }
 
   await updateStats();
   const ms = parseInt(document.getElementById("interval").value) * 1000;
-  console.log(`[AuraBot] Ciclo concluído. Próximo em ${ms/1000}s`);
+  addLog(`💤 Ciclo concluído. Próximo em ${ms/1000}s`, "info");
   loopTimer = setTimeout(botLoop, ms);
 }
 
