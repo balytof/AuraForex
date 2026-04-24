@@ -1672,14 +1672,29 @@ function closeConnectModal() {
 
 function showModalStep(step) {
   currentModalStep = step;
-  document.querySelectorAll(".modal-step").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("#connectModal .modal-step").forEach(s => s.classList.remove("active"));
   document.getElementById(`modalStep${step}`).classList.add("active");
 
   const backBtn = document.getElementById("modalBackBtn");
   const nextBtn = document.getElementById("modalNextBtn");
   const footer = document.getElementById("modalFooter");
+  const headerTitle = document.querySelector("#connectModal .modal-header h2");
 
   backBtn.style.display = step > 1 ? "block" : "none";
+
+  if (step === 1) {
+    if (headerTitle) headerTitle.innerHTML = "🔗 Conectar Corretora";
+  } else if (step === 2) {
+    if (headerTitle) {
+      if (selectedBrokerEntry && selectedBrokerEntry.isCustom) {
+        headerTitle.innerHTML = "⚙️ Configurar Corretora Personalizada";
+      } else if (selectedBrokerEntry) {
+        headerTitle.innerHTML = `${selectedBrokerEntry.icon} ${selectedBrokerEntry.name}`;
+      }
+    }
+  } else if (step === 3) {
+    if (headerTitle) headerTitle.innerHTML = "⚡ Conexão";
+  }
 
   if (step === 1) {
     nextBtn.textContent = selectedBrokerEntry ? `Continuar com ${selectedBrokerEntry.name} →` : "Selecione uma corretora →";
@@ -1708,7 +1723,7 @@ function buildCredForm() {
 
   // ── Custom Broker: adapter selector + name ──────────────────
   if (b.isCustom) {
-    title.textContent = "⚙️ Configurar Corretora Personalizada";
+    title.style.display = "none";
     html += `
       <div class="form-group">
         <label class="form-label">Nome da Corretora</label>
@@ -1754,8 +1769,9 @@ function buildCredForm() {
   `;
 
   // Adapter-specific fields
+  title.style.display = "none";
+  
   if (b.adapter === "oanda") {
-    title.textContent = `Credenciais ${b.name}`;
     html += `
       <div class="form-group">
         <label class="form-label">API Token (OANDA)</label>
@@ -1768,7 +1784,6 @@ function buildCredForm() {
       </div>
     `;
   } else if (b.adapter === "capital") {
-    title.textContent = `Credenciais ${b.name}`;
     html += `
       <div class="form-group">
         <label class="form-label">API Key</label>
@@ -1784,7 +1799,6 @@ function buildCredForm() {
       </div>
     `;
   } else if (b.adapter === "metaapi") {
-    title.textContent = `Conectar ${b.name} via MetaApi`;
     html += `
       <div style="padding:10px 14px;border-radius:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);font-size:0.72rem;color:var(--accent);font-family:'Space Mono',monospace;margin-bottom:4px;">
         ℹ️ Para conectar o ${b.name}, registe a sua conta MT4/MT5 no <a href="https://app.metaapi.cloud" target="_blank" style="color:var(--accent);font-weight:700;">MetaApi Cloud</a> (grátis).
@@ -2062,6 +2076,30 @@ function renderHistory() {
 
 // Inicializar ao conectar
 // (chamado de modais ou updates)
+
+// ─── DISCONNECT ───────────────────────────────
+async function doDisconnect() {
+  const connectBtn = document.getElementById("connectBtn");
+  connectBtn.disabled = true;
+  connectBtn.textContent = "A desconectar...";
+
+  try {
+    await disconnectBroker();
+  } catch(e) {
+    console.warn("Disconnect error (ignored):", e.message);
+  }
+
+  brokerConnected = false;
+  brokerInfo = null;
+  openTrades = [];
+
+  // Stop bot if running
+  if (botRunning) stopBot();
+
+  updateBrokerUI();
+  addLog("🔌 Corretora desconectada.", "sell");
+  connectBtn.disabled = false;
+}
 
 // ─── UPDATES ──────────────────────────────────
 async function updateBrokerUI() {
