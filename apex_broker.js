@@ -84,7 +84,12 @@ class OandaAdapter extends BrokerBase {
     try {
       const res = await this.request('GET', `/v3/accounts/${this.accountId}/summary`);
       this.connected = true;
-      this.accountInfo = { balance: parseFloat(res.account.balance), broker: "OANDA" };
+      this.accountInfo = { 
+        balance: parseFloat(res.account.balance), 
+        broker: "OANDA",
+        brokerName: "OANDA",
+        currency: res.account.currency || "USD"
+      };
       return { success: true, accountInfo: this.accountInfo };
     } catch(e) { return { success: false, error: e.message }; }
   }
@@ -124,7 +129,13 @@ class MetaApiAdapter extends BrokerBase {
       await this.connection.connect();
       const info = await this.connection.getAccountInformation();
       this.connected = true;
-      this.accountInfo = { balance: info.balance, broker: "MetaTrader" };
+      this.accountInfo = { 
+        balance: info.balance, 
+        broker: "MetaTrader",
+        brokerName: "MetaTrader",
+        currency: info.currency || "USD",
+        platform: "MT4/MT5"
+      };
       return { success: true, accountInfo: this.accountInfo };
     } catch(e) { return { success: false, error: e.message }; }
   }
@@ -189,7 +200,13 @@ class CapitalAdapter extends BrokerBase {
        this.cst = res.headers.get("CST");
        this.securityToken = res.headers.get("X-SECURITY-TOKEN");
        this.connected = true;
-       return { success: true };
+       this.accountInfo = {
+         balance: 0, // Will be updated on balance call
+         broker: "Capital.com",
+         brokerName: "Capital.com",
+         currency: "USD"
+       };
+       return { success: true, accountInfo: this.accountInfo };
      } catch(e) { return { success: false, error: e.message }; }
   }
 
