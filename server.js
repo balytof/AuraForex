@@ -386,9 +386,23 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
   const { pair, direction, lotSize, sl, tp } = req.body;
   if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    const result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
+    // Tenta primeiro com os stops (Original)
+    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
+    
+    // Se falhar por causa de stops, tenta entrar sem eles (MAGIC RETRY)
+    if (!result.success && (result.error?.toLowerCase().includes("stop") || result.error?.toLowerCase().includes("validation"))) {
+      console.log(`[MAGIC] Rejeição de stops detetada para ${pair}. Tentando entrada limpa...`);
+      result = await req.broker.placeOrder({ pair, direction }, lotSize);
+      if (result.success) {
+        result.message = "Entrada executada sem stops (Stops rejeitados pela corretora)";
+      }
+    }
+    
     return res.status(result.success ? 200 : 400).json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error("Order error:", e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.delete("/api/broker/position/:id", requireAuth, requireBrokerAuth, async (req, res) => {

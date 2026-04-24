@@ -1626,7 +1626,8 @@ function addSignalCard(sig, execResult) {
   let execHtml = '';
   if (execResult) {
     if (execResult.success) {
-      execHtml = `<span class="exec-badge success">✓ Executado #${execResult.orderId || ''}</span>`;
+      const msg = execResult.message || `Executado #${execResult.orderId || ''}`;
+      execHtml = `<span class="exec-badge success">✓ ${msg}</span>`;
     } else {
       execHtml = `<span class="exec-badge failed">✗ ${execResult.error || 'Falhou'}</span>`;
     }
