@@ -111,8 +111,31 @@ class OandaAdapter extends BrokerBase {
           takeProfitOnFill: { price: signal.tp.toFixed(5) }
         }
       });
-      return { success: true, orderId: res.orderFillTransaction.id };
     } catch(e) { return { success: false, error: e.message }; }
+  }
+
+  async getOpenPositions() {
+    try {
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/openTrades`);
+      return (res.trades || []).map(t => ({
+        id: t.id, pair: t.instrument.replace("_", ""),
+        direction: Number(t.currentUnits) > 0 ? "BUY" : "SELL",
+        lotSize: Math.abs(Number(t.currentUnits)) / 100000,
+        openPrice: Number(t.price), pnl: Number(t.unrealizedPL)
+      }));
+    } catch(e) { return []; }
+  }
+
+  async getHistory() {
+    try {
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/trades?state=CLOSED&count=50`);
+      return (res.trades || []).map(t => ({
+        id: t.id, broker: "OANDA", pair: t.instrument.replace("_", ""),
+        direction: Number(t.initialUnits) > 0 ? "BUY" : "SELL",
+        lotSize: Math.abs(Number(t.initialUnits)) / 100000,
+        pnl: Number(t.realizedPL), closeTime: t.closeTime
+      }));
+    } catch(e) { return []; }
   }
 }
 
