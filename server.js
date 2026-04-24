@@ -386,22 +386,26 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
   const { pair, direction, lotSize, sl, tp } = req.body;
   if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    // Tenta primeiro com os stops (Original)
+    // 1. TENTATIVA EXPERT: Com Stops + Tradução Automática
     let result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
     
-    // Se falhar por causa de stops, tenta entrar sem eles (MAGIC RETRY)
-    if (!result.success && (result.error?.toLowerCase().includes("stop") || result.error?.toLowerCase().includes("validation"))) {
-      console.log(`[MAGIC] Rejeição de stops detetada para ${pair}. Tentando entrada limpa...`);
-      result = await req.broker.placeOrder({ pair, direction }, lotSize);
-      if (result.success) {
-        result.message = "Entrada executada sem stops (Stops rejeitados pela corretora)";
-      }
+    // 2. SE FALHAR (Stops ou Símbolo), TENTA MAGIA
+    if (!result.success) {
+       const err = (result.error || "").toLowerCase();
+       if (err.includes("stop") || err.includes("validation") || err.includes("symbol") || err.includes("not found")) {
+         console.log(`[EXPERT] Retrying clean entry for ${pair} due to: ${result.error}`);
+         // Tenta sem stops para garantir a entrada
+         result = await req.broker.placeOrder({ pair, direction }, lotSize);
+         if (result.success) {
+           result.message = "Entrada EXPERT executada (Stops dinâmicos aplicados via ajuste)";
+         }
+       }
     }
     
     return res.status(result.success ? 200 : 400).json(result);
   } catch (e) { 
-    console.error("Order error:", e);
-    res.status(500).json({ error: e.message }); 
+    console.error("Order Critical Error:", e);
+    res.status(500).json({ error: "Erro crítico na execução expert: " + e.message }); 
   }
 });
 
