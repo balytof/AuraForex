@@ -6,7 +6,7 @@
 
 const https = require('https');
 const fetch = require('node-fetch'); // Required for MetaApi and Capital.com raw REST
-const MetaApi = require('metaapi.cloud-sdk');
+const MetaApi = require('metaapi.cloud-sdk').default;
 
 // ============================================================
 // BrokerBase.js
