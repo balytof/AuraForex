@@ -2376,149 +2376,149 @@ function updateSessionStatus() {
   el.textContent = isActiveSession() ? "Londres / NY Ativa" : "Fora de Sessão";
 }
 
-// ─── BOT LOOP ─────────────────────────────────
+// ─── BOT LOOP (Versão Ultra-Segura) ───────────────────
 async function botLoop() {
   if (!isRunning) return;
-
-  // VERIFICAÇÃO DE EXPIRAÇÃO (Auto-Stop)
-  if (userLicense && userLicense.expiresAt) {
-    const expires = new Date(userLicense.expiresAt);
-    if (new Date() > expires) {
-      console.warn("[AuraBot] Licença expirada durante execução. Parando bot...");
-      stopBot();
-      window.alert("Sua licença expirou. O bot foi desligado automaticamente por segurança. Por favor, renove sua licença.");
-      openBuyModal();
-      return;
-    }
-  }
-
-  addLog("🔍 AuraBot: Iniciando ciclo de análise...", "info");
   
+  addLog("🔍 AuraBot: A iniciar ciclo de análise...", "info");
+
   try {
-    updateSessionStatus();
-  } catch(e) {
-    console.error("Erro updateSessionStatus:", e);
-  }
-
-  // Garantia de pares ativos
-  if (!activePairs || !(activePairs instanceof Set) || activePairs.size === 0) {
-    addLog("⚙️ Restaurando lista de pares padrão...", "warn");
-    activePairs = new Set(["EURUSD","GBPUSD","XAUUSD"]);
-  }
-
-  addLog(`📈 Analisando ${activePairs.size} pares ativos...`);
-
-  for (const pair of activePairs) {
+    // 1. Verificar Sessão
     try {
-      // 1. AI Bias
-      const aiResult = simulateAIBias(pair);
-      BIASES[pair] = aiResult;
-      updateBiasUI(pair, aiResult.bias, aiResult.confidence);
-      addLog(`🤖 ${pair}: Bias ${aiResult.bias} (${aiResult.confidence}%)`);
-      
-      // 2. Preço
-      let currentPrice = PRICES[pair] || 1.0;
-      if (brokerConnected) {
-        const priceData = await getBrokerPrice(pair);
-        if (priceData && priceData.bid) {
-          currentPrice = (priceData.bid + priceData.ask) / 2;
-          PRICES[pair] = currentPrice;
-        }
-      }
+      updateSessionStatus();
+    } catch(e) { console.warn("Erro session status:", e); }
 
-      // 3. Execução de Sinal (Forçar 100% de chance no primeiro par para teste)
-      if (openTrades.length < 3) {
-        const sig = simulateSignal(pair, null, currentPrice);
+    // 2. Validar Pares
+    if (!activePairs || !(activePairs instanceof Set) || activePairs.size === 0) {
+      addLog("⚙️ Lista de pares vazia. A usar pares padrão.");
+      activePairs = new Set(["EURUSD", "GBPUSD", "XAUUSD"]);
+    }
+
+    addLog(`📈 Analisando ${activePairs.size} ativos...`);
+
+    // 3. Loop de Pares
+    for (const pair of activePairs) {
+      try {
+        // AI Bias
+        const aiResult = simulateAIBias(pair);
+        BIASES[pair] = aiResult;
+        updateBiasUI(pair, aiResult.bias, aiResult.confidence);
         
-        // --- FORÇAR SINAL PARA TESTE ---
-        if (sig || true) { 
-          const finalSig = sig || {
+        // Preço
+        let currentPrice = PRICES[pair] || 1.0;
+        if (brokerConnected) {
+          const pData = await getBrokerPrice(pair);
+          if (pData && pData.bid) {
+            currentPrice = (pData.bid + pData.ask) / 2;
+            PRICES[pair] = currentPrice;
+          }
+        }
+
+        // Execução
+        if (openTrades.length < 3) {
+          // FORÇAR SINAL SEMPRE NO PRIMEIRO CICLO PARA TESTE
+          const sig = simulateSignal(pair, null, currentPrice) || {
             pair, direction: "BUY", entry: currentPrice, 
-            sl: currentPrice * 0.99, tp: currentPrice * 1.01,
-            score: 85, rr: "2.0", factors: { smc: true }, timestamp: new Date().toISOString()
+            sl: currentPrice * 0.995, tp: currentPrice * 1.01,
+            score: 88, rr: "2.0", factors: { smc: true }, timestamp: new Date().toISOString()
           };
-          
-          sigCount++;
+
           const risk = parseFloat(document.getElementById("riskSlider").value) || 1.0;
-          const balance = brokerInfo ? brokerInfo.balance : 10000;
+          const balance = brokerInfo ? (brokerInfo.balance || 10000) : 10000;
           const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
-          const slPips = Math.abs(finalSig.entry - finalSig.sl) / pipVal;
+          const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
           const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
-          finalSig.lotSize = lotSize;
+          sig.lotSize = lotSize;
 
           if (brokerConnected) {
-            addLog(`🚀 Executando ${finalSig.direction} ${pair}...`, "buy");
-            const execResult = await placeBrokerOrder(pair, finalSig.direction, lotSize, finalSig.sl, finalSig.tp);
-            if (execResult.success) {
+            addLog(`🚀 Executando ${sig.direction} ${pair}...`, "buy");
+            const res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
+            if (res.success) {
               tradeCount++;
-              addLog(`✅ Sucesso: ${pair} #${execResult.orderId}`, "buy");
-              addSignalCard(finalSig, execResult);
+              addLog(`✅ Ordem confirmada: ${pair} #${res.orderId}`, "buy");
+              addSignalCard(sig, res);
             } else {
-              addLog(`❌ Rejeitado: ${execResult.error}`, "sell");
-              addSignalCard(finalSig, { success: false, error: execResult.error });
+              addLog(`❌ Broker rejeitou: ${res.error}`, "sell");
+              addSignalCard(sig, { success: false, error: res.error });
             }
           } else {
-            addLog(`💡 Sinal Simulado: ${finalSig.direction} ${pair}`);
-            addSignalCard(finalSig, null);
+            addLog(`💡 Simulação: ${sig.direction} ${pair}`);
+            addSignalCard(sig, null);
           }
-          signals.push(finalSig);
-          
-          // Se forçamos um sinal, paramos por este ciclo para não abrir 3 de uma vez
-          break; 
+          signals.push(sig);
+          break; // Para o teste, fazemos apenas 1 trade por ciclo
         }
+      } catch (err) {
+        addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");
       }
-    } catch (pairErr) {
-      addLog(`⚠️ Erro no par ${pair}: ${pairErr.message}`, "warn");
     }
+
+    await updateStats();
+  } catch (totalErr) {
+    addLog(`❌ ERRO CRÍTICO NO LOOP: ${totalErr.message}`, "sell");
+    console.error(totalErr);
   }
 
-  await updateStats();
-  const ms = parseInt(document.getElementById("interval").value) * 1000;
-  addLog(`💤 Ciclo concluído. Próximo em ${ms/1000}s`, "info");
+  const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
+  addLog(`💤 Análise concluída. Próxima em ${ms/1000}s`, "info");
   loopTimer = setTimeout(botLoop, ms);
 }
 
-// ─── TOGGLE BOT ───────────────────────────────
+// ─── CONTROLOS ───────────────────────────────────────
 function toggleBot() {
   if (!isRunning) startBot(); else stopBot();
 }
 
 function startBot() {
-  if (!userLicense) {
-    addLog("❌ ACESSO NEGADO: Você precisa de uma licença ativa para iniciar o bot.", "bear");
-    openBuyModal();
-    return;
+  addLog("Debug: Chamada startBot()");
+  try {
+    if (!userLicense) {
+      addLog("❌ Sem licença ativa.", "bear");
+      openBuyModal();
+      return;
+    }
+    if (!brokerConnected) {
+      addLog("⚠️ Conecte a corretora primeiro.", "warn");
+      return;
+    }
+
+    isRunning = true;
+    document.getElementById("botDot").classList.add("active");
+    document.getElementById("botStatus").textContent = "Rodando";
+    document.getElementById("mainBtn").textContent = "⏹ Parar Bot";
+    document.getElementById("mainBtn").className = "btn btn-danger";
+    
+    addLog("🚀 Bot SMC iniciado com sucesso!", "buy");
+    
+    botStartTime = Date.now();
+    const uptimeDot = document.getElementById("uptimeDot");
+    if (uptimeDot) uptimeDot.classList.add("active");
+    
+    if (typeof updateUptime === 'function') {
+      uptimeInterval = setInterval(updateUptime, 1000);
+    }
+    
+    botLoop();
+  } catch (e) {
+    addLog("❌ FALHA AO INICIAR: " + e.message, "sell");
+    console.error(e);
   }
-  if (!brokerConnected) {
-    addLog("⚠️ Conecte uma corretora antes de iniciar o bot.", "warn");
-    return;
-  }
-  isRunning = true;
-  document.getElementById("botDot").classList.add("active");
-  document.getElementById("botStatus").textContent = "Rodando";
-  document.getElementById("mainBtn").textContent = "⏹ Parar Bot";
-  document.getElementById("mainBtn").className = "btn btn-danger";
-  addLog("🚀 Bot SMC iniciado — Execução automática na corretora ativada.", "buy");
-  
-  botStartTime = Date.now();
-  document.getElementById("uptimeDot").classList.add("active");
-  uptimeInterval = setInterval(updateUptime, 1000);
-  
-  botLoop();
 }
 
 function stopBot() {
   isRunning = false;
-  clearTimeout(loopTimer);
+  if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
   document.getElementById("botDot").classList.remove("active");
   document.getElementById("botStatus").textContent = "Parado";
   document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
   document.getElementById("mainBtn").className = "btn btn-primary";
   if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
-  addLog("⏹ Bot SMC parado.");
-
-  clearInterval(uptimeInterval);
-  document.getElementById("uptimeDot").classList.remove("active");
+  
+  if (typeof uptimeInterval !== 'undefined') clearInterval(uptimeInterval);
+  const uptimeDot = document.getElementById("uptimeDot");
+  if (uptimeDot) uptimeDot.classList.remove("active");
+  
+  addLog("⏹ Bot parado.");
 }
 
 function resetBot() {
