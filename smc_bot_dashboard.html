@@ -239,29 +239,36 @@
   /* Signal cards */
   .signals-list { padding:16px; display:flex; flex-direction:column; gap:12px; max-height:500px; overflow-y:auto; }
   .signal-card {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius:12px; padding:16px; position:relative;
-    overflow:hidden; animation: slideIn 0.4s ease;
-  }
-  .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
-  .signal-card.buy::before  { background:var(--bull); }
-  .signal-card.sell::before { background:var(--bear); }
+     background: var(--surface2); border: 1px solid var(--border);
+     border-radius:16px; padding:20px; position:relative;
+     overflow:hidden; animation: slideIn 0.4s ease;
+     margin-bottom: 16px;
+     min-height: 140px; /* Garante altura mínima */
+     display: flex;
+     flex-direction: column;
+     justify-content: space-between;
+     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+   }
+   .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; }
+   .signal-card.buy::before  { background:var(--bull); box-shadow: 2px 0 10px var(--bull); }
+   .signal-card.sell::before { background:var(--bear); box-shadow: 2px 0 10px var(--bear); }
 
-  @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+   @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
 
-  .signal-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .signal-pair { font-size:1.1rem; font-weight:800; letter-spacing:-0.5px; }
-  .signal-dir {
-    padding: 4px 12px; border-radius:999px;
-    font-size:0.8rem; font-weight:700; font-family:'Space Mono',monospace;
-  }
-  .signal-dir.buy  { background: rgba(0,230,118,0.15); color:var(--bull); border:1px solid rgba(0,230,118,0.3); }
-  .signal-dir.sell { background: rgba(255,68,68,0.15);  color:var(--bear); border:1px solid rgba(255,68,68,0.3); }
+   .signal-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; }
+   .signal-pair { font-size:1.3rem; font-weight:800; letter-spacing:-0.5px; color: #fff; }
+   .signal-dir {
+     padding: 6px 16px; border-radius:999px;
+     font-size:0.9rem; font-weight:800; font-family:'Space Mono',monospace;
+   }
+   .signal-dir.buy  { background: rgba(0,230,118,0.2); color:var(--bull); border:1px solid var(--bull); }
+   .signal-dir.sell { background: rgba(255,68,68,0.2);  color:var(--bear); border:1px solid var(--bear); }
 
-  .signal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
-  .sig-item { display:flex; flex-direction:column; gap:2px; }
-  .sig-item span:first-child { font-size:0.65rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; }
-  .sig-item span:last-child  { font-size:0.88rem; font-weight:600; font-family:'Space Mono',monospace; }
+   .signal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:15px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+   .sig-item { display:flex; flex-direction:column; gap:4px; }
+   .sig-item span:first-child { font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; }
+   .sig-item span:last-child  { font-size:1rem; font-weight:700; font-family:'Space Mono',monospace; color: var(--text); }
+
 
   .signal-score { display:flex; align-items:center; gap:8px; }
   .score-bar { flex:1; height:5px; background:var(--border); border-radius:999px; overflow:hidden; }
