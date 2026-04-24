@@ -8,9 +8,9 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-    --bg: #1a0b2e;
-    --surface: #241139;
-    --surface2: #2d164a;
+    --bg: #060810;
+    --surface: #0d1117;
+    --surface2: #131922;
     --border: #1e2d3d;
     --accent: #00d4ff;
     --accent2: #7c3aed;
@@ -627,10 +627,6 @@
 </style>
 </head>
 <body>
-<div style="background: red; color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 24px; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999;">
-  🔥 VERSÃO PRO v2.5.0 ATIVA — SE ESTIVER AZUL, USE CTRL+F5 🔥
-</div>
-<div style="height: 60px;"></div> <!-- Espaço para o banner -->
 <div id="licenseAlert" class="license-alert-bar">
     ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
 </div>
@@ -1327,9 +1323,6 @@ async function doChangePassword() {
 const PRICES = { EURUSD:1.0850, GBPUSD:1.2650, USDJPY:149.50, XAUUSD:2320.0, GBPJPY:189.0, EURGBP:0.8580 };
 
 function isActiveSession() {
-  const hour = new Date().getUTCHours();
-  console.log("UTC Hour Debug:", hour);
-  // Forçado para true para garantir que o robô ignore bloqueios de horário
   return true; 
 }
 
@@ -2386,7 +2379,7 @@ async function updateStats() {
 
 function updateSessionStatus() {
   const el = document.getElementById("sessionStatus");
-  el.textContent = isActiveSession() ? "Londres / NY Ativa" : "Fora de Sessão";
+  el.textContent = "Londres / NY Ativa";
 }
 
 async function botLoop() {
@@ -2455,7 +2448,8 @@ async function botLoop() {
           }
           signals.push(sig);
         } else {
-          addLog(`⚖️ ${pair}: Análise concluída. Sem setup PRO detetado.`);
+          const reason = analyzeRes.reason || "Sem setup PRO detetado";
+          addLog(`⚖️ ${pair}: ${reason}`);
         }
       } catch (err) {
         addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");

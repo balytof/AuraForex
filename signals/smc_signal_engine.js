@@ -43,21 +43,21 @@ function isDuplicate(pair, direction) {
 }
 
 function generateSignal(pair, candles, htfBias = "NEUTRAL") {
-  if (!candles || candles.length < 210) return null;
+  if (!candles || candles.length < 210) return { signal: null, reason: "Velas insuficientes (<210)" };
 
   try {
     const ind = calcAll(candles);
     const { last } = ind;
 
-    if (!last || !last.atr || !last.emaFast || !last.emaSlow) return null;
-    if (!isValidATR(last.atr, last.close)) return null;
+    if (!last || !last.atr || !last.emaFast || !last.emaSlow) return { signal: null, reason: "Indicadores em falta" };
+    if (!isValidATR(last.atr, last.close)) return { signal: null, reason: "ATR inválido" };
 
     const smc = analyzeAll(candles);
 
     // ================= BUY =================
     if ((htfBias === "BULLISH" || last.emaFast > last.emaSlow)) {
 
-      if (isDuplicate(pair, "BUY")) return null;
+      if (isDuplicate(pair, "BUY")) return { signal: null, reason: "Sinal duplicado (BUY)" };
 
       let sl = last.close - last.atr * 1.5;
       let tp = last.close + last.atr * 3;
@@ -67,23 +67,26 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       const rr = safeRR(last.close, sl, tp);
       const minRR = config.risk ? config.risk.minRR : 1.5;
-      if (rr < minRR) return null;
+      if (rr < minRR) return { signal: null, reason: `RR insuficiente (${rr.toFixed(2)} < ${minRR})` };
 
       return {
-        pair,
-        direction: "BUY",
-        entry: last.close,
-        sl,
-        tp,
-        rr,
-        timestamp: Date.now()
+        signal: {
+          pair,
+          direction: "BUY",
+          entry: last.close,
+          sl,
+          tp,
+          rr,
+          timestamp: Date.now()
+        },
+        reason: "Sinal de COMPRA gerado"
       };
     }
 
     // ================= SELL =================
     if ((htfBias === "BEARISH" || last.emaFast < last.emaSlow)) {
 
-      if (isDuplicate(pair, "SELL")) return null;
+      if (isDuplicate(pair, "SELL")) return { signal: null, reason: "Sinal duplicado (SELL)" };
 
       let sl = last.close + last.atr * 1.5;
       let tp = last.close - last.atr * 3;
@@ -93,23 +96,27 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       const rr = safeRR(last.close, sl, tp);
       const minRR = config.risk ? config.risk.minRR : 1.5;
-      if (rr < minRR) return null;
+      if (rr < minRR) return { signal: null, reason: `RR insuficiente (${rr.toFixed(2)} < ${minRR})` };
 
       return {
-        pair,
-        direction: "SELL",
-        entry: last.close,
-        sl,
-        tp,
-        rr,
-        timestamp: Date.now()
+        signal: {
+          pair,
+          direction: "SELL",
+          entry: last.close,
+          sl,
+          tp,
+          rr,
+          timestamp: Date.now()
+        },
+        reason: "Sinal de VENDA gerado"
       };
     }
   } catch (e) {
     console.error("Signal generation error:", e.message);
+    return { signal: null, reason: "Erro interno no motor" };
   }
 
-  return null;
+  return { signal: null, reason: "Sem tendência clara" };
 }
 
 module.exports = { generateSignal };

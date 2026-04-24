@@ -70,7 +70,7 @@ module.exports = {
     riskPerTradePct:  1.5,
     maxOpenTrades:    3,
     maxDailyLossPct:  5.0,
-    minRR:            2.5,
+    minRR:            1.5,
     minConfluence:    55,
     trailingAtrMult:  1.5,
     pipValueUSD:      10,
