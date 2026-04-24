@@ -1,5 +1,5 @@
 // ============================================================
-// APEX SMC — Production Multi-Broker Layer (EXPERT EDITION)
+// APEX SMC — Production Multi-Broker Layer (EXPERT EDITION - STABLE)
 // ============================================================
 
 const https = require('https');
@@ -50,7 +50,8 @@ class OandaAdapter extends BrokerBase {
     super(config);
     this.accountId = config.oandaAccountId || config.accountId;
     this.apiKey = config.oandaApiKey || config.apiToken;
-    this.baseUrl = (config.environment === 'live') ? 'api-fxtrade.oanda.com' : 'api-fxpractice.oanda.com';
+    this.environment = config.environment || 'demo';
+    this.baseUrl = (this.environment === 'live') ? 'api-fxtrade.oanda.com' : 'api-fxpractice.oanda.com';
   }
 
   async request(method, endpoint, body = null) {
@@ -88,7 +89,9 @@ class OandaAdapter extends BrokerBase {
         balance: parseFloat(res.account.balance), 
         broker: "OANDA",
         brokerName: "OANDA",
-        currency: res.account.currency || "USD"
+        brokerType: "oanda",
+        currency: res.account.currency || "USD",
+        region: "🌎"
       };
       return { success: true, accountInfo: this.accountInfo };
     } catch(e) { return { success: false, error: e.message }; }
@@ -111,7 +114,7 @@ class OandaAdapter extends BrokerBase {
 }
 
 // ============================================================
-// MetaApiAdapter (EXPERT)
+// MetaApiAdapter
 // ============================================================
 class MetaApiAdapter extends BrokerBase {
   constructor(config) {
@@ -133,36 +136,26 @@ class MetaApiAdapter extends BrokerBase {
         balance: info.balance, 
         broker: "MetaTrader",
         brokerName: "MetaTrader",
+        brokerType: "metaapi",
         currency: info.currency || "USD",
-        platform: "MT4/MT5"
+        platform: "MT4/MT5",
+        region: "🌐"
       };
       return { success: true, accountInfo: this.accountInfo };
     } catch(e) { return { success: false, error: e.message }; }
   }
 
   async placeOrder(signal, lotSize) {
-    await this.connect();
-    const symbol = signal.pair; 
     const volume = parseFloat(lotSize);
-
     try {
-      // Tenta encontrar o símbolo correto (Tradução Automática)
-      let targetSymbol = symbol;
-      const possible = SYMBOL_MAP[symbol] || [symbol];
-      
-      // Tentativa de execução com normalização de Tick
+      const symbol = signal.pair;
       const sl = normalizeToTick(signal.sl, symbol.includes("XAU") ? 0.01 : 0.00001);
       const tp = normalizeToTick(signal.tp, symbol.includes("XAU") ? 0.01 : 0.00001);
-
       let res;
-      if (signal.direction === 'BUY') {
-        res = await this.connection.createMarketBuyOrder(targetSymbol, volume, sl, tp);
-      } else {
-        res = await this.connection.createMarketSellOrder(targetSymbol, volume, sl, tp);
-      }
+      if (signal.direction === 'BUY') res = await this.connection.createMarketBuyOrder(symbol, volume, sl, tp);
+      else res = await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
       return { success: true, orderId: res.orderId };
     } catch (e) {
-      // SE FALHAR POR SÍMBOLO, TENTA A LISTA DE MAPEAMENTO
       if (e.message.includes("not found") || e.message.includes("Invalid symbol")) {
         const possible = SYMBOL_MAP[signal.pair] || [];
         for (const s of possible) {
@@ -170,7 +163,7 @@ class MetaApiAdapter extends BrokerBase {
              const r = signal.direction === 'BUY' 
                ? await this.connection.createMarketBuyOrder(s, volume, signal.sl, signal.tp)
                : await this.connection.createMarketSellOrder(s, volume, signal.sl, signal.tp);
-             return { success: true, orderId: r.orderId, symbolUsed: s };
+             return { success: true, orderId: r.orderId };
            } catch(err) {}
         }
       }
@@ -180,7 +173,7 @@ class MetaApiAdapter extends BrokerBase {
 }
 
 // ============================================================
-// CapitalAdapter (EXPERT)
+// CapitalAdapter
 // ============================================================
 class CapitalAdapter extends BrokerBase {
   constructor(config) {
@@ -194,44 +187,33 @@ class CapitalAdapter extends BrokerBase {
        const res = await fetch(`${this.baseUrl}/session`, {
          method: "POST",
          headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey },
-         body: JSON.stringify({ identifier: this.config.identifier, password: this.config.password })
+         body: JSON.stringify({ identifier: this.config.capitalIdentifier || this.config.identifier, password: this.config.capitalPassword || this.config.password })
        });
-       const data = await res.json();
        this.cst = res.headers.get("CST");
        this.securityToken = res.headers.get("X-SECURITY-TOKEN");
        this.connected = true;
        this.accountInfo = {
-         balance: 0, // Will be updated on balance call
+         balance: 0,
          broker: "Capital.com",
          brokerName: "Capital.com",
-         currency: "USD"
+         brokerType: "capital",
+         currency: "USD",
+         region: "🇪🇺"
        };
        return { success: true, accountInfo: this.accountInfo };
      } catch(e) { return { success: false, error: e.message }; }
   }
 
   async placeOrder(signal, lotSize) {
-    await this.connect();
-    // No Capital.com, o GOLD muitas vezes é o epic
     const epic = signal.pair.includes("XAU") ? "GOLD" : signal.pair;
-    
     try {
       const res = await fetch(`${this.baseUrl}/positions`, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "X-CAP-API-KEY": this.apiKey,
-          "CST": this.cst,
-          "X-SECURITY-TOKEN": this.securityToken
-        },
-        body: JSON.stringify({
-          epic, direction: signal.direction, size: lotSize,
-          stopLevel: signal.sl, profitLevel: signal.tp,
-          guaranteedStop: false, forceOpen: true
-        })
+        headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey, "CST": this.cst, "X-SECURITY-TOKEN": this.securityToken },
+        body: JSON.stringify({ epic, direction: signal.direction, size: lotSize, stopLevel: signal.sl, profitLevel: signal.tp, guaranteedStop: false, forceOpen: true })
       });
       const data = await res.json();
-      return { success: !!data.dealReference, orderId: data.dealReference, error: data.errorCode };
+      return { success: !!data.dealReference, orderId: data.dealReference };
     } catch(e) { return { success: false, error: e.message }; }
   }
 }
