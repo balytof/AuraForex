@@ -348,13 +348,19 @@ app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
   const { forgetDb } = req.body;
   const activeBroker = userBrokers.get(req.user.id);
   
-  if (activeBroker) {
-    await activeBroker.disconnect();
-    userBrokers.delete(req.user.id);
-  }
+  try {
+    if (activeBroker) {
+      await activeBroker.disconnect();
+      userBrokers.delete(req.user.id);
+    }
 
-  if (forgetDb !== false) {
-    await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+    if (forgetDb !== false) {
+      await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+    }
+  } catch(e) {
+    console.error("Disconnect error:", e.message);
+    // Still remove from memory even if API call failed
+    userBrokers.delete(req.user.id);
   }
 
   return res.json({ success: true });
