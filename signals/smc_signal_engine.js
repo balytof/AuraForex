@@ -44,9 +44,9 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const { last } = ind;
     if (!last || !last.atr) return { signal: null, reason: "Erro indicadores" };
 
-    // Garantir distância mínima para evitar "Invalid Stops"
-    const minStopPips = pair.includes("JPY") || pair.includes("XAU") ? 0.05 : 0.00015;
-    const stopDistance = Math.max(last.atr * 2.0, minStopPips * 10); 
+    // Garantir distância mínima agressiva (20 pips) para evitar "Invalid Stops"
+    const minStopPips = pair.includes("JPY") || pair.includes("XAU") ? 0.20 : 0.00020;
+    const stopDistance = Math.max(last.atr * 3.0, minStopPips); 
 
     // ================= BUY =================
     if (htfBias === "BULLISH" || last.emaFast > last.emaSlow) {
