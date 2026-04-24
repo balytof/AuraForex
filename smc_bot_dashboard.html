@@ -1339,9 +1339,22 @@ function simulateAIBias(pair) {
   };
 }
 
+function updateBiasUI(pair, bias, confidence) {
+  const row = document.getElementById(`bias-${pair}`);
+  if (!row) return;
+  const tag = row.querySelector(".bias-tag");
+  const conf = row.querySelector(".bias-conf");
+  
+  if (tag) {
+    tag.textContent = bias;
+    tag.className = `bias-tag ${bias === "BULLISH" ? "bull" : bias === "BEARISH" ? "bear" : "neut"}`;
+  }
+  if (conf) conf.textContent = `${confidence}%`;
+}
+
 function simulateSignal(pair, candles, price) {
-  // 15% de chance de gerar um sinal por par em cada ciclo para simular raridade SMC
-  if (Math.random() > 0.15) return null; 
+  // Aumentado para 40% para testes imediatos
+  if (Math.random() > 0.40) return null; 
   
   const direction = Math.random() > 0.5 ? "BUY" : "SELL";
   const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") ? 1 : 0.0001);
@@ -1540,8 +1553,12 @@ function initPairsGrid() {
 
 function initBiases() {
   const el = document.getElementById("aiBiases");
+  if (!el) return;
   el.innerHTML = "";
   PAIRS.forEach(p => {
+    // Garante que existe um bias inicial para não dar erro de undefined
+    if (!BIASES[p]) BIASES[p] = { bias: "NEUTRAL", confidence: 0 };
+    
     const b = BIASES[p];
     const cls = b.bias === "BULLISH" ? "bull" : b.bias === "BEARISH" ? "bear" : "neut";
     el.innerHTML += `
