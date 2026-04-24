@@ -2083,18 +2083,29 @@ async function doDisconnect() {
   connectBtn.disabled = true;
   connectBtn.textContent = "A desconectar...";
 
+  // Safety timeout: always re-enable the button after 5s no matter what
+  const safetyTimer = setTimeout(() => {
+    brokerConnected = false;
+    brokerInfo = null;
+    openTrades = [];
+    updateBrokerUI();
+    addLog("🔌 Corretora desconectada.", "sell");
+  }, 5000);
+
   try {
     await disconnectBroker();
   } catch(e) {
-    console.warn("Disconnect error (ignored):", e.message);
+    console.warn("Disconnect API error (ignored):", e.message);
+  } finally {
+    clearTimeout(safetyTimer);
   }
 
   brokerConnected = false;
   brokerInfo = null;
   openTrades = [];
 
-  // Stop bot if running
-  if (botRunning) stopBot();
+  // Stop bot if running (use isRunning variable)
+  if (typeof isRunning !== 'undefined' && isRunning) stopBot();
 
   updateBrokerUI();
   addLog("🔌 Corretora desconectada.", "sell");
