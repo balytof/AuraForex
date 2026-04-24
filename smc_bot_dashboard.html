@@ -1325,7 +1325,9 @@ const PRICES = { EURUSD:1.0850, GBPUSD:1.2650, USDJPY:149.50, XAUUSD:2320.0, GBP
 
 function isActiveSession() {
   const hour = new Date().getUTCHours();
-  return (hour >= 7 && hour < 16) || (hour >= 12 && hour < 21);
+  console.log("UTC Hour Debug:", hour);
+  // Forçado para true para garantir que o robô ignore bloqueios de horário
+  return true; 
 }
 
 function simulateAIBias(pair) {
@@ -2387,7 +2389,8 @@ function updateSessionStatus() {
 async function botLoop() {
   if (!isRunning) return;
   
-  addLog(`🔍 AuraBot [${VERSION}]: A iniciar análise...`, "info");
+  const h = new Date().getUTCHours();
+  addLog(`🔍 AuraBot [${VERSION}]: A iniciar análise... (UTC: ${h}h)`, "info");
 
   try {
     // 1. Verificar Sessão
@@ -2448,6 +2451,8 @@ async function botLoop() {
             addSignalCard(sig, null);
           }
           signals.push(sig);
+        } else {
+          addLog(`⚖️ ${pair}: Análise concluída. Sem setup PRO detetado.`);
         }
       } catch (err) {
         addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");

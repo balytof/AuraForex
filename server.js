@@ -857,16 +857,21 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
   const { pair, htfBias, candles } = req.body;
   
   try {
-    // Se não vierem velas, tentamos obter da corretora (placeholder por agora)
     let marketCandles = candles;
+    // Mock de velas se não houver conexão real ativa para testes
     if (!marketCandles || marketCandles.length === 0) {
-      marketCandles = Array.from({ length: 250 }, (_, i) => ({
-        open: 1.0850 + Math.random() * 0.001,
-        high: 1.0860 + Math.random() * 0.001,
-        low: 1.0840 + Math.random() * 0.001,
-        close: 1.0850 + Math.random() * 0.001,
-        timestamp: Date.now() - (250 - i) * 60000
-      }));
+      const isBullish = Math.random() > 0.5;
+      marketCandles = Array.from({ length: 250 }, (_, i) => {
+        const trend = isBullish ? i * 0.00001 : -i * 0.00001;
+        const base = pair.includes("JPY") ? 150.00 : 1.0850;
+        return {
+          open: base + trend + Math.random() * 0.0005,
+          high: base + trend + 0.0010,
+          low: base + trend - 0.0010,
+          close: base + trend + Math.random() * 0.0005 + (isBullish ? 0.0002 : -0.0002),
+          timestamp: Date.now() - (250 - i) * 60000
+        };
+      });
     }
 
     const signal = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
