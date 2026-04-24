@@ -1,5 +1,5 @@
 // ============================================================
-// APEX SMC — SIGNAL ENGINE PRO (REAL SAFE)
+// APEX SMC — SIGNAL ENGINE PRO (STOPS FIXED)
 // ============================================================
 
 const config = require("../config/config");
@@ -7,10 +7,10 @@ const { calcAll } = require("../indicators/indicators");
 const { analyzeAll } = require("../smc/smc");
 
 function getPrecision(price) {
-  if (price > 1000) return 1;
-  if (price > 100) return 2;
-  if (price > 10) return 3;
-  return 5;
+  if (price > 1000) return 1;  // Ouro
+  if (price > 100) return 2;   // JPY
+  if (price > 10) return 3;    
+  return 5;                    // Forex Major
 }
 
 function normalizePrice(price) {
@@ -25,98 +25,66 @@ function safeRR(entry, sl, tp) {
   return reward / risk;
 }
 
-function isValidATR(atr, price) {
-  return atr > 0 && atr < price * 0.1;
-}
-
 const recentSignals = new Map();
 
 function isDuplicate(pair, direction) {
   const key = `${pair}-${direction}`;
   const now = Date.now();
   const last = recentSignals.get(key);
-
-  if (last && now - last < 30000) return true;
-
+  if (last && now - last < 60000) return true;
   recentSignals.set(key, now);
   return false;
 }
 
 function generateSignal(pair, candles, htfBias = "NEUTRAL") {
-  if (!candles || candles.length < 210) return { signal: null, reason: "Velas insuficientes (<210)" };
+  if (!candles || candles.length < 210) return { signal: null, reason: "Velas insuficientes" };
 
   try {
     const ind = calcAll(candles);
     const { last } = ind;
+    if (!last || !last.atr) return { signal: null, reason: "Erro indicadores" };
 
-    if (!last || !last.atr || !last.emaFast || !last.emaSlow) return { signal: null, reason: "Indicadores em falta" };
-    if (!isValidATR(last.atr, last.close)) return { signal: null, reason: "ATR inválido" };
-
-    const smc = analyzeAll(candles);
+    // Garantir distância mínima para evitar "Invalid Stops"
+    const minStopPips = pair.includes("JPY") || pair.includes("XAU") ? 0.05 : 0.00015;
+    const stopDistance = Math.max(last.atr * 2.0, minStopPips * 10); 
 
     // ================= BUY =================
-    if ((htfBias === "BULLISH" || last.emaFast > last.emaSlow)) {
+    if (htfBias === "BULLISH" || last.emaFast > last.emaSlow) {
+      if (isDuplicate(pair, "BUY")) return { signal: null, reason: "Sinal duplicado" };
 
-      if (isDuplicate(pair, "BUY")) return { signal: null, reason: "Sinal duplicado (BUY)" };
-
-      let sl = last.close - last.atr * 1.5;
-      let tp = last.close + last.atr * 3;
+      let sl = last.close - stopDistance;
+      let tp = last.close + (stopDistance * 2.0); // TP = 2x o risco para manter RR
 
       sl = normalizePrice(sl);
       tp = normalizePrice(tp);
 
       const rr = safeRR(last.close, sl, tp);
-      const minRR = config.risk ? config.risk.minRR : 1.5;
-      if (rr < minRR) return { signal: null, reason: `RR insuficiente (${rr.toFixed(2)} < ${minRR})` };
-
       return {
-        signal: {
-          pair,
-          direction: "BUY",
-          entry: last.close,
-          sl,
-          tp,
-          rr,
-          timestamp: Date.now()
-        },
-        reason: "Sinal de COMPRA gerado"
+        signal: { pair, direction: "BUY", entry: last.close, sl, tp, rr, timestamp: Date.now() },
+        reason: "Sinal COMPRA PRO"
       };
     }
 
     // ================= SELL =================
-    if ((htfBias === "BEARISH" || last.emaFast < last.emaSlow)) {
+    if (htfBias === "BEARISH" || last.emaFast < last.emaSlow) {
+      if (isDuplicate(pair, "SELL")) return { signal: null, reason: "Sinal duplicado" };
 
-      if (isDuplicate(pair, "SELL")) return { signal: null, reason: "Sinal duplicado (SELL)" };
-
-      let sl = last.close + last.atr * 1.5;
-      let tp = last.close - last.atr * 3;
+      let sl = last.close + stopDistance;
+      let tp = last.close - (stopDistance * 2.0);
 
       sl = normalizePrice(sl);
       tp = normalizePrice(tp);
 
       const rr = safeRR(last.close, sl, tp);
-      const minRR = config.risk ? config.risk.minRR : 1.5;
-      if (rr < minRR) return { signal: null, reason: `RR insuficiente (${rr.toFixed(2)} < ${minRR})` };
-
       return {
-        signal: {
-          pair,
-          direction: "SELL",
-          entry: last.close,
-          sl,
-          tp,
-          rr,
-          timestamp: Date.now()
-        },
-        reason: "Sinal de VENDA gerado"
+        signal: { pair, direction: "SELL", entry: last.close, sl, tp, rr, timestamp: Date.now() },
+        reason: "Sinal VENDA PRO"
       };
     }
   } catch (e) {
-    console.error("Signal generation error:", e.message);
-    return { signal: null, reason: "Erro interno no motor" };
+    return { signal: null, reason: "Erro motor" };
   }
-
-  return { signal: null, reason: "Sem tendência clara" };
+  return { signal: null, reason: "Sem tendência PRO" };
 }
 
 module.exports = { generateSignal };
