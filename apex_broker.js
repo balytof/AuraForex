@@ -217,16 +217,23 @@ class MetaApiAdapter extends BrokerBase {
 
   async getHistory() {
     try {
-      await this.connect();
+      if (!this.connection) await this.connect();
       const startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias
       const deals = await this.connection.getDealsByTimeRange(startTime, new Date());
-      return (deals.deals || []).map(d => ({
+      
+      // MetaApi pode retornar array direto ou objeto { deals: [] }
+      const dealList = Array.isArray(deals) ? deals : (deals.deals || []);
+      
+      return dealList.map(d => ({
         id: d.id, broker: "MetaTrader", pair: d.symbol,
         direction: d.type === "DEAL_TYPE_BUY" ? "BUY" : "SELL",
-        lotSize: d.volume, pnl: d.profit + d.commission + d.swap,
+        lotSize: d.volume, pnl: (d.profit || 0) + (d.commission || 0) + (d.swap || 0),
         closeTime: d.time
-      })).filter(d => d.pnl !== 0).reverse();
-    } catch(e) { return []; }
+      })).filter(d => d.pair && d.pnl !== 0).reverse();
+    } catch(e) { 
+      console.error("MetaApi History Error:", e);
+      return []; 
+    }
   }
 }
 
