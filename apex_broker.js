@@ -138,8 +138,9 @@ class MetaApiAdapter extends BrokerBase {
       const info = await this.connection.getAccountInformation();
       this.connected = true;
       
-      // Deteção robusta de Live vs Demo
-      const isLive = this.account.type === 'CLOUD-LIVE' || this.account.type === 'SELF-HOSTED';
+      // PRIORIDADE: Usa o ambiente que o utilizador selecionou no modal
+      const selectedEnv = (this.config.environment || "").toUpperCase();
+      const isLive = selectedEnv === "LIVE" || this.account.type === 'CLOUD-LIVE' || this.account.type === 'SELF-HOSTED';
       
       this.accountInfo = { 
         balance: info.balance, 
