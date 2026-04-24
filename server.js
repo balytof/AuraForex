@@ -309,7 +309,7 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
     };
     activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('A corretora não respondeu em 30 segundos. Verifique as credenciais e tente novamente.')), 30000);
+      const timer = setTimeout(() => reject(new Error('ERRO CRÍTICO DE CONEXÃO - 60 SEGUNDOS. Verifique as credenciais e tente novamente.')), 60000);
       try { const rConnect = await activeBroker.connect(); clearTimeout(timer); resolve(rConnect); }
       catch(err) { clearTimeout(timer); reject(err); }
     });
