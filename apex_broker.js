@@ -52,6 +52,8 @@ class OandaAdapter extends BrokerBase {
     this.apiKey = config.oandaApiKey || config.apiToken;
     this.environment = config.environment || 'demo';
     this.baseUrl = (this.environment === 'live') ? 'api-fxtrade.oanda.com' : 'api-fxpractice.oanda.com';
+    this.name = "OANDA";
+    this.type = "oanda";
   }
 
   async request(method, endpoint, body = null) {
@@ -121,6 +123,8 @@ class MetaApiAdapter extends BrokerBase {
     super(config);
     this.api = new MetaApi(config.metaApiToken || config.apiToken);
     this.accountId = config.metaApiAccountId || config.accountId;
+    this.name = "MetaTrader";
+    this.type = "metaapi";
   }
 
   async connect() {
@@ -180,6 +184,8 @@ class CapitalAdapter extends BrokerBase {
     super(config);
     this.apiKey = config.capitalApiKey || config.apiKey;
     this.baseUrl = config.environment === 'live' ? "https://api-capital.backend-capital.com/api/v1" : "https://demo-api-capital.backend-capital.com/api/v1";
+    this.name = "Capital.com";
+    this.type = "capital";
   }
 
   async connect() {
