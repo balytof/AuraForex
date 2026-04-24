@@ -1015,6 +1015,9 @@
 
 
 <script>
+function formatCurrency(value, currency = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
+}
 // ─── DIAGNÓSTICO REMOTO (Expert) ───────────────
 async function remoteLog(msg, level = "INFO") {
   try {
