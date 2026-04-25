@@ -181,26 +181,41 @@ class MetaApiAdapter extends BrokerBase {
 
   async placeOrder(signal, lotSize) {
     const volume = parseFloat(lotSize);
+    const symbol = signal.pair;
+    const isJpy  = symbol.includes("JPY");
+    const isGold = symbol.includes("XAU") || symbol.includes("GOLD");
+    const tick   = isGold ? 0.01 : isJpy ? 0.001 : 0.00001;
+
+    // Normalizar SL/TP ao tick do símbolo
+    const sl = (signal.sl && isFinite(signal.sl)) ? normalizeToTick(signal.sl, tick) : null;
+    const tp = (signal.tp && isFinite(signal.tp)) ? normalizeToTick(signal.tp, tick) : null;
+
+    console.log(`[APEX-MA] ${signal.direction} ${symbol} vol=${volume} SL=${sl ?? 'N/A'} TP=${tp ?? 'N/A'}`);
+
     try {
-      const symbol = signal.pair;
-      const sl = normalizeToTick(signal.sl, symbol.includes("XAU") ? 0.01 : 0.00001);
-      const tp = normalizeToTick(signal.tp, symbol.includes("XAU") ? 0.01 : 0.00001);
       let res;
-      if (signal.direction === 'BUY') res = await this.connection.createMarketBuyOrder(symbol, volume, sl, tp);
-      else res = await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
-      return { success: true, orderId: res.orderId };
+      if (signal.direction === 'BUY')
+        res = await this.connection.createMarketBuyOrder(symbol, volume, sl, tp);
+      else
+        res = await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
+      return { success: true, orderId: res.orderId, appliedSl: sl, appliedTp: tp };
     } catch (e) {
-      if (e.message.includes("not found") || e.message.includes("Invalid symbol")) {
+      if (e.message.includes("not found") || e.message.includes("Invalid symbol") || e.message.includes("symbol")) {
         const possible = SYMBOL_MAP[signal.pair] || [];
         for (const s of possible) {
-           try {
-             const r = signal.direction === 'BUY' 
-               ? await this.connection.createMarketBuyOrder(s, volume, signal.sl, signal.tp)
-               : await this.connection.createMarketSellOrder(s, volume, signal.sl, signal.tp);
-             return { success: true, orderId: r.orderId };
-           } catch(err) {}
+          try {
+            // Mantém SL/TP em TODOS os retries de símbolo alternativo
+            const r = signal.direction === 'BUY'
+              ? await this.connection.createMarketBuyOrder(s, volume, sl, tp)
+              : await this.connection.createMarketSellOrder(s, volume, sl, tp);
+            console.log(`[APEX-MA] Símbolo alternativo aceite: ${s}`);
+            return { success: true, orderId: r.orderId, symbol: s, appliedSl: sl, appliedTp: tp };
+          } catch(err) {
+            console.warn(`[APEX-MA] Falhou com ${s}:`, err.message);
+          }
         }
       }
+      return { success: false, error: e.message };
     }
   }
 

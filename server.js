@@ -382,30 +382,177 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
   try { res.json({ history: await req.broker.getHistory(req.query) }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Helpers SL/TP dinâmico ──────────────────────────────────────
+function getPipValue(pair) {
+  if (pair.includes("XAU") || pair.includes("GOLD")) return 1.0;   // Ouro: 1 pip = $1
+  if (pair.includes("JPY")) return 0.01;                            // JPY: 2 casas
+  return 0.0001;                                                     // Forex major: 4 casas
+}
+
+function getPrecision(pair) {
+  if (pair.includes("XAU") || pair.includes("GOLD")) return 2;
+  if (pair.includes("JPY")) return 3;
+  return 5;
+}
+
+function normPrice(price, pair) {
+  const p = getPrecision(pair);
+  return parseFloat(price.toFixed(p));
+}
+
+/**
+ * Calcula SL/TP dinâmico baseado em ATR quando não fornecidos.
+ * Usa o mesmo multiplier do smc_signal_engine (ATR x 4.0 SL, ATR x 12.0 TP = RR 3:1)
+ */
+async function computeDynamicSlTp(broker, pair, direction, entry) {
+  try {
+    const candles = await broker.getCandles(pair, "H1", 50);
+    if (!candles || candles.length < 15) throw new Error("Sem velas");
+
+    // ATR(14) simples
+    let trSum = 0;
+    const period = Math.min(14, candles.length - 1);
+    for (let i = candles.length - period; i < candles.length; i++) {
+      const h = candles[i].high, l = candles[i].low, pc = candles[i - 1]?.close || l;
+      trSum += Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+    }
+    const atr = trSum / period;
+    const slDist  = atr * 4.0;   // 4 ATR de SL
+    const tpDist  = atr * 12.0;  // 12 ATR de TP (RR 3:1)
+
+    const sl = direction === "BUY"
+      ? normPrice(entry - slDist, pair)
+      : normPrice(entry + slDist, pair);
+    const tp = direction === "BUY"
+      ? normPrice(entry + tpDist, pair)
+      : normPrice(entry - tpDist, pair);
+
+    console.log(`[DYN-STP] ${pair} ATR=${atr.toFixed(5)} SL=${sl} TP=${tp}`);
+    return { sl, tp };
+  } catch (e) {
+    console.warn(`[DYN-STP] Fallback pip-based para ${pair}:`, e.message);
+    const pip  = getPipValue(pair);
+    const slD  = pip * 200;   // 200 pips SL
+    const tpD  = pip * 600;   // 600 pips TP (RR 3:1)
+    const sl = direction === "BUY" ? normPrice(entry - slD, pair) : normPrice(entry + slD, pair);
+    const tp = direction === "BUY" ? normPrice(entry + tpD, pair) : normPrice(entry - tpD, pair);
+    return { sl, tp };
+  }
+}
+
+/**
+ * Garante que SL/TP respeitam a distância mínima do broker (stop level).
+ * Expande se necessário, nunca reduz.
+ */
+function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10) {
+  const pip = getPipValue(pair);
+  const minDist = pip * minDistPips;
+
+  let finalSl = sl;
+  let finalTp = tp;
+
+  if (direction === "BUY") {
+    if (entry - finalSl < minDist) finalSl = normPrice(entry - minDist, pair);
+    if (finalTp - entry < minDist) finalTp = normPrice(entry + minDist, pair);
+  } else {
+    if (finalSl - entry < minDist) finalSl = normPrice(entry + minDist, pair);
+    if (entry - finalTp < minDist) finalTp = normPrice(entry - minDist, pair);
+  }
+
+  return { sl: finalSl, tp: finalTp };
+}
+
 app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
-  const { pair, direction, lotSize, sl, tp } = req.body;
+  let { pair, direction, lotSize, sl, tp, entry } = req.body;
   if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    // 1. TENTATIVA EXPERT: Com Stops + Tradução Automática
-    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
-    
-    // 2. SE FALHAR (Stops ou Símbolo), TENTA MAGIA
-    if (!result.success) {
-       const err = (result.error || "").toLowerCase();
-       if (err.includes("stop") || err.includes("validation") || err.includes("symbol") || err.includes("not found")) {
-         console.log(`[EXPERT] Retrying clean entry for ${pair} due to: ${result.error}`);
-         // Tenta sem stops para garantir a entrada
-         result = await req.broker.placeOrder({ pair, direction }, lotSize);
-         if (result.success) {
-           result.message = "Entrada EXPERT executada (Stops dinâmicos aplicados via ajuste)";
-         }
-       }
+    // 1. Obter preço actual se não fornecido
+    let entryPrice = entry;
+    if (!entryPrice) {
+      try {
+        const priceData = await req.broker.getPrice(pair);
+        entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
+      } catch(e) { entryPrice = 0; }
     }
-    
-    return res.status(result.success ? 200 : 400).json(result);
+
+    // 2. Calcular SL/TP dinâmico se não fornecidos
+    if (!sl || !tp) {
+      if (entryPrice > 0) {
+        const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
+        sl = sl || dyn.sl;
+        tp = tp || dyn.tp;
+        console.log(`[ORDER] SL/TP dinâmico aplicado para ${pair}: SL=${sl} TP=${tp}`);
+      } else {
+        console.warn(`[ORDER] Sem preço para calcular SL/TP dinâmico — ordem pode ser rejeitada`);
+      }
+    }
+
+    // 3. Garantir distância mínima do broker (evita rejeição por stop level)
+    if (sl && tp && entryPrice > 0) {
+      const minPips = pair.includes("XAU") || pair.includes("GOLD") ? 50 : pair.includes("JPY") ? 20 : 10;
+      const adjusted = enforceMinStopDistance(sl, tp, entryPrice, direction, pair, minPips);
+      if (adjusted.sl !== sl || adjusted.tp !== tp) {
+        console.log(`[ORDER] Stop distance ajustado: SL ${sl}→${adjusted.sl}  TP ${tp}→${adjusted.tp}`);
+        sl = adjusted.sl;
+        tp = adjusted.tp;
+      }
+    }
+
+    // 4. Executar ordem COM SL/TP
+    console.log(`[ORDER] Executando ${direction} ${pair} lot=${lotSize} SL=${sl} TP=${tp}`);
+    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
+
+    // 5. Se falhar por símbolo não encontrado, tenta variantes — MAS SEMPRE COM SL/TP
+    if (!result || !result.success) {
+      const err = (result?.error || "").toLowerCase();
+      const isSymbolError = err.includes("symbol") || err.includes("not found") || err.includes("invalid");
+      const isStopError   = err.includes("stop") || err.includes("validation") || err.includes("sl") || err.includes("tp");
+
+      if (isSymbolError) {
+        // Tentar variantes do símbolo mas sempre com SL/TP
+        const variants = [
+          pair + "m", pair + ".pro", pair + ".ecn", pair + ".raw",
+          pair.includes("XAU") ? "GOLD" : null
+        ].filter(Boolean);
+
+        for (const variant of variants) {
+          console.log(`[ORDER] Tentando símbolo alternativo: ${variant}`);
+          result = await req.broker.placeOrder({ pair: variant, direction, sl, tp }, lotSize);
+          if (result && result.success) {
+            result.message = `Executado com símbolo alternativo: ${variant}`;
+            break;
+          }
+        }
+      } else if (isStopError) {
+        // Stop level muito próximo — expandir stops e tentar novamente
+        console.warn(`[ORDER] Stop rejeitado — expandindo stops para ${pair}`);
+        const pip = getPipValue(pair);
+        const expandedSl = direction === "BUY"
+          ? normPrice(sl - pip * 30, pair)
+          : normPrice(sl + pip * 30, pair);
+        const expandedTp = direction === "BUY"
+          ? normPrice(tp + pip * 30, pair)
+          : normPrice(tp - pip * 30, pair);
+        console.log(`[ORDER] Stops expandidos: SL=${expandedSl} TP=${expandedTp}`);
+        result = await req.broker.placeOrder({ pair, direction, sl: expandedSl, tp: expandedTp }, lotSize);
+        if (result && result.success) {
+          result.message = "Executado com stops expandidos";
+          result.sl = expandedSl;
+          result.tp = expandedTp;
+        }
+      }
+    }
+
+    // 6. Enriquecer resposta com SL/TP aplicados
+    if (result && result.success) {
+      result.appliedSl = sl;
+      result.appliedTp = tp;
+    }
+
+    return res.status(result && result.success ? 200 : 400).json(result || { success: false, error: "Ordem falhou" });
   } catch (e) { 
     console.error("Order Critical Error:", e);
-    res.status(500).json({ error: "Erro crítico na execução expert: " + e.message }); 
+    res.status(500).json({ error: "Erro crítico na execução: " + e.message }); 
   }
 });
 
