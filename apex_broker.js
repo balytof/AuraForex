@@ -8,12 +8,12 @@ const MetaApi = require('metaapi.cloud-sdk').default;
 
 // --- EXPERT UTILS ---
 const SYMBOL_MAP = {
-  "XAUUSD": ["GOLD", "XAUUSD", "XAUUSD.m", "XAUUSD.pro"],
-  "EURUSD": ["EURUSD", "EURUSD.m", "EURUSD.pro", "EURUSD.ecn"],
-  "GBPUSD": ["GBPUSD", "GBPUSD.m", "GBPUSD.pro", "GBPUSD.ecn"],
-  "USDJPY": ["USDJPY", "USDJPY.m", "USDJPY.pro", "USDJPY.ecn"],
-  "GBPJPY": ["GBPJPY", "GBPJPY.m", "GBPJPY.pro", "GBPJPY.ecn"],
-  "EURGBP": ["EURGBP", "EURGBP.m", "EURGBP.pro", "EURGBP.ecn"]
+  "XAUUSD": ["GOLD", "XAUUSD", "XAUUSD.m", "XAUUSD.pro", "XAUUSD.ecn", "XAUUSD.raw", "XAUUSD.x", "GOLD.m", "GOLD.pro"],
+  "EURUSD": ["EURUSD", "EURUSD.m", "EURUSD.pro", "EURUSD.ecn", "EURUSD.raw", "EURUSD.x"],
+  "GBPUSD": ["GBPUSD", "GBPUSD.m", "GBPUSD.pro", "GBPUSD.ecn", "GBPUSD.raw", "GBPUSD.x"],
+  "USDJPY": ["USDJPY", "USDJPY.m", "USDJPY.pro", "USDJPY.ecn", "USDJPY.raw", "USDJPY.x"],
+  "GBPJPY": ["GBPJPY", "GBPJPY.m", "GBPJPY.pro", "GBPJPY.ecn", "GBPJPY.raw", "GBPJPY.x"],
+  "EURGBP": ["EURGBP", "EURGBP.m", "EURGBP.pro", "EURGBP.ecn", "EURGBP.raw", "EURGBP.x"]
 };
 
 function normalizeToTick(price, tickSize = 0.00001) {
