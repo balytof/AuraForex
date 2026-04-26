@@ -186,32 +186,37 @@ class MetaApiAdapter extends BrokerBase {
     const isGold = symbol.includes("XAU") || symbol.includes("GOLD");
     const tick   = isGold ? 0.01 : isJpy ? 0.001 : 0.00001;
 
-    // Normalizar SL/TP ao tick do símbolo
-    const sl = (signal.sl && isFinite(signal.sl)) ? normalizeToTick(signal.sl, tick) : null;
-    const tp = (signal.tp && isFinite(signal.tp)) ? normalizeToTick(signal.tp, tick) : null;
+    // Normalizar SL/TP ao tick do símbolo (ex: 0.00001 para moedas, 0.01 para Ouro)
+    let sl = (signal.sl && isFinite(signal.sl)) ? normalizeToTick(signal.sl, tick) : null;
+    let tp = (signal.tp && isFinite(signal.tp)) ? normalizeToTick(signal.tp, tick) : null;
 
-    console.log(`[APEX-MA] ${signal.direction} ${symbol} vol=${volume} SL=${sl ?? 'N/A'} TP=${tp ?? 'N/A'}`);
+    // Log crítico para diagnóstico
+    console.log(`[EXPERT-MA] EXECUTANDO ORDEM: ${signal.direction} ${symbol}`);
+    console.log(`[EXPERT-MA] Parametros: Vol=${volume}, SL=${sl || 'SEM SL'}, TP=${tp || 'SEM TP'}`);
 
     try {
       let res;
+      // Chamada explícita com objeto de opções se necessário, mas mantendo a assinatura padrão do SDK
       if (signal.direction === 'BUY')
         res = await this.connection.createMarketBuyOrder(symbol, volume, sl, tp);
       else
         res = await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
+        
+      console.log(`[EXPERT-MA] Sucesso! OrderID: ${res.orderId}`);
       return { success: true, orderId: res.orderId, appliedSl: sl, appliedTp: tp };
     } catch (e) {
+      console.error(`[EXPERT-MA] Erro na execução inicial: ${e.message}`);
       if (e.message.includes("not found") || e.message.includes("Invalid symbol") || e.message.includes("symbol")) {
         const possible = SYMBOL_MAP[signal.pair] || [];
         for (const s of possible) {
           try {
-            // Mantém SL/TP em TODOS os retries de símbolo alternativo
+            console.log(`[EXPERT-MA] Tentando símbolo alternativo: ${s}`);
             const r = signal.direction === 'BUY'
               ? await this.connection.createMarketBuyOrder(s, volume, sl, tp)
               : await this.connection.createMarketSellOrder(s, volume, sl, tp);
-            console.log(`[APEX-MA] Símbolo alternativo aceite: ${s}`);
             return { success: true, orderId: r.orderId, symbol: s, appliedSl: sl, appliedTp: tp };
           } catch(err) {
-            console.warn(`[APEX-MA] Falhou com ${s}:`, err.message);
+            console.warn(`[EXPERT-MA] Falhou com variante ${s}:`, err.message);
           }
         }
       }
