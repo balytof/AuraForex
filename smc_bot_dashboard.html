@@ -1482,6 +1482,7 @@ const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
 let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
 let loopTimer = null;
+let currentLoopId = 0;
 let sigCount = 0;
 let signals = [];
 let openTrades = [];
@@ -2393,8 +2394,8 @@ function updateSessionStatus() {
   el.textContent = "Londres / NY Ativa";
 }
 
-async function botLoop() {
-  if (!isRunning) return;
+async function botLoop(loopId) {
+  if (!isRunning || loopId !== currentLoopId) return;
   
   const h = new Date().getUTCHours();
   addLog(`🔍 AuraBot [${VERSION}]: A iniciar análise... (UTC: ${h}h)`, "info");
@@ -2475,7 +2476,9 @@ async function botLoop() {
 
   const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
   addLog(`💤 Análise concluída. Próxima em ${ms/1000}s`, "info");
-  loopTimer = setTimeout(botLoop, ms);
+  if (isRunning && loopId === currentLoopId) {
+    loopTimer = setTimeout(() => botLoop(loopId), ms);
+  }
 }
 
 // ─── CONTROLOS ───────────────────────────────────────
@@ -2497,12 +2500,13 @@ function startBot() {
     }
 
     isRunning = true;
+    currentLoopId++;
     document.getElementById("botDot").classList.add("active");
     document.getElementById("botStatus").textContent = "Rodando";
     document.getElementById("mainBtn").textContent = "⏹ Parar Bot";
     document.getElementById("mainBtn").className = "btn btn-danger";
     
-    addLog("🚀 Bot SMC iniciado com sucesso!", "buy");
+    addLog(`🚀 Bot SMC iniciado com sucesso! (ID: ${currentLoopId})`, "buy");
     
     botStartTime = Date.now();
     const uptimeDot = document.getElementById("uptimeDot");
@@ -2516,7 +2520,7 @@ function startBot() {
     setTimeout(() => {
       if (isRunning) {
         addLog("⚙️ Motor de execução ativado.");
-        botLoop();
+        botLoop(currentLoopId);
       }
     }, 500);
   } catch (e) {

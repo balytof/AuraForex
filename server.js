@@ -427,6 +427,10 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
       ? normPrice(entry + tpDist, pair)
       : normPrice(entry - tpDist, pair);
 
+    if (isNaN(sl) || isNaN(tp) || sl <= 0 || tp <= 0) {
+      throw new Error(`Valores invalidos calculados: SL=${sl} TP=${tp}`);
+    }
+
     console.log(`[DYN-STP] ${pair} ATR=${atr.toFixed(5)} SL=${sl} TP=${tp}`);
     return { sl, tp };
   } catch (e) {
@@ -496,6 +500,15 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
         sl = adjusted.sl;
         tp = adjusted.tp;
       }
+    }
+
+    // 3.5 Fallback final se ainda estiverem ausentes (segurança crítica)
+    if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
+        console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
+        const pip = getPipValue(pair);
+        const fallbackDist = pip * 300; // 300 pips de segurança
+        if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
+        if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
     }
 
     // 4. Executar ordem COM SL/TP
