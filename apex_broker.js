@@ -181,45 +181,47 @@ class MetaApiAdapter extends BrokerBase {
 
   async placeOrder(signal, lotSize) {
     const volume = parseFloat(lotSize);
-    const symbol = signal.pair;
-    const isJpy  = symbol.includes("JPY");
-    const isGold = symbol.includes("XAU") || symbol.includes("GOLD");
+    const requestedSymbol = signal.pair.toUpperCase();
+    const isJpy  = requestedSymbol.includes("JPY");
+    const isGold = requestedSymbol.includes("XAU") || requestedSymbol.includes("GOLD");
     const tick   = isGold ? 0.01 : isJpy ? 0.001 : 0.00001;
 
-    // Normalizar SL/TP ao tick do símbolo (ex: 0.00001 para moedas, 0.01 para Ouro)
+    // 1. Tentar descobrir o símbolo real no broker
+    let symbol = requestedSymbol;
+    try {
+      console.log(`[EXPERT-MA] Buscando símbolo real para ${requestedSymbol}...`);
+      const allSymbols = await this.connection.getSymbols();
+      
+      // Busca exata ou por sufixo (ex: EURUSD.m, EURUSDpro)
+      const bestMatch = allSymbols.find(s => 
+        s === requestedSymbol || 
+        s.startsWith(requestedSymbol) || 
+        (requestedSymbol === "XAUUSD" && (s === "GOLD" || s.startsWith("GOLD")))
+      );
+
+      if (bestMatch) {
+        symbol = bestMatch;
+        console.log(`[EXPERT-MA] Símbolo identificado no broker: ${symbol}`);
+      }
+    } catch (e) {
+      console.warn(`[EXPERT-MA] Não foi possível listar símbolos, tentando padrão.`);
+    }
+
+    // Normalizar SL/TP ao tick do símbolo
     let sl = (signal.sl && isFinite(signal.sl)) ? normalizeToTick(signal.sl, tick) : null;
     let tp = (signal.tp && isFinite(signal.tp)) ? normalizeToTick(signal.tp, tick) : null;
 
-    // Log crítico para diagnóstico
-    console.log(`[EXPERT-MA] EXECUTANDO ORDEM: ${signal.direction} ${symbol}`);
-    console.log(`[EXPERT-MA] Parametros: Vol=${volume}, SL=${sl || 'SEM SL'}, TP=${tp || 'SEM TP'}`);
+    console.log(`[EXPERT-MA] EXECUTANDO: ${signal.direction} em ${symbol} (Vol=${volume}, SL=${sl}, TP=${tp})`);
 
     try {
-      let res;
-      // Chamada explícita com objeto de opções se necessário, mas mantendo a assinatura padrão do SDK
-      if (signal.direction === 'BUY')
-        res = await this.connection.createMarketBuyOrder(symbol, volume, sl, tp);
-      else
-        res = await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
+      const res = signal.direction === 'BUY'
+        ? await this.connection.createMarketBuyOrder(symbol, volume, sl, tp)
+        : await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
         
-      console.log(`[EXPERT-MA] Sucesso! OrderID: ${res.orderId}`);
+      console.log(`[EXPERT-MA] ✅ Ordem Aceite! ID: ${res.orderId}`);
       return { success: true, orderId: res.orderId, appliedSl: sl, appliedTp: tp };
     } catch (e) {
-      console.error(`[EXPERT-MA] Erro na execução inicial: ${e.message}`);
-      if (e.message.includes("not found") || e.message.includes("Invalid symbol") || e.message.includes("symbol")) {
-        const possible = SYMBOL_MAP[signal.pair] || [];
-        for (const s of possible) {
-          try {
-            console.log(`[EXPERT-MA] Tentando símbolo alternativo: ${s}`);
-            const r = signal.direction === 'BUY'
-              ? await this.connection.createMarketBuyOrder(s, volume, sl, tp)
-              : await this.connection.createMarketSellOrder(s, volume, sl, tp);
-            return { success: true, orderId: r.orderId, symbol: s, appliedSl: sl, appliedTp: tp };
-          } catch(err) {
-            console.warn(`[EXPERT-MA] Falhou com variante ${s}:`, err.message);
-          }
-        }
-      }
+      console.error(`[EXPERT-MA] ❌ Erro Crítico: ${e.message}`);
       return { success: false, error: e.message };
     }
   }
