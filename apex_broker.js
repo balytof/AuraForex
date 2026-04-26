@@ -201,10 +201,12 @@ class MetaApiAdapter extends BrokerBase {
 
       if (bestMatch) {
         symbol = bestMatch;
-        console.log(`[EXPERT-MA] Símbolo identificado no broker: ${symbol}`);
+        console.log(`[EXPERT-MA] Sucesso! Símbolo identificado: ${symbol}`);
+      } else {
+        console.warn(`[EXPERT-MA] Nenhum match para ${requestedSymbol}. Símbolos disponíveis (primeiros 20): ${allSymbols.slice(0, 20).join(', ')}`);
       }
     } catch (e) {
-      console.warn(`[EXPERT-MA] Não foi possível listar símbolos, tentando padrão.`);
+      console.warn(`[EXPERT-MA] Erro ao listar símbolos: ${e.message}`);
     }
 
     // Normalizar SL/TP ao tick do símbolo
