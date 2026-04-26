@@ -119,12 +119,46 @@ async function requireActiveLicense(req, res, next) {
   }
 }
 
-// Middleware garante Corretora Conectada
-function requireBrokerAuth(req, res, next) {
-  const activeBroker = userBrokers.get(req.user.id);
+// Middleware garante Corretora Conectada (com tentativa de Reconexão Automática)
+async function requireBrokerAuth(req, res, next) {
+  let activeBroker = userBrokers.get(req.user.id);
+  
   if (!activeBroker || !activeBroker.connected) {
-    return res.status(403).json({ error: "Nenhuma corretora conectada neste momento." });
+    console.log(`[AUTH-BROKER] Tentando reconexão automática para User ${req.user.id}...`);
+    try {
+      const connection = await prisma.brokerConnection.findFirst({ where: { userId: req.user.id } });
+      if (connection) {
+        const config = {
+          provider: connection.brokerType,
+          environment: connection.environment,
+          accountId: connection.accountId,
+          apiToken: decrypt(connection.apiTokenEncrypted),
+          metaApiToken: decrypt(connection.apiTokenEncrypted),
+          metaApiAccountId: connection.accountId,
+          oandaAccountId: connection.accountId,
+          oandaApiKey: decrypt(connection.apiTokenEncrypted),
+          capitalIdentifier: decrypt(connection.capitalIdentifier),
+          capitalPassword: decrypt(connection.capitalPassword),
+          capitalApiKey: decrypt(connection.apiTokenEncrypted),
+          region: connection.region
+        };
+        const adapter = getBrokerAdapter(config);
+        const resConn = await adapter.connect();
+        if (resConn.success) {
+          userBrokers.set(req.user.id, adapter);
+          activeBroker = adapter;
+          console.log(`[AUTH-BROKER] Reconexão automática bem sucedida!`);
+        }
+      }
+    } catch (e) {
+      console.error(`[AUTH-BROKER] Falha na reconexão automática:`, e.message);
+    }
   }
+
+  if (!activeBroker || !activeBroker.connected) {
+    return res.status(403).json({ error: "Nenhuma corretora conectada neste momento. Por favor, conecte manualmente no painel." });
+  }
+  
   req.broker = activeBroker;
   next();
 }
