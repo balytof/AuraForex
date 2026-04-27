@@ -2344,6 +2344,20 @@ async function doDisconnect() {
 }
 
 // ─── UPDATES ──────────────────────────────────
+async function checkBrokerConnection() {
+  try {
+    const status = await getBrokerStatus();
+    if (status && status.success && status.connected) {
+       brokerConnected = true;
+       brokerInfo = status.account || status.info;
+       updateBrokerUI();
+       addLog("🔄 Conexão com a corretora restaurada automaticamente.", "buy");
+    }
+  } catch (e) {
+    console.warn("Falha ao verificar status da corretora:", e.message);
+  }
+}
+
 async function updateBrokerUI() {
   const badge = document.getElementById("brokerBadge");
   const statusText = document.getElementById("brokerStatusText");
