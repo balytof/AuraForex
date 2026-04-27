@@ -269,8 +269,9 @@ class MetaApiAdapter extends BrokerBase {
       console.log(`[EXPERT-MA] Symbol: ${symbol} | Lote: ${lot} | Entry: ${entry}`);
 
       // 🚀 Execução via REST API (Expert Logic - Ultra Fiel ao MT5)
-      const baseUrl = `https://mt-client-api-v1.vint-hill.agiliumtrade.ai`; // Região padrão
-      const url = `${baseUrl}/users/current/accounts/${this.credentials.accountId}/trade`;
+      const region = this.account?.region || 'vint-hill';
+      const baseUrl = `https://mt-client-api-v1.${region}.agiliumtrade.ai`; 
+      const url = `${baseUrl}/users/current/accounts/${this.accountId}/trade`;
       
       const body = {
         symbol: symbol,
@@ -283,12 +284,12 @@ class MetaApiAdapter extends BrokerBase {
       if (signal.sl) body.stopLoss = signal.sl;
       if (signal.tp) body.takeProfit = signal.tp;
 
-      console.log(`[EXPERT-MA] Enviando ordem via REST: ${JSON.stringify(body)}`);
+      console.log(`[EXPERT-MA] Enviando ordem via REST para ${this.accountId}...`);
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'auth-token': this.credentials.metaApiToken,
+          'auth-token': this.config.metaApiToken || this.config.apiToken,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
