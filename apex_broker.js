@@ -318,6 +318,7 @@ class MetaApiAdapter extends BrokerBase {
       let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
       
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
+      console.log(`[EXPERT-MA] MÉTODOS DISPONÍVEIS:`, Object.keys(this.connection).filter(k => typeof this.connection[k] === 'function').join(', '));
 
       // 📊 Obter preço (O SDK já sincroniza automaticamente)
       const tick = await this.connection.getSymbolPrice(symbol);
