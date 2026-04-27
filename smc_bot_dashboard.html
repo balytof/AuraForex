@@ -1956,8 +1956,8 @@ async function getBrokerPositions() {
   return apiFetch("/api/broker/positions");
 }
 
-async function placeBrokerOrder(pair, direction, lotSize, sl, tp) {
-  return apiFetch("/api/broker/order", "POST", { pair, direction, lotSize, sl, tp });
+async function placeBrokerOrder(pair, direction, risk, sl, tp) {
+  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp });
 }
 
 async function getBrokerCandles(pair, timeframe, count) {
@@ -2862,18 +2862,8 @@ async function botLoop(loopId) {
           sig.lotSize = lotSize;
 
           if (brokerConnected) {
-            addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Lote: ${lotSize})...`, "buy");
-            let res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
-            
-            // EXPERT AUTO-RETRY: Se falhar por margem, tenta com metade do lote instantaneamente
-            if (!res.success && (res.error || "").toLowerCase().includes("money")) {
-               const retryLot = parseFloat((lotSize / 2).toFixed(2));
-               if (retryLot >= 0.01) {
-                  addLog(`⚠️ Margem insuficiente para ${lotSize}. Tentando Lote Reduzido: ${retryLot}...`, "warn");
-                  res = await placeBrokerOrder(pair, sig.direction, retryLot, sig.sl, sig.tp);
-                  if (res.success) lotSize = retryLot; // Atualiza para o log de confirmação
-               }
-            }
+            addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
+            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
 
             if (res.success) {
               lastTradeTime[pair] = Date.now();

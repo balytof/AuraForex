@@ -602,9 +602,9 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
 }
 
 app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
-  let { pair, lotSize, sl, tp, entry } = req.body;
+  let { pair, risk, sl, tp, entry } = req.body;
   const direction = req.body.direction?.toUpperCase();
-  if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
+  if (!pair || !direction || !risk) return res.status(400).json({ error: "Faltam parametros (pair, direction, risk)" });
   try {
     
     // 1. VALIDAÇÃO SMC PRO (INTEGRADA)
@@ -665,11 +665,10 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
         if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
     }
 
-    // 4. Executar ordem COM SL/TP
-    console.log(`[ORDER] Executando ${direction} ${pair} lot=${lotSize} SL=${sl} TP=${tp}`);
-    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, lotSize);
+    // 4. Executar Ordem com Risco Dinâmico (Expert Logic)
+    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, risk);
 
-    // 5. Se falhar por símbolo não encontrado, tenta variantes — MAS SEMPRE COM SL/TP
+    // 5. Se falhar por símbolo não encontrado, tenta variantes (Se o adaptador não resolveu antes)
     if (!result || !result.success) {
       const err = (result?.error || "").toLowerCase();
       const isSymbolError = err.includes("symbol") || err.includes("not found") || err.includes("invalid") || err.includes("unknown");

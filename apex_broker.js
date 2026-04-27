@@ -187,44 +187,76 @@ class MetaApiAdapter extends BrokerBase {
     const isGold = requestedSymbol.includes("XAU") || requestedSymbol.includes("GOLD");
     const tick   = isGold ? 0.01 : isJpy ? 0.001 : 0.00001;
 
-    // 1. Tentar descobrir o símbolo real no broker
-    let symbol = requestedSymbol;
+  async resolveSymbol(requestedSymbol) {
     try {
-      console.log(`[EXPERT-MA] Buscando símbolo real para ${requestedSymbol}...`);
+      if (!this.connection) await this.connect();
       const allSymbols = await this.connection.getSymbols();
+      const upper = requestedSymbol.toUpperCase();
       
-      // Busca exata ou por sufixo (ex: EURUSD.m, EURUSDpro)
-      const bestMatch = allSymbols.find(s => 
-        s === requestedSymbol || 
-        s.startsWith(requestedSymbol) || 
-        (requestedSymbol === "XAUUSD" && (s === "GOLD" || s.startsWith("GOLD")))
-      );
+      // Tentar match exato ou sufixos comuns
+      const variants = [
+        upper, upper + "m", upper + ".pro", upper + ".ecn", upper + ".raw", upper + ".s", upper + ".x",
+        upper.includes("XAU") ? "GOLD" : null,
+        upper.includes("XAU") ? "GOLD.pro" : null
+      ].filter(Boolean);
 
-      if (bestMatch) {
-        symbol = bestMatch;
-        console.log(`[EXPERT-MA] Sucesso! Símbolo identificado: ${symbol}`);
-      } else {
-        console.warn(`[EXPERT-MA] Nenhum match para ${requestedSymbol}. Símbolos disponíveis (primeiros 20): ${allSymbols.slice(0, 20).join(', ')}`);
+      for (const v of variants) {
+        if (allSymbols.includes(v)) return v;
       }
+
+      // Fallback: Busca por prefixo
+      const match = allSymbols.find(s => s.startsWith(upper));
+      return match || upper;
     } catch (e) {
-      console.warn(`[EXPERT-MA] Erro ao listar símbolos: ${e.message}`);
+      return requestedSymbol.toUpperCase();
     }
+  }
 
-    // Normalizar SL/TP ao tick do símbolo
-    let sl = (signal.sl && isFinite(signal.sl)) ? normalizeToTick(signal.sl, tick) : null;
-    let tp = (signal.tp && isFinite(signal.tp)) ? normalizeToTick(signal.tp, tick) : null;
+  calculateLotSize(balance, riskPercent, entryPrice, stopLoss, pair) {
+    const slPips = Math.abs(entryPrice - stopLoss);
+    if (!slPips || slPips === 0) return 0.01;
 
-    console.log(`[EXPERT-MA] EXECUTANDO: ${signal.direction} em ${symbol} (Vol=${volume}, SL=${sl}, TP=${tp})`);
+    let pipValuePerLot = 10;
+    if (pair.includes("XAU") || pair.includes("GOLD")) pipValuePerLot = 100;
+    if (pair.includes("JPY")) pipValuePerLot = 6.5;
 
+    const pipVal = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
+    const pips = slPips / pipVal;
+
+    let lot = (balance * (riskPercent / 100)) / (pips * pipValuePerLot);
+    return Math.min(Math.max(parseFloat(lot.toFixed(2)), 0.01), 0.50);
+  }
+
+  async placeOrder(signal, riskPercent = 1) {
     try {
-      const res = signal.direction === 'BUY'
-        ? await this.connection.createMarketBuyOrder(symbol, volume, sl, tp)
-        : await this.connection.createMarketSellOrder(symbol, volume, sl, tp);
+      if (!this.connection) await this.connect();
+      
+      // 🔍 Resolver símbolo correto (Expert Logic)
+      const symbol = await this.resolveSymbol(signal.pair);
+      
+      // 📊 Dados da conta e preço em tempo real
+      const account = await this.connection.getAccountInformation();
+      const tick = await this.connection.getSymbolPrice(symbol);
+      const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
+
+      // 💰 Calcular lote automaticamente no servidor
+      const lot = this.calculateLotSize(account.balance, riskPercent, entry, signal.sl, symbol);
+
+      console.log(`[EXPERT-MA] Symbol: ${symbol} | Lote: ${lot} | Entry: ${entry}`);
+
+      const res = await this.connection.createOrder({
+        symbol: symbol,
+        actionType: signal.direction === 'BUY' ? 'POSITION_TYPE_BUY' : 'POSITION_TYPE_SELL',
+        volume: lot,
+        stopLoss: signal.sl,
+        takeProfit: signal.tp,
+        comment: 'AURA PRO EXECUTION'
+      });
         
-      console.log(`[EXPERT-MA] ✅ Ordem Aceite! ID: ${res.orderId}`);
-      return { success: true, orderId: res.orderId, appliedSl: sl, appliedTp: tp };
+      console.log(`[EXPERT-MA] ✅ Ordem confirmada ID: ${res.orderId}`);
+      return { success: true, orderId: res.orderId, appliedLot: lot, symbol };
     } catch (e) {
-      console.error(`[EXPERT-MA] ❌ Erro Crítico: ${e.message}`);
+      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);
       return { success: false, error: e.message };
     }
   }
