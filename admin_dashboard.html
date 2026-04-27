@@ -226,13 +226,17 @@
     <div id="panel-users" class="panel">
         <div class="panel-header">
             <h3>Gestão de Usuários</h3>
-            <button class="btn" onclick="loadUsers()">Atualizar</button>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar por Email..." onkeyup="filterUsers()" style="width:200px; height:34px; font-size:0.75rem;">
+                <input type="text" id="searchUserRef" class="form-input" placeholder="Ref/ID..." onkeyup="filterUsers()" style="width:120px; height:34px; font-size:0.75rem;">
+                <button class="btn" onclick="loadUsers()">Atualizar</button>
+            </div>
         </div>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Email</th>
+                        <th>Email / Ref</th>
                         <th>Role</th>
                         <th>Licença</th>
                         <th>Expiração</th>
