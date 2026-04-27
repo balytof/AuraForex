@@ -29,7 +29,8 @@
     "jsonwebtoken": "^9.0.3",
     "metaapi.cloud-sdk": "^29.3.3",
     "node-fetch": "^2.7.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "ssh2": "^1.17.0"
   },
   "devDependencies": {
     "prisma": "^7.7.0"
