@@ -30,6 +30,7 @@ class BrokerBase {
   }
   async connect() { throw new Error('Not implemented'); }
   async getBalance() { throw new Error('Not implemented'); }
+  async getPrice(pair) { throw new Error('Not implemented'); }
   async placeOrder(signal, lotSize) { throw new Error('Not implemented'); }
   async closePosition(positionId) { throw new Error('Not implemented'); }
   async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
