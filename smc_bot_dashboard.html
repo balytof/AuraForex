@@ -799,7 +799,10 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><span class="icon">📜</span> Histórico de Negociações</div>
-          <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadHistory()">Atualizar</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadHistory()">Atualizar</button>
+            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;border-color:var(--bear);color:var(--bear);" onclick="clearHistory()">Limpar</button>
+          </div>
         </div>
         <div class="history-controls">
           <input type="text" id="histFilterPair" placeholder="Par (ex: EURUSD)" oninput="renderHistory()">
@@ -2402,6 +2405,12 @@ async function loadHistory() {
   } finally {
     if (btn) btn.textContent = "Atualizar";
   }
+}
+
+function clearHistory() {
+  tradeHistoryRaw = [];
+  renderHistory();
+  addLog("🧹 Histórico local limpo.", "info");
 }
 
 function renderHistory() {
