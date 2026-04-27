@@ -6,6 +6,7 @@
     <title>AuraForex — Painel Administrativo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
@@ -163,10 +164,12 @@
 <div class="wrapper">
     <header>
         <div class="logo">
-            <div class="logo-icon">🛡️</div>
+            <div class="logo-icon" style="background:none; box-shadow:none;">
+                <img src="/aura_bot.png" alt="AuraForex" style="width:40px; height:40px; object-fit:contain;">
+            </div>
             <div>
                 <h1>Aura<span>Admin</span></h1>
-                <p>Gestão de Licenças & Sistema</p>
+                <p>Gestão de Ecossistema Profissional</p>
             </div>
         </div>
         <div class="nav-tabs">
@@ -228,13 +231,23 @@
     <div id="panel-users" class="panel">
         <div class="panel-header">
             <h3>Gestão de Usuários</h3>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar por Email..." onkeyup="filterUsers()" style="width:160px; height:34px; font-size:0.75rem;">
-                <input type="month" id="userReportPeriod" class="form-input" style="width:140px; height:34px; font-size:0.75rem;">
-                <button class="btn btn-success" onclick="generateUsersReport()" style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Filtrar Mês</span>
+                    <input type="month" id="userReportPeriod" class="form-input" style="width:140px; height:34px; font-size:0.75rem;" onchange="filterUsers()">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Email</span>
+                    <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar..." onkeyup="filterUsers()" style="width:160px; height:34px; font-size:0.75rem;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Ref/ID</span>
+                    <input type="text" id="searchUserRef" class="form-input" placeholder="Ref/ID..." onkeyup="filterUsers()" style="width:120px; height:34px; font-size:0.75rem;">
+                </div>
+                <button class="btn btn-success" onclick="generateUsersReport()" style="display:flex; align-items:center; gap:8px; margin-top:14px;">
                     <span style="font-size:1rem;">📄</span> PDF
                 </button>
-                <button class="btn" onclick="loadUsers()">Atualizar</button>
+                <button class="btn" onclick="loadUsers()" style="margin-top:14px;">Atualizar</button>
             </div>
         </div>
         <div class="table-container">
@@ -243,6 +256,7 @@
                     <tr>
                         <th>Email / Ref</th>
                         <th>Role</th>
+                        <th>Registado</th>
                         <th>Licença</th>
                         <th>Expiração</th>
                         <th>Ações</th>
@@ -527,11 +541,21 @@
     function filterUsers() {
         const email = document.getElementById('searchUserEmail').value.toLowerCase();
         const ref = document.getElementById('searchUserRef').value.toLowerCase();
+        const period = document.getElementById('userReportPeriod').value; // YYYY-MM
         
-        const filtered = allUsers.filter(u => 
-            u.email.toLowerCase().includes(email) && 
-            (u.referralCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref))
-        );
+        const filtered = allUsers.filter(u => {
+            const matchesEmail = u.email.toLowerCase().includes(email);
+            const matchesRef = (u.referralCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref));
+            
+            let matchesPeriod = true;
+            if (period) {
+                const [year, month] = period.split("-");
+                const d = new Date(u.createdAt);
+                matchesPeriod = (d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month));
+            }
+            
+            return matchesEmail && matchesRef && matchesPeriod;
+        });
         renderUsers(filtered);
     }
 
@@ -539,6 +563,7 @@
         const tbody = document.getElementById('usersTable');
         tbody.innerHTML = users.map(u => {
             const lic = u.licenses?.[0];
+            const regDate = new Date(u.createdAt).toLocaleDateString();
             return `
                 <tr>
                     <td>
@@ -546,6 +571,9 @@
                         <div style="font-size:0.65rem; color:var(--muted);">ID: ${u.id.substring(0,8)}... | Ref: ${u.referralCode || '—'}</div>
                     </td>
                     <td>${u.role}</td>
+                    <td>
+                        <div style="font-size:0.85rem;">${regDate}</div>
+                    </td>
                     <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
                     <td style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -554,7 +582,7 @@
                     </td>
                 </tr>
             `;
-        }).join('') || '<tr><td colspan="5" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
     }
 
     // Período padrão para usuários
