@@ -2849,11 +2849,11 @@ async function botLoop(loopId) {
           let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
           
           // EXPERT: Ajuste de Margem Dinâmico baseada no Limite de Ordens
-          // Se o limite de ordens for alto (ex: 15), reduzimos o lote máximo individual para não estourar a margem
           const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
-          let safeMaxLot = 0.50;
-          if (maxTradesLimit > 5) safeMaxLot = 0.25;
-          if (maxTradesLimit > 10) safeMaxLot = 0.15;
+          let safeMaxLot = (pair.includes("XAU") || pair.includes("GOLD")) ? 0.30 : 0.15; // Forex é mais pesado em margem
+          
+          if (maxTradesLimit > 5) safeMaxLot = safeMaxLot * 0.7;
+          if (maxTradesLimit > 10) safeMaxLot = safeMaxLot * 0.5;
           
           lotSize = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), safeMaxLot);
           
@@ -2861,7 +2861,18 @@ async function botLoop(loopId) {
 
           if (brokerConnected) {
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Lote: ${lotSize})...`, "buy");
-            const res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
+            let res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
+            
+            // EXPERT AUTO-RETRY: Se falhar por margem, tenta com metade do lote instantaneamente
+            if (!res.success && (res.error || "").toLowerCase().includes("money")) {
+               const retryLot = parseFloat((lotSize / 2).toFixed(2));
+               if (retryLot >= 0.01) {
+                  addLog(`⚠️ Margem insuficiente para ${lotSize}. Tentando Lote Reduzido: ${retryLot}...`, "warn");
+                  res = await placeBrokerOrder(pair, sig.direction, retryLot, sig.sl, sig.tp);
+                  if (res.success) lotSize = retryLot; // Atualiza para o log de confirmação
+               }
+            }
+
             if (res.success) {
               lastTradeTime[pair] = Date.now();
               tradeCount++;
