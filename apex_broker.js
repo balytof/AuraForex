@@ -233,6 +233,8 @@ class MetaApiAdapter extends BrokerBase {
     const info = await this.getAccountInfo();
     return info.balance;
   }
+
+  async resolveSymbol(requestedSymbol) {
     try {
       if (!this.connection) await this.connect();
       const allSymbols = await this.connection.getSymbols();
