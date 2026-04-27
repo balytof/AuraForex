@@ -210,8 +210,29 @@ class MetaApiAdapter extends BrokerBase {
   }
 
 
+  async getAccountInfo() {
+    try {
+      if (!this.connection) await this.connect();
+      const info = await this.connection.getAccountInformation();
+      this.accountInfo = {
+        ...this.accountInfo,
+        balance: info.balance,
+        equity: info.equity,
+        margin: info.margin,
+        freeMargin: info.freeMargin,
+        unrealizedPL: info.profit
+      };
+      return this.accountInfo;
+    } catch (e) {
+      console.error(`[EXPERT-MA] Erro ao obter info da conta: ${e.message}`);
+      return this.accountInfo || { balance: 0, broker: "MetaTrader" };
+    }
+  }
 
-  async resolveSymbol(requestedSymbol) {
+  async getBalance() {
+    const info = await this.getAccountInfo();
+    return info.balance;
+  }
     try {
       if (!this.connection) await this.connect();
       const allSymbols = await this.connection.getSymbols();
