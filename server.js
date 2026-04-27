@@ -689,7 +689,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
 
         for (const variant of variants) {
           console.log(`[ORDER] Tentando símbolo alternativo: ${variant}`);
-          result = await req.broker.placeOrder({ pair: variant, direction, sl, tp }, lotSize);
+          result = await req.broker.placeOrder({ pair: variant, direction, sl, tp }, risk);
           if (result && result.success) {
             result.message = `Executado com símbolo alternativo: ${variant}`;
             break;
@@ -706,7 +706,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
           ? normPrice(tp + pip * 30, pair)
           : normPrice(tp - pip * 30, pair);
         console.log(`[ORDER] Stops expandidos: SL=${expandedSl} TP=${expandedTp}`);
-        result = await req.broker.placeOrder({ pair, direction, sl: expandedSl, tp: expandedTp }, lotSize);
+        result = await req.broker.placeOrder({ pair, direction, sl: expandedSl, tp: expandedTp }, risk);
         if (result && result.success) {
           result.message = "Executado com stops expandidos";
           result.sl = expandedSl;
