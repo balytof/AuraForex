@@ -180,12 +180,7 @@ class MetaApiAdapter extends BrokerBase {
     } catch(e) { return { success: false, error: e.message }; }
   }
 
-  async placeOrder(signal, lotSize) {
-    const volume = parseFloat(lotSize);
-    const requestedSymbol = signal.pair.toUpperCase();
-    const isJpy  = requestedSymbol.includes("JPY");
-    const isGold = requestedSymbol.includes("XAU") || requestedSymbol.includes("GOLD");
-    const tick   = isGold ? 0.01 : isJpy ? 0.001 : 0.00001;
+
 
   async resolveSymbol(requestedSymbol) {
     try {
