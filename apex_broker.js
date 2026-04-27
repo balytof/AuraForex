@@ -229,6 +229,22 @@ class MetaApiAdapter extends BrokerBase {
     }
   }
 
+  async getPrice(pair) {
+    const requestedSymbol = pair.toUpperCase();
+    try {
+      if (!this.connection) await this.connect();
+      const allSymbols = await this.connection.getSymbols();
+      const symbol = allSymbols.find(s => s === requestedSymbol || s.startsWith(requestedSymbol) || (requestedSymbol === "XAUUSD" && s.startsWith("GOLD"))) || requestedSymbol;
+      
+      const tick = await this.connection.getSymbolPrice(symbol);
+      console.log(`[EXPERT-MA] Preço obtido para ${symbol}: Bid=${tick.bid} Ask=${tick.ask}`);
+      return { bid: tick.bid, ask: tick.ask, symbol };
+    } catch (e) {
+      console.error(`[EXPERT-MA] Erro ao obter preço para ${pair}: ${e.message}`);
+      return null;
+    }
+  }
+
   async getOpenPositions() {
     try {
       await this.connect();
