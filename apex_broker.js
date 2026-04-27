@@ -35,7 +35,10 @@ class BrokerBase {
   async closePosition(positionId) { throw new Error('Not implemented'); }
   async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
   async getOpenPositions() { throw new Error('Not implemented'); }
-  async getCandles(symbol, timeframe, limit) { throw new Error('getCandles() must be implemented'); }
+  async getCandles(symbol, timeframe, limit) { 
+    console.warn(`[FALLBACK] getCandles called for ${symbol}`);
+    return []; 
+  }
   async getStatus() { return { success: true, connected: this.connected, accountInfo: this.accountInfo }; }
   async disconnect() { this.connected = false; return { success: true }; }
 }
