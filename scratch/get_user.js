@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+require('dotenv').config();
+const prisma = new PrismaClient({ accelerateUrl: process.env.DATABASE_URL });
 async function main() {
   const user = await prisma.user.findFirst();
   if (user) {
