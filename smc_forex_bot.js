@@ -347,7 +347,7 @@ class RiskManager {
   }
 
   registerTrade(trade) { 
-    this.openTrades.push({ ...trade, id: `T${Date.now()}`, status: "OPEN" }); 
+    this.openTrades.push({ ...trade, id: `T${Date.now()}`, status: "OPEN", peakProfit: 0 }); 
     this.saveState();
   }
 
@@ -443,20 +443,43 @@ class SMCForexBot {
   }
 
   updateTrades(pair, currentPrice, atr) {
+    const balance = this.balance || 10000;
+    const pip = pair.includes("JPY") ? 0.01 : 0.0001;
+
     for (const trade of this.risk.openTrades.filter(t => t.pair === pair)) {
+      // 1. Verificar TP/SL Standard
       const tpHit = trade.direction === "BUY" ? currentPrice >= trade.tp : currentPrice <= trade.tp;
       const slHit = trade.direction === "BUY" ? currentPrice <= trade.sl : currentPrice >= trade.sl;
+
+      // 2. Cálculo de Lucro Atual para Preservação (Expert Logic)
+      const pnlPips = trade.direction === "BUY" ? (currentPrice - trade.entry) / pip : (trade.entry - currentPrice) / pip;
+      const currentPnL = pnlPips * 10 * (trade.lotSize || 0.1);
+      const profitPercent = (currentPnL / balance) * 100;
+
+      // Atualizar Pico de Lucro
+      if (profitPercent > (trade.peakProfit || 0)) {
+        trade.peakProfit = profitPercent;
+      }
+
+      // Lógica de Preservação: Se atingiu > 1.2% e caiu para <= 1.0%, fecha e garante o lucro
+      const protectionActive = (trade.peakProfit || 0) > 1.1; 
+      const profitDroppingBelowTarget = protectionActive && profitPercent <= 1.0;
+
       if (tpHit) {
         const r = this.risk.closeTrade(trade.id, trade.tp);
-        this.log(`TP atingido | ${pair} | PnL: +$${r.pnl.toFixed(2)}`);
+        this.log(`💰 TP Atingido | ${pair} | Lucro Final: +$${r.pnl.toFixed(2)}`);
         if (this.onTrade) this.onTrade(r);
       } else if (slHit) {
         const r = this.risk.closeTrade(trade.id, trade.sl);
-        this.log(`SL atingido | ${pair} | PnL: -$${Math.abs(r.pnl).toFixed(2)}`);
+        this.log(`❌ SL Atingido | ${pair} | Perda: -$${Math.abs(r.pnl).toFixed(2)}`);
+        if (this.onTrade) this.onTrade(r);
+      } else if (profitDroppingBelowTarget) {
+        const r = this.risk.closeTrade(trade.id, currentPrice);
+        this.log(`🛡️ Proteção Ativada (Preservação 1%) | ${pair} | Lucro Garantido: +$${r.pnl.toFixed(2)} | Pico foi: ${trade.peakProfit.toFixed(2)}%`);
         if (this.onTrade) this.onTrade(r);
       } else {
         const moved = this.risk.updateTrailingStop(trade, currentPrice, atr);
-        if (moved) this.log(`Trailing Stop atualizado | ${pair} | Novo SL: ${trade.sl}`);
+        if (moved) this.log(`⚙️ Trailing Stop Movido | ${pair} | Novo SL: ${trade.sl}`);
       }
     }
   }

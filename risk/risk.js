@@ -106,6 +106,7 @@ class RiskManager {
       rr:        signal.rr,
       openedAt:  new Date().toISOString(),
       status:    "OPEN",
+      peakProfit: 0, // Expert: Rastreia o lucro máximo atingido em %
     };
     this.openTrades.push(trade);
     log.info(`Trade registado: ${trade.id} | ${trade.direction} ${trade.pair} | ${lotSize} lotes`);
@@ -195,9 +196,34 @@ class RiskManager {
         ? currentPrice <= trade.sl
         : currentPrice >= trade.sl;
 
-      if (tpHit) toClose.push({ trade, closePrice: trade.tp, reason: "TP" });
-      else if (slHit) toClose.push({ trade, closePrice: trade.sl, reason: "SL" });
-      else this.updateTrailingStop(trade, currentPrice, atr);
+      // 3. Expert Profit Protection Logic (Preservação de Lucro)
+      const isJpy    = trade.pair.includes("JPY");
+      const isXau    = trade.pair.includes("XAU");
+      const pipSize  = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+      const pnlPips  = trade.direction === "BUY"
+        ? (currentPrice - trade.entry) / pipSize
+        : (trade.entry - currentPrice) / pipSize;
+      const currentPnL = pnlPips * cfg.pipValueUSD * trade.lotSize;
+      const profitPct  = (currentPnL / this.dailyStartBalance) * 100;
+
+      // Atualizar o pico de lucro
+      if (profitPct > (trade.peakProfit || 0)) {
+        trade.peakProfit = profitPct;
+      }
+
+      // Gatilho: Se o lucro foi > 1.1% e agora caiu para <= 1.0%, fechar para proteger
+      const protectionActive = (trade.peakProfit || 0) > 1.1;
+      const profitDroppingBelowSafety = protectionActive && profitPct <= 1.0;
+
+      if (tpHit) {
+        toClose.push({ trade, closePrice: trade.tp, reason: "TP" });
+      } else if (slHit) {
+        toClose.push({ trade, closePrice: trade.sl, reason: "SL" });
+      } else if (profitDroppingBelowSafety) {
+        toClose.push({ trade, closePrice: currentPrice, reason: "PROFIT_PROTECTION_1%" });
+      } else {
+        this.updateTrailingStop(trade, currentPrice, atr);
+      }
     }
 
     return toClose;
