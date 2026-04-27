@@ -1492,7 +1492,7 @@ app.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
-  console.log("  ║   🔒  AuraForex SaaS API Server                     ║");
+  console.log("  ║   🔒  AuraForex SaaS API Server [BYPASS ATIVO]     ║");
   console.log("  ║   📦  PostgreSQL & JWT Auth Ready                   ║");
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
   console.log("  ║                                                      ║");
