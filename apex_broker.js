@@ -324,16 +324,19 @@ class MetaApiAdapter extends BrokerBase {
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
-      // 💰 Calcular lote com trava de segurança para FBS Cent
+      // 💰 Calcular lote com trava de segurança extrema para FBS
       let lot = this.calculateLotSize(balance, riskPercent, entry, signal.sl, symbol);
       
-      // Se o lote for suspeito (> 0.50) e a conta parecer pequena, forçamos o mínimo
-      if (lot > 0.10 && balance < 500) {
-        console.log(`[EXPERT-MA] 🛡️ Lote ${lot} reduzido para 0.01 por segurança (Conta pequena).`);
-        lot = 0.01;
+      // 🛡️ REGRA DE OURO FBS: Se o saldo for menor que 1000 (seja USD ou Cents), 
+      // forçamos o lote mínimo de 0.01 para Forex.
+      if (!symbol.includes("XAU") && !symbol.includes("GOLD")) {
+        if (balance < 1000) {
+          console.log(`[EXPERT-MA] 🛡️ Conta FBS detetada. Forçando lote mínimo 0.01 para ${symbol}.`);
+          lot = 0.01;
+        }
       }
 
-      console.log(`[EXPERT-MA] Symbol: ${symbol} | Lote: ${lot} | Entry: ${entry}`);
+      console.log(`[EXPERT-MA] ORDEM PRONTA: Symbol=${symbol} | Lote=${lot} | Entry=${entry}`);
 
       // 🚀 Execução via REST API (Expert Logic - Ultra Fiel ao MT5)
       const region = this.account?.region || 'vint-hill';
