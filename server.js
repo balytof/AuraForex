@@ -330,10 +330,13 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
     
     if (savedConn && (!credentials.apiToken && !credentials.metaApiToken && !credentials.apiKey)) {
        console.log(`[AUTH] Usando credenciais seguras da DB para ${brokerType}`);
+       // Mapeamento idêntico ao middleware que funciona no F5
        finalCreds.apiToken = decrypt(savedConn.apiTokenEncrypted);
        finalCreds.metaApiToken = decrypt(savedConn.apiTokenEncrypted);
        finalCreds.apiKey = decrypt(savedConn.apiTokenEncrypted);
        finalCreds.accountId = savedConn.accountId;
+       finalCreds.metaApiAccountId = savedConn.accountId;
+       finalCreds.oandaAccountId = savedConn.accountId;
        finalCreds.identifier = decrypt(savedConn.capitalIdentifier);
        finalCreds.password = decrypt(savedConn.capitalPassword);
        finalCreds.region = savedConn.region;
@@ -351,8 +354,8 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
       accountId: finalCreds.accountId || finalCreds.identifier,
       apiToken: finalCreds.apiToken || finalCreds.metaApiToken || finalCreds.apiKey,
       metaApiToken: finalCreds.metaApiToken || finalCreds.apiToken || finalCreds.apiKey,
-      metaApiAccountId: finalCreds.accountId || finalCreds.identifier,
-      oandaAccountId: finalCreds.accountId || finalCreds.identifier,
+      metaApiAccountId: finalCreds.metaApiAccountId || finalCreds.accountId || finalCreds.identifier,
+      oandaAccountId: finalCreds.oandaAccountId || finalCreds.accountId || finalCreds.identifier,
       oandaApiKey: finalCreds.apiToken || finalCreds.metaApiToken || finalCreds.apiKey,
       capitalIdentifier: finalCreds.identifier || finalCreds.accountId,
       capitalPassword: finalCreds.password,
@@ -360,7 +363,7 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
       region: finalCreds.region
     };
     
-    console.log(`[AUTH] Config Final: Provider=${config.provider} Env=${config.environment} Account=${config.accountId} HasToken=${!!config.apiToken}`);
+    console.log(`[AUTH] Reconexão: AccountID=${config.accountId} MetaID=${config.metaApiAccountId} HasToken=${!!config.apiToken}`);
     
     activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {

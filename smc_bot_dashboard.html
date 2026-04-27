@@ -1990,34 +1990,54 @@ async function doSmartConnect() {
   if (!window._lastConn) return skipSmartConnect();
   
   const conn = window._lastConn;
-  selectedBrokerType = conn.brokerType;
+  // IMPORTANTE: Usar o brokerType técnico (ex: metaapi) vindo do banco
+  selectedBrokerType = conn.brokerType; 
   selectedBrokerEntry = { name: conn.brokerName, adapter: conn.brokerType };
   selectedEnv = conn.environment;
   
-  showModalStep(3);
+  showModalStep(3); // Mostra "Conectando..."
   document.getElementById("connectingState").style.display = "block";
   document.getElementById("connectResult").style.display = "none";
   
-  // No Smart Connect, passamos as credenciais como vazias porque o servidor já tem na DB
   try {
+    // 1. Tentar validar se o servidor já nos conectou via Status (Aproveita o middleware funcional)
+    const status = await getBrokerStatus();
+    if (status && status.success && status.connected) {
+      brokerConnected = true;
+      brokerInfo = status.accountInfo || status.account;
+      addLog(`✅ Reconexão automática validada com ${conn.brokerName}!`, "buy");
+      updateBrokerUI();
+      setTimeout(() => closeConnectModal(), 1500);
+      return;
+    }
+
+    // 2. Se não estiver conectado, forçar o comando de conexão usando as chaves da DB
     const result = await apiFetch("/api/broker/connect", "POST", { 
       brokerType: conn.brokerType, 
-      credentials: { environment: conn.environment }, // O servidor vai buscar o resto na DB
+      credentials: { environment: conn.environment }, 
       remember: true 
     });
     
-    if (result.success) {
+    if (result && result.success) {
       brokerConnected = true;
-      brokerInfo = result.accountInfo || result.info;
+      brokerInfo = result.accountInfo || result.account;
       addLog(`✅ Reconectado com sucesso a ${conn.brokerName}!`, "buy");
       updateBrokerUI();
-      setTimeout(() => closeConnectModal(), 2000);
+      setTimeout(() => closeConnectModal(), 1500);
     } else {
-      throw new Error(result.error || "Falha na reconexão");
+      throw new Error(result ? result.error : "Falha na resposta do servidor.");
     }
   } catch (e) {
-    addLog(`❌ Falha na reconexão rápida: ${e.message}`, "sell");
-    skipSmartConnect();
+    console.error("Erro no Smart Connect:", e);
+    // Em vez de fechar, mostramos o erro no próprio modal para o usuário saber o que houve
+    document.getElementById("connectingState").style.display = "none";
+    document.getElementById("connectResult").style.display = "block";
+    document.getElementById("connectResult").innerHTML = `
+      <div class="result-icon">⚠️</div>
+      <div class="result-title">Falha na Reconexão</div>
+      <div class="result-detail" style="color:var(--bear);">${e.message || "Erro de autorização."}</div>
+      <button class="btn btn-secondary" onclick="skipSmartConnect()" style="margin-top:15px; width:100%;">Escolher Outra Corretora</button>
+    `;
   }
 }
 
