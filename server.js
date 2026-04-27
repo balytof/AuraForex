@@ -25,7 +25,7 @@ const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 
 const app = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3006;
 const ROOT = __dirname;
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
