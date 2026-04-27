@@ -441,6 +441,99 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
 });
 
 // ── Helpers SL/TP dinâmico ──────────────────────────────────────
+// ── SMC VALIDATION LOGIC (Ported from Expert Python Snippet) ──────────────────
+
+function identifyStructure(candles, lookback = 10) {
+  if (candles.length < lookback * 2) return "neutral";
+  
+  const lastSet = candles.slice(-lookback);
+  const prevSet = candles.slice(-lookback * 2, -lookback);
+  
+  const lastHigh = Math.max(...lastSet.map(c => c.high));
+  const prevHigh = Math.max(...prevSet.map(c => c.high));
+  const lastLow  = Math.min(...lastSet.map(c => c.low));
+  const prevLow  = Math.min(...prevSet.map(c => c.low));
+  
+  const hh = lastHigh > prevHigh;
+  const hl = lastLow > prevLow;
+  const lh = lastHigh < prevHigh;
+  const ll = lastLow < prevLow;
+  
+  if (hh && hl) return "bull";
+  if (lh && ll) return "bear";
+  return "neutral";
+}
+
+function detectOrderBlock(candles, direction) {
+  // Busca nas últimas 20 velas por um bloco de ordens (vela oposta antes de impulso)
+  for (let i = candles.length - 2; i > Math.max(candles.length - 20, 0); i--) {
+    const v = candles[i];
+    const next = candles[i+1];
+    
+    const vBody = Math.abs(v.close - v.open);
+    const nextBody = Math.abs(next.close - next.open);
+    
+    if (direction === "BUY") {
+      // OB Bull: Última vela de baixa antes de impulso forte de alta
+      if (v.close < v.open && next.close > next.open && nextBody > vBody * 1.5) {
+        return { high: v.high, low: v.low, index: i };
+      }
+    } else {
+      // OB Bear: Última vela de alta antes de impulso forte de baixa
+      if (v.close > v.open && next.close < next.open && nextBody > vBody * 1.5) {
+        return { high: v.high, low: v.low, index: i };
+      }
+    }
+  }
+  return null;
+}
+
+function detectFVG(candles, direction, minPips = 3) {
+  const pip = 0.0001; // Ajustado dinamicamente no pipeline
+  for (let i = candles.length - 3; i > candles.length - 15; i--) {
+    if (i <= 0) break;
+    const vAnt = candles[i-1];
+    const vPos = candles[i+1];
+    
+    if (direction === "BUY") {
+      // Gap entre high da anterior e low da posterior
+      if (vAnt.high < vPos.low) {
+        const gap = vPos.low - vAnt.high;
+        return { top: vPos.low, bottom: vAnt.high, gap };
+      }
+    } else {
+      // Gap entre low da anterior e high da posterior
+      if (vAnt.low > vPos.high) {
+        const gap = vAnt.low - vPos.high;
+        return { top: vAnt.low, bottom: vPos.high, gap };
+      }
+    }
+  }
+  return null;
+}
+
+async function validateSMCSignal(broker, pair, direction) {
+  try {
+    const candles = await broker.getCandles(pair, "M15", 50);
+    if (!candles || candles.length < 25) return { valid: false, reason: "Dados insuficientes" };
+    
+    const structure = identifyStructure(candles);
+    const trendAlign = (direction === "BUY" && structure === "bull") || (direction === "SELL" && structure === "bear");
+    
+    if (!trendAlign) return { valid: false, reason: `Estrutura contra a tendência (${structure})` };
+    
+    const ob = detectOrderBlock(candles, direction);
+    if (!ob) return { valid: false, reason: "Nenhum Order Block de impulso detectado" };
+    
+    const fvg = detectFVG(candles, direction);
+    if (!fvg) return { valid: false, reason: "Nenhum desequilíbrio (FVG) encontrado" };
+    
+    return { valid: true, structure, ob, fvg };
+  } catch (e) {
+    return { valid: false, reason: "Erro na validação: " + e.message };
+  }
+}
+
 function getPipValue(pair) {
   if (pair.includes("XAU") || pair.includes("GOLD")) return 1.0;   // Ouro: 1 pip = $1
   if (pair.includes("JPY")) return 0.01;                            // JPY: 2 casas
@@ -509,10 +602,23 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
 }
 
 app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
-  let { pair, direction, lotSize, sl, tp, entry } = req.body;
+  let { pair, lotSize, sl, tp, entry } = req.body;
+  const direction = req.body.direction?.toUpperCase();
   if (!pair || !direction || !lotSize) return res.status(400).json({ error: "Faltam parametros" });
   try {
-    // 1. Obter preço actual se não fornecido
+    
+    // 1. VALIDAÇÃO SMC PRO (INTEGRADA)
+    console.log(`[VALIDATION] Iniciando crivo SMC para ${pair} ${direction}...`);
+    const validation = await validateSMCSignal(req.broker, pair, direction);
+    
+    if (!validation.valid) {
+      console.warn(`[VALIDATION] ❌ Sinal REJEITADO: ${validation.reason}`);
+      return res.status(400).json({ success: false, error: `Filtro SMC: ${validation.reason}` });
+    }
+    
+    console.log(`[VALIDATION] ✅ Sinal APROVADO! Estrutura: ${validation.structure}`);
+
+    // 2. Obter preço actual se não fornecido
     let entryPrice = entry;
     if (!entryPrice) {
       try {
