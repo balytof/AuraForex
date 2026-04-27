@@ -2847,13 +2847,19 @@ async function botLoop(loopId) {
           // Cálculo: (Saldo * %Risco) / (Distância SL * Valor do Pip por Lote)
           let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
           
-          // Limites de segurança Expert
-          lotSize = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), 0.50);
+          // EXPERT: Ajuste de Margem Dinâmico baseada no Limite de Ordens
+          // Se o limite de ordens for alto (ex: 15), reduzimos o lote máximo individual para não estourar a margem
+          const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
+          let safeMaxLot = 0.50;
+          if (maxTradesLimit > 5) safeMaxLot = 0.25;
+          if (maxTradesLimit > 10) safeMaxLot = 0.15;
+          
+          lotSize = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), safeMaxLot);
           
           sig.lotSize = lotSize;
 
           if (brokerConnected) {
-            addLog(`🚀 Executando ${sig.direction} PRO em ${pair}...`, "buy");
+            addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Lote: ${lotSize})...`, "buy");
             const res = await placeBrokerOrder(pair, sig.direction, lotSize, sig.sl, sig.tp);
             if (res.success) {
               lastTradeTime[pair] = Date.now();
