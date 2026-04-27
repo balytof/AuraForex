@@ -1741,6 +1741,22 @@ function addSignalCard(sig, execResult) {
   el.innerHTML = `
     <div class="signal-top">
       <span class="signal-pair">${sig.pair || 'SMC Signal'}</span>
+      
+      ${execResult && execResult.success && execResult.orderId ? `
+        <div id="top-pnl-${execResult.orderId}" style="
+          font-weight: 800; font-family: 'Space Mono', monospace; 
+          font-size: 0.9rem; color: var(--muted);
+          background: rgba(255,255,255,0.03);
+          padding: 2px 8px; border-radius: 4px;
+        ">$0.00</div>
+        <button onclick="closeTradeNow('${execResult.orderId}', '${sig.pair}')" style="
+          background: rgba(255,68,68,0.2); color: var(--bear); border: 1px solid rgba(255,68,68,0.3);
+          border-radius: 4px; padding: 4px 10px; font-size: 0.62rem; 
+          font-weight: 800; cursor: pointer; transition: all 0.2s;
+          text-transform: uppercase;
+        " onmouseover="this.style.background='var(--bear)'; this.style.color='#fff';" onmouseout="this.style.background='rgba(255,68,68,0.2)'; this.style.color='var(--bear)';">Fechar</button>
+      ` : ''}
+
       <span class="signal-dir ${(sig.direction || 'BUY').toLowerCase()}">${sig.direction || 'BUY'}</span>
     </div>
     <div class="signal-grid">
@@ -1833,6 +1849,26 @@ function prevSignal() {
     if (cards.length === 0) return;
     activeSignalIdx = (activeSignalIdx - 1 + cards.length) % cards.length;
     updateSignalCarousel();
+}
+
+async function closeTradeNow(positionId, pair) {
+  if (!confirm(`Deseja realmente fechar a ordem ${pair} (#${positionId}) agora?`)) return;
+  
+  addLog(`🛠️ Solicitando fechamento manual: ${pair} #${positionId}...`, "info");
+  try {
+    const res = await apiFetch("/api/broker/close", "POST", { positionId });
+    if (res.success) {
+      addLog(`✅ Sucesso: ${pair} #${positionId} fechada manualmente.`, "buy");
+      // Feedback visual no card
+      const topPnl = document.getElementById(`top-pnl-${positionId}`);
+      if (topPnl) topPnl.textContent = "FECHADA";
+    } else {
+      addLog(`❌ Erro ao fechar: ${res.error}`, "sell");
+      alert("Erro ao fechar ordem: " + res.error);
+    }
+  } catch(e) {
+    addLog(`❌ Erro de conexão: ${e.message}`, "sell");
+  }
 }
 
 function restoreSignals() {
@@ -2683,6 +2719,13 @@ async function updateStats() {
             if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(brokerInfo.precision || 5) : "--";
             if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(brokerInfo.precision || 5) : "--";
             
+            // Update Top Profit
+            const topPnl = document.getElementById(`top-pnl-${pos.id}`);
+            if (topPnl) {
+                topPnl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
+                topPnl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+            }
+
             // Highlight container
             const container = document.getElementById(`pnl-container-${pos.id}`);
             if (container) {
