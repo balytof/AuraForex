@@ -12,7 +12,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash('aura123', 10);
   await prisma.user.update({
     where: { email: 'admin@auratrade.ai' },
-    data: { password: hashedPassword }
+    data: { passwordHash: hashedPassword }
   });
   
   console.log('Senha de admin@auratrade.ai alterada para: aura123');
