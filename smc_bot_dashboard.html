@@ -2412,9 +2412,13 @@ async function botLoop(loopId) {
       activePairs = new Set(["EURUSD", "GBPUSD", "XAUUSD"]);
     }
 
-    // 3. Trava de Aquecimento (Expert)
+    // 3. Trava de Aquecimento (Expert) - Apenas na primeira execução
+    const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
     if (Date.now() - botStartTime < 10000) {
        addLog("⏳ AuraBot em aquecimento... Analisando fluxo de ordens.");
+       if (isRunning && loopId === currentLoopId) {
+         loopTimer = setTimeout(() => botLoop(loopId), ms);
+       }
        return;
     }
 
