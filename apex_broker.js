@@ -343,7 +343,7 @@ class MetaApiAdapter extends BrokerBase {
       const baseUrl = `https://mt-client-api-v1.${region}.agiliumtrade.ai`; 
       const url = `${baseUrl}/users/current/accounts/${this.accountId}/trade`;
       
-      const body = {
+      const payload = {
         symbol: symbol,
         actionType: signal.direction === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL',
         volume: lot,
@@ -354,7 +354,7 @@ class MetaApiAdapter extends BrokerBase {
       if (signal.sl) payload.stopLoss = signal.sl;
       if (signal.tp) payload.takeProfit = signal.tp;
 
-      console.log(`[EXPERT-MA] Enviando ordem via REST para ${this.accountId}...`);
+      console.log(`[EXPERT-MA] Enviando REST:`, JSON.stringify(payload));
 
       const response = await fetch(`${baseUrl}/users/current/accounts/${this.accountId}/trade`, {
         method: 'POST',
@@ -362,15 +362,25 @@ class MetaApiAdapter extends BrokerBase {
           'auth-token': this.token,
           'Content-Type': 'application/json'
         },
-        return { success: true, orderId: res.orderId || res.positionId, fillPrice: entry };
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log(`[EXPERT-MA] Resposta Raw:`, JSON.stringify(result));
+
+      if (response.ok && (result.orderId || result.stringCode === 'TRADE_RETCODE_DONE')) {
+        console.log(`[EXPERT-MA] ✅ Sucesso! ID: ${result.orderId || result.stringCode}`);
+        return { success: true, orderId: result.orderId, fillPrice: entry };
       } else {
-        throw new Error(res.message || res.stringCode || "Ordem rejeitada pelo servidor MetaTrader");
+        const errorMsg = result.message || result.stringCode || "Rejeição Silenciosa";
+        console.error(`[EXPERT-MA] ❌ Rejeição: ${errorMsg}`, result);
+        throw new Error(errorMsg);
       }
-      return { success: true, orderId: res.orderId, appliedLot: lot, symbol };
     } catch (e) {
-      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);
+      console.error(`[EXPERT-MA] ❌ Fatal Error: ${e.message}`);
       return { success: false, error: e.message };
     }
+  }
   }
 
   async getPrice(pair) {
