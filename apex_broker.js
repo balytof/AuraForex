@@ -240,14 +240,15 @@ class MetaApiAdapter extends BrokerBase {
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
       
-      // 🎯 SOLUÇÃO PROFISSIONAL (Sugestão Expert)
-      // Procura qualquer símbolo que comece com o par solicitado (ex: GBPUSD -> GBPUSDm)
-      const match = allSymbols.find(s => 
-        s.toUpperCase().startsWith(upper)
-      );
+      // 🎯 SOLUÇÃO PROFISSIONAL FBS (Priorizando Sufixos)
+      // Ordenamos para que símbolos mais longos (com sufixos tipo 'm') venham primeiro
+      const matches = allSymbols
+        .filter(s => s.toUpperCase().startsWith(upper))
+        .sort((a, b) => b.length - a.length);
 
-      if (match) {
-        console.log(`[EXPERT-MA] FBS/Broker Match Encontrado: ${upper} -> ${match}`);
+      if (matches.length > 0) {
+        const match = matches[0];
+        console.log(`[EXPERT-MA] FBS Match (Prioridade Sufixo): ${upper} -> ${match}`);
         return match;
       }
 
