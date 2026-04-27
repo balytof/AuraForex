@@ -35,7 +35,7 @@ class BrokerBase {
   async closePosition(positionId) { throw new Error('Not implemented'); }
   async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
   async getOpenPositions() { throw new Error('Not implemented'); }
-  async getStatus() { return { connected: this.connected, accountInfo: this.accountInfo }; }
+  async getStatus() { return { success: true, connected: this.connected, accountInfo: this.accountInfo }; }
   async disconnect() { this.connected = false; return { success: true }; }
 }
 

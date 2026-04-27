@@ -295,8 +295,9 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 app.get("/api/broker/status", requireAuth, async (req, res) => {
   const activeBroker = userBrokers.get(req.user.id);
-  if (!activeBroker) return res.json({ connected: false, broker: null });
-  return res.json(activeBroker.getStatus());
+  if (!activeBroker) return res.json({ success: true, connected: false, broker: null });
+  const status = await activeBroker.getStatus();
+  return res.json(status);
 });
 
 app.post("/api/broker/connect", requireAuth, async (req, res) => {

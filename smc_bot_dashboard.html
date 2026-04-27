@@ -2349,7 +2349,7 @@ async function checkBrokerConnection() {
     const status = await getBrokerStatus();
     if (status && status.success && status.connected) {
        brokerConnected = true;
-       brokerInfo = status.account || status.info;
+       brokerInfo = status.accountInfo || status.account || status.info;
        updateBrokerUI();
        addLog("🔄 Conexão com a corretora restaurada automaticamente.", "buy");
     }
