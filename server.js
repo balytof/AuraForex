@@ -23,7 +23,7 @@ const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const ROOT = __dirname;
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
@@ -1475,7 +1475,7 @@ app.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
-  console.log("  ║   🔒  AuraForex SaaS API Server [BYPASS ATIVO]     ║");
+  console.log("  ║   🔒  [SISTEMA BLINDADO V3] - PORTA 3001        ║");
   console.log("  ║   📦  PostgreSQL & JWT Auth Ready                   ║");
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
   console.log("  ║                                                      ║");
