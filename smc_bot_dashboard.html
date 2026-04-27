@@ -1589,17 +1589,45 @@ function initBiases() {
 }
 
 // ─── LOG ───────────────────────────────────────
-function addLog(msg, type = "") {
+// --- SISTEMA DE LOGS COM PERSISTÊNCIA ---
+function addLog(msg, type = "info") {
   const now = new Date().toLocaleTimeString("pt-PT");
   const area = document.getElementById("logArea");
+  if (!area) return;
+
   const line = document.createElement("div");
   line.className = "log-line";
   line.innerHTML = `<span class="log-time">[${now}]</span><span class="log-msg ${type}">${msg}</span>`;
   area.appendChild(line);
   area.scrollTop = area.scrollHeight;
+
+  // Salvar no Navegador (Persistência)
+  const logs = JSON.parse(localStorage.getItem('bot_logs') || '[]');
+  logs.push({ msg, type, time: now });
+  if (logs.length > 100) logs.shift(); // Limite de 100 logs
+  localStorage.setItem('bot_logs', JSON.stringify(logs));
 }
 
-function clearLog() { document.getElementById("logArea").innerHTML = ""; }
+function restoreLogs() {
+  const logs = JSON.parse(localStorage.getItem('bot_logs') || '[]');
+  const area = document.getElementById("logArea");
+  if (!area || logs.length === 0) return;
+
+  logs.forEach(l => {
+    const line = document.createElement("div");
+    line.className = "log-line";
+    line.innerHTML = `<span class="log-time">[${l.time}]</span><span class="log-msg ${l.type}">${l.msg}</span>`;
+    area.appendChild(line);
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
+function clearLog() { 
+  if (confirm("Limpar todo o histórico?")) {
+    localStorage.removeItem('bot_logs');
+    document.getElementById("logArea").innerHTML = ""; 
+  }
+}
 
 // ─── UPTIME TIMER ─────────────────────────────
 function updateUptime() {
