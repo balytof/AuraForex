@@ -2886,11 +2886,13 @@ async function botLoop(loopId) {
            
            const peak = maxProfitTrack[openPos.id];
            const drop = peak - currentProfit;
-           const dropPercentOfBalance = (drop / balance) * 100;
+           
+           // EXPERT: Trava baseada em 1% do LUCRO OBTIDO (conforme pedido)
+           // Adicionamos um threshold de $2 para evitar fechamentos por ruído de spread
+           const dropPercentOfProfit = (peak > 0) ? (drop / peak) * 100 : 0;
 
-           // Gatilho 1: Proteção de 1% do Saldo em relação ao Pico
-           if (peak > 0 && dropPercentOfBalance >= 1.0) {
-              addLog(`🛡️ TRAVA DE LUCRO: ${pair} recuou 1% do saldo ($${drop.toFixed(2)}) em relação ao pico de $${peak.toFixed(2)}. Fechando para preservar ganhos!`, "warn");
+           if (peak > 2.0 && dropPercentOfProfit >= 1.0) {
+              addLog(`🛡️ TRAVA DE LUCRO: ${pair} recuou 1% do lucro ($${drop.toFixed(2)}) em relação ao pico de $${peak.toFixed(2)}. Fechando!`, "warn");
               await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
               delete maxProfitTrack[openPos.id];
               continue;
