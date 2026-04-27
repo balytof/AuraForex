@@ -285,6 +285,18 @@ class MetaApiAdapter extends BrokerBase {
       return []; 
     }
   }
+  async closePosition(positionId) {
+    try {
+      if (!this.connection) await this.connect();
+      // MetaApi closePosition returns a promise that resolves on success
+      await this.connection.closePosition(positionId);
+      console.log(`[EXPERT-MA] ✅ Posição ${positionId} fechada com sucesso.`);
+      return { success: true, message: "Posição fechada" };
+    } catch (e) {
+      console.error(`[EXPERT-MA] ❌ Erro ao fechar posição ${positionId}: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  }
 }
 
 // ============================================================

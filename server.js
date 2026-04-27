@@ -646,6 +646,16 @@ app.delete("/api/broker/position/:id", requireAuth, requireBrokerAuth, async (re
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post("/api/broker/close", requireAuth, requireBrokerAuth, async (req, res) => {
+  const { positionId } = req.body;
+  if (!positionId) return res.status(400).json({ error: "positionId é obrigatório" });
+  try {
+    console.log(`[CLOSE] Solicitando fechamento da posição ${positionId}...`);
+    const result = await req.broker.closePosition(positionId);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/api/broker/candles", requireAuth, requireBrokerAuth, async (req, res) => {
   const { pair, timeframe, count } = req.query;
   try { res.json({ candles: await req.broker.getCandles(pair, timeframe || "H1", parseInt(count) || 250) }); } catch (e) { res.status(500).json({ error: e.message }); }
