@@ -1194,6 +1194,59 @@ app.post("/api/admin/users/:id/reset-password", requireAuth, requireAdmin, async
 // ── Admin Affiliate Endpoints ────────────────────────────────────
 
 
+app.get("/api/admin/finance/report", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { year, month } = req.query;
+    if (!year || !month) return res.status(400).json({ error: "Ano e Mês são obrigatórios." });
+
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+
+    // 1. Receitas (Licenças Aprovadas)
+    const revenueObj = await prisma.purchaseRequest.aggregate({
+      where: { 
+        status: "APPROVED",
+        createdAt: { gte: startDate, lte: endDate }
+      },
+      _sum: { amount: true }
+    });
+
+    // 2. Saques (Pagos/Aprovados)
+    const withdrawalsObj = await prisma.withdrawalRequest.aggregate({
+      where: { 
+        status: "APPROVED",
+        createdAt: { gte: startDate, lte: endDate }
+      },
+      _sum: { amount: true }
+    });
+
+    // 3. Bónus de Indicação (Gerados no período)
+    const bonusesObj = await prisma.bonusTransaction.aggregate({
+      where: { 
+        createdAt: { gte: startDate, lte: endDate }
+      },
+      _sum: { amount: true }
+    });
+
+    const revenue = revenueObj._sum.amount || 0;
+    const withdrawals = withdrawalsObj._sum.amount || 0;
+    const bonuses = bonusesObj._sum.amount || 0;
+    const balance = revenue - withdrawals;
+
+    res.json({
+      success: true,
+      revenue,
+      withdrawals,
+      bonuses,
+      balance,
+      period: `${month}/${year}`
+    });
+  } catch (err) {
+    console.error("Report error:", err);
+    res.status(500).json({ error: "Erro ao gerar balanço financeiro." });
+  }
+});
+
 app.get("/api/admin/finance", requireAuth, requireAdmin, async (req, res) => {
   try {
     const revenueObj = await prisma.purchaseRequest.aggregate({
