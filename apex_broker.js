@@ -268,16 +268,45 @@ class MetaApiAdapter extends BrokerBase {
 
       console.log(`[EXPERT-MA] Symbol: ${symbol} | Lote: ${lot} | Entry: ${entry}`);
 
-      const res = await this.connection.createOrder({
+      // 🚀 Execução via REST API (Expert Logic - Ultra Fiel ao MT5)
+      const baseUrl = `https://mt-client-api-v1.vint-hill.agiliumtrade.ai`; // Região padrão
+      const url = `${baseUrl}/users/current/accounts/${this.credentials.accountId}/trade`;
+      
+      const body = {
         symbol: symbol,
-        actionType: signal.direction === 'BUY' ? 'POSITION_TYPE_BUY' : 'POSITION_TYPE_SELL',
+        actionType: signal.direction === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL',
         volume: lot,
-        stopLoss: signal.sl,
-        takeProfit: signal.tp,
-        comment: 'AURA PRO EXECUTION'
+        comment: 'AURA PRO EXECUTION',
+        magic: 202604
+      };
+
+      if (signal.sl) body.stopLoss = signal.sl;
+      if (signal.tp) body.takeProfit = signal.tp;
+
+      console.log(`[EXPERT-MA] Enviando ordem via REST: ${JSON.stringify(body)}`);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'auth-token': this.credentials.metaApiToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro MetaApi (${response.status}): ${errorText}`);
+      }
+
+      const res = await response.json();
         
-      console.log(`[EXPERT-MA] ✅ Ordem confirmada ID: ${res.orderId}`);
+      if (res.numericCode === 10009 || res.stringCode === "TRADE_RETCODE_DONE") {
+        console.log(`[EXPERT-MA] ✅ Ordem confirmada ID: ${res.orderId || res.positionId}`);
+        return { success: true, orderId: res.orderId || res.positionId, fillPrice: entry };
+      } else {
+        throw new Error(res.message || res.stringCode || "Ordem rejeitada pelo servidor MetaTrader");
+      }
       return { success: true, orderId: res.orderId, appliedLot: lot, symbol };
     } catch (e) {
       console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);
