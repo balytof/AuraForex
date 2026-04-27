@@ -633,6 +633,23 @@
   .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
   .copy-btn:active { transform: scale(0.95); }
 
+  /* --- EXPERT SMART RECONNECT --- */
+  .smart-glow-icon {
+      animation: pulseGlow 3s infinite;
+  }
+  @keyframes pulseGlow {
+      0% { box-shadow: 0 0 10px rgba(0,212,255,0.1); }
+      50% { box-shadow: 0 0 30px rgba(0,212,255,0.3); }
+      100% { box-shadow: 0 0 10px rgba(0,212,255,0.1); }
+  }
+  .btn-premium:hover {
+      transform: translateY(-3px) scale(1.02);
+      filter: brightness(1.1);
+  }
+  .btn-ghost:hover {
+      background: rgba(255,255,255,0.05) !important;
+      border-color: var(--muted) !important;
+  }
 </style>
 </head>
 <body>
@@ -969,21 +986,28 @@
 <div class="modal-overlay" id="connectModal">
   <div class="modal">
     <div class="modal-header">
-          <div class="modal-header">
       <h2>🔗 Conectar Corretora</h2>
       <button class="modal-close" onclick="closeConnectModal()">✕</button>
     </div>
     <div class="modal-body">
 
-      <!-- ETAPA 0: RECONEXÃO INTELIGENTE -->
+      <!-- ETAPA 0: RECONEXÃO INTELIGENTE [PREMIUM EXPERT] -->
       <div class="modal-step" id="modalStepSmart">
-        <div class="smart-reconnect-container" style="text-align:center; padding:20px;">
-          <div class="smart-icon" style="font-size:3rem; margin-bottom:15px;">🔄</div>
-          <h3 id="smartBrokerName">Corretora Encontrada</h3>
-          <p id="smartBrokerDetail" style="color:var(--muted); font-size:0.85rem; margin-bottom:24px;">Deseja reconectar usando as credenciais guardadas?</p>
-          <div class="d-grid gap-2">
-            <button class="btn btn-connect" onclick="doSmartConnect()" style="padding:12px; font-weight:700;">Sim, Reconectar Agora</button>
-            <button class="btn btn-outline-secondary" onclick="skipSmartConnect()" style="font-size:0.8rem;">Não, Escolher Outra</button>
+        <div class="smart-box" style="padding: 40px 20px; text-align: center;">
+          <div class="smart-glow-icon" style="width: 80px; height: 80px; background: rgba(0,212,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 32px; color: var(--accent); margin: 0 auto 20px; border: 1px solid rgba(0,212,255,0.2); box-shadow: 0 0 30px rgba(0,212,255,0.15);">
+            <i class="fas fa-sync-alt"></i>
+          </div>
+          <h2 id="smartBrokerName" style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(to right, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: 'Syne', sans-serif;">MetaTrader</h2>
+          <p id="smartBrokerDetail" style="color: var(--muted); font-size: 0.9rem; margin-bottom: 35px; max-width: 300px; margin-left: auto; margin-right: auto; line-height: 1.5; font-family: 'Syne', sans-serif;">Deseja reconectar à sua última conta ativa com segurança?</p>
+          
+          <div class="smart-actions" style="display: flex; flex-direction: column; gap: 15px;">
+            <button class="btn-premium" onclick="doSmartConnect()" style="background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 14px; padding: 16px 28px; color: #000; font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 10px 20px rgba(0,212,255,0.2);">
+              <span>SIM, RECONECTAR AGORA</span>
+              <i class="fas fa-bolt"></i>
+            </button>
+            <button class="btn-ghost" onclick="skipSmartConnect()" style="background: transparent; border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">
+              Não, escolher outra corretora
+            </button>
           </div>
         </div>
       </div>
@@ -2011,20 +2035,26 @@ function showModalStep(step) {
   const footer = document.getElementById("modalFooter");
   const headerTitle = document.querySelector("#connectModal .modal-header h2");
 
-  backBtn.style.display = step > 1 ? "block" : "none";
+  backBtn.style.display = (step !== 1 && step !== "Smart") ? "block" : "none";
 
-  if (step === 1) {
+  if (step === "Smart") {
+    if (headerTitle) headerTitle.innerHTML = "🔄 Reconexão Rápida";
+    footer.style.display = "none";
+  } else if (step === 1) {
     if (headerTitle) headerTitle.innerHTML = "🔗 Conectar Corretora";
+    footer.style.display = "flex";
   } else if (step === 2) {
     if (headerTitle) {
       if (selectedBrokerEntry && selectedBrokerEntry.isCustom) {
         headerTitle.innerHTML = "⚙️ Configurar Corretora Personalizada";
       } else if (selectedBrokerEntry) {
-        headerTitle.innerHTML = `${selectedBrokerEntry.icon} ${selectedBrokerEntry.name}`;
+        headerTitle.innerHTML = `${selectedBrokerEntry.icon || '🔗'} ${selectedBrokerEntry.name}`;
       }
     }
+    footer.style.display = "flex";
   } else if (step === 3) {
     if (headerTitle) headerTitle.innerHTML = "⚡ Conexão";
+    footer.style.display = "none";
   }
 
   if (step === 1) {
@@ -2032,16 +2062,12 @@ function showModalStep(step) {
     nextBtn.disabled = !selectedBrokerEntry;
     nextBtn.style.display = "block";
     nextBtn.className = "btn btn-primary";
-    footer.style.display = "flex";
   } else if (step === 2) {
     nextBtn.textContent = `🔗 Conectar a ${selectedBrokerEntry?.name || 'Corretora'}`;
     nextBtn.disabled = false;
     nextBtn.style.display = "block";
     nextBtn.className = "btn btn-connect";
-    footer.style.display = "flex";
     buildCredForm();
-  } else if (step === 3) {
-    footer.style.display = "none";
   }
 }
 

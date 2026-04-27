@@ -319,45 +319,45 @@ app.get("/api/broker/last-connection", requireAuth, async (req, res) => {
 
 app.post("/api/broker/connect", requireAuth, async (req, res) => {
   const { brokerType, credentials, remember } = req.body;
-  
-  // Limpeza super agressiva de espaços invisíveis
-  if (credentials) {
-    for (let key in credentials) {
-      if (typeof credentials[key] === 'string') {
-        credentials[key] = credentials[key].trim();
-      }
-    }
-  }
-  
-  console.log(`[DEBUG] Tentativa de conexão broker: ${brokerType} (User: ${req.user.id.substring(0,8)})`);
-  console.log(`[DEBUG] Dados limpos:`, { 
-    ...credentials, 
-    password: credentials.password ? '***' : undefined,
-    apiKey: credentials.apiKey ? credentials.apiKey.substring(0,4)+'***' : undefined,
-    metaApiToken: credentials.metaApiToken ? credentials.metaApiToken.substring(0,4)+'***' : undefined
-  });
+  const userId = req.user.id;
   
   if (!brokerType || !credentials) return res.status(400).json({ success: false, error: "Dados incompletos." });
 
   try {
-    let activeBroker = userBrokers.get(req.user.id);
+    // [EXPERT LOGIC] - Recuperar credenciais salvas se for uma reconexão rápida
+    let finalCreds = { ...credentials };
+    const savedConn = await prisma.brokerConnection.findFirst({ where: { userId } });
+    
+    if (savedConn && (!credentials.apiToken && !credentials.metaApiToken && !credentials.apiKey)) {
+       console.log(`[AUTH] Usando credenciais seguras da DB para ${brokerType}`);
+       finalCreds.apiToken = decrypt(savedConn.apiTokenEncrypted);
+       finalCreds.metaApiToken = decrypt(savedConn.apiTokenEncrypted);
+       finalCreds.apiKey = decrypt(savedConn.apiTokenEncrypted);
+       finalCreds.accountId = savedConn.accountId;
+       finalCreds.identifier = decrypt(savedConn.capitalIdentifier);
+       finalCreds.password = decrypt(savedConn.capitalPassword);
+       finalCreds.region = savedConn.region;
+       finalCreds.environment = savedConn.environment;
+    }
+
+    let activeBroker = userBrokers.get(userId);
     if (activeBroker && activeBroker.connected) {
       try { await activeBroker.disconnect(); } catch (e) {}
     }
 
     const config = {
       provider: brokerType,
-      environment: credentials.environment,
-      accountId: credentials.accountId || credentials.identifier,
-      apiToken: credentials.apiToken || credentials.metaApiToken || credentials.apiKey,
-      metaApiToken: credentials.metaApiToken,
-      metaApiAccountId: credentials.accountId,
-      oandaAccountId: credentials.accountId,
-      oandaApiKey: credentials.apiToken,
-      capitalIdentifier: credentials.identifier,
-      capitalPassword: credentials.password,
-      capitalApiKey: credentials.apiKey,
-      region: credentials.region
+      environment: finalCreds.environment,
+      accountId: finalCreds.accountId || finalCreds.identifier,
+      apiToken: finalCreds.apiToken || finalCreds.metaApiToken || finalCreds.apiKey,
+      metaApiToken: finalCreds.metaApiToken || finalCreds.apiToken,
+      metaApiAccountId: finalCreds.accountId,
+      oandaAccountId: finalCreds.accountId,
+      oandaApiKey: finalCreds.apiToken,
+      capitalIdentifier: finalCreds.identifier,
+      capitalPassword: finalCreds.password,
+      capitalApiKey: finalCreds.apiKey,
+      region: finalCreds.region
     };
     activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {
