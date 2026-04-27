@@ -1483,12 +1483,12 @@ let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
 let loopTimer = null;
 let currentLoopId = 0;
-let sigCount = 0;
+let botStartTime = 0;
+let lastTradeTime = {};
 let signals = [];
 let openTrades = [];
 let tradeCount = 0;
 let wins = 0;
-let botStartTime = null;
 let uptimeInterval = null;
 
 const BIASES = {};
