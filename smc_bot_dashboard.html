@@ -920,7 +920,7 @@
             <label class="form-label">Limite de Ordens: <span id="limitVal">3</span></label>
             <div class="slider-row">
               <input type="range" class="slider" min="1" max="15" step="1" value="3" id="limitSlider"
-                oninput="document.getElementById('limitVal').textContent=this.value; document.getElementById('statLimitDisplay').textContent=this.value; saveConfig();">
+                oninput="updateLimitUI(this.value); saveConfig();">
             </div>
           </div>
 
@@ -2684,6 +2684,21 @@ async function updateBrokerUI() {
     document.getElementById("statBalance").textContent = "—";
     document.getElementById("statBalanceSub").textContent = "Conecte uma corretora";
   }
+}
+
+function updateLimitUI(val) {
+    const limitVal = document.getElementById('limitVal');
+    const statLimitDisplay = document.getElementById('statLimitDisplay');
+    const statOpen = document.getElementById('statOpen');
+    
+    if (limitVal) limitVal.textContent = val;
+    if (statLimitDisplay) statLimitDisplay.textContent = val;
+    
+    if (statOpen) {
+        const parts = statOpen.textContent.split(' / ');
+        const current = parts[0] || '0';
+        statOpen.textContent = `${current} / ${val}`;
+    }
 }
 
 async function updateStats() {
