@@ -2458,7 +2458,14 @@ async function botLoop(loopId) {
           const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
           
           const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
-          const lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
+          let lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 5.00);
+          
+          // Trava Expert para Ouro (XAUUSD) - Limita a 0.50 para segurança
+          if (pair.includes("XAU") || pair.includes("GOLD")) {
+             lotSize = Math.min(lotSize, 0.50);
+             addLog(`⚖️ Lote de Ouro ajustado para ${lotSize} por segurança.`);
+          }
+          
           sig.lotSize = lotSize;
 
           if (brokerConnected) {
