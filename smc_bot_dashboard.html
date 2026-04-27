@@ -969,12 +969,26 @@
 <div class="modal-overlay" id="connectModal">
   <div class="modal">
     <div class="modal-header">
+          <div class="modal-header">
       <h2>🔗 Conectar Corretora</h2>
       <button class="modal-close" onclick="closeConnectModal()">✕</button>
     </div>
     <div class="modal-body">
 
-      <!-- STEP 1: Selecionar Corretora -->
+      <!-- ETAPA 0: RECONEXÃO INTELIGENTE -->
+      <div class="modal-step" id="modalStepSmart">
+        <div class="smart-reconnect-container" style="text-align:center; padding:20px;">
+          <div class="smart-icon" style="font-size:3rem; margin-bottom:15px;">🔄</div>
+          <h3 id="smartBrokerName">Corretora Encontrada</h3>
+          <p id="smartBrokerDetail" style="color:var(--muted); font-size:0.85rem; margin-bottom:24px;">Deseja reconectar usando as credenciais guardadas?</p>
+          <div class="d-grid gap-2">
+            <button class="btn btn-connect" onclick="doSmartConnect()" style="padding:12px; font-weight:700;">Sim, Reconectar Agora</button>
+            <button class="btn btn-outline-secondary" onclick="skipSmartConnect()" style="font-size:0.8rem;">Não, Escolher Outra</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ETAPA 1: Selecionar Corretora -->
       <div class="modal-step active" id="modalStep1">
         <div class="broker-search">
           <span class="broker-search-icon">🔍</span>
@@ -1914,8 +1928,29 @@ function selectCustomBroker() {
   document.getElementById("modalFooter").style.display = "flex";
 }
 
-function openConnectModal() {
+async function openConnectModal() {
   document.getElementById("connectModal").classList.add("active");
+  
+  // VERIFICAÇÃO INTELIGENTE DE ÚLTIMA CONEXÃO [EXPERT]
+  try {
+    const res = await apiFetch("/api/broker/last-connection");
+    if (res && res.success) {
+       document.getElementById("smartBrokerName").textContent = res.brokerName;
+       document.getElementById("smartBrokerDetail").textContent = `Deseja reconectar à conta ${res.accountId} (${res.environment.toUpperCase()})?`;
+       
+       // Guardar temporariamente para o doSmartConnect
+       window._lastConn = res;
+       
+       showModalStep("Smart");
+       document.getElementById("modalFooter").style.display = "none";
+       return;
+    }
+  } catch(e) { console.warn("Erro ao buscar última conexão:", e); }
+
+  skipSmartConnect();
+}
+
+function skipSmartConnect() {
   selectedBrokerType = null;
   selectedBrokerEntry = null;
   activeBrokerCategory = "all";
@@ -1924,6 +1959,42 @@ function openConnectModal() {
   document.getElementById("brokerSearch").value = "";
   document.getElementById("modalNextBtn").disabled = true;
   document.getElementById("modalNextBtn").textContent = "Selecione uma corretora →";
+  document.getElementById("modalFooter").style.display = "flex";
+}
+
+async function doSmartConnect() {
+  if (!window._lastConn) return skipSmartConnect();
+  
+  const conn = window._lastConn;
+  selectedBrokerType = conn.brokerType;
+  selectedBrokerEntry = { name: conn.brokerName, adapter: conn.brokerType };
+  selectedEnv = conn.environment;
+  
+  showModalStep(3);
+  document.getElementById("connectingState").style.display = "block";
+  document.getElementById("connectResult").style.display = "none";
+  
+  // No Smart Connect, passamos as credenciais como vazias porque o servidor já tem na DB
+  try {
+    const result = await apiFetch("/api/broker/connect", "POST", { 
+      brokerType: conn.brokerType, 
+      credentials: { environment: conn.environment }, // O servidor vai buscar o resto na DB
+      remember: true 
+    });
+    
+    if (result.success) {
+      brokerConnected = true;
+      brokerInfo = result.accountInfo || result.info;
+      addLog(`✅ Reconectado com sucesso a ${conn.brokerName}!`, "buy");
+      updateBrokerUI();
+      setTimeout(() => closeConnectModal(), 2000);
+    } else {
+      throw new Error(result.error || "Falha na reconexão");
+    }
+  } catch (e) {
+    addLog(`❌ Falha na reconexão rápida: ${e.message}`, "sell");
+    skipSmartConnect();
+  }
 }
 
 function closeConnectModal() {
