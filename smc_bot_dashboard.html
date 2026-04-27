@@ -2495,6 +2495,20 @@ async function botLoop(loopId) {
     }
 
     await updateStats();
+    
+    // 6. Lucro Global por Cesta (Basket Take Profit - Meta de 2%)
+    if (openTrades.length > 0 && brokerInfo) {
+       const totalProfit = openTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+       const targetProfit = brokerInfo.balance * 0.02; // Meta de 2%
+       
+       if (totalProfit >= targetProfit) {
+          addLog(`💰 META ATINGIDA: Lucro total de $${totalProfit.toFixed(2)} atingiu 2% do saldo. Fechando todas as ordens!`, "buy");
+          for (const pos of openTrades) {
+             await apiFetch("/api/broker/close", "POST", { positionId: pos.id });
+          }
+       }
+    }
+
   } catch (totalErr) {
     addLog(`❌ ERRO CRÍTICO NO LOOP: ${totalErr.message}`, "sell");
     console.error(totalErr);
