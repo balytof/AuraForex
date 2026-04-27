@@ -513,28 +513,31 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
       } catch(e) { entryPrice = 0; }
     }
 
-    // 2. Calcular SL/TP dinâmico se não fornecidos
-    if (!sl || !tp) {
-      if (entryPrice > 0) {
-        const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
-        sl = sl || dyn.sl;
-        tp = tp || dyn.tp;
-        console.log(`[ORDER] SL/TP dinâmico aplicado para ${pair}: SL=${sl} TP=${tp}`);
-      } else {
-        console.warn(`[ORDER] Sem preço para calcular SL/TP dinâmico — ordem pode ser rejeitada`);
+    // 2. Cálculo Dinâmico de SL/TP (Segurança Expert)
+    let signal = { sl, tp, entryPrice };
+    
+    // Validação de sanidade para SL/TP baseada no preço atual
+    if (entryPrice > 0) {
+      const isBuy = direction === "BUY";
+      
+      // Se SL/TP não vierem do sinal, ou se estiverem do lado errado do preço, recalcular
+      const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
+      const invalidTp = !tp || (isBuy ? tp <= entryPrice : tp >= entryPrice);
+
+      if (invalidSl || invalidTp) {
+        console.log(`[ORDER] SL/TP originais inválidos para ${pair}. Recalculando...`);
+        const pip = getPipValue(pair);
+        const slDist = pip * 250; // 25 pips de SL padrão
+        const tpDist = pip * 500; // 50 pips de TP padrão
+        
+        sl = isBuy ? (entryPrice - slDist) : (entryPrice + slDist);
+        tp = isBuy ? (entryPrice + tpDist) : (entryPrice - tpDist);
       }
     }
 
-    // 3. Garantir distância mínima do broker (evita rejeição por stop level)
-    if (sl && tp && entryPrice > 0) {
-      const minPips = pair.includes("XAU") || pair.includes("GOLD") ? 50 : pair.includes("JPY") ? 20 : 10;
-      const adjusted = enforceMinStopDistance(sl, tp, entryPrice, direction, pair, minPips);
-      if (adjusted.sl !== sl || adjusted.tp !== tp) {
-        console.log(`[ORDER] Stop distance ajustado: SL ${sl}→${adjusted.sl}  TP ${tp}→${adjusted.tp}`);
-        sl = adjusted.sl;
-        tp = adjusted.tp;
-      }
-    }
+    // 3. Garantir distância mínima e normalização
+    sl = normPrice(sl, pair);
+    tp = normPrice(tp, pair);
 
     // 3.5 Fallback final se ainda estiverem ausentes (segurança crítica)
     if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
