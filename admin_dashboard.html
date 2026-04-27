@@ -229,8 +229,8 @@
         <div class="panel-header">
             <h3>Gestão de Usuários</h3>
             <div style="display:flex; gap:10px; align-items:center;">
-                <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar por Email..." onkeyup="filterUsers()" style="width:200px; height:34px; font-size:0.75rem;">
-                <input type="text" id="searchUserRef" class="form-input" placeholder="Ref/ID..." onkeyup="filterUsers()" style="width:120px; height:34px; font-size:0.75rem;">
+                <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar por Email..." onkeyup="filterUsers()" style="width:160px; height:34px; font-size:0.75rem;">
+                <input type="month" id="userReportPeriod" class="form-input" style="width:140px; height:34px; font-size:0.75rem;">
                 <button class="btn btn-success" onclick="generateUsersReport()" style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size:1rem;">📄</span> PDF
                 </button>
@@ -557,8 +557,15 @@
         }).join('') || '<tr><td colspan="5" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
     }
 
+    // Período padrão para usuários
+    document.getElementById('userReportPeriod').value = new Date().toISOString().substring(0, 7);
+
     async function generateUsersReport() {
         if (!allUsers || allUsers.length === 0) return alert("Nenhum usuário carregado.");
+        
+        const period = document.getElementById('userReportPeriod').value;
+        if (!period) return alert("Selecione um período (Mês/Ano)");
+        const [year, month] = period.split("-");
 
         const btn = document.querySelector('[onclick="generateUsersReport()"]');
         const originalText = btn.innerHTML;
@@ -569,6 +576,12 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
+            // Filtrar usuários pelo período selecionado (Expert logic)
+            const filteredUsers = allUsers.filter(u => {
+                const d = new Date(u.createdAt);
+                return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+            });
+
             // Header do PDF [EXPERT]
             doc.setFillColor(6, 8, 16);
             doc.rect(0, 0, 210, 40, 'F');
@@ -577,22 +590,26 @@
             doc.text("AURAFOREX", 105, 20, { align: "center" });
             doc.setFontSize(10);
             doc.setTextColor(255, 255, 255);
-            doc.text(`RELATÓRIO DE USUÁRIOS E LICENÇAS`, 105, 30, { align: "center" });
+            doc.text(`CRESCIMENTO DE REDE - ${month}/${year}`, 105, 30, { align: "center" });
 
-            const tableData = allUsers.map(u => {
+            // Resumo de Registros
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text(`Novos Registros no Período: ${filteredUsers.length}`, 14, 50);
+
+            const tableData = filteredUsers.map(u => {
                 const lic = u.licenses?.[0];
                 return [
                     u.email,
                     u.referralCode || '—',
-                    u.role,
                     lic ? (lic.plan ? lic.plan.name : lic.type) : 'Sem Licença',
-                    lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'
+                    new Date(u.createdAt).toLocaleDateString()
                 ];
             });
 
             doc.autoTable({
-                startY: 50,
-                head: [['Email', 'Ref', 'Role', 'Licença', 'Expiração']],
+                startY: 55,
+                head: [['Email', 'Ref', 'Licença Atual', 'Data Registro']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: { fillStyle: [0, 212, 255] },
@@ -602,10 +619,10 @@
             // Rodapé
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
-            doc.text(`Gerado em: ${new Date().toLocaleString()} | Total de Usuários: ${allUsers.length}`, 14, doc.internal.pageSize.height - 10);
+            doc.text(`Gerado em: ${new Date().toLocaleString()} | Total de registros no mês: ${filteredUsers.length}`, 14, doc.internal.pageSize.height - 10);
 
-            doc.save(`AuraForex_Usuarios_${new Date().toISOString().split('T')[0]}.pdf`);
-            alert("✅ Relatório de usuários gerado!");
+            doc.save(`AuraForex_Novos_Usuarios_${period}.pdf`);
+            alert(`✅ Relatório gerado! ${filteredUsers.length} novos usuários no período.`);
         } catch (e) {
             alert("❌ Erro: " + e.message);
         } finally {

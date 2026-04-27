@@ -1138,6 +1138,18 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
 
 // ── Admin User Management ─────────────────────────────────────────
 
+app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: { licenses: { include: { plan: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar utilizadores." });
+  }
+});
+
 app.delete("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
