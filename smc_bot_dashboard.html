@@ -1561,6 +1561,7 @@ let botStartTime = 0;
 let lastTradeTime = {};
 let signals = [];
 let openTrades = [];
+let maxProfitTrack = {}; // Rastreia o lucro máximo atingido por cada ordem para a trava de 1%
 let uptimeInterval = null;
 
 const BIASES = {};
@@ -2872,12 +2873,34 @@ async function botLoop(loopId) {
             }
           }
         }
-        // 5. Monitor de Lucro e Reversão (Expert Protection)
+        // 5. Monitor de Lucro, Reversão e Proteção 1% (Expert Protection)
         const openPos = openTrades.find(t => t.pair === pair);
-        if (openPos && openPos.profit > 0) {
-           if (aiResult.bias !== "NEUTRAL" && aiResult.bias !== openPos.direction) {
-              addLog(`🛡️ REVERSÃO DETETADA em ${pair}: Fechando para garantir lucro de $${openPos.profit.toFixed(2)}`, "info");
+        if (openPos) {
+           const balance = brokerInfo?.balance || 10000;
+           const currentProfit = openPos.profit || 0;
+           
+           // Atualizar Pico de Lucro
+           if (!maxProfitTrack[openPos.id] || currentProfit > maxProfitTrack[openPos.id]) {
+              maxProfitTrack[openPos.id] = Math.max(0, currentProfit);
+           }
+           
+           const peak = maxProfitTrack[openPos.id];
+           const drop = peak - currentProfit;
+           const dropPercentOfBalance = (drop / balance) * 100;
+
+           // Gatilho 1: Proteção de 1% do Saldo em relação ao Pico
+           if (peak > 0 && dropPercentOfBalance >= 1.0) {
+              addLog(`🛡️ TRAVA DE LUCRO: ${pair} recuou 1% do saldo ($${drop.toFixed(2)}) em relação ao pico de $${peak.toFixed(2)}. Fechando para preservar ganhos!`, "warn");
               await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
+              delete maxProfitTrack[openPos.id];
+              continue;
+           }
+
+           // Gatilho 2: Reversão de Tendência (Bias)
+           if (currentProfit > 0 && aiResult.bias !== "NEUTRAL" && aiResult.bias !== openPos.direction) {
+              addLog(`🛡️ REVERSÃO DETETADA em ${pair}: Fechando para garantir lucro de $${currentProfit.toFixed(2)}`, "info");
+              await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
+              delete maxProfitTrack[openPos.id];
               continue;
            }
         }
