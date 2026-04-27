@@ -1491,6 +1491,16 @@ app.listen(PORT, () => {
   console.log("  ║                                                      ║");
   console.log("  ╚══════════════════════════════════════════════════════╝");
   console.log("");
+  console.log("[DIAGNOSTIC] Servidor ativo e ouvindo na porta " + PORT);
+  
+  // Testar base de dados
+  prisma.$connect()
+    .then(() => console.log("[DIAGNOSTIC] ✅ Conexão Prisma OK"))
+    .catch(err => console.error("[DIAGNOSTIC] ❌ Erro Prisma:", err.message));
+});
+
+process.on('exit', (code) => {
+  console.log(`[DIAGNOSTIC] ⚠️ O PROCESSO VAI FECHAR COM O CÓDIGO: ${code}`);
 });
 
 // Tratamento de Erros Globais para o Expert
