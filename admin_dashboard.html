@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AuraForex — Painel Administrativo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
@@ -278,7 +280,13 @@
     <div id="panel-finance" class="panel">
         <div class="panel-header">
             <h3>Saques & Gestão Financeira</h3>
-            <button class="btn" onclick="loadFinance()">Atualizar</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="month" id="reportPeriod" class="form-input" style="width:160px; height:34px; font-size:0.8rem;">
+                <button class="btn btn-success" onclick="generateFinancialReport()" style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1rem;">📄</span> PDF
+                </button>
+                <button class="btn" onclick="loadFinance()">Atualizar</button>
+            </div>
         </div>
         <div style="padding: 20px;">
             <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
@@ -672,6 +680,72 @@
             alert("Saque rejeitado com sucesso!");
             loadFinance();
         } else alert(res.error);
+    }
+
+    // Inicializar período padrão (mês atual)
+    document.getElementById('reportPeriod').value = new Date().toISOString().substring(0, 7);
+
+    async function generateFinancialReport() {
+        const period = document.getElementById('reportPeriod').value; // YYYY-MM
+        if (!period) return alert("Selecione um período (Mês/Ano)");
+
+        const [year, month] = period.split("-");
+        
+        const btn = document.querySelector('[onclick="generateFinancialReport()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Gerando...";
+        btn.disabled = true;
+
+        try {
+            const data = await api(`/api/admin/finance/report?year=${year}&month=${month}`);
+            if (!data.success) throw new Error(data.error);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header do PDF [EXPERT]
+            doc.setFillColor(6, 8, 16);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(0, 212, 255);
+            doc.setFontSize(22);
+            doc.text("AURAFOREX", 105, 20, { align: "center" });
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`RELATÓRIO FINANCEIRO - ${month}/${year}`, 105, 30, { align: "center" });
+
+            // Resumo
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text("Resumo do Período", 14, 55);
+            
+            const summaryData = [
+                ["Receita de Licenças", `$${data.revenue.toFixed(2)}`],
+                ["Saques Pagos", `$${data.withdrawals.toFixed(2)}`],
+                ["Bónus de Indicação", `$${data.bonuses.toFixed(2)}`],
+                ["Balanço Líquido", `$${data.balance.toFixed(2)}`]
+            ];
+
+            doc.autoTable({
+                startY: 60,
+                head: [['Descrição', 'Valor (USD)']],
+                body: summaryData,
+                theme: 'striped',
+                headStyles: { fillStyle: [0, 212, 255] }
+            });
+
+            // Rodapé
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, doc.internal.pageSize.height - 10);
+
+            doc.save(`AuraForex_Relatorio_${period}.pdf`);
+            alert("✅ Relatório gerado com sucesso!");
+        } catch (e) {
+            alert("❌ Erro: " + e.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 
     loadStats();
