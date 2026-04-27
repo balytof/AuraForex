@@ -505,14 +505,35 @@
         else alert(res.error);
     }
 
+    let allUsers = [];
     async function loadUsers() {
         const data = await api("/api/admin/users");
+        if (!data.success) return;
+        allUsers = data.users;
+        renderUsers(allUsers);
+    }
+
+    function filterUsers() {
+        const email = document.getElementById('searchUserEmail').value.toLowerCase();
+        const ref = document.getElementById('searchUserRef').value.toLowerCase();
+        
+        const filtered = allUsers.filter(u => 
+            u.email.toLowerCase().includes(email) && 
+            (u.referenceCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref))
+        );
+        renderUsers(filtered);
+    }
+
+    function renderUsers(users) {
         const tbody = document.getElementById('usersTable');
-        tbody.innerHTML = data.users.map(u => {
+        tbody.innerHTML = users.map(u => {
             const lic = u.licenses?.[0];
             return `
                 <tr>
-                    <td>${u.email}</td>
+                    <td>
+                        <div style="font-weight:700;">${u.email}</div>
+                        <div style="font-size:0.65rem; color:var(--muted);">ID: ${u.id.substring(0,8)}... | Ref: ${u.referenceCode || '—'}</div>
+                    </td>
                     <td>${u.role}</td>
                     <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
@@ -522,7 +543,7 @@
                     </td>
                 </tr>
             `;
-        }).join('');
+        }).join('') || '<tr><td colspan="5" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
     }
 
     function openResetPwModal(userId, email) {
