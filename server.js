@@ -582,14 +582,20 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     // 5. Se falhar por símbolo não encontrado, tenta variantes — MAS SEMPRE COM SL/TP
     if (!result || !result.success) {
       const err = (result?.error || "").toLowerCase();
-      const isSymbolError = err.includes("symbol") || err.includes("not found") || err.includes("invalid");
+      const isSymbolError = err.includes("symbol") || err.includes("not found") || err.includes("invalid") || err.includes("unknown");
       const isStopError   = err.includes("stop") || err.includes("validation") || err.includes("sl") || err.includes("tp");
 
       if (isSymbolError) {
         // Tentar variantes do símbolo mas sempre com SL/TP
+        const base = pair.replace(/USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD/g, "");
         const variants = [
-          pair + "m", pair + ".pro", pair + ".ecn", pair + ".raw",
-          pair.includes("XAU") ? "GOLD" : null
+          pair + "m", pair + ".pro", pair + ".ecn", pair + ".raw", pair + ".s", pair + ".x",
+          pair + "_i", pair + ".", pair + "!",
+          pair.includes("XAU") ? "GOLD" : null,
+          pair.includes("XAU") ? "GOLD.pro" : null,
+          pair.includes("XAU") ? "XAUUSDm" : null,
+          pair.includes("XAU") ? "XAUUSD.pro" : null,
+          pair.includes("XAU") ? "XAUUSD.s" : null
         ].filter(Boolean);
 
         for (const variant of variants) {
