@@ -319,8 +319,7 @@ class MetaApiAdapter extends BrokerBase {
       
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
 
-      // 🛰️ Subscrever ao símbolo para garantir preço (Obrigatório MetaApi)
-      await this.connection.subscribeToMarketData(symbol);
+      // 📊 Obter preço (O SDK já sincroniza automaticamente)
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
