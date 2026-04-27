@@ -1738,11 +1738,20 @@ function addSignalCard(sig, execResult) {
         border-radius: 8px;
         border: 1px solid var(--border);
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 4px;
       ">
-        <span style="font-size:0.7rem; color:var(--muted);">LUCRO ATUAL:</span>
-        <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace;">$0.00</span>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.7rem; color:var(--muted);">LUCRO ATUAL:</span>
+          <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace;">$0.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.05); padding-top:4px;">
+          <span style="font-size:0.6rem; color:var(--muted);">NÍVEIS REAIS:</span>
+          <span style="font-size:0.6rem; font-family:'Space Mono',monospace;">
+            SL: <span id="active-sl-${execResult.orderId}" style="color:var(--bear)">--</span> | 
+            TP: <span id="active-tp-${execResult.orderId}" style="color:var(--bull)">--</span>
+          </span>
+        </div>
       </div>
     ` : ''}
   `;
@@ -2599,6 +2608,12 @@ async function updateStats() {
             const pnlVal = pos.pnl || 0;
             pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
             pnlEl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+            
+            // Update Real SL/TP
+            const slEl = document.getElementById(`active-sl-${pos.id}`);
+            const tpEl = document.getElementById(`active-tp-${pos.id}`);
+            if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(brokerInfo.precision || 5) : "--";
+            if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(brokerInfo.precision || 5) : "--";
             
             // Highlight container
             const container = document.getElementById(`pnl-container-${pos.id}`);

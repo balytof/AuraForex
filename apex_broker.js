@@ -250,10 +250,19 @@ class MetaApiAdapter extends BrokerBase {
       await this.connect();
       const positions = await this.connection.getPositions();
       return (positions || []).map(p => ({
-        id: p.id, pair: p.symbol, direction: p.type === "POSITION_TYPE_BUY" ? "BUY" : "SELL",
-        lotSize: p.volume, openPrice: p.openPrice, pnl: p.profit
+        id: p.id, 
+        pair: p.symbol, 
+        direction: p.type === "POSITION_TYPE_BUY" ? "BUY" : "SELL",
+        lotSize: p.volume, 
+        openPrice: p.openPrice, 
+        pnl: p.profit,
+        sl: p.stopLoss || 0,
+        tp: p.takeProfit || 0
       }));
-    } catch(e) { return []; }
+    } catch(e) { 
+      console.error("MetaApi getOpenPositions error:", e);
+      return []; 
+    }
   }
 
   async getHistory() {
