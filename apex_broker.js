@@ -240,27 +240,21 @@ class MetaApiAdapter extends BrokerBase {
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
       
-      // Tentar match exato ou sufixos comuns
-      const variants = [
-        upper, 
-        upper + "m", upper + ".pro", upper + ".ecn", upper + ".raw", 
-        upper + ".s", upper + ".x", upper + ".i", upper + "!",
-        upper.includes("XAU") ? "GOLD" : null,
-        upper.includes("XAU") ? "GOLD.pro" : null
-      ].filter(Boolean);
+      // 🎯 SOLUÇÃO PROFISSIONAL (Sugestão Expert)
+      // Procura qualquer símbolo que comece com o par solicitado (ex: GBPUSD -> GBPUSDm)
+      const match = allSymbols.find(s => 
+        s.toUpperCase().startsWith(upper)
+      );
 
-      for (const v of variants) {
-        if (allSymbols.includes(v)) {
-          console.log(`[EXPERT-MA] Símbolo resolvido: ${requestedSymbol} -> ${v}`);
-          return v;
-        }
+      if (match) {
+        console.log(`[EXPERT-MA] FBS/Broker Match Encontrado: ${upper} -> ${match}`);
+        return match;
       }
 
-      // Fallback: Busca por contenção (ex: EURUSD em EURUSD_ECN)
-      const containMatch = allSymbols.find(s => s.includes(upper));
-      if (containMatch) {
-        console.log(`[EXPERT-MA] Símbolo resolvido por aproximação: ${requestedSymbol} -> ${containMatch}`);
-        return containMatch;
+      // Fallback para GOLD
+      if (upper.includes("XAU")) {
+        const goldMatch = allSymbols.find(s => s.includes("GOLD") || s.includes("XAU"));
+        if (goldMatch) return goldMatch;
       }
 
       return upper;
