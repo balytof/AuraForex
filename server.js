@@ -464,47 +464,22 @@ function normPrice(price, pair) {
  */
 async function computeDynamicSlTp(broker, pair, direction, entry) {
   try {
-    // EXPERT: Usar M15 para volatilidade de curto prazo (Daytrade/Scalping)
-    const candles = await broker.getCandles(pair, "M15", 30);
-    if (!candles || candles.length < 15) throw new Error("Sem velas M15");
-
-    // ATR(14) simples para precisão
-    let trSum = 0;
-    const period = 14;
-    for (let i = candles.length - period; i < candles.length; i++) {
-      const h = candles[i].high, l = candles[i].low, pc = candles[i - 1]?.close || l;
-      trSum += Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
-    }
-    const atr = trSum / period;
-    
-    // ESTRATÉGIA EXPERT: SL de 1.5 ATR (Técnico) e TP de 1:2.5 RR
-    let slDist = atr * 1.5; 
-    
-    // SEGURANÇA INSTITUCIONAL: Travas de Stop Máximo (Hard Caps)
     const pip = getPipValue(pair);
-    if (pair.includes("XAU") || pair.includes("GOLD")) {
-       if (slDist > 5.0) slDist = 5.0; // Máximo $5 de SL no Ouro
-    } else {
-       const maxForexSl = pip * 40; // Máximo 40 pips de SL no Forex
-       if (slDist > maxForexSl) slDist = maxForexSl;
-    }
     
-    const tpDist = slDist * 2.5; // RR 1:2.5 para maior Win Rate
-
+    // ESTRATÉGIA SMC PRO: 15 pips + 3 pips buffer = 18 pips
+    const slPips = 18; 
+    const slDist = pip * slPips;
+    const tpDist = slDist * 2.0; // RR 1:2 conforme print
+    
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
 
-    console.log(`[DYN-STP-EXPERT] ${pair} ATR=${atr.toFixed(5)} SL_DIST=${(slDist/pip).toFixed(1)}pips TP_DIST=${(tpDist/pip).toFixed(1)}pips`);
+    console.log(`[DYN-STP-SMC-PRO] ${pair} SL=${slPips}pips TP=${slPips*2}pips RR=1:2`);
     return { sl, tp };
   } catch (e) {
-    console.warn(`[DYN-STP-FALLBACK] Usando técnica fixa para ${pair}:`, e.message);
-    const pip  = getPipValue(pair);
-    const isGold = pair.includes("XAU") || pair.includes("GOLD");
-    
-    // Fallbacks Profissionais: 25 pips Forex, $3 Gold
-    const slD  = isGold ? 3.0 : pip * 25; 
-    const tpD  = slD * 2.0;   // 1:2 no fallback
-    
+    const pip = getPipValue(pair);
+    const slD = pip * 18; 
+    const tpD = slD * 2.0;
     const sl = direction === "BUY" ? normPrice(entry - slD, pair) : normPrice(entry + slD, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpD, pair) : normPrice(entry - tpD, pair);
     return { sl, tp };

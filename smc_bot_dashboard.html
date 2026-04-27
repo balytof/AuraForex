@@ -2843,7 +2843,9 @@ async function botLoop(loopId) {
           if (pair.includes("JPY")) pipValuePerLot = 6.5; // JPY (Aprox. $6.5-$7/pip dependendo da taxa)
           
           const pipVal = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
-          const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
+          
+          // EXPERT: Forçar risco de 18 pips para cálculo de lote (SMC Standard)
+          const slPips = 18; 
           
           // Cálculo: (Saldo * %Risco) / (Distância SL * Valor do Pip por Lote)
           let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
@@ -2884,34 +2886,49 @@ async function botLoop(loopId) {
             }
           }
         }
-        // 5. Monitor de Lucro, Reversão e Proteção 1% (Expert Protection)
+        // 5. Monitor de Lucro, Reversão e Proteção (Expert SMC Pro)
         const openPos = openTrades.find(t => t.pair === pair);
         if (openPos) {
            const balance = brokerInfo?.balance || 10000;
            const currentProfit = openPos.profit || 0;
+           const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
            
-           // Atualizar Pico de Lucro
+           // Cálculo de Pips Atuais
+           const currentPrice = aiResult.currentPrice || (openPos.direction === "BUY" ? openPos.openPrice + (currentProfit / (openPos.lotSize * 10)) : openPos.openPrice - (currentProfit / (openPos.lotSize * 10)));
+           const pipsProfit = (openPos.direction === "BUY" ? (currentPrice - openPos.openPrice) : (openPos.openPrice - currentPrice)) / pip;
+
+           // GATILHO BREAKEVEN: Se atingir 15 pips (1:1), move SL para Entrada
+           if (pipsProfit >= 15 && openPos.sl !== openPos.openPrice) {
+              addLog(`🛡️ BREAKEVEN ATIVADO: ${pair} atingiu 15 pips (1:1). Movendo SL para entrada ($${openPos.openPrice})!`, "info");
+              await apiFetch("/api/broker/order/update", "POST", { 
+                 positionId: openPos.id, 
+                 sl: openPos.openPrice,
+                 tp: openPos.tp 
+              });
+              // Evitar disparar de novo na mesma ordem
+              openPos.sl = openPos.openPrice;
+           }
+
+           // Atualizar Pico de Lucro (Proteção 1%)
            if (!maxProfitTrack[openPos.id] || currentProfit > maxProfitTrack[openPos.id]) {
               maxProfitTrack[openPos.id] = Math.max(0, currentProfit);
            }
            
            const peak = maxProfitTrack[openPos.id];
            const drop = peak - currentProfit;
-           
-           // EXPERT: Trava baseada em 1% do LUCRO OBTIDO (conforme pedido)
-           // Adicionamos um threshold de $2 para evitar fechamentos por ruído de spread
-           const dropPercentOfProfit = (peak > 0) ? (drop / peak) * 100 : 0;
+           const dropPercentOfProfit = (peak > 2.0) ? (drop / peak) * 100 : 0;
 
-           if (peak > 2.0 && dropPercentOfProfit >= 1.0) {
+           // Gatilho Trava 1%: Proteção contra recuo de lucro
+           if (peak > 5.0 && dropPercentOfProfit >= 1.0) {
               addLog(`🛡️ TRAVA DE LUCRO: ${pair} recuou 1% do lucro ($${drop.toFixed(2)}) em relação ao pico de $${peak.toFixed(2)}. Fechando!`, "warn");
               await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
               delete maxProfitTrack[openPos.id];
               continue;
            }
 
-           // Gatilho 2: Reversão de Tendência (Bias)
+           // Gatilho Reversão: Mudança de Bias (Bias contra a posição)
            if (currentProfit > 0 && aiResult.bias !== "NEUTRAL" && aiResult.bias !== openPos.direction) {
-              addLog(`🛡️ REVERSÃO DETETADA em ${pair}: Fechando para garantir lucro de $${currentProfit.toFixed(2)}`, "info");
+              addLog(`🛡️ REVERSÃO DETETADA: Fechando ${pair} para garantir $${currentProfit.toFixed(2)}`, "info");
               await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
               delete maxProfitTrack[openPos.id];
               continue;
