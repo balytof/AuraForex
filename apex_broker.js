@@ -310,82 +310,51 @@ class MetaApiAdapter extends BrokerBase {
 
   async placeOrder(signal, riskPercent = 1) {
     try {
-      if (!this.connection) await this.connect();
-      
-      // 🔍 Resolver símbolo correto (Expert Logic)
-      const symbol = await this.resolveSymbol(signal.pair);
-      
       // 📊 Dados da conta com limpeza de símbolos ($, etc)
       const account = await this.connection.getAccountInformation();
       let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
-      let freeMargin = parseFloat(String(account.freeMargin).replace(/[^0-9.]/g, ''));
       
-      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo Bruto=${account.balance} | Saldo Limpo=${balance} | Margem Livre=${freeMargin}`);
-      
-      if (freeMargin < 1) {
-        console.warn(`[EXPERT-MA] ❌ Margem Crítica: ${freeMargin}. Abortando.`);
-        return { success: false, error: "Saldo/Margem Insuficiente" };
-      }
+      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
 
+      // 🛰️ Subscrever ao símbolo para garantir preço (Obrigatório MetaApi)
+      await this.connection.subscribeToMarketData(symbol);
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
       // 💰 Calcular lote com trava de segurança extrema para FBS
       let lot = this.calculateLotSize(balance, riskPercent, entry, signal.sl, symbol);
       
-      // 🛡️ REGRA DE OURO FBS: Se o saldo for menor que 1000 (seja USD ou Cents), 
-      // forçamos o lote mínimo de 0.01 para Forex.
-      if (!symbol.includes("XAU") && !symbol.includes("GOLD")) {
-        if (balance < 1000) {
-          console.log(`[EXPERT-MA] 🛡️ Conta FBS detetada. Forçando lote mínimo 0.01 para ${symbol}.`);
-          lot = 0.01;
-        }
+      if (!symbol.includes("XAU") && !symbol.includes("GOLD") && balance < 1000) {
+        lot = 0.01;
       }
 
-      console.log(`[EXPERT-MA] ORDEM PRONTA: Symbol=${symbol} | Lote=${lot} | Entry=${entry}`);
+      console.log(`[EXPERT-MA] Executando via SDK: ${symbol} | Lote: ${lot}`);
 
-      // 🚀 Execução via REST API (Expert Logic - Ultra Fiel ao MT5)
-      const region = this.account?.region || 'vint-hill';
-      const baseUrl = `https://mt-client-api-v1.${region}.agiliumtrade.ai`; 
-      const url = `${baseUrl}/users/current/accounts/${this.accountId}/trade`;
-      
-      const payload = {
+      // 🚀 Execução via SDK (Método Seguro)
+      const orderData = {
         symbol: symbol,
         actionType: signal.direction === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL',
         volume: lot,
-        comment: 'AURA PRO EXECUTION',
-        magic: 202604
+        magic: 202604,
+        comment: 'AURA PRO SDK'
       };
 
-      if (signal.sl) payload.stopLoss = signal.sl;
-      if (signal.tp) payload.takeProfit = signal.tp;
+      if (signal.sl) orderData.stopLoss = signal.sl;
+      if (signal.tp) orderData.takeProfit = signal.tp;
 
-      console.log(`[EXPERT-MA] Enviando REST:`, JSON.stringify(payload));
-
-      const response = await fetch(`${baseUrl}/users/current/accounts/${this.accountId}/trade`, {
-        method: 'POST',
-        headers: {
-          'auth-token': this.token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      console.log(`[EXPERT-MA] Resposta Raw:`, JSON.stringify(result));
-
-      if (response.ok && (result.orderId || result.stringCode === 'TRADE_RETCODE_DONE')) {
-        console.log(`[EXPERT-MA] ✅ Sucesso! ID: ${result.orderId || result.stringCode}`);
+      const result = await this.connection.createOrder(orderData);
+      
+      if (result && (result.orderId || result.stringCode === 'TRADE_RETCODE_DONE')) {
+        console.log(`[EXPERT-MA] ✅ Sucesso SDK! ID: ${result.orderId || result.stringCode}`);
         return { success: true, orderId: result.orderId, fillPrice: entry };
       } else {
-        const errorMsg = result.message || result.stringCode || "Rejeição Silenciosa";
-        console.error(`[EXPERT-MA] ❌ Rejeição: ${errorMsg}`, result);
-        throw new Error(errorMsg);
+        throw new Error(result.message || result.stringCode || "Rejeição SDK");
       }
     } catch (e) {
-      console.error(`[EXPERT-MA] ❌ Fatal Error: ${e.message}`);
+      console.error(`[EXPERT-MA] ❌ Erro Fatal: ${e.message}`);
       return { success: false, error: e.message };
     }
+  }
   }
 
   async getPrice(pair) {
