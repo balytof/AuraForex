@@ -381,7 +381,6 @@ class MetaApiAdapter extends BrokerBase {
       return { success: false, error: e.message };
     }
   }
-  }
 
   async getPrice(pair) {
     const requestedSymbol = pair.toUpperCase();
