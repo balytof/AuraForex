@@ -331,27 +331,29 @@ class MetaApiAdapter extends BrokerBase {
         lot = 0.01;
       }
 
-      console.log(`[EXPERT-MA] Executando via SDK: ${symbol} | Lote: ${lot}`);
+      console.log(`[EXPERT-MA] Executando via SDK RPC: ${symbol} | Lote: ${lot}`);
 
-      // 🚀 Execução via SDK (Método Seguro)
+      // 🚀 Execução via RPC (Método Especial para Trading)
+      const rpcConnection = await this.account.getRPCConnection();
+      
       const orderData = {
         symbol: symbol,
         actionType: signal.direction === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL',
         volume: lot,
         magic: 202604,
-        comment: 'AURA PRO SDK'
+        comment: 'AURA PRO RPC'
       };
 
       if (signal.sl) orderData.stopLoss = signal.sl;
       if (signal.tp) orderData.takeProfit = signal.tp;
 
-      const result = await this.connection.createOrder(orderData);
+      const result = await rpcConnection.createOrder(orderData);
       
       if (result && (result.orderId || result.stringCode === 'TRADE_RETCODE_DONE')) {
-        console.log(`[EXPERT-MA] ✅ Sucesso SDK! ID: ${result.orderId || result.stringCode}`);
+        console.log(`[EXPERT-MA] ✅ Sucesso RPC! ID: ${result.orderId || result.stringCode}`);
         return { success: true, orderId: result.orderId, fillPrice: entry };
       } else {
-        throw new Error(result.message || result.stringCode || "Rejeição SDK");
+        throw new Error(result.message || result.stringCode || "Rejeição RPC");
       }
     } catch (e) {
       console.error(`[EXPERT-MA] ❌ Erro Fatal: ${e.message}`);
