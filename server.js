@@ -293,10 +293,8 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 // ── Broker Endpoints ──────────────────────────────────────────────
 
-app.get("/api/broker/status", requireAuth, async (req, res) => {
-  const activeBroker = userBrokers.get(req.user.id);
-  if (!activeBroker) return res.json({ success: true, connected: false, broker: null });
-  const status = await activeBroker.getStatus();
+app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) => {
+  const status = await req.broker.getStatus();
   return res.json(status);
 });
 

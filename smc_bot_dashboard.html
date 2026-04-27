@@ -1691,7 +1691,37 @@ function addSignalCard(sig, execResult) {
     </div>
   `;
   list.prepend(el);
-  if (list.children.length > 10) list.removeChild(list.lastChild);
+  if (list.children.length > 15) list.removeChild(list.lastChild);
+
+  // Salvar Sinais no Navegador
+  const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
+  savedSigs.unshift(sig);
+  if (savedSigs.length > 15) savedSigs.pop();
+  localStorage.setItem('bot_signals', JSON.stringify(savedSigs));
+}
+
+function restoreSignals() {
+  const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
+  const list = document.getElementById("signalsList");
+  if (!list || savedSigs.length === 0) return;
+  
+  const empty = list.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  savedSigs.reverse().forEach(sig => {
+      // Re-renderizar o card (simplificado para restauração)
+      const el = document.createElement("div");
+      el.className = `signal-card ${sig.direction.toLowerCase()}`;
+      el.innerHTML = `
+        <div class="signal-top"><span class="signal-pair">${sig.pair}</span><span class="signal-dir ${sig.direction.toLowerCase()}">${sig.direction}</span></div>
+        <div class="signal-grid">
+          <div class="sig-item"><span>Entrada</span><span>${sig.entry?.toFixed(5)}</span></div>
+          <div class="sig-item"><span>SL</span><span>${sig.sl?.toFixed(5)}</span></div>
+          <div class="sig-item"><span>TP</span><span>${sig.tp?.toFixed(5)}</span></div>
+        </div>
+      `;
+      list.prepend(el);
+  });
 }
 
 // ═══════════════════════════════════════════════
@@ -2821,7 +2851,8 @@ async function confirmPayment() {
 }
 
 // ─── BOOT ─────────────────────────────────────
-restoreLogs(); // RECUPERAR HISTÓRICO
+restoreLogs(); 
+restoreSignals(); // Restaurar Sinais
 initPairsGrid();
 initBiases();
 loadConfig(); 
@@ -2829,7 +2860,12 @@ updateStats();
 updateSessionStatus();
 checkBrokerConnection();
 loadSavedGeminiKey(); 
-checkAuth(); 
+checkAuth();
+
+// Auto-Start se estava ligado antes do F5
+if (localStorage.getItem("bot_running") === "true") {
+    setTimeout(() => startBot(), 2000);
+} 
 
 </script>
 </body>
