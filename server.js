@@ -350,15 +350,18 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
       environment: finalCreds.environment,
       accountId: finalCreds.accountId || finalCreds.identifier,
       apiToken: finalCreds.apiToken || finalCreds.metaApiToken || finalCreds.apiKey,
-      metaApiToken: finalCreds.metaApiToken || finalCreds.apiToken,
-      metaApiAccountId: finalCreds.accountId,
-      oandaAccountId: finalCreds.accountId,
-      oandaApiKey: finalCreds.apiToken,
-      capitalIdentifier: finalCreds.identifier,
+      metaApiToken: finalCreds.metaApiToken || finalCreds.apiToken || finalCreds.apiKey,
+      metaApiAccountId: finalCreds.accountId || finalCreds.identifier,
+      oandaAccountId: finalCreds.accountId || finalCreds.identifier,
+      oandaApiKey: finalCreds.apiToken || finalCreds.metaApiToken || finalCreds.apiKey,
+      capitalIdentifier: finalCreds.identifier || finalCreds.accountId,
       capitalPassword: finalCreds.password,
-      capitalApiKey: finalCreds.apiKey,
+      capitalApiKey: finalCreds.apiKey || finalCreds.apiToken,
       region: finalCreds.region
     };
+    
+    console.log(`[AUTH] Config Final: Provider=${config.provider} Env=${config.environment} Account=${config.accountId} HasToken=${!!config.apiToken}`);
+    
     activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('ERRO CRÍTICO DE CONEXÃO - 60 SEGUNDOS. Verifique as credenciais e tente novamente.')), 60000);
