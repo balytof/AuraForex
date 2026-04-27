@@ -513,26 +513,29 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
       } catch(e) { entryPrice = 0; }
     }
 
-    // 2. Cálculo Dinâmico de SL/TP (Segurança Expert)
-    let signal = { sl, tp, entryPrice };
-    
-    // Validação de sanidade para SL/TP baseada no preço atual
+    // 2. Cálculo Dinâmico de SL/TP (EXPERT ATR)
     if (entryPrice > 0) {
-      const isBuy = direction === "BUY";
-      
-      // Se SL/TP não vierem do sinal, ou se estiverem do lado errado do preço, recalcular
-      const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
-      const invalidTp = !tp || (isBuy ? tp <= entryPrice : tp >= entryPrice);
-
-      if (invalidSl || invalidTp) {
-        console.log(`[ORDER] SL/TP originais inválidos para ${pair}. Recalculando...`);
+      try {
+        console.log(`[ORDER] Calculando SL/TP Dinâmico (ATR) para ${pair}...`);
+        const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
+        sl = dyn.sl;
+        tp = dyn.tp;
+        console.log(`[ORDER] ATR Dinâmico aplicado: SL=${sl} TP=${tp}`);
+      } catch (e) {
+        console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
-        const slDist = pip * 250; // 25 pips de SL padrão
-        const tpDist = pip * 500; // 50 pips de TP padrão
-        
-        sl = isBuy ? (entryPrice - slDist) : (entryPrice + slDist);
-        tp = isBuy ? (entryPrice + tpDist) : (entryPrice - tpDist);
+        const isBuy = direction === "BUY";
+        sl = isBuy ? (entryPrice - (pip * 250)) : (entryPrice + (pip * 250));
+        tp = isBuy ? (entryPrice + (pip * 750)) : (entryPrice - (pip * 750));
       }
+    }
+
+    // 2.5 Validação final de sanidade
+    const isBuy = direction === "BUY";
+    const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
+    if (invalidSl) {
+        const pip = getPipValue(pair);
+        sl = isBuy ? (entryPrice - (pip * 200)) : (entryPrice + (pip * 200));
     }
 
     // 3. Garantir distância mínima e normalização
