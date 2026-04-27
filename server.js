@@ -1477,7 +1477,7 @@ app.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
-  console.log("  ║   🔒  [SISTEMA BLINDADO V3] - PORTA 3001        ║");
+  console.log("  ║   🔒  [SISTEMA BLINDADO V3] - PORTA 3005        ║");
   console.log("  ║   📦  PostgreSQL & JWT Auth Ready                   ║");
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
   console.log("  ║                                                      ║");
