@@ -270,12 +270,18 @@ class MetaApiAdapter extends BrokerBase {
       if (pair.includes("XAU") || pair.includes("GOLD")) pipValue = 1; // MetaTrader Gold calculation
 
       const pips = stopDist / (pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD") ? 1 : 0.0001));
-      let lotSize = riskAmount / (pips * (pair.includes("XAU") ? 10 : 10)); // Ajuste de escala para MetaApi
+      
+      // Ajuste de Precisão AURA PRO
+      let divisor = 10;
+      if (pair.includes("XAU") || pair.includes("GOLD")) divisor = 100; // Ouro precisa de divisor 100 no MT4/MT5
+      
+      let lotSize = riskAmount / (pips * divisor);
 
       // 🛡️ TRAVA DE SEGURANÇA EXPERT (AURA PRO)
       let maxLot = 0.50;
-      if (pair.includes("XAU") || pair.includes("GOLD")) maxLot = 0.10; // Ouro consome muita margem
-      if (balance < 1000) maxLot = 0.05;
+      if (pair.includes("XAU") || pair.includes("GOLD")) maxLot = 0.05; // Máximo 0.05 no Ouro para segurança total
+      if (balance < 500) maxLot = 0.02; // Contas muito pequenas
+      if (balance < 200) maxLot = 0.01;
 
       return Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), maxLot);
     } catch (e) {
