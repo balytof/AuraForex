@@ -351,29 +351,17 @@ class MetaApiAdapter extends BrokerBase {
         magic: 202604
       };
 
-      if (signal.sl) body.stopLoss = signal.sl;
-      if (signal.tp) body.takeProfit = signal.tp;
+      if (signal.sl) payload.stopLoss = signal.sl;
+      if (signal.tp) payload.takeProfit = signal.tp;
 
       console.log(`[EXPERT-MA] Enviando ordem via REST para ${this.accountId}...`);
 
-      const response = await fetch(url, {
+      const response = await fetch(`${baseUrl}/users/current/accounts/${this.accountId}/trade`, {
         method: 'POST',
         headers: {
-          'auth-token': this.config.metaApiToken || this.config.apiToken,
+          'auth-token': this.token,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro MetaApi (${response.status}): ${errorText}`);
-      }
-
-      const res = await response.json();
-        
-      if (res.numericCode === 10009 || res.stringCode === "TRADE_RETCODE_DONE") {
-        console.log(`[EXPERT-MA] ✅ Ordem confirmada ID: ${res.orderId || res.positionId}`);
         return { success: true, orderId: res.orderId || res.positionId, fillPrice: entry };
       } else {
         throw new Error(res.message || res.stringCode || "Ordem rejeitada pelo servidor MetaTrader");
