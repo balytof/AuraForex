@@ -1483,12 +1483,14 @@ let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
 let loopTimer = null;
 let currentLoopId = 0;
+let sigCount = 0;
+let tradeCount = 0;
+let wins = 0;
+let losses = 0;
 let botStartTime = 0;
 let lastTradeTime = {};
 let signals = [];
 let openTrades = [];
-let tradeCount = 0;
-let wins = 0;
 let uptimeInterval = null;
 
 const BIASES = {};
@@ -2477,6 +2479,16 @@ async function botLoop(loopId) {
             }
           }
         }
+        // 5. Monitor de Lucro e Reversão (Expert Protection)
+        const openPos = openTrades.find(t => t.pair === pair);
+        if (openPos && openPos.profit > 0) {
+           if (aiResult.bias !== "NEUTRAL" && aiResult.bias !== openPos.direction) {
+              addLog(`🛡️ REVERSÃO DETETADA em ${pair}: Fechando para garantir lucro de $${openPos.profit.toFixed(2)}`, "info");
+              await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
+              continue;
+           }
+        }
+
       } catch (err) {
         addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");
       }
