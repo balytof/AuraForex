@@ -236,19 +236,28 @@ class MetaApiAdapter extends BrokerBase {
     }
   }
 
-  calculateLotSize(balance, riskPercent, entryPrice, stopLoss, pair) {
-    const slPips = Math.abs(entryPrice - stopLoss);
-    if (!slPips || slPips === 0) return 0.01;
+  calculateLotSize(balance, riskPercent, entry, sl, pair) {
+    try {
+      const riskAmount = balance * (riskPercent / 100);
+      const stopDist = Math.abs(entry - sl);
+      if (stopDist === 0) return 0.01;
 
-    let pipValuePerLot = 10;
-    if (pair.includes("XAU") || pair.includes("GOLD")) pipValuePerLot = 100;
-    if (pair.includes("JPY")) pipValuePerLot = 6.5;
+      let pipValue = 10; // Standard lot
+      if (pair.includes("JPY")) pipValue = 7;
+      if (pair.includes("XAU") || pair.includes("GOLD")) pipValue = 1; // MetaTrader Gold calculation
 
-    const pipVal = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
-    const pips = slPips / pipVal;
+      const pips = stopDist / (pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD") ? 1 : 0.0001));
+      let lotSize = riskAmount / (pips * (pair.includes("XAU") ? 10 : 10)); // Ajuste de escala para MetaApi
 
-    let lot = (balance * (riskPercent / 100)) / (pips * pipValuePerLot);
-    return Math.min(Math.max(parseFloat(lot.toFixed(2)), 0.01), 0.50);
+      // 🛡️ TRAVA DE SEGURANÇA EXPERT (AURA PRO)
+      let maxLot = 0.50;
+      if (pair.includes("XAU") || pair.includes("GOLD")) maxLot = 0.10; // Ouro consome muita margem
+      if (balance < 1000) maxLot = 0.05;
+
+      return Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), maxLot);
+    } catch (e) {
+      return 0.01;
+    }
   }
 
   async placeOrder(signal, riskPercent = 1) {
