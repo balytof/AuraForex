@@ -310,6 +310,9 @@ class MetaApiAdapter extends BrokerBase {
 
   async placeOrder(signal, riskPercent = 1) {
     try {
+      if (!this.connection) await this.connect();
+      const symbol = await this.resolveSymbol(signal.pair);
+
       // 📊 Dados da conta com limpeza de símbolos ($, etc)
       const account = await this.connection.getAccountInformation();
       let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
@@ -354,7 +357,6 @@ class MetaApiAdapter extends BrokerBase {
       console.error(`[EXPERT-MA] ❌ Erro Fatal: ${e.message}`);
       return { success: false, error: e.message };
     }
-  }
   }
 
   async getPrice(pair) {
