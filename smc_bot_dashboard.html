@@ -2818,13 +2818,22 @@ async function botLoop(loopId) {
 
           addLog(`🎯 SINAL PRO DETETADO: ${sig.direction} ${pair}`, "info");
           
-          const risk = parseFloat(document.getElementById("riskSlider").value) || 1.0;
+          const riskPercent = parseFloat(document.getElementById("riskSlider").value) || 1.0;
           const balance = brokerInfo ? (brokerInfo.balance || 10000) : 10000;
-          const pipVal = pair.includes("JPY") ? 0.01 : pair.includes("XAU") ? 1 : 0.0001;
           
+          // EXPERT: Cálculo Preciso de Valor por Pip/Lote
+          let pipValuePerLot = 10; // Padrão Forex (1 lot = $10/pip)
+          if (pair.includes("XAU") || pair.includes("GOLD")) pipValuePerLot = 100; // Ouro (1 lot = $100/$1 move)
+          if (pair.includes("JPY")) pipValuePerLot = 6.5; // JPY (Aprox. $6.5-$7/pip dependendo da taxa)
+          
+          const pipVal = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
           const slPips = Math.abs(sig.entry - sig.sl) / pipVal;
-          // Redução Global: Máximo 0.50 para evitar falta de margem
-          let lotSize = Math.min(Math.max(parseFloat((balance * risk / 100 / (slPips * 10)).toFixed(2)), 0.01), 0.50);
+          
+          // Cálculo: (Saldo * %Risco) / (Distância SL * Valor do Pip por Lote)
+          let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
+          
+          // Limites de segurança Expert
+          lotSize = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), 0.50);
           
           sig.lotSize = lotSize;
 
