@@ -242,18 +242,28 @@ class MetaApiAdapter extends BrokerBase {
       
       // Tentar match exato ou sufixos comuns
       const variants = [
-        upper, upper + "m", upper + ".pro", upper + ".ecn", upper + ".raw", upper + ".s", upper + ".x",
+        upper, 
+        upper + "m", upper + ".pro", upper + ".ecn", upper + ".raw", 
+        upper + ".s", upper + ".x", upper + ".i", upper + "!",
         upper.includes("XAU") ? "GOLD" : null,
         upper.includes("XAU") ? "GOLD.pro" : null
       ].filter(Boolean);
 
       for (const v of variants) {
-        if (allSymbols.includes(v)) return v;
+        if (allSymbols.includes(v)) {
+          console.log(`[EXPERT-MA] Símbolo resolvido: ${requestedSymbol} -> ${v}`);
+          return v;
+        }
       }
 
-      // Fallback: Busca por prefixo
-      const match = allSymbols.find(s => s.startsWith(upper));
-      return match || upper;
+      // Fallback: Busca por contenção (ex: EURUSD em EURUSD_ECN)
+      const containMatch = allSymbols.find(s => s.includes(upper));
+      if (containMatch) {
+        console.log(`[EXPERT-MA] Símbolo resolvido por aproximação: ${requestedSymbol} -> ${containMatch}`);
+        return containMatch;
+      }
+
+      return upper;
     } catch (e) {
       return requestedSymbol.toUpperCase();
     }
