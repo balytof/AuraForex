@@ -240,25 +240,30 @@ class MetaApiAdapter extends BrokerBase {
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
       
-      // 🎯 SOLUÇÃO PROFISSIONAL FBS (Priorizando Sufixos)
-      // Ordenamos para que símbolos mais longos (com sufixos tipo 'm') venham primeiro
-      const matches = allSymbols
+      const candidates = allSymbols
         .filter(s => s.toUpperCase().startsWith(upper))
         .sort((a, b) => b.length - a.length);
 
-      if (matches.length > 0) {
-        const match = matches[0];
-        console.log(`[EXPERT-MA] FBS Match (Prioridade Sufixo): ${upper} -> ${match}`);
-        return match;
+      for (const symbol of candidates) {
+        try {
+          // Testa se o símbolo tem preço ativo
+          const price = await this.connection.getSymbolPrice(symbol);
+          if (price && (price.ask || price.bid)) {
+            console.log(`[EXPERT-MA] ✅ Símbolo Validado com Preço: ${symbol}`);
+            return symbol;
+          }
+        } catch (e) {
+          continue; // Tenta o próximo se este não tiver preço
+        }
       }
 
-      // Fallback para GOLD
+      // Fallback Ouro
       if (upper.includes("XAU")) {
-        const goldMatch = allSymbols.find(s => s.includes("GOLD") || s.includes("XAU"));
-        if (goldMatch) return goldMatch;
+        const gold = allSymbols.find(s => s.includes("GOLD") || s.includes("XAU"));
+        if (gold) return gold;
       }
 
-      return upper;
+      return candidates[0] || upper;
     } catch (e) {
       return requestedSymbol.toUpperCase();
     }
