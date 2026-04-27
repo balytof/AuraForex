@@ -514,6 +514,11 @@ function detectFVG(candles, direction, minPips = 3) {
 
 async function validateSMCSignal(broker, pair, direction) {
   try {
+    console.log(`[DEBUG-SMC] Validating with Broker: ${broker.name || 'Unknown'} | Type: ${broker.type || 'Unknown'}`);
+    if (typeof broker.getCandles !== 'function') {
+      console.error(`[DEBUG-SMC] ERROR: broker.getCandles is NOT a function! Available: ${Object.getOwnPropertyNames(Object.getPrototypeOf(broker))}`);
+      return { valid: false, reason: "Adaptador de corretora incompleto (getCandles missing)" };
+    }
     const candles = await broker.getCandles(pair, "M15", 50);
     if (!candles || candles.length < 25) return { valid: false, reason: "Dados insuficientes" };
     

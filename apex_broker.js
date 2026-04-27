@@ -35,6 +35,7 @@ class BrokerBase {
   async closePosition(positionId) { throw new Error('Not implemented'); }
   async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
   async getOpenPositions() { throw new Error('Not implemented'); }
+  async getCandles(symbol, timeframe, limit) { throw new Error('getCandles() must be implemented'); }
   async getStatus() { return { success: true, connected: this.connected, accountInfo: this.accountInfo }; }
   async disconnect() { this.connected = false; return { success: true }; }
 }
@@ -117,14 +118,39 @@ class OandaAdapter extends BrokerBase {
 
   async getOpenPositions() {
     try {
-      const res = await this.request('GET', `/v3/accounts/${this.accountId}/openTrades`);
-      return (res.trades || []).map(t => ({
-        id: t.id, pair: t.instrument.replace("_", ""),
-        direction: Number(t.currentUnits) > 0 ? "BUY" : "SELL",
-        lotSize: Math.abs(Number(t.currentUnits)) / 100000,
-        openPrice: Number(t.price), pnl: Number(t.unrealizedPL)
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/openPositions`);
+      return (res.positions || []).map(p => ({
+        id: p.instrument, pair: p.instrument,
+        direction: (parseFloat(p.long.units) > 0) ? "BUY" : "SELL",
+        lotSize: Math.abs(parseFloat(p.long.units) || parseFloat(p.short.units)),
+        pnl: parseFloat(p.unrealizedPL)
       }));
     } catch(e) { return []; }
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    const tfMap = {
+      '1m': 'M1',
+      '5m': 'M5',
+      '15m': 'M15',
+      '1h': 'H1',
+      '4h': 'H4',
+      '1d': 'D'
+    };
+
+    const res = await this.request(
+      'GET',
+      `/v3/instruments/${symbol}/candles?granularity=${tfMap[timeframe] || 'M1'}&count=${limit}`
+    );
+
+    return (res.candles || []).map(c => ({
+      time: c.time,
+      open: Number(c.mid.o),
+      high: Number(c.mid.h),
+      low: Number(c.mid.l),
+      close: Number(c.mid.c),
+      volume: c.volume
+    }));
   }
 
   async getHistory() {
@@ -292,6 +318,34 @@ class MetaApiAdapter extends BrokerBase {
     }
   }
 
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    try {
+      if (!this.connection) await this.connect();
+
+      const tfMap = {
+        '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'
+      };
+
+      const candles = await this.connection.getCandles(
+        symbol,
+        tfMap[timeframe] || '1m',
+        { limit }
+      );
+
+      return (candles || []).map(c => ({
+        time: c.time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.tickVolume
+      }));
+    } catch (e) {
+      console.error(`[EXPERT-MA] Error getCandles: ${e.message}`);
+      return [];
+    }
+  }
+
   async getHistory() {
     try {
       if (!this.connection) await this.connect();
@@ -361,17 +415,37 @@ class CapitalAdapter extends BrokerBase {
      } catch(e) { return { success: false, error: e.message }; }
   }
 
-  async placeOrder(signal, lotSize) {
+  async placeOrder(signal, risk = 1) {
     const epic = signal.pair.includes("XAU") ? "GOLD" : signal.pair;
     try {
       const res = await fetch(`${this.baseUrl}/positions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey, "CST": this.cst, "X-SECURITY-TOKEN": this.securityToken },
-        body: JSON.stringify({ epic, direction: signal.direction, size: lotSize, stopLevel: signal.sl, profitLevel: signal.tp, guaranteedStop: false, forceOpen: true })
+        body: JSON.stringify({ epic, direction: signal.direction, size: 0.1, stopLevel: signal.sl, profitLevel: signal.tp, guaranteedStop: false, forceOpen: true })
       });
       const data = await res.json();
       return { success: !!data.dealReference, orderId: data.dealReference };
     } catch(e) { return { success: false, error: e.message }; }
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    const tfMap = { '1m': 'MINUTE', '5m': 'MINUTE_5', '15m': 'MINUTE_15', '1h': 'HOUR', '4h': 'HOUR_4', '1d': 'DAY' };
+    try {
+      const epic = symbol.includes("XAU") ? "GOLD" : symbol;
+      const res = await fetch(`${this.baseUrl}/prices/${epic}?resolution=${tfMap[timeframe] || 'MINUTE'}&max=${limit}`, {
+        method: "GET",
+        headers: { "X-CAP-API-KEY": this.apiKey, "CST": this.cst, "X-SECURITY-TOKEN": this.securityToken }
+      });
+      const data = await res.json();
+      return (data.prices || []).map(p => ({
+        time: p.snapshotTime,
+        open: p.openPrice.bid,
+        high: p.highPrice.bid,
+        low: p.lowPrice.bid,
+        close: p.closePrice.bid,
+        volume: 0
+      }));
+    } catch(e) { return []; }
   }
 }
 
