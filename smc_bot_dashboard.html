@@ -238,18 +238,18 @@
 
   /* Signal cards */
   .signals-list { padding:16px; display:flex; flex-direction:column; gap:12px; max-height:500px; overflow-y:auto; }
-  .signal-card {
-     background: var(--surface2); border: 2px solid var(--border);
-     border-radius:20px; padding:24px; position:relative;
-     overflow:hidden; animation: slideIn 0.4s ease;
-     margin-bottom: 20px;
-     min-height: 180px;
-     display: flex;
-     flex-direction: column;
-     justify-content: center;
-     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-     transition: transform 0.3s;
-   }
+   .signal-card {
+      background: var(--surface2); border: 2px solid var(--border);
+      border-radius:20px; padding:22px; position:relative;
+      overflow:hidden; animation: slideIn 0.4s ease;
+      margin-bottom: 20px;
+      min-height: 220px; /* Expert: Aumentamos a altura mínima para acomodar o PnL vivo */
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s;
+    }
    .signal-card:hover { transform: scale(1.02); border-color: var(--accent); }
    .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:6px; }
    .signal-card.buy::before  { background:var(--bull); box-shadow: 2px 0 10px var(--bull); }
@@ -1705,11 +1705,11 @@ function addSignalCard(sig, execResult) {
   }
 
   const el = document.createElement("div");
-  el.className = `signal-card ${sig.direction.toLowerCase()}`;
+  el.className = `signal-card ${(sig.direction || 'BUY').toLowerCase()}`;
   el.innerHTML = `
     <div class="signal-top">
-      <span class="signal-pair">${sig.pair}</span>
-      <span class="signal-dir ${sig.direction.toLowerCase()}">${sig.direction}</span>
+      <span class="signal-pair">${sig.pair || 'SMC Signal'}</span>
+      <span class="signal-dir ${(sig.direction || 'BUY').toLowerCase()}">${sig.direction || 'BUY'}</span>
     </div>
     <div class="signal-grid">
       <div class="sig-item"><span>Entrada</span><span>${sig.entry?.toFixed(5)}</span></div>
@@ -1748,7 +1748,8 @@ function addSignalCard(sig, execResult) {
 
   // Salvar Sinais no Navegador com dados de execução para F5 Persistence
   const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
-  const sigToSave = { ...sig, tags, execResult };
+  // Expert Fix: Removemos a variável 'tags' inexistente que causava erro no log
+  const sigToSave = { ...sig, execResult }; 
   savedSigs.unshift(sigToSave);
   if (savedSigs.length > 15) savedSigs.pop();
   localStorage.setItem('bot_signals', JSON.stringify(savedSigs));
