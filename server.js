@@ -298,6 +298,25 @@ app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) =
   return res.json(status);
 });
 
+app.get("/api/broker/last-connection", requireAuth, async (req, res) => {
+  try {
+    const conn = await prisma.brokerConnection.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { updatedAt: 'desc' }
+    });
+    if (!conn) return res.json({ success: false });
+    res.json({ 
+      success: true, 
+      brokerName: conn.brokerName, 
+      accountId: conn.accountId, 
+      brokerType: conn.brokerType,
+      environment: conn.environment
+    });
+  } catch (e) {
+    res.json({ success: false });
+  }
+});
+
 app.post("/api/broker/connect", requireAuth, async (req, res) => {
   const { brokerType, credentials, remember } = req.body;
   
