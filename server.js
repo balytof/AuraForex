@@ -601,10 +601,18 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     
     if (!validation.valid) {
       console.warn(`[VALIDATION] ❌ Sinal REJEITADO: ${validation.reason}`);
-      return res.status(400).json({ success: false, error: `Filtro SMC: ${validation.reason}` });
+      return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
     }
     
     console.log(`[VALIDATION] ✅ Sinal APROVADO! Estrutura: ${validation.structure}`);
+
+    // 1. VALIDAÇÃO SMC PRO (INTEGRADA - BYPASS)
+    console.log(`[VALIDATION] Bypass Expert Ativado para ${pair}`);
+    const validation = { valid: true };
+
+    if (!validation.valid) {
+       return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
+    }
 
     // 2. Obter preço actual se não fornecido
     let entryPrice = entry;
