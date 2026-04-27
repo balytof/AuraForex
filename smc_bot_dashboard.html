@@ -2538,6 +2538,18 @@ async function updateBrokerUI() {
     document.getElementById("statBalanceSub").textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
 
     addLog(`✅ Conectado: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    
+    // Expert Fix: Limpar sinais antigos ao conectar para evitar confusão com simulações
+    if (signals.length > 0 || openTrades.length === 0) {
+       addLog("🧹 Limpando ambiente para nova sessão de trading...");
+       signals = [];
+       localStorage.setItem('bot_signals', '[]');
+       document.getElementById("signalsList").innerHTML = `
+        <div class="empty-state">
+          <div class="em-icon">🔍</div>
+          <p>Corretora conectada. Inicie o bot para receber sinais SMC.</p>
+        </div>`;
+    }
   } else {
     badge.className = "broker-badge disconnected";
     badge.querySelector(".dot").className = "dot danger";
@@ -3003,11 +3015,12 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
-// Auto-Start se estava ligado antes do F5
+// Auto-Start desativado para garantir controlo manual do utilizador
+/*
 if (localStorage.getItem("bot_running") === "true") {
     setTimeout(() => startBot(), 2000);
 } 
-
+*/
 </script>
 </body>
 </html>
