@@ -289,11 +289,20 @@ class MetaApiAdapter extends BrokerBase {
 
       // 🛡️ TRAVA DE SEGURANÇA EXPERT (AURA PRO)
       let maxLot = 0.50;
-      if (pair.includes("XAU") || pair.includes("GOLD")) maxLot = 0.05; // Máximo 0.05 no Ouro para segurança total
-      if (balance < 500) maxLot = 0.02; // Contas muito pequenas
-      if (balance < 200) maxLot = 0.01;
+      if (pair.includes("XAU") || pair.includes("GOLD")) {
+        maxLot = 0.05; 
+        if (balance < 1000) maxLot = 0.02;
+        if (balance < 500) maxLot = 0.01;
+      } else {
+        // Forex Guard
+        if (balance < 1000) maxLot = 0.05;
+        if (balance < 500) maxLot = 0.02;
+        if (balance < 200) maxLot = 0.01;
+      }
 
-      return Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), maxLot);
+      const finalLot = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), maxLot);
+      console.log(`[EXPERT-MA] Lote calculado para ${pair}: ${finalLot} (Risco: ${riskPercent}%, Saldo: ${balance})`);
+      return finalLot;
     } catch (e) {
       return 0.01;
     }
