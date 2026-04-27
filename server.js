@@ -1481,7 +1481,10 @@ app.use((req, res) => {
 });
 
 // ── Startup ───────────────────────────────────────────────────────
-app.listen(PORT, () => {
+const http = require("http");
+const server = http.createServer(app);
+
+server.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
@@ -1491,7 +1494,7 @@ app.listen(PORT, () => {
   console.log("  ║                                                      ║");
   console.log("  ╚══════════════════════════════════════════════════════╝");
   console.log("");
-  console.log("[DIAGNOSTIC] Servidor ativo e ouvindo na porta " + PORT);
+  console.log("[DIAGNOSTIC] Servidor Nativo HTTP ativo na porta " + PORT);
   
   // Testar base de dados
   prisma.$connect()
