@@ -608,7 +608,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
 
     // 1. VALIDAÇÃO SMC PRO (INTEGRADA - BYPASS)
     console.log(`[VALIDATION] Bypass Expert Ativado para ${pair}`);
-    const validation = { valid: true };
+    validation.valid = true; // Apenas atribui, não declara novamente
 
     if (!validation.valid) {
        return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
@@ -1485,7 +1485,7 @@ app.listen(PORT, () => {
   console.log("");
   console.log("  ╔══════════════════════════════════════════════════════╗");
   console.log("  ║                                                      ║");
-  console.log("  ║   🔒  [SISTEMA BLINDADO V3] - PORTA 3005        ║");
+  console.log("  ║   🔒  [ESTA-E-A-VERSAO-CORRETA-OU-EU-ME-DEMITO] ║");
   console.log("  ║   📦  PostgreSQL & JWT Auth Ready                   ║");
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
   console.log("  ║                                                      ║");
