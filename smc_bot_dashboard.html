@@ -1727,13 +1727,29 @@ function addSignalCard(sig, execResult) {
         <span style="font-size:0.7rem;color:var(--muted);font-family:'Space Mono',monospace;">R:R ${sig.rr}</span>
       </div>
     </div>
+    ${execResult && execResult.success && execResult.orderId ? `
+      <div id="pnl-container-${execResult.orderId}" class="pnl-float-badge" style="
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <span style="font-size:0.7rem; color:var(--muted);">LUCRO ATUAL:</span>
+        <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace;">$0.00</span>
+      </div>
+    ` : ''}
   `;
   list.prepend(el);
   if (list.children.length > 15) list.removeChild(list.lastChild);
 
-  // Salvar Sinais no Navegador
+  // Salvar Sinais no Navegador com dados de execução para F5 Persistence
   const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
-  savedSigs.unshift(sig);
+  const sigToSave = { ...sig, tags, execResult };
+  savedSigs.unshift(sigToSave);
   if (savedSigs.length > 15) savedSigs.pop();
   localStorage.setItem('bot_signals', JSON.stringify(savedSigs));
 }
@@ -1746,19 +1762,10 @@ function restoreSignals() {
   const empty = list.querySelector(".empty-state");
   if (empty) empty.remove();
 
-  savedSigs.reverse().forEach(sig => {
-      // Re-renderizar o card (simplificado para restauração)
-      const el = document.createElement("div");
-      el.className = `signal-card ${sig.direction.toLowerCase()}`;
-      el.innerHTML = `
-        <div class="signal-top"><span class="signal-pair">${sig.pair}</span><span class="signal-dir ${sig.direction.toLowerCase()}">${sig.direction}</span></div>
-        <div class="signal-grid">
-          <div class="sig-item"><span>Entrada</span><span>${sig.entry?.toFixed(5)}</span></div>
-          <div class="sig-item"><span>SL</span><span>${sig.sl?.toFixed(5)}</span></div>
-          <div class="sig-item"><span>TP</span><span>${sig.tp?.toFixed(5)}</span></div>
-        </div>
-      `;
-      list.prepend(el);
+  // Ordem cronológica inversa para prepend funcionar corretamente
+  [...savedSigs].reverse().forEach(sig => {
+      // Usar a mesma função addSignalCard para manter IDs e Badges
+      addSignalCard(sig, sig.execResult);
   });
 }
 
@@ -2562,8 +2569,24 @@ async function updateStats() {
       const posData = await getBrokerPositions();
       const positions = posData.positions || [];
       openTrades = positions;
-      updatePositionsUI(positions);
       
+      // EXPERT: Sincronização e Atualização de Profit nos Cards
+      positions.forEach(pos => {
+         const pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         if (pnlEl) {
+            const pnlVal = pos.pnl || 0;
+            pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
+            pnlEl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+            
+            // Highlight container
+            const container = document.getElementById(`pnl-container-${pos.id}`);
+            if (container) {
+               container.style.borderColor = pnlVal >= 0 ? "rgba(0,230,118,0.3)" : "rgba(255,68,68,0.3)";
+               container.style.background = pnlVal >= 0 ? "rgba(0,230,118,0.05)" : "rgba(255,68,68,0.05)";
+            }
+         }
+      });
+
       document.getElementById("statOpen").textContent = `${positions.length} / 3`;
 
       // Auto-load history on first active fetch if empty
