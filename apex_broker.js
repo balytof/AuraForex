@@ -317,6 +317,13 @@ class MetaApiAdapter extends BrokerBase {
       
       // 📊 Dados da conta e preço em tempo real
       const account = await this.connection.getAccountInformation();
+      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${account.balance} | Margem Livre=${account.freeMargin} | Equity=${account.equity}`);
+      
+      if (account.freeMargin < 10) {
+        console.warn(`[EXPERT-MA] ❌ Margem insuficiente: ${account.freeMargin}`);
+        return { success: false, error: "Saldo/Margem Insuficiente" };
+      }
+
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
