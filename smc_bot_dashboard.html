@@ -2807,9 +2807,10 @@ async function confirmPayment() {
 }
 
 // ─── BOOT ─────────────────────────────────────
+restoreLogs(); // RECUPERAR HISTÓRICO
 initPairsGrid();
 initBiases();
-loadConfig(); // Carrega configs antes do resto
+loadConfig(); 
 updateStats();
 updateSessionStatus();
 checkBrokerConnection();
