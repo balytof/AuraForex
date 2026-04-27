@@ -309,20 +309,29 @@ class MetaApiAdapter extends BrokerBase {
       // 🔍 Resolver símbolo correto (Expert Logic)
       const symbol = await this.resolveSymbol(signal.pair);
       
-      // 📊 Dados da conta e preço em tempo real
+      // 📊 Dados da conta com limpeza de símbolos ($, etc)
       const account = await this.connection.getAccountInformation();
-      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${account.balance} | Margem Livre=${account.freeMargin} | Equity=${account.equity}`);
+      let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
+      let freeMargin = parseFloat(String(account.freeMargin).replace(/[^0-9.]/g, ''));
       
-      if (account.freeMargin < 10) {
-        console.warn(`[EXPERT-MA] ❌ Margem insuficiente: ${account.freeMargin}`);
+      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo Bruto=${account.balance} | Saldo Limpo=${balance} | Margem Livre=${freeMargin}`);
+      
+      if (freeMargin < 1) {
+        console.warn(`[EXPERT-MA] ❌ Margem Crítica: ${freeMargin}. Abortando.`);
         return { success: false, error: "Saldo/Margem Insuficiente" };
       }
 
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
-      // 💰 Calcular lote automaticamente no servidor
-      const lot = this.calculateLotSize(account.balance, riskPercent, entry, signal.sl, symbol);
+      // 💰 Calcular lote com trava de segurança para FBS Cent
+      let lot = this.calculateLotSize(balance, riskPercent, entry, signal.sl, symbol);
+      
+      // Se o lote for suspeito (> 0.50) e a conta parecer pequena, forçamos o mínimo
+      if (lot > 0.10 && balance < 500) {
+        console.log(`[EXPERT-MA] 🛡️ Lote ${lot} reduzido para 0.01 por segurança (Conta pequena).`);
+        lot = 0.01;
+      }
 
       console.log(`[EXPERT-MA] Symbol: ${symbol} | Lote: ${lot} | Entry: ${entry}`);
 
