@@ -61,7 +61,7 @@ module.exports = {
     ema:  { fast: 50, slow: 200 },
     rsi:  { period: 14, overbought: 70, oversold: 30 },
     macd: { fast: 12, slow: 26, signal: 9 },
-    atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 3.2 },
+    atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 2.0 }, // Reduzido de 3.2 para 2.0
     bb:   { period: 20, stdDev: 2 },
   },
 
@@ -70,7 +70,7 @@ module.exports = {
     riskPerTradePct:  1.5,
     maxOpenTrades:    3,
     maxDailyLossPct:  5.0,
-    minRR:            1.5,
+    minRR:            1.2, // Reduzido de 1.5 para 1.2
     minConfluence:    55,
     trailingAtrMult:  1.5,
     pipValueUSD:      10,

@@ -550,7 +550,7 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
     // ESTRATÉGIA SMC PRO: 15 pips + 3 pips buffer = 18 pips
     const slPips = 18; 
     const slDist = pip * slPips;
-    const tpDist = slDist * 2.0; // RR 1:2 conforme print
+    const tpDist = slDist * 1.5; // Reduzido de 2.0 para 1.5 para maior precisão (Feedback do User)
     
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);

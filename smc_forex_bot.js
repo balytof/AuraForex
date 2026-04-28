@@ -30,11 +30,11 @@ const BOT_CONFIG = {
   riskPerTrade: 1.5,
   maxOpenTrades: 3,
   maxDailyLoss: 5,
-  rrRatio: 2.5,
+  rrRatio: 1.5, // Reduzido de 2.5 para 1.5 para fechos mais rápidos
   ema:  { fast: 50, slow: 200 },
   rsi:  { period: 14, ob: 70, os: 30 },
   macd: { fast: 12, slow: 26, signal: 9 },
-  atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 3.2 },
+  atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 2.2 }, // Reduzido de 3.2 para 2.2
   bb:   { period: 20, stdDev: 2 },
   sessions: {
     london:  { open: 7,  close: 16 },
