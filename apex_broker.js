@@ -35,9 +35,9 @@ class BrokerBase {
   async closePosition(positionId) { throw new Error('Not implemented'); }
   async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
   async getOpenPositions() { throw new Error('Not implemented'); }
-  async getCandles(symbol, timeframe, limit) { 
+  async getCandles(symbol, timeframe, limit) {
     console.warn(`[FALLBACK] getCandles called for ${symbol}`);
-    return []; 
+    return [];
   }
   async getStatus() { return { success: true, connected: this.connected, accountInfo: this.accountInfo }; }
   async disconnect() { this.connected = false; return { success: true }; }
@@ -66,7 +66,7 @@ class OandaAdapter extends BrokerBase {
       method,
       hostname: this.baseUrl,
       path: endpoint,
-      headers: { 
+      headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json'
       }
@@ -80,7 +80,7 @@ class OandaAdapter extends BrokerBase {
             const j = JSON.parse(d);
             if (res.statusCode >= 400) reject(new Error(`OANDA Error: ${d}`));
             else resolve(j);
-          } catch(e) { reject(e); }
+          } catch (e) { reject(e); }
         });
       });
       if (body) req.write(JSON.stringify(body));
@@ -92,8 +92,8 @@ class OandaAdapter extends BrokerBase {
     try {
       const res = await this.request('GET', `/v3/accounts/${this.accountId}/summary`);
       this.connected = true;
-      this.accountInfo = { 
-        balance: parseFloat(res.account.balance), 
+      this.accountInfo = {
+        balance: parseFloat(res.account.balance),
         broker: "OANDA",
         brokerName: "OANDA",
         brokerType: "oanda",
@@ -102,7 +102,7 @@ class OandaAdapter extends BrokerBase {
         region: "🌎"
       };
       return { success: true, accountInfo: this.accountInfo };
-    } catch(e) { return { success: false, error: e.message }; }
+    } catch (e) { return { success: false, error: e.message }; }
   }
 
   async placeOrder(signal, lotSize) {
@@ -116,7 +116,7 @@ class OandaAdapter extends BrokerBase {
           takeProfitOnFill: { price: signal.tp.toFixed(5) }
         }
       });
-    } catch(e) { return { success: false, error: e.message }; }
+    } catch (e) { return { success: false, error: e.message }; }
   }
 
   async getOpenPositions() {
@@ -128,7 +128,7 @@ class OandaAdapter extends BrokerBase {
         lotSize: Math.abs(parseFloat(p.long.units) || parseFloat(p.short.units)),
         pnl: parseFloat(p.unrealizedPL)
       }));
-    } catch(e) { return []; }
+    } catch (e) { return []; }
   }
 
   async getCandles(symbol, timeframe = '1m', limit = 100) {
@@ -165,7 +165,7 @@ class OandaAdapter extends BrokerBase {
         lotSize: Math.abs(Number(t.initialUnits)) / 100000,
         pnl: Number(t.realizedPL), closeTime: t.closeTime
       }));
-    } catch(e) { return []; }
+    } catch (e) { return []; }
   }
 }
 
@@ -190,13 +190,13 @@ class MetaApiAdapter extends BrokerBase {
       await this.connection.connect();
       const info = await this.connection.getAccountInformation();
       this.connected = true;
-      
+
       // PRIORIDADE: Usa o ambiente que o utilizador selecionou no modal
       const selectedEnv = (this.config.environment || "").toUpperCase();
       const isLive = selectedEnv === "LIVE" || this.account.type === 'CLOUD-LIVE' || this.account.type === 'SELF-HOSTED';
-      
-      this.accountInfo = { 
-        balance: info.balance, 
+
+      this.accountInfo = {
+        balance: info.balance,
         broker: "MetaTrader",
         brokerName: "MetaTrader",
         brokerType: "metaapi",
@@ -206,7 +206,7 @@ class MetaApiAdapter extends BrokerBase {
         region: "🌐"
       };
       return { success: true, accountInfo: this.accountInfo };
-    } catch(e) { return { success: false, error: e.message }; }
+    } catch (e) { return { success: false, error: e.message }; }
   }
 
 
@@ -239,7 +239,7 @@ class MetaApiAdapter extends BrokerBase {
       if (!this.connection) await this.connect();
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
-      
+
       const candidates = allSymbols
         .filter(s => s.toUpperCase().startsWith(upper))
         .sort((a, b) => b.length - a.length);
@@ -279,7 +279,7 @@ class MetaApiAdapter extends BrokerBase {
     let lot = riskAmount / (distance * 100000);
 
     // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
-    const maxLotByMargin = freeMargin / 1000; 
+    const maxLotByMargin = freeMargin / 1000;
     // regra conservadora: ~1000$ por 1 lote (depende da alavancagem)
 
     lot = Math.min(lot, maxLotByMargin);
@@ -304,7 +304,7 @@ class MetaApiAdapter extends BrokerBase {
       // 📊 Dados da conta com limpeza de símbolos ($, etc)
       const account = await this.connection.getAccountInformation();
       let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
-      
+
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
 
       // 📊 Preço em tempo real
@@ -364,7 +364,7 @@ class MetaApiAdapter extends BrokerBase {
       if (!this.connection) await this.connect();
       const allSymbols = await this.connection.getSymbols();
       const symbol = allSymbols.find(s => s === requestedSymbol || s.startsWith(requestedSymbol) || (requestedSymbol === "XAUUSD" && s.startsWith("GOLD"))) || requestedSymbol;
-      
+
       const tick = await this.connection.getSymbolPrice(symbol);
       console.log(`[EXPERT-MA] Preço obtido para ${symbol}: Bid=${tick.bid} Ask=${tick.ask}`);
       return { bid: tick.bid, ask: tick.ask, symbol };
@@ -379,18 +379,18 @@ class MetaApiAdapter extends BrokerBase {
       await this.connect();
       const positions = await this.connection.getPositions();
       return (positions || []).map(p => ({
-        id: p.id, 
-        pair: p.symbol, 
+        id: p.id,
+        pair: p.symbol,
         direction: p.type === "POSITION_TYPE_BUY" ? "BUY" : "SELL",
-        lotSize: p.volume, 
-        openPrice: p.openPrice, 
+        lotSize: p.volume,
+        openPrice: p.openPrice,
         pnl: p.profit,
         sl: p.stopLoss || 0,
         tp: p.takeProfit || 0
       }));
-    } catch(e) { 
+    } catch (e) {
       console.error("MetaApi getOpenPositions error:", e);
-      return []; 
+      return [];
     }
   }
 
@@ -427,19 +427,19 @@ class MetaApiAdapter extends BrokerBase {
       if (!this.connection) await this.connect();
       const startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias
       const deals = await this.connection.getDealsByTimeRange(startTime, new Date());
-      
+
       // MetaApi pode retornar array direto ou objeto { deals: [] }
       const dealList = Array.isArray(deals) ? deals : (deals.deals || []);
-      
+
       return dealList.map(d => ({
         id: d.id, broker: "MetaTrader", pair: d.symbol,
         direction: d.type === "DEAL_TYPE_BUY" ? "BUY" : "SELL",
         lotSize: d.volume, pnl: (d.profit || 0) + (d.commission || 0) + (d.swap || 0),
         closeTime: d.time
       })).filter(d => d.pair && d.pnl !== 0).reverse();
-    } catch(e) { 
+    } catch (e) {
       console.error("MetaApi History Error:", e);
-      return []; 
+      return [];
     }
   }
   async closePosition(positionId) {
@@ -469,26 +469,26 @@ class CapitalAdapter extends BrokerBase {
   }
 
   async connect() {
-     try {
-       const res = await fetch(`${this.baseUrl}/session`, {
-         method: "POST",
-         headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey },
-         body: JSON.stringify({ identifier: this.config.capitalIdentifier || this.config.identifier, password: this.config.capitalPassword || this.config.password })
-       });
-       this.cst = res.headers.get("CST");
-       this.securityToken = res.headers.get("X-SECURITY-TOKEN");
-       this.connected = true;
-       this.accountInfo = {
-         balance: 0,
-         broker: "Capital.com",
-         brokerName: "Capital.com",
-         brokerType: "capital",
-         currency: "USD",
-         accountType: (this.config.environment || "demo") === "live" ? "LIVE" : "DEMO",
-         region: "🇪🇺"
-       };
-       return { success: true, accountInfo: this.accountInfo };
-     } catch(e) { return { success: false, error: e.message }; }
+    try {
+      const res = await fetch(`${this.baseUrl}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey },
+        body: JSON.stringify({ identifier: this.config.capitalIdentifier || this.config.identifier, password: this.config.capitalPassword || this.config.password })
+      });
+      this.cst = res.headers.get("CST");
+      this.securityToken = res.headers.get("X-SECURITY-TOKEN");
+      this.connected = true;
+      this.accountInfo = {
+        balance: 0,
+        broker: "Capital.com",
+        brokerName: "Capital.com",
+        brokerType: "capital",
+        currency: "USD",
+        accountType: (this.config.environment || "demo") === "live" ? "LIVE" : "DEMO",
+        region: "🇪🇺"
+      };
+      return { success: true, accountInfo: this.accountInfo };
+    } catch (e) { return { success: false, error: e.message }; }
   }
 
   async placeOrder(signal, risk = 1) {
@@ -501,7 +501,7 @@ class CapitalAdapter extends BrokerBase {
       });
       const data = await res.json();
       return { success: !!data.dealReference, orderId: data.dealReference };
-    } catch(e) { return { success: false, error: e.message }; }
+    } catch (e) { return { success: false, error: e.message }; }
   }
 
   async getCandles(symbol, timeframe = '1m', limit = 100) {
@@ -521,7 +521,7 @@ class CapitalAdapter extends BrokerBase {
         close: p.closePrice.bid,
         volume: 0
       }));
-    } catch(e) { return []; }
+    } catch (e) { return []; }
   }
 }
 
