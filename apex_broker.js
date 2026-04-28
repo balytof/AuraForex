@@ -269,43 +269,29 @@ class MetaApiAdapter extends BrokerBase {
     }
   }
 
-  calculateLotSize(balance, riskPercent, entry, sl, pair) {
-    try {
-      const riskAmount = balance * (riskPercent / 100);
-      const stopDist = Math.abs(entry - sl);
-      if (stopDist === 0) return 0.01;
+  calculateSafeLot(balance, freeMargin, riskPercent, entry, sl, symbol) {
+    const riskAmount = balance * (riskPercent / 100);
+    const distance = Math.abs(entry - sl);
 
-      let pipValue = 10; // Standard lot
-      if (pair.includes("JPY")) pipValue = 7;
-      if (pair.includes("XAU") || pair.includes("GOLD")) pipValue = 1; // MetaTrader Gold calculation
+    if (distance === 0) return 0.01;
 
-      const pips = stopDist / (pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD") ? 1 : 0.0001));
-      
-      // Ajuste de Precisão AURA PRO
-      let divisor = 10;
-      if (pair.includes("XAU") || pair.includes("GOLD")) divisor = 100; // Ouro precisa de divisor 100 no MT4/MT5
-      
-      let lotSize = riskAmount / (pips * divisor);
+    // 💰 lote baseado no risco
+    let lot = riskAmount / (distance * 100000);
 
-      // 🛡️ TRAVA DE SEGURANÇA EXPERT (AURA PRO)
-      let maxLot = 0.50;
-      if (pair.includes("XAU") || pair.includes("GOLD")) {
-        maxLot = 0.05; 
-        if (balance < 1000) maxLot = 0.02;
-        if (balance < 500) maxLot = 0.01;
-      } else {
-        // Forex Guard
-        if (balance < 1000) maxLot = 0.05;
-        if (balance < 500) maxLot = 0.02;
-        if (balance < 200) maxLot = 0.01;
-      }
+    // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
+    const maxLotByMargin = freeMargin / 1000; 
+    // regra conservadora: ~1000$ por 1 lote (depende da alavancagem)
 
-      const finalLot = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), maxLot);
-      console.log(`[EXPERT-MA] Lote calculado para ${pair}: ${finalLot} (Risco: ${riskPercent}%, Saldo: ${balance})`);
-      return finalLot;
-    } catch (e) {
-      return 0.01;
+    lot = Math.min(lot, maxLotByMargin);
+
+    // 🛡️ limites institucionais
+    if (symbol.includes("XAU") || symbol.includes("GOLD")) {
+      lot = Math.min(lot, 0.05);
+    } else {
+      lot = Math.min(lot, 0.10);
     }
+
+    return Math.max(0.01, Number(lot.toFixed(2)));
   }
 
   async placeOrder(signal, riskPercent = 1) {
