@@ -50,8 +50,21 @@ class RiskManager {
       return { allowed: false, reason: `Circuit breaker ativo — perda diária ≥ ${cfg.maxDailyLossPct}%` };
     }
 
+    if (this.balance < 50) {
+      return { allowed: false, reason: "Saldo muito baixo para operar (< 50)" };
+    }
+
     if (this.openTrades.length >= cfg.maxOpenTrades) {
       return { allowed: false, reason: `Máx. ${cfg.maxOpenTrades} trades simultâneos atingido (${this.openTrades.length} abertos)` };
+    }
+
+    // PROTEÇÃO CONTRA OVERTRADING (Máx 5% de risco total aberto)
+    const totalRiskOpen = this.openTrades.reduce((sum, t) => {
+      return sum + (t.lotSize * 10); // aproximação conservadora
+    }, 0);
+
+    if (totalRiskOpen > this.balance * 0.05) {
+      return { allowed: false, reason: "Risco total aberto excedido (> 5% do saldo)" };
     }
 
     const alreadyOpen = this.openTrades.find(t => t.pair === pair);
@@ -91,31 +104,74 @@ class RiskManager {
   }
 
   /**
-   * Expert: Cálculo seguro com proteção de margem livre
+   * Expert: Cálculo seguro com proteção de margem real e limites adaptativos
    */
-  calcLotSizeSafe({ balance, freeMargin, entry, sl, pair }) {
+  calcLotSizeSafe({ balance, freeMargin, entry, sl, pair, leverage = 500 }) {
     const riskAmount = balance * (cfg.riskPerTradePct / 100);
     const distance = Math.abs(entry - sl);
 
     if (distance === 0) return 0.01;
 
-    // 💰 lote baseado no risco
+    const isJpy = pair.includes("JPY");
     const isXau = pair.includes("XAU") || pair.includes("GOLD");
-    const factor = isXau ? 100 : 100000;
-    let lot = riskAmount / (distance * factor);
+    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
 
-    // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
-    const maxLotByMargin = freeMargin / 1000; 
+    const slPips = distance / pipSize;
+    if (slPips <= 0) return 0.01;
+
+    // 💰 Valor do pip dinâmico
+    let pipValue = 10; // default forex
+    if (isJpy) pipValue = 7;
+    if (isXau) pipValue = 1;
+
+    // 💰 lote baseado no risco real
+    let lot = riskAmount / (slPips * pipValue);
+
+    // 🔥 CÁLCULO DE MARGEM REAL (aproximação profissional)
+    let contractSize = isXau ? 100 : 100000;
+    let requiredMarginPerLot = contractSize / leverage;
+
+    const maxLotByMargin = freeMargin / requiredMarginPerLot;
+
+    // 🔐 aplica limite real
     lot = Math.min(lot, maxLotByMargin);
 
-    // 🛡️ limites institucionais
+    // 🛡️ limites adaptativos por saldo
+    let maxLot = 0.10;
+
+    if (balance < 1000) maxLot = 0.05;
+    if (balance < 500) maxLot = 0.02;
+    if (balance < 200) maxLot = 0.01;
+
     if (isXau) {
-      lot = Math.min(lot, 0.05);
-    } else {
-      lot = Math.min(lot, 0.10);
+      maxLot = 0.05;
+      if (balance < 1000) maxLot = 0.02;
+      if (balance < 500) maxLot = 0.01;
     }
 
-    return Math.max(0.01, Number(lot.toFixed(2)));
+    const finalLot = Math.max(0.01, Math.min(lot, maxLot));
+    
+    log.debug(`[RISK] ${pair} | Balance: ${balance} | FreeMargin: ${freeMargin} | Lot: ${finalLot}`);
+    return Number(finalLot.toFixed(2));
+  }
+
+  /**
+   * Valida se a margem livre suporta a abertura do lote
+   */
+  validateMargin({ freeMargin, lot, pair, leverage = 500 }) {
+    const isXau = pair.includes("XAU") || pair.includes("GOLD");
+    const contractSize = isXau ? 100 : 100000;
+
+    const requiredMargin = (contractSize * lot) / leverage;
+
+    if (freeMargin < requiredMargin) {
+      return {
+        valid: false,
+        reason: `Margem insuficiente. Precisa: ${requiredMargin.toFixed(2)}`
+      };
+    }
+
+    return { valid: true };
   }
 
   // ── REGISTAR TRADE ABERTO ─────────────────────────────
@@ -239,9 +295,10 @@ class RiskManager {
         trade.peakProfit = profitPct;
       }
 
-      // Gatilho: Se o lucro foi > 1.1% e agora caiu para <= 1.0%, fechar para proteger
-      const protectionActive = (trade.peakProfit || 0) > 1.1;
-      const profitDroppingBelowSafety = protectionActive && profitPct <= 1.0;
+      // Gatilho: Se o lucro atingiu o pico e caiu (drawdown do pico)
+      const protectionActive = (trade.peakProfit || 0) > 1.0;
+      const drawdown = (trade.peakProfit || 0) - profitPct;
+      const profitDroppingBelowSafety = protectionActive && drawdown >= 0.3;
 
       if (tpHit) {
         toClose.push({ trade, closePrice: trade.tp, reason: "TP" });

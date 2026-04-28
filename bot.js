@@ -154,6 +154,18 @@ async function processPair(pair, accountNow) {
       return;
     }
 
+    // ANTI-REJEIÇÃO: Validação de margem real
+    const validation = risk.validateMargin({
+      freeMargin: accountNow.freeMargin,
+      lot: lotSize,
+      pair
+    });
+
+    if (!validation.valid) {
+      log.warn(`${pair}: ${validation.reason}`);
+      return;
+    }
+
     log.signal({ ...signal, lotSize });
 
     // 7. Executa via broker universal
