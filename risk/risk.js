@@ -10,23 +10,23 @@
  */
 
 const config = require("../config/config");
-const log    = require("../utils/logger");
-const fs     = require("fs");
-const path   = require("path");
+const log = require("../utils/logger");
+const fs = require("fs");
+const path = require("path");
 
 const cfg = config.risk;
 
 class RiskManager {
   constructor() {
-    this.openTrades        = [];     // trades atualmente abertos
-    this.tradeHistory      = [];     // todos os trades fechados
-    this.balance           = 0;
+    this.openTrades = [];     // trades atualmente abertos
+    this.tradeHistory = [];     // todos os trades fechados
+    this.balance = 0;
     this.dailyStartBalance = 0;
-    this.dailyPnl          = 0;
-    this.dailyDate         = null;
-    this.circuitBreaker    = false;  // true = bot parado por perda diária
-    this.historyFile       = path.join(__dirname, "../logs/trade_history.json");
-    this.stateFile         = path.join(__dirname, "../logs/bot_state.json");
+    this.dailyPnl = 0;
+    this.dailyDate = null;
+    this.circuitBreaker = false;  // true = bot parado por perda diária
+    this.historyFile = path.join(__dirname, "../logs/trade_history.json");
+    this.stateFile = path.join(__dirname, "../logs/bot_state.json");
     this._loadHistory();
     this._loadState();
   }
@@ -34,12 +34,12 @@ class RiskManager {
   // ── INICIALIZAÇÃO ─────────────────────────────────────
   setBalance(balance) {
     this.balance = balance;
-    const today  = new Date().toDateString();
+    const today = new Date().toDateString();
     if (this.dailyDate !== today) {
-      this.dailyDate         = today;
+      this.dailyDate = today;
       this.dailyStartBalance = balance;
-      this.dailyPnl          = 0;
-      this.circuitBreaker    = false;
+      this.dailyPnl = 0;
+      this.circuitBreaker = false;
       log.info(`Novo dia de trading | Saldo: $${balance.toFixed(2)}`);
     }
   }
@@ -92,10 +92,10 @@ class RiskManager {
    */
   calcLotSize(balance, entry, sl, pair) {
     const riskAmount = balance * (cfg.riskPerTradePct / 100);
-    const isJpy      = pair.includes("JPY");
-    const isXau      = pair.includes("XAU") || pair.includes("GOLD");
-    const pipSize    = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-    const slPips     = Math.abs(entry - sl) / pipSize;
+    const isJpy = pair.includes("JPY");
+    const isXau = pair.includes("XAU") || pair.includes("GOLD");
+    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+    const slPips = Math.abs(entry - sl) / pipSize;
 
     if (slPips === 0) return 0.01;
 
@@ -150,7 +150,7 @@ class RiskManager {
     }
 
     const finalLot = Math.max(0.01, Math.min(lot, maxLot));
-    
+
     log.debug(`[RISK] ${pair} | Balance: ${balance} | FreeMargin: ${freeMargin} | Lot: ${finalLot}`);
     return Number(finalLot.toFixed(2));
   }
@@ -177,19 +177,19 @@ class RiskManager {
   // ── REGISTAR TRADE ABERTO ─────────────────────────────
   registerTrade(signal, lotSize, brokerId = null) {
     const trade = {
-      id:        `T-${Date.now()}`,
+      id: `T-${Date.now()}`,
       brokerId,                      // ID do trade no broker (OANDA)
-      pair:      signal.pair,
+      pair: signal.pair,
       direction: signal.direction,
-      entry:     signal.entry,
-      sl:        signal.sl,
+      entry: signal.entry,
+      sl: signal.sl,
       slOriginal: signal.sl,
-      tp:        signal.tp,
+      tp: signal.tp,
       lotSize,
-      score:     signal.score,
-      rr:        signal.rr,
-      openedAt:  new Date().toISOString(),
-      status:    "OPEN",
+      score: signal.score,
+      rr: signal.rr,
+      openedAt: new Date().toISOString(),
+      status: "OPEN",
       peakProfit: 0, // Expert: Rastreia o lucro máximo atingido em %
     };
     this.openTrades.push(trade);
@@ -203,29 +203,29 @@ class RiskManager {
     const idx = this.openTrades.findIndex(t => t.id === tradeId);
     if (idx === -1) { log.warn(`Trade ${tradeId} não encontrado`); return null; }
 
-    const trade    = this.openTrades[idx];
-    const isJpy    = trade.pair.includes("JPY");
-    const isXau    = trade.pair.includes("XAU");
-    const pipSize  = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-    const pnlPips  = trade.direction === "BUY"
+    const trade = this.openTrades[idx];
+    const isJpy = trade.pair.includes("JPY");
+    const isXau = trade.pair.includes("XAU");
+    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+    const pnlPips = trade.direction === "BUY"
       ? (closePrice - trade.entry) / pipSize
       : (trade.entry - closePrice) / pipSize;
-    const pnl      = pnlPips * cfg.pipValueUSD * trade.lotSize;
+    const pnl = pnlPips * cfg.pipValueUSD * trade.lotSize;
 
     const closed = {
       ...trade,
       closePrice,
       closeReason: reason,
-      pnlPips:     parseFloat(pnlPips.toFixed(1)),
-      pnl:         parseFloat(pnl.toFixed(2)),
-      closedAt:    new Date().toISOString(),
-      status:      "CLOSED",
+      pnlPips: parseFloat(pnlPips.toFixed(1)),
+      pnl: parseFloat(pnl.toFixed(2)),
+      closedAt: new Date().toISOString(),
+      status: "CLOSED",
     };
 
     this.openTrades.splice(idx, 1);
     this.tradeHistory.push(closed);
-    this.dailyPnl  += pnl;
-    this.balance   += pnl;
+    this.dailyPnl += pnl;
+    this.balance += pnl;
 
     log.trade(closed);
     this._saveHistory();
@@ -239,20 +239,20 @@ class RiskManager {
    * @returns {boolean} true se o SL foi movido
    */
   updateTrailingStop(trade, currentPrice, atr) {
-    const mult    = cfg.trailingAtrMult;
-    let   moved   = false;
+    const mult = cfg.trailingAtrMult;
+    let moved = false;
 
     if (trade.direction === "BUY") {
       const newSl = parseFloat((currentPrice - atr * mult).toFixed(5));
       if (newSl > trade.sl) {
         trade.sl = newSl;
-        moved    = true;
+        moved = true;
       }
     } else {
       const newSl = parseFloat((currentPrice + atr * mult).toFixed(5));
       if (newSl < trade.sl) {
         trade.sl = newSl;
-        moved    = true;
+        moved = true;
       }
     }
 
@@ -281,14 +281,14 @@ class RiskManager {
         : currentPrice >= trade.sl;
 
       // 3. Expert Profit Protection Logic (Preservação de Lucro)
-      const isJpy    = trade.pair.includes("JPY");
-      const isXau    = trade.pair.includes("XAU");
-      const pipSize  = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-      const pnlPips  = trade.direction === "BUY"
+      const isJpy = trade.pair.includes("JPY");
+      const isXau = trade.pair.includes("XAU");
+      const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+      const pnlPips = trade.direction === "BUY"
         ? (currentPrice - trade.entry) / pipSize
         : (trade.entry - currentPrice) / pipSize;
       const currentPnL = pnlPips * cfg.pipValueUSD * trade.lotSize;
-      const profitPct  = (currentPnL / this.dailyStartBalance) * 100;
+      const profitPct = (currentPnL / this.dailyStartBalance) * 100;
 
       // Atualizar o pico de lucro
       if (profitPct > (trade.peakProfit || 0)) {
@@ -317,22 +317,22 @@ class RiskManager {
   // ── ESTATÍSTICAS ─────────────────────────────────────
   getStats() {
     const closed = this.tradeHistory;
-    const wins   = closed.filter(t => t.pnl > 0);
+    const wins = closed.filter(t => t.pnl > 0);
     const losses = closed.filter(t => t.pnl <= 0);
     const totalPnl = closed.reduce((s, t) => s + t.pnl, 0);
 
     return {
-      balance:         parseFloat(this.balance.toFixed(2)),
-      dailyPnl:        parseFloat(this.dailyPnl.toFixed(2)),
-      openTrades:      this.openTrades.length,
-      totalTrades:     closed.length,
-      wins:            wins.length,
-      losses:          losses.length,
-      winRate:         closed.length ? ((wins.length / closed.length) * 100).toFixed(1) + "%" : "N/A",
-      totalPnl:        parseFloat(totalPnl.toFixed(2)),
-      avgWin:          wins.length   ? parseFloat((wins.reduce((s,t)   => s + t.pnl, 0) / wins.length).toFixed(2))   : 0,
-      avgLoss:         losses.length ? parseFloat((losses.reduce((s,t) => s + t.pnl, 0) / losses.length).toFixed(2)) : 0,
-      circuitBreaker:  this.circuitBreaker,
+      balance: parseFloat(this.balance.toFixed(2)),
+      dailyPnl: parseFloat(this.dailyPnl.toFixed(2)),
+      openTrades: this.openTrades.length,
+      totalTrades: closed.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate: closed.length ? ((wins.length / closed.length) * 100).toFixed(1) + "%" : "N/A",
+      totalPnl: parseFloat(totalPnl.toFixed(2)),
+      avgWin: wins.length ? parseFloat((wins.reduce((s, t) => s + t.pnl, 0) / wins.length).toFixed(2)) : 0,
+      avgLoss: losses.length ? parseFloat((losses.reduce((s, t) => s + t.pnl, 0) / losses.length).toFixed(2)) : 0,
+      circuitBreaker: this.circuitBreaker,
     };
   }
 
