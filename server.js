@@ -26,6 +26,7 @@ const { analyzeAll } = require("./smc/smc");
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Forçado para evitar conflito com processos fantasma na 3005
+const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
@@ -555,7 +556,7 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
 
-    console.log(`[DYN-STP-SMC-PRO] ${pair} SL=${slPips}pips TP=${slPips*1.5}pips RR=1:1.5`);
+    console.log(`[STP-1.5RR-VERIFIED] ${pair} SL=${slPips}pips TP=${slPips*1.5}pips RR=1:1.5`);
     return { sl, tp };
   } catch (e) {
     const pip = getPipValue(pair);
