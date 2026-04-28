@@ -555,7 +555,7 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
 
-    console.log(`[DYN-STP-SMC-PRO] ${pair} SL=${slPips}pips TP=${slPips*2}pips RR=1:2`);
+    console.log(`[DYN-STP-SMC-PRO] ${pair} SL=${slPips}pips TP=${slPips*1.5}pips RR=1:1.5`);
     return { sl, tp };
   } catch (e) {
     const pip = getPipValue(pair);
