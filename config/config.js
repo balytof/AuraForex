@@ -61,7 +61,7 @@ module.exports = {
     ema:  { fast: 50, slow: 200 },
     rsi:  { period: 14, overbought: 70, oversold: 30 },
     macd: { fast: 12, slow: 26, signal: 9 },
-    atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 2.0 }, // Reduzido de 3.2 para 2.0
+    atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 1.5 }, // Reduzido de 2.0 para 1.5 para maior precisão (Feedback do User)
     bb:   { period: 20, stdDev: 2 },
   },
 

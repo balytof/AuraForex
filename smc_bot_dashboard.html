@@ -1438,8 +1438,8 @@ function simulateSignal(pair, candles, price) {
   
   const direction = Math.random() > 0.5 ? "BUY" : "SELL";
   const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") ? 1 : 0.0001);
-  const slPips = 20 + Math.floor(Math.random() * 15);
-  const tpPips = slPips * (2 + Math.random());
+  const slPips = 18 + Math.floor(Math.random() * 5);
+  const tpPips = slPips * 1.5; // Sincronizado com 1.5 RR Ratio
   
   const sl = direction === "BUY" ? price - (slPips * pip) : price + (slPips * pip);
   const tp = direction === "BUY" ? price + (tpPips * pip) : price - (tpPips * pip);

@@ -560,7 +560,7 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
   } catch (e) {
     const pip = getPipValue(pair);
     const slD = pip * 18; 
-    const tpD = slD * 2.0;
+    const tpD = slD * 1.5; // Ajustado fallback de emergência para 1.5
     const sl = direction === "BUY" ? normPrice(entry - slD, pair) : normPrice(entry + slD, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpD, pair) : normPrice(entry - tpD, pair);
     return { sl, tp };
@@ -635,8 +635,8 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
         console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
         const isBuy = direction === "BUY";
-        sl = isBuy ? (entryPrice - (pip * 250)) : (entryPrice + (pip * 250));
-        tp = isBuy ? (entryPrice + (pip * 750)) : (entryPrice - (pip * 750));
+        sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
+        tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
       }
     }
 
@@ -645,7 +645,8 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
     if (invalidSl) {
         const pip = getPipValue(pair);
-        sl = isBuy ? (entryPrice - (pip * 200)) : (entryPrice + (pip * 200));
+        sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
+        tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270)); // Garante consistência
     }
 
     // 3. Garantir distância mínima e normalização
