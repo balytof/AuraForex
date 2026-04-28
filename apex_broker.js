@@ -240,25 +240,51 @@ class MetaApiAdapter extends BrokerBase {
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
 
+      // Prioridade FBS e variantes comuns
+      const fbsVariants = [
+        upper, 
+        upper + ".m", 
+        upper + ".pro", 
+        upper + ".ecn", 
+        upper + ".raw", 
+        upper + ".x",
+        upper + ".s",
+        upper + "m",
+        upper + "_i"
+      ];
+
+      // 1. Tentar variantes diretas primeiro
+      for (const variant of fbsVariants) {
+        if (allSymbols.includes(variant)) {
+          try {
+            const price = await this.connection.getSymbolPrice(variant);
+            if (price && (price.ask || price.bid)) {
+              console.log(`[EXPERT-MA] ✅ Símbolo Encontrado (Variante Direta): ${variant}`);
+              return variant;
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 2. Busca fuzzy se não encontrou direta
       const candidates = allSymbols
         .filter(s => s.toUpperCase().startsWith(upper))
         .sort((a, b) => b.length - a.length);
 
       for (const symbol of candidates) {
         try {
-          // Testa se o símbolo tem preço ativo
           const price = await this.connection.getSymbolPrice(symbol);
           if (price && (price.ask || price.bid)) {
             console.log(`[EXPERT-MA] ✅ Símbolo Validado com Preço: ${symbol}`);
             return symbol;
           }
         } catch (e) {
-          continue; // Tenta o próximo se este não tiver preço
+          continue;
         }
       }
 
       // Fallback Ouro
-      if (upper.includes("XAU")) {
+      if (upper.includes("XAU") || upper.includes("GOLD")) {
         const gold = allSymbols.find(s => s.includes("GOLD") || s.includes("XAU"));
         if (gold) return gold;
       }
@@ -275,20 +301,28 @@ class MetaApiAdapter extends BrokerBase {
 
     if (distance === 0) return 0.01;
 
+    // 💰 Detetar Contract Size (Expert Logic)
+    let contractSize = 100000; // Padrão Forex
+    if (symbol.includes("XAU") || symbol.includes("GOLD")) {
+      contractSize = 100; // Padrão Ouro
+    } else if (symbol.includes("BTC") || symbol.includes("ETH")) {
+      contractSize = 1; // Padrão Crypto
+    }
+
     // 💰 lote baseado no risco
-    let lot = riskAmount / (distance * 100000);
+    let lot = riskAmount / (distance * contractSize);
 
     // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
-    const maxLotByMargin = freeMargin / 1000;
-    // regra conservadora: ~1000$ por 1 lote (depende da alavancagem)
+    // Regra: Máximo de 1 lote para cada 500$ de margem livre (conservador)
+    const maxLotByMargin = freeMargin / 500;
 
     lot = Math.min(lot, maxLotByMargin);
 
-    // 🛡️ limites institucionais
+    // 🛡️ Limites Institucionais Adaptativos
     if (symbol.includes("XAU") || symbol.includes("GOLD")) {
-      lot = Math.min(lot, 0.05);
+      lot = Math.min(lot, 0.50); // Aumentado de 0.05 para 0.50 para contas Pro
     } else {
-      lot = Math.min(lot, 0.10);
+      lot = Math.min(lot, 2.00); // Aumentado de 0.10 para 2.00
     }
 
     return Math.max(0.01, Number(lot.toFixed(2)));
@@ -307,9 +341,11 @@ class MetaApiAdapter extends BrokerBase {
 
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
 
-      // 📊 Preço em tempo real
+      // 📊 Preço em tempo real e Informações do Símbolo
       const tick = await this.connection.getSymbolPrice(symbol);
+      const symbolInfo = await this.connection.getSymbol(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
+      const tickSize = symbolInfo.tickSize || 0.00001;
 
       // 💰 Calcular lote com a nova regra de segurança
       const lot = this.calculateSafeLot(
@@ -330,27 +366,31 @@ class MetaApiAdapter extends BrokerBase {
       // 🚀 EXECUÇÃO CORRETA (Sugestão Expert)
       let result;
       const options = { comment: 'AURA FIX ' + signal.direction, magic: 202604 };
+      
+      // Normalizar SL/TP para o tick size do broker
+      const sl = normalizeToTick(signal.sl, tickSize);
+      const tp = normalizeToTick(signal.tp, tickSize);
 
       if (signal.direction === 'BUY') {
         result = await this.connection.createMarketBuyOrder(
           symbol,
           lot,
-          signal.sl,
-          signal.tp,
+          sl,
+          tp,
           options
         );
       } else {
         result = await this.connection.createMarketSellOrder(
           symbol,
           lot,
-          signal.sl,
-          signal.tp,
+          sl,
+          tp,
           options
         );
       }
 
       console.log(`[EXPERT-MA] ✅ Ordem enviada! Result:`, JSON.stringify(result));
-      return { success: true, orderId: result.orderId || result.stringCode, fillPrice: entry };
+      return { success: true, orderId: result.orderId || result.stringCode, fillPrice: entry, appliedSl: sl, appliedTp: tp };
 
     } catch (e) {
       console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);

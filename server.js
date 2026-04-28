@@ -523,7 +523,7 @@ async function validateSMCSignal(broker, pair, direction) {
 }
 
 function getPipValue(pair) {
-  if (pair.includes("XAU") || pair.includes("GOLD")) return 1.0;   // Ouro: 1 pip = $1
+  if (pair.includes("XAU") || pair.includes("GOLD")) return 0.1;   // Ouro: 1 pip = $0.10 (Standard SMC)
   if (pair.includes("JPY")) return 0.01;                            // JPY: 2 casas
   return 0.0001;                                                     // Forex major: 4 casas
 }
@@ -662,52 +662,19 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     }
 
     // 4. Executar Ordem com Risco Dinâmico (Expert Logic)
+    // O adaptador agora resolve o símbolo e calcula o lote seguro internamente.
     let result = await req.broker.placeOrder({ pair, direction, sl, tp }, risk);
 
-    // 5. Se falhar por símbolo não encontrado, tenta variantes (Se o adaptador não resolveu antes)
-    if (!result || !result.success) {
-      const err = (result?.error || "").toLowerCase();
-      const isSymbolError = err.includes("symbol") || err.includes("not found") || err.includes("invalid") || err.includes("unknown");
-      const isStopError   = err.includes("stop") || err.includes("validation") || err.includes("sl") || err.includes("tp");
-
-      if (isSymbolError) {
-        // Tentar variantes do símbolo mas sempre com SL/TP
-        const base = pair.replace(/USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD/g, "");
-        const variants = [
-          pair + "m", pair + ".pro", pair + ".ecn", pair + ".raw", pair + ".s", pair + ".x",
-          pair + "_i", pair + ".", pair + "!",
-          pair.includes("XAU") ? "GOLD" : null,
-          pair.includes("XAU") ? "GOLD.pro" : null,
-          pair.includes("XAU") ? "XAUUSDm" : null,
-          pair.includes("XAU") ? "XAUUSD.pro" : null,
-          pair.includes("XAU") ? "XAUUSD.s" : null
-        ].filter(Boolean);
-
-        for (const variant of variants) {
-          console.log(`[ORDER] Tentando símbolo alternativo: ${variant}`);
-          result = await req.broker.placeOrder({ pair: variant, direction, sl, tp }, risk);
-          if (result && result.success) {
-            result.message = `Executado com símbolo alternativo: ${variant}`;
-            break;
-          }
-        }
-      } else if (isStopError) {
-        // Stop level muito próximo — expandir stops e tentar novamente
-        console.warn(`[ORDER] Stop rejeitado — expandindo stops para ${pair}`);
+    // 5. Tratamento de Erros de Stop Level (Se o broker rejeitar por SL/TP muito próximo)
+    if (result && !result.success) {
+      const err = (result.error || "").toLowerCase();
+      if (err.includes("stop") || err.includes("validation") || err.includes("sl") || err.includes("tp") || err.includes("invalid stops")) {
+        console.warn(`[ORDER] Stop rejeitado — tentando expansão de emergência para ${pair}`);
         const pip = getPipValue(pair);
-        const expandedSl = direction === "BUY"
-          ? normPrice(sl - pip * 30, pair)
-          : normPrice(sl + pip * 30, pair);
-        const expandedTp = direction === "BUY"
-          ? normPrice(tp + pip * 30, pair)
-          : normPrice(tp - pip * 30, pair);
-        console.log(`[ORDER] Stops expandidos: SL=${expandedSl} TP=${expandedTp}`);
+        const expandedSl = direction === "BUY" ? normPrice(sl - pip * 50, pair) : normPrice(sl + pip * 50, pair);
+        const expandedTp = direction === "BUY" ? normPrice(tp + pip * 50, pair) : normPrice(tp - pip * 50, pair);
+        
         result = await req.broker.placeOrder({ pair, direction, sl: expandedSl, tp: expandedTp }, risk);
-        if (result && result.success) {
-          result.message = "Executado com stops expandidos";
-          result.sl = expandedSl;
-          result.tp = expandedTp;
-        }
       }
     }
 
