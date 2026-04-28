@@ -62,12 +62,14 @@ async function runCycle() {
     return;
   }
 
-  // Atualiza saldo
+  // Atualiza saldo e passa para os pares
   const account = await broker.getAccountInfo();
-  if (account) risk.setBalance(account.balance);
-
-  // Processa cada par em paralelo
-  await Promise.allSettled(config.pairs.map(pair => processPair(pair)));
+  if (account) {
+    risk.setBalance(account.balance);
+    
+    // Processa cada par em paralelo passando a conta atualizada
+    await Promise.allSettled(config.pairs.map(pair => processPair(pair, account)));
+  }
 
   // Stats a cada 10 ciclos
   if (cycleCount % 10 === 0) {
@@ -86,7 +88,7 @@ function scheduleNext() {
 // ══════════════════════════════════════════════
 //  PROCESSAR UM PAR
 // ══════════════════════════════════════════════
-async function processPair(pair) {
+async function processPair(pair, accountNow) {
   try {
     // 1. Dados de mercado (via broker universal)
     const marketData = await broker.getMarketData(pair);
@@ -102,8 +104,13 @@ async function processPair(pair) {
     // 2. Monitoriza trades abertos primeiro
     await monitorOpenTrades(pair, currentPrice, lastAtr);
 
-    // 3. Bias da AI
-    const aiResult = await analyzeBias(pair, htfSummary);
+    // 3. Bias da AI (com fallback de segurança)
+    let aiResult = { bias: "neutral" };
+    try {
+      aiResult = await analyzeBias(pair, htfSummary);
+    } catch (e) {
+      log.warn(`${pair}: AI falhou, usando fallback neutral`);
+    }
 
     // 4. Sinal SMC
     const signal = generateSignal(pair, candles, aiResult.bias);
@@ -119,10 +126,33 @@ async function processPair(pair) {
       return;
     }
 
-    // 6. Tamanho de posição
-    const accountNow = await broker.getAccountInfo();
-    const balance    = accountNow?.balance || risk.balance;
-    const lotSize    = risk.calcLotSize(balance, signal.entry, signal.sl, pair);
+    // 6. Tamanho de posição (Expert Safe Calculation)
+    if (accountNow.freeMargin < 50) {
+      log.warn(`${pair}: margem insuficiente (${accountNow.freeMargin})`);
+      return;
+    }
+
+    const lotSize = risk.calcLotSizeSafe({
+      balance: accountNow.balance,
+      freeMargin: accountNow.freeMargin,
+      entry: signal.entry,
+      sl: signal.sl,
+      pair
+    });
+
+    console.log("Balance:", accountNow.balance);
+    console.log("FreeMargin:", accountNow.freeMargin);
+    console.log("Lot:", lotSize);
+
+    if (lotSize <= 0) {
+      log.warn(`${pair}: lote inválido (${lotSize})`);
+      return;
+    }
+
+    if (lotSize < 0.01) {
+      log.warn(`${pair}: lote abaixo do mínimo (0.01)`);
+      return;
+    }
 
     log.signal({ ...signal, lotSize });
 
@@ -146,7 +176,12 @@ async function monitorOpenTrades(pair, currentPrice, atr) {
 
   for (const { trade, closePrice, reason } of toClose) {
     if (trade.brokerId && !config.bot.demoMode) {
-      await exitTrade(trade.brokerId, pair, reason);
+      const result = await exitTrade(trade.brokerId, pair, reason);
+      
+      if (!result?.success) {
+        log.error(`Falha ao fechar ordem ${trade.brokerId} no broker`);
+        continue; // Não fecha internamente se falhou no broker
+      }
     }
     risk.closeTrade(trade.id, closePrice, reason);
   }

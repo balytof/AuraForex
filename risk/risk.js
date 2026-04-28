@@ -80,7 +80,7 @@ class RiskManager {
   calcLotSize(balance, entry, sl, pair) {
     const riskAmount = balance * (cfg.riskPerTradePct / 100);
     const isJpy      = pair.includes("JPY");
-    const isXau      = pair.includes("XAU");
+    const isXau      = pair.includes("XAU") || pair.includes("GOLD");
     const pipSize    = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
     const slPips     = Math.abs(entry - sl) / pipSize;
 
@@ -88,6 +88,34 @@ class RiskManager {
 
     const lots = riskAmount / (slPips * cfg.pipValueUSD);
     return Math.min(Math.max(parseFloat(lots.toFixed(2)), 0.01), 10.0);
+  }
+
+  /**
+   * Expert: Cálculo seguro com proteção de margem livre
+   */
+  calcLotSizeSafe({ balance, freeMargin, entry, sl, pair }) {
+    const riskAmount = balance * (cfg.riskPerTradePct / 100);
+    const distance = Math.abs(entry - sl);
+
+    if (distance === 0) return 0.01;
+
+    // 💰 lote baseado no risco
+    const isXau = pair.includes("XAU") || pair.includes("GOLD");
+    const factor = isXau ? 100 : 100000;
+    let lot = riskAmount / (distance * factor);
+
+    // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
+    const maxLotByMargin = freeMargin / 1000; 
+    lot = Math.min(lot, maxLotByMargin);
+
+    // 🛡️ limites institucionais
+    if (isXau) {
+      lot = Math.min(lot, 0.05);
+    } else {
+      lot = Math.min(lot, 0.10);
+    }
+
+    return Math.max(0.01, Number(lot.toFixed(2)));
   }
 
   // ── REGISTAR TRADE ABERTO ─────────────────────────────
