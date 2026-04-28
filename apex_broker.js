@@ -311,6 +311,8 @@ class MetaApiAdapter extends BrokerBase {
   async placeOrder(signal, riskPercent = 1) {
     try {
       if (!this.connection) await this.connect();
+
+      // 🔍 Resolver símbolo automaticamente (Expert Logic)
       const symbol = await this.resolveSymbol(signal.pair);
 
       // 📊 Dados da conta com limpeza de símbolos ($, etc)
@@ -318,45 +320,49 @@ class MetaApiAdapter extends BrokerBase {
       let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
       
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
-      console.log(`[EXPERT-MA] MÉTODOS DISPONÍVEIS:`, Object.keys(this.connection).filter(k => typeof this.connection[k] === 'function').join(', '));
 
-      // 📊 Obter preço (O SDK já sincroniza automaticamente)
+      // 📊 Preço em tempo real
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
       // 💰 Calcular lote com trava de segurança extrema para FBS
       let lot = this.calculateLotSize(balance, riskPercent, entry, signal.sl, symbol);
       
+      // Proteção para contas pequenas
       if (!symbol.includes("XAU") && !symbol.includes("GOLD") && balance < 1000) {
+        console.log(`[EXPERT-MA] 🛡️ Forçando lote mínimo 0.01 por segurança.`);
         lot = 0.01;
       }
 
-      console.log(`[EXPERT-MA] Executando via SDK RPC: ${symbol} | Lote: ${lot}`);
+      console.log(`[EXPERT-MA] Executando ${signal.direction} em ${symbol} | Lote: ${lot}`);
 
-      // 🚀 Execução via RPC (Método Especial para Trading)
-      const rpcConnection = await this.account.getRPCConnection();
-      
-      const orderData = {
-        symbol: symbol,
-        actionType: signal.direction === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL',
-        volume: lot,
-        magic: 202604,
-        comment: 'AURA PRO RPC'
-      };
+      // 🚀 EXECUÇÃO CORRETA (Sugestão Expert)
+      let result;
+      const options = { comment: 'AURA FIX ' + signal.direction, magic: 202604 };
 
-      if (signal.sl) orderData.stopLoss = signal.sl;
-      if (signal.tp) orderData.takeProfit = signal.tp;
-
-      const result = await rpcConnection.createOrder(orderData);
-      
-      if (result && (result.orderId || result.stringCode === 'TRADE_RETCODE_DONE')) {
-        console.log(`[EXPERT-MA] ✅ Sucesso RPC! ID: ${result.orderId || result.stringCode}`);
-        return { success: true, orderId: result.orderId, fillPrice: entry };
+      if (signal.direction === 'BUY') {
+        result = await this.connection.createMarketBuyOrder(
+          symbol,
+          lot,
+          signal.sl,
+          signal.tp,
+          options
+        );
       } else {
-        throw new Error(result.message || result.stringCode || "Rejeição RPC");
+        result = await this.connection.createMarketSellOrder(
+          symbol,
+          lot,
+          signal.sl,
+          signal.tp,
+          options
+        );
       }
+
+      console.log(`[EXPERT-MA] ✅ Ordem enviada! Result:`, JSON.stringify(result));
+      return { success: true, orderId: result.orderId || result.stringCode, fillPrice: entry };
+
     } catch (e) {
-      console.error(`[EXPERT-MA] ❌ Erro Fatal: ${e.message}`);
+      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);
       return { success: false, error: e.message };
     }
   }
