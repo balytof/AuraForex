@@ -325,14 +325,19 @@ class MetaApiAdapter extends BrokerBase {
       const tick = await this.connection.getSymbolPrice(symbol);
       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
 
-      // 💰 Calcular lote com trava de segurança extrema para FBS
-      let lot = this.calculateLotSize(balance, riskPercent, entry, signal.sl, symbol);
-      
-      // Proteção para contas pequenas
-      if (!symbol.includes("XAU") && !symbol.includes("GOLD") && balance < 1000) {
-        console.log(`[EXPERT-MA] 🛡️ Forçando lote mínimo 0.01 por segurança.`);
-        lot = 0.01;
-      }
+      // 💰 Calcular lote com a nova regra de segurança
+      const lot = this.calculateSafeLot(
+        account.balance,
+        account.freeMargin,
+        riskPercent,
+        entry,
+        signal.sl,
+        symbol
+      );
+
+      console.log("Balance:", account.balance);
+      console.log("FreeMargin:", account.freeMargin);
+      console.log("Lot:", lot);
 
       console.log(`[EXPERT-MA] Executando ${signal.direction} em ${symbol} | Lote: ${lot}`);
 
