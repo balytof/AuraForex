@@ -1943,6 +1943,22 @@ async function closeTradeNow(positionId, pair) {
   }
 }
 
+function highlightSection(id) {
+    const el = document.getElementById(id);
+    const panel = el.closest('.panel');
+    if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        panel.classList.remove('highlight-panel');
+        void panel.offsetWidth; // Trigger reflow
+        panel.classList.add('highlight-panel');
+    }
+}
+
+async function loadHistoryAndScroll() {
+    await loadHistory();
+    highlightSection('historyTableBody');
+}
+
 function restoreSignals() {
   const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
   const list = document.getElementById("signalsList");
