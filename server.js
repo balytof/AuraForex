@@ -1510,17 +1510,17 @@ server.listen(PORT, () => {
 
         // 2. Para cada posição, verificar proteção
         for (const pos of positions) {
-          // Precisamos do preço atual do par para SL/TP internos
-          const priceData = await broker.getPrice(pos.pair);
-          const currentPrice = pos.direction === "BUY" ? priceData.bid : priceData.ask;
-          const currentProfit = pos.profit || 0; // 🔥 LUCRO REAL DO BROKER
+          const currentProfit = pos.profit || 0;
+          const ticketId = pos.id; // O ID da MetaApi é o Ticket
+          
+          // Debug agressivo: Ver todas as ordens detetadas
+          console.log(`\x1b[33m[MONITOR] Detetado: ${pos.pair} | Ticket: ${ticketId} | Profit: $${currentProfit.toFixed(2)}\x1b[0m`);
 
-          if (!currentPrice) continue;
-
-          // Sincronizar trade na memória do RiskManager se não existir
-          let internalTrade = risk.openTrades.find(t => t.brokerId === pos.id || t.id === pos.id);
+          // Sincronizar trade: Se for uma ordem da Aura (pelo comentário ou ID), garantir que está no RiskManager
+          let internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
+          
           if (!internalTrade) {
-            console.log(`[MONITOR] Sincronizando ordem externa ${pos.pair} #${pos.id} (Profit: ${currentProfit}$)`);
+            console.log(`\x1b[35m[SYNC] Nova ordem detetada no broker. Sincronizando Ticket #${ticketId}...\x1b[0m`);
             internalTrade = risk.registerTrade({
               pair: pos.pair,
               direction: pos.direction,
@@ -1528,17 +1528,18 @@ server.listen(PORT, () => {
               sl: pos.sl,
               tp: pos.tp,
               score: 100
-            }, pos.lotSize, pos.id);
+            }, pos.lotSize, ticketId);
           }
 
           // 3. Executar Verificação de Profit Lock usando Lucro Real
-          const toClose = risk.checkOpenTrades(pos.pair, currentPrice, currentProfit, 0); // 0 = ATR (não usado no profit lock)
+          // Passamos 0 no preço pois o checkProfitProtection agora só usa o Lucro
+          const toClose = risk.checkOpenTrades(pos.pair, 0, currentProfit, 0); 
           
           for (const { trade, reason } of toClose) {
-            console.log(`[PROFIT-LOCK] 🚨 FECHANDO ORDEM: ${pos.pair} #${pos.id} | Lucro: ${currentProfit}$ | Razão: ${reason}`);
-            const res = await broker.closePosition(pos.id);
+            console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
+            const res = await broker.closePosition(ticketId);
             if (res.success) {
-              risk.closeTrade(trade.id, currentPrice, reason);
+              risk.closeTrade(trade.id, 0, reason);
             }
           }
         }
