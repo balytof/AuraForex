@@ -2949,12 +2949,12 @@ async function botLoop(loopId) {
     }
 
   } catch (totalErr) {
-    addLog(`❌ ERRO CRÍTICO NO LOOP: ${totalErr.message}`, "sell");
+    addLog(`❌ ERRO NA ANÁLISE: ${totalErr.message}. Tentando novamente no próximo ciclo...`, "warn");
     console.error(totalErr);
   }
 
+  // Agendamento Garantido (Expert Resilience)
   const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
-  addLog(`💤 Análise concluída. Próxima em ${ms/1000}s`, "info");
   if (isRunning && loopId === currentLoopId) {
     loopTimer = setTimeout(() => botLoop(loopId), ms);
   }

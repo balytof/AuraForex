@@ -1501,7 +1501,10 @@ server.listen(PORT, () => {
         const risk = userRisks.get(userId) || new RiskManager(userId);
         if (!userRisks.has(userId)) userRisks.set(userId, risk);
 
-        // 1. Obter posições atuais do broker
+        // 1. Obter dados da conta e posições
+        const accountInfo = await broker.getAccountInfo();
+        if (accountInfo) risk.setBalance(accountInfo.balance);
+
         const positions = await broker.getOpenPositions();
         if (!positions || positions.length === 0) continue;
 
