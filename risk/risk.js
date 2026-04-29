@@ -289,7 +289,7 @@ class RiskManager {
     }
 
     // ⚙️ CONFIG
-    const minProfitToActivate = 5;     // só ativa acima de $5
+    const minProfitToActivate = 3;     // Reduzido de 5 para 3
     const drawdownPercent = 0.20;      // 20% de queda permitida
 
     if (trade.peakProfit >= minProfitToActivate) {
@@ -316,8 +316,18 @@ class RiskManager {
    */
   checkOpenTrades(pair, currentPrice, atr) {
     const toClose = [];
+    
+    // Normalizar o par para comparação (remove _ e sufixos como 'w')
+    const normalize = (p) => p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().replace("W", "");
+    const normalizedPair = normalize(pair);
 
-    for (const trade of this.openTrades.filter(t => t.pair === pair)) {
+    const tradesForThisPair = this.openTrades.filter(t => normalize(t.pair).includes(normalizedPair) || normalizedPair.includes(normalize(t.pair)));
+
+    if (this.openTrades.length > 0 && tradesForThisPair.length === 0) {
+      // log.debug(`Monitor: ${pair} ativo, mas não encontrou trades correspondentes em [${this.openTrades.map(t => t.pair).join(", ")}]`);
+    }
+
+    for (const trade of tradesForThisPair) {
       // 🔐 PROFIT PROTECTION
       const protection = this.checkProfitProtection(trade, currentPrice);
       if (protection.shouldClose) {
