@@ -269,13 +269,18 @@ class RiskManager {
     const isXau = trade.pair.includes("XAU") || trade.pair.includes("GOLD");
 
     const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+    
+    // 💰 Valor do pip dinâmico (Expert Logic)
+    let pipValue = 10; 
+    if (isJpy) pipValue = 7; // Aproximação para JPY
+    if (isXau) pipValue = 1; // Para XAU, 1 pip (0.1) = 1$ em 1.0 lote
 
     // 💰 calcular lucro atual
     const pnlPips = trade.direction === "BUY"
       ? (currentPrice - trade.entry) / pipSize
       : (trade.entry - currentPrice) / pipSize;
 
-    const currentProfit = pnlPips * 10 * trade.lotSize; // pipValue = 10
+    const currentProfit = pnlPips * pipValue * trade.lotSize;
 
     // 🔼 atualizar pico
     if (currentProfit > (trade.peakProfit || 0)) {
@@ -289,6 +294,8 @@ class RiskManager {
     if (trade.peakProfit >= minProfitToActivate) {
       const allowedDrop = trade.peakProfit * drawdownPercent;
       const minAllowed = trade.peakProfit - allowedDrop;
+
+      log.debug(`[PROFIT-LOCK] ${trade.pair} | Atual: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Min: $${minAllowed.toFixed(2)}`);
 
       if (currentProfit <= minAllowed) {
         return {
