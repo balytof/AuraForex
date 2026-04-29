@@ -3140,33 +3140,29 @@ async function selectPlan(id, name, price) {
   document.getElementById("buyStep2").style.display = "block";
   document.getElementById("buyBackBtn").style.display = "block";
   document.getElementById("buyConfirmBtn").style.display = "block";
-  document.getElementById("buyModalFooter").style.display = "flex";
-  
-  loadWallets();
-}
+  document.getElementByI// ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
+(function auraEngineMonitor() {
+    const desiredState = localStorage.getItem("aura_bot_state");
+    
+    // Log de diagnóstico persistente na consola (F12)
+    console.log("%c[AuraEngine] Monitorando estado...", "color: #00d4ff; font-weight: bold;");
+    console.log(`[AuraEngine] Desejado: ${desiredState} | Ativo: ${isRunning} | Broker: ${brokerConnected} | Licença: ${userLicense ? 'OK' : 'WAIT'}`);
 
-async function loadWallets() {
-  const container = document.getElementById("walletsContainer");
-  const data = await apiFetch("/api/payment-methods");
-  if (data.success && data.methods) {
-    container.innerHTML = data.methods.map(m => `
-      <div style="background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">${m.name}</div>
-          <div style="font-family:'Space Mono',monospace;font-size:0.75rem;word-break:break-all;margin-top:4px;color:var(--accent);">${m.details}</div>
-        </div>
-        <button class="copy-btn" onclick="copyToClipboard('${m.details}')">Copiar</button>
-      </div>
-    `).join("") || '<p>Contate o suporte para pagamento.</p>';
-  }
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    // Basic toast-like feedback
-    const originalBtn = event.target;
-    const originalText = originalBtn.textContent;
-    originalBtn.textContent = 'Copiado!';
+    if (desiredState === "running" && !isRunning) {
+        if (brokerConnected && userLicense) {
+            console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #002200; padding: 5px;");
+            startBot();
+        } else {
+            // Tenta novamente de forma mais agressiva
+            setTimeout(auraEngineMonitor, 1500);
+        }
+    } else {
+        // Mantém a vigilância caso o estado mude
+        setTimeout(auraEngineMonitor, 5000);
+    }
+})();
+</script>
+ent = 'Copiado!';
     originalBtn.style.borderColor = 'var(--bull)';
     originalBtn.style.color = 'var(--bull)';
     setTimeout(() => {
