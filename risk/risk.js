@@ -329,32 +329,10 @@ class RiskManager {
         ? currentPrice <= trade.sl
         : currentPrice >= trade.sl;
 
-      // 3. Expert Profit Protection Logic (Preservação de Lucro)
-      const isJpy = trade.pair.includes("JPY");
-      const isXau = trade.pair.includes("XAU");
-      const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-      const pnlPips = trade.direction === "BUY"
-        ? (currentPrice - trade.entry) / pipSize
-        : (trade.entry - currentPrice) / pipSize;
-      const currentPnL = pnlPips * cfg.pipValueUSD * trade.lotSize;
-      const profitPct = (currentPnL / this.dailyStartBalance) * 100;
-
-      // Atualizar o pico de lucro
-      if (profitPct > (trade.peakProfit || 0)) {
-        trade.peakProfit = profitPct;
-      }
-
-      // Gatilho: Se o lucro atingiu o pico e caiu (drawdown do pico)
-      const protectionActive = (trade.peakProfit || 0) > cfg.profitProtectionTrigger;
-      const drawdown = (trade.peakProfit || 0) - profitPct;
-      const profitDroppingBelowSafety = protectionActive && drawdown >= cfg.profitProtectionDrawdown;
-
       if (tpHit) {
         toClose.push({ trade, closePrice: trade.tp, reason: "TP" });
       } else if (slHit) {
         toClose.push({ trade, closePrice: trade.sl, reason: "SL" });
-      } else if (profitDroppingBelowSafety) {
-        toClose.push({ trade, closePrice: currentPrice, reason: "PROFIT_PROTECTION_1%" });
       } else {
         this.updateTrailingStop(trade, currentPrice, atr);
       }
