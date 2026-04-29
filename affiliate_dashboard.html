@@ -138,6 +138,32 @@
             letter-spacing: 2px; white-space: nowrap;
             box-shadow: 0 0 12px rgba(124,58,237,0.5);
         }
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            header { flex-direction: column; align-items: flex-start; padding: 16px; }
+            .ref-link-box { max-width: 100%; width: 100%; }
+        }
+
+        @media (max-width: 768px) {
+            .wrapper { padding: 12px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            header .logo h1 { font-size: 1.1rem; }
+            body > div > div:nth-child(3) { grid-template-columns: 1fr !important; } /* Equipa e Saque */
+            .panel-header h3 { font-size: 0.95rem; }
+            .stat-value { font-size: 1.4rem; }
+            th, td { padding: 10px 12px; font-size: 0.75rem; }
+        }
+
+        @media (max-width: 480px) {
+            .logo-icon { width: 36px; height: 36px; font-size: 18px; }
+            .btn { font-size: 0.7rem; padding: 6px 10px; }
+            .ref-link-box { flex-direction: column; align-items: flex-start; padding: 12px; gap: 8px; }
+            .ref-link-box input { width: 100%; }
+            .ref-code-badge { align-self: center; width: 100%; text-align: center; }
+            .ref-link-box .btn { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -344,10 +370,49 @@
 
     function copyRefLink() {
         const input = document.getElementById("refLinkInput");
-        input.select();
-        input.setSelectionRange(0, 99999);
-        document.execCommand("copy");
-        alert("Link de indicação copiado!");
+        const textToCopy = input.value;
+        const btn = event.target;
+        
+        if (!textToCopy || textToCopy.includes("carregar")) return;
+
+        // Modern API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showCopyFeedback(btn);
+            }).catch(err => {
+                fallbackCopyTextToClipboard(textToCopy, btn);
+            });
+        } else {
+            fallbackCopyTextToClipboard(textToCopy, btn);
+        }
+    }
+
+    function fallbackCopyTextToClipboard(text, btn) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed"; 
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showCopyFeedback(btn);
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function showCopyFeedback(btn) {
+        const originalText = btn.textContent;
+        btn.textContent = "✅ Copiado!";
+        btn.style.background = "var(--bull)";
+        btn.style.color = "#000";
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = "var(--accent2)";
+            btn.style.color = "#fff";
+        }, 2000);
     }
 
     loadAffiliateStats();

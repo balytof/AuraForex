@@ -679,6 +679,43 @@
       background: rgba(255,255,255,0.05) !important;
       border-color: var(--muted) !important;
   }
+
+  /* 📱 RESPONSIVIDADE ULTRA-PREMIUM (Mobile/Tablet/Desktop) */
+  @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 992px) {
+      header { padding: 15px 20px; }
+      .status-row { overflow-x: auto; padding-bottom: 8px; width: 100%; justify-content: flex-start; }
+      .status-badge, .vps-sentinel, .license-badge { white-space: nowrap; flex-shrink: 0; }
+  }
+
+  @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      header { flex-direction: column; align-items: flex-start; gap: 15px; }
+      .controls { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .controls .btn { margin: 0 !important; width: 100%; font-size: 0.7rem; }
+      .controls .btn-primary { grid-column: span 2; }
+      .logo-icon { width: 36px; height: 36px; }
+      .logo h1 { font-size: 1.1rem; }
+  }
+
+  @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .wrapper { padding: 10px; }
+      .panel-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .history-controls { flex-direction: column; }
+      .stat-value { font-size: 1.3rem; }
+  }
+
+  /* Efeito de Destaque (Highlight) */
+  @keyframes highlightFade {
+      0% { box-shadow: 0 0 30px var(--accent); border-color: var(--accent); }
+      100% { box-shadow: none; border-color: var(--border); }
+  }
+  .highlight-panel { animation: highlightFade 2s ease-out; }
 </style>
 </head>
 <body>
@@ -788,12 +825,12 @@
       <div class="stat-value accent" id="statOpen">0 / 3</div>
       <div class="stat-sub">Limite: <span id="statLimitDisplay">3</span> simultâneos</div>
     </div>
-    <div class="stat-card" onclick="loadHistory()">
+    <div class="stat-card" onclick="loadHistoryAndScroll()">
       <div class="stat-label">Execuções</div>
       <div class="stat-value bull" id="statWr">N/A</div>
       <div class="stat-sub">Total: <span id="statTotal">0</span></div>
     </div>
-    <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
+    <div class="stat-card" onclick="highlightSection('signalsList')">
       <div class="stat-label">Sinais Hoje</div>
       <div class="stat-value accent" id="statSig">0</div>
       <div class="stat-sub">Confluência ≥55%</div>
