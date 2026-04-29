@@ -59,67 +59,17 @@ class RiskManager {
     if (this.circuitBreaker) {
       return { allowed: false, reason: `Circuit breaker ativo — perda diária ≥ ${cfg.maxDailyLossPct}%` };
     }
-
-    if (this.balance < 50) {
-      return { allowed: false, reason: "Saldo muito baixo para operar (< 50)" };
-    }
-
+    if (this.balance < 50) return { allowed: false, reason: "Saldo muito baixo para operar (< 50)" };
     if (this.openTrades.length >= cfg.maxOpenTrades) {
-      return { allowed: false, reason: `Máx. ${cfg.maxOpenTrades} trades simultâneos atingido (${this.openTrades.length} abertos)` };
+      return { allowed: false, reason: `Máx. ${cfg.maxOpenTrades} trades simultâneos atingido` };
     }
-
-    // PROTEÇÃO CONTRA OVERTRADING (Máx 5% de risco total aberto)
-    const totalRiskOpen = this.openTrades.reduce((sum, t) => {
-      return sum + (t.lotSize * 10); // aproximação conservadora
-    }, 0);
-
-    if (totalRiskOpen > this.balance * 0.05) {
-      return { allowed: false, reason: "Risco total aberto excedido (> 5% do saldo)" };
-    }
-
-    const alreadyOpen = this.openTrades.find(t => t.pair === pair);
-    if (alreadyOpen) {
-      return { allowed: false, reason: `Já existe trade aberto em ${pair}` };
-    }
-
-    const lossPct = this.dailyStartBalance > 0
-      ? ((this.dailyStartBalance - this.balance) / this.dailyStartBalance) * 100
-      : 0;
-
-    if (lossPct >= cfg.maxDailyLossPct) {
-      this.circuitBreaker = true;
-      log.warn(`🚨 CIRCUIT BREAKER ativado — perda diária: ${lossPct.toFixed(2)}%`);
-      return { allowed: false, reason: `Perda diária máxima de ${cfg.maxDailyLossPct}% atingida` };
-    }
-
     return { allowed: true };
   }
 
   // ── CÁLCULO DE TAMANHO DE POSIÇÃO ─────────────────────
-  /**
-   * Calcula lotes baseado em risco fixo (% do saldo)
-   * Fórmula: Lotes = (Saldo × Risco%) ÷ (Pips de SL × PipValue)
-   */
-  calcLotSize(balance, entry, sl, pair) {
-    const riskAmount = balance * (cfg.riskPerTradePct / 100);
-    const isJpy = pair.includes("JPY");
-    const isXau = pair.includes("XAU") || pair.includes("GOLD");
-    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-    const slPips = Math.abs(entry - sl) / pipSize;
-
-    if (slPips === 0) return 0.01;
-
-    const lots = riskAmount / (slPips * cfg.pipValueUSD);
-    return Math.min(Math.max(parseFloat(lots.toFixed(2)), 0.01), 10.0);
-  }
-
-  /**
-   * Expert: Cálculo seguro com proteção de margem real e limites adaptativos
-   */
   calcLotSizeSafe({ balance, freeMargin, entry, sl, pair, leverage = 500 }) {
     const riskAmount = balance * (cfg.riskPerTradePct / 100);
     const distance = Math.abs(entry - sl);
-
     if (distance === 0) return 0.01;
 
     const isJpy = pair.includes("JPY");
@@ -129,148 +79,61 @@ class RiskManager {
     const slPips = distance / pipSize;
     if (slPips <= 0) return 0.01;
 
-    // 💰 Valor do pip dinâmico
-    let pipValue = 10; // default forex
+    let pipValue = 10; 
     if (isJpy) pipValue = 7;
     if (isXau) pipValue = 1;
 
-    // 💰 lote baseado no risco real
     let lot = riskAmount / (slPips * pipValue);
-
-    // 🔥 CÁLCULO DE MARGEM REAL (aproximação profissional)
-    let contractSize = isXau ? 100 : 100000;
-    let requiredMarginPerLot = contractSize / leverage;
-
-    const maxLotByMargin = freeMargin / requiredMarginPerLot;
-
-    // 🔐 aplica limite real
-    lot = Math.min(lot, maxLotByMargin);
-
-    // 🛡️ limites adaptativos por saldo
-    let maxLot = 0.10;
-
-    if (balance < 1000) maxLot = 0.05;
-    if (balance < 500) maxLot = 0.02;
-    if (balance < 200) maxLot = 0.01;
-
-    if (isXau) {
-      maxLot = 0.05;
-      if (balance < 1000) maxLot = 0.02;
-      if (balance < 500) maxLot = 0.01;
-    }
-
-    const finalLot = Math.max(0.01, Math.min(lot, maxLot));
-
-    log.debug(`[RISK] ${pair} | Balance: ${balance} | FreeMargin: ${freeMargin} | Lot: ${finalLot}`);
+    const finalLot = Math.max(0.01, Math.min(lot, 0.10)); // Limite de segurança 0.10
     return Number(finalLot.toFixed(2));
   }
 
-  /**
-   * Valida se a margem livre suporta a abertura do lote
-   */
   validateMargin({ freeMargin, lot, pair, leverage = 500 }) {
     const isXau = pair.includes("XAU") || pair.includes("GOLD");
     const contractSize = isXau ? 100 : 100000;
-
     const requiredMargin = (contractSize * lot) / leverage;
-
-    if (freeMargin < requiredMargin) {
-      return {
-        valid: false,
-        reason: `Margem insuficiente. Precisa: ${requiredMargin.toFixed(2)}`
-      };
-    }
-
-    return { valid: true };
+    return { valid: freeMargin >= requiredMargin };
   }
 
   // ── REGISTAR TRADE ABERTO ─────────────────────────────
   registerTrade(signal, lotSize, brokerId = null) {
     const trade = {
       id: `T-${Date.now()}`,
-      brokerId,                      // ID do trade no broker (OANDA)
+      brokerId,
       pair: signal.pair,
       direction: signal.direction,
       entry: signal.entry,
       sl: signal.sl,
-      slOriginal: signal.sl,
       tp: signal.tp,
       lotSize,
-      score: signal.score,
-      rr: signal.rr,
       openedAt: new Date().toISOString(),
       status: "OPEN",
       peakProfit: 0, 
     };
     this.openTrades.push(trade);
-    log.info(`Trade registado: ${trade.id} | ${trade.direction} ${trade.pair} | ${lotSize} lotes`);
     this._saveState();
     return trade;
   }
 
   // ── FECHAR TRADE ─────────────────────────────────────
   closeTrade(tradeId, closePrice, reason = "MANUAL") {
-    const idx = this.openTrades.findIndex(t => t.id === tradeId);
-    if (idx === -1) { log.warn(`Trade ${tradeId} não encontrado`); return null; }
+    const idx = this.openTrades.findIndex(t => t.id === tradeId || t.brokerId === tradeId);
+    if (idx === -1) return null;
 
     const trade = this.openTrades[idx];
-    const isJpy = trade.pair.includes("JPY");
-    const isXau = trade.pair.includes("XAU");
-    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-    const pnlPips = trade.direction === "BUY"
-      ? (closePrice - trade.entry) / pipSize
-      : (trade.entry - closePrice) / pipSize;
-    const pnl = pnlPips * cfg.pipValueUSD * trade.lotSize;
-
     const closed = {
       ...trade,
       closePrice,
       closeReason: reason,
-      pnlPips: parseFloat(pnlPips.toFixed(1)),
-      pnl: parseFloat(pnl.toFixed(2)),
       closedAt: new Date().toISOString(),
       status: "CLOSED",
     };
 
     this.openTrades.splice(idx, 1);
     this.tradeHistory.push(closed);
-    this.dailyPnl += pnl;
-    this.balance += pnl;
-
-    log.trade(closed);
     this._saveHistory();
     this._saveState();
     return closed;
-  }
-
-  // ── TRAILING STOP ─────────────────────────────────────
-  /**
-   * Atualiza o SL se o preço avançou > 1.5× ATR a favor.
-   * @returns {boolean} true se o SL foi movido
-   */
-  updateTrailingStop(trade, currentPrice, atr) {
-    const mult = cfg.trailingAtrMult;
-    let moved = false;
-
-    if (trade.direction === "BUY") {
-      const newSl = parseFloat((currentPrice - atr * mult).toFixed(5));
-      if (newSl > trade.sl) {
-        trade.sl = newSl;
-        moved = true;
-      }
-    } else {
-      const newSl = parseFloat((currentPrice + atr * mult).toFixed(5));
-      if (newSl < trade.sl) {
-        trade.sl = newSl;
-        moved = true;
-      }
-    }
-
-    if (moved) {
-      log.debug(`Trailing SL atualizado | ${trade.pair} ${trade.direction} | Novo SL: ${trade.sl}`);
-      this._saveState();
-    }
-    return moved;
   }
 
   // ── PROFIT PROTECTION (LOCK) ── Usando Lucro REAL do Broker
@@ -278,16 +141,17 @@ class RiskManager {
     // 🔼 atualizar pico
     if (currentProfit > (trade.peakProfit || 0)) {
       trade.peakProfit = currentProfit;
-      this._saveState(); // Salva o novo pico imediatamente
+      this._saveState(); 
     }
 
     const minProfitToActivate = 3;   
-    const drawdown = 0.30; // 30% conforme plano profissional
+    const drawdown = 0.30; // 30%
 
     if (trade.peakProfit >= minProfitToActivate) {
       const minAllowed = trade.peakProfit * (1 - drawdown);
       
-      console.log(`[PROFIT-LOCK] ${trade.pair} | Profit: ${currentProfit.toFixed(2)}$ | Pico: ${trade.peakProfit.toFixed(2)}$ | Min: ${minAllowed.toFixed(2)}$`);
+      // LOG DE ALTA VISIBILIDADE NO TERMINAL
+      console.log(`[VIGIA] ${trade.pair} | Lucro: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Gatilho: $${minAllowed.toFixed(2)}`);
 
       if (currentProfit <= minAllowed) {
         return {
@@ -296,102 +160,45 @@ class RiskManager {
         };
       }
     }
-
     return { shouldClose: false };
   }
 
   // ── MONITOR DE TRADES ABERTOS ─────────────────────────
-  /**
-   * Verifica se TP ou SL foi atingido para cada trade aberto.
-   * Retorna lista de trades para fechar.
-   */
   checkOpenTrades(pair, currentPrice, currentProfit, atr) {
     const toClose = [];
-    
-    // Normalizar o par para comparação
     const normalize = (p) => p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().replace("W", "");
     const normalizedPair = normalize(pair);
 
     const tradesForThisPair = this.openTrades.filter(t => normalize(t.pair).includes(normalizedPair) || normalizedPair.includes(normalize(t.pair)));
 
     for (const trade of tradesForThisPair) {
-      // 🔐 PROFIT PROTECTION usando Lucro Real do Broker
       const protection = this.checkProfitProtection(trade, currentProfit);
       if (protection.shouldClose) {
-        toClose.push({
-          trade,
-          closePrice: currentPrice,
-          reason: protection.reason
-        });
-        continue;
-      }
-
-      const tpHit = trade.direction === "BUY"
-        ? currentPrice >= trade.tp
-        : currentPrice <= trade.tp;
-
-      const slHit = trade.direction === "BUY"
-        ? currentPrice <= trade.sl
-        : currentPrice >= trade.sl;
-
-      if (tpHit) {
-        toClose.push({ trade, closePrice: trade.tp, reason: "TP" });
-      } else if (slHit) {
-        toClose.push({ trade, closePrice: trade.sl, reason: "SL" });
-      } else {
-        this.updateTrailingStop(trade, currentPrice, atr);
+        toClose.push({ trade, closePrice: currentPrice, reason: protection.reason });
       }
     }
-
     return toClose;
-  }
-
-  // ── ESTATÍSTICAS ─────────────────────────────────────
-  getStats() {
-    const closed = this.tradeHistory;
-    const wins = closed.filter(t => t.pnl > 0);
-    const losses = closed.filter(t => t.pnl <= 0);
-    const totalPnl = closed.reduce((s, t) => s + t.pnl, 0);
-
-    return {
-      balance: parseFloat(this.balance.toFixed(2)),
-      dailyPnl: parseFloat(this.dailyPnl.toFixed(2)),
-      openTrades: this.openTrades.length,
-      totalTrades: closed.length,
-      wins: wins.length,
-      losses: losses.length,
-      winRate: closed.length ? ((wins.length / closed.length) * 100).toFixed(1) + "%" : "N/A",
-      totalPnl: parseFloat(totalPnl.toFixed(2)),
-      avgWin: wins.length ? parseFloat((wins.reduce((s, t) => s + t.pnl, 0) / wins.length).toFixed(2)) : 0,
-      avgLoss: losses.length ? parseFloat((losses.reduce((s, t) => s + t.pnl, 0) / losses.length).toFixed(2)) : 0,
-      circuitBreaker: this.circuitBreaker,
-    };
   }
 
   // ── PERSISTÊNCIA ─────────────────────────────────────
   _saveHistory() {
     try {
-      if (!fs.existsSync(path.dirname(this.historyFile))) {
-        fs.mkdirSync(path.dirname(this.historyFile), { recursive: true });
-      }
+      if (!fs.existsSync(path.dirname(this.historyFile))) fs.mkdirSync(path.dirname(this.historyFile), { recursive: true });
       fs.writeFileSync(this.historyFile, JSON.stringify(this.tradeHistory, null, 2));
-    } catch (e) { /* ignora erro de escrita */ }
+    } catch (e) {}
   }
 
   _loadHistory() {
     try {
       if (fs.existsSync(this.historyFile)) {
         this.tradeHistory = JSON.parse(fs.readFileSync(this.historyFile, "utf8"));
-        log.info(`Histórico carregado: ${this.tradeHistory.length} trades`);
       }
     } catch (e) { this.tradeHistory = []; }
   }
 
   _saveState() {
     try {
-      if (!fs.existsSync(path.dirname(this.stateFile))) {
-        fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
-      }
+      if (!fs.existsSync(path.dirname(this.stateFile))) fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
       const state = {
         openTrades: this.openTrades,
         dailyPnl: this.dailyPnl,
@@ -399,7 +206,7 @@ class RiskManager {
         balance: this.balance
       };
       fs.writeFileSync(this.stateFile, JSON.stringify(state, null, 2));
-    } catch (e) { /* ignora erro de escrita */ }
+    } catch (e) {}
   }
 
   _loadState() {
@@ -409,8 +216,7 @@ class RiskManager {
         this.openTrades = state.openTrades || [];
         this.dailyPnl = state.dailyPnl || 0;
         this.dailyStartBalance = state.dailyStartBalance || 0;
-        this.balance = state.balance || this.balance;
-        log.info(`Estado carregado: ${this.openTrades.length} trades abertos`);
+        this.balance = state.balance || 0;
       }
     } catch (e) { this.openTrades = []; }
   }
