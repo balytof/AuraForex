@@ -1483,6 +1483,11 @@ app.use((req, res) => {
   // Prevenir Directory Traversal Attack
   if (!path.resolve(filePath).startsWith(path.resolve(ROOT))) return res.status(403).send("Forbidden");
 
+  // Prevenir Caching agressivo em ficheiros HTML
+  if (filePath.endsWith(".html")) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
+
   res.sendFile(filePath);
 });
 
