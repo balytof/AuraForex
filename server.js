@@ -689,10 +689,22 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
       }
     }
 
-    // 6. Enriquecer resposta com SL/TP aplicados
+    // 6. Enriquecer resposta com SL/TP aplicados e registar no RiskManager
     if (result && result.success) {
       result.appliedSl = sl;
       result.appliedTp = tp;
+      
+      // [EXPERT] Registar para monitorização de background (Profit Lock)
+      if (req.risk) {
+        req.risk.registerTrade({
+          pair: pair,
+          direction: direction,
+          entry: entryPrice,
+          sl: sl,
+          tp: tp,
+          score: 100
+        }, result.lot || 0.01, result.orderId || result.id);
+      }
     }
 
     return res.status(result && result.success ? 200 : 400).json(result || { success: false, error: "Ordem falhou" });
