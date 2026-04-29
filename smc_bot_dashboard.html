@@ -298,6 +298,38 @@
     border:1px solid rgba(124,58,237,0.3); border-radius:6px;
     font-size:0.65rem; color:#a78bfa; font-family:'Space Mono',monospace;
   }
+
+  /* Signal Navigation Buttons */
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    padding: 3px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    gap: 4px;
+  }
+  .btn-nav {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .btn-nav:hover {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .btn-nav:active { transform: scale(0.95); }
   .tag.active { background:rgba(0,212,255,0.1); border-color:rgba(0,212,255,0.3); color:var(--accent); }
 
   .exec-badge {
@@ -1896,6 +1928,7 @@ function updateSignalCarousel() {
     if (cards.length <= 1) {
         nav.style.display = "none";
         cards.forEach(c => c.style.display = "flex");
+        activeSignalIdx = 0;
         return;
     }
     
