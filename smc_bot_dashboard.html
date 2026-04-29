@@ -2808,9 +2808,30 @@ async function updateStats() {
       const positions = posData.positions || [];
       openTrades = positions;
       
-      // EXPERT: Sincronização e Atualização de Profit nos Cards
+      // EXPERT: Sincronização e Recuperação de Ordens Órfãs
       positions.forEach(pos => {
-         const pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         
+         // Se a ordem existe na corretora mas NÃO tem cartão no dashboard, recuperamos o controlo
+         if (!pnlEl) {
+            console.log(`[VIGILANTE] Detetada ordem órfã #${pos.id} em ${pos.symbol}. Recuperando controlo...`);
+            const recoverySig = {
+                pair: pos.symbol,
+                direction: (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL',
+                entry: pos.openPrice || 0,
+                sl: pos.sl || 0,
+                tp: pos.tp || 0,
+                score: 100,
+                rr: 'EXTERNA',
+                factors: { "VPS VIGILANTE": true, "RECUPERADA": true }
+            };
+            const recoveryExec = { success: true, orderId: pos.id, message: "Controlo Recuperado" };
+            addSignalCard(recoverySig, recoveryExec);
+            
+            // Re-seleciona o elemento recém-criado para continuar a atualização
+            pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         }
+
          if (pnlEl) {
             const pnlVal = pos.pnl || 0;
             pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
@@ -3376,6 +3397,11 @@ checkAuth();
         setTimeout(auraEngineMonitor, 5000);
     }
 })();
+
+// ─── SINCRONIZAÇÃO DE ORDENS EM TEMPO REAL (RECUPERAÇÃO) ───
+setInterval(() => {
+    if (brokerConnected) updateStats();
+}, 5000);
 </script>
 </body>
 </html>
