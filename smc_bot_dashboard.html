@@ -2979,7 +2979,7 @@ function startBot() {
     }
 
     isRunning = true;
-    localStorage.setItem("aura_bot_running", "true");
+    localStorage.setItem("aura_bot_state", "running"); // Chave nova e mais robusta
     currentLoopId++;
     document.getElementById("botDot").classList.add("active");
     document.getElementById("botStatus").textContent = "Rodando";
@@ -3011,7 +3011,7 @@ function startBot() {
 
 function stopBot() {
   isRunning = false;
-  localStorage.setItem("aura_bot_running", "false");
+  localStorage.setItem("aura_bot_state", "stopped");
   if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
   document.getElementById("botDot").classList.remove("active");
   document.getElementById("botStatus").textContent = "Parado";
@@ -3231,21 +3231,23 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
-// Auto-Start reactivado com verificação inteligente de conexão e licença
+// Auto-Start Profissional com Diagnóstico
 (function autoStartCheck() {
-    const wasRunning = localStorage.getItem("aura_bot_running") === "true";
-    if (wasRunning && !isRunning) {
-        // Espera pela Corretora E pela Licença (carregada no checkAuth)
+    const savedState = localStorage.getItem("aura_bot_state");
+    console.log(`[AuraBot] Auto-start check. Estado salvo: ${savedState} | Conectado: ${brokerConnected} | Licença: ${userLicense ? 'OK' : 'Pendente'}`);
+
+    if (savedState === "running" && !isRunning) {
         if (brokerConnected && userLicense) {
+            console.log("%c[AuraBot] ✅ Condições reunidas. Reiniciando robô...", "color: #00ff00; font-weight: bold;");
             addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
         } else {
-            // Tenta novamente em 2 segundos (máx 20 tentativas = 40 segundos)
             window._autoStartAttempts = (window._autoStartAttempts || 0) + 1;
-            if (window._autoStartAttempts < 20) {
+            if (window._autoStartAttempts < 30) { // Estendido para 60 segundos
                 setTimeout(autoStartCheck, 2000);
             } else {
                 const reason = !brokerConnected ? "Corretora offline" : "Licença não carregada";
+                console.warn(`[AuraBot] ❌ Auto-início falhou após 60s: ${reason}`);
                 addLog(`⚠️ Auto-início cancelado: ${reason}.`, "warn");
             }
         }
