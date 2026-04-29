@@ -296,9 +296,9 @@ class RiskManager {
       }
 
       // Gatilho: Se o lucro atingiu o pico e caiu (drawdown do pico)
-      const protectionActive = (trade.peakProfit || 0) > 1.0;
+      const protectionActive = (trade.peakProfit || 0) > cfg.profitProtectionTrigger;
       const drawdown = (trade.peakProfit || 0) - profitPct;
-      const profitDroppingBelowSafety = protectionActive && drawdown >= 0.3;
+      const profitDroppingBelowSafety = protectionActive && drawdown >= cfg.profitProtectionDrawdown;
 
       if (tpHit) {
         toClose.push({ trade, closePrice: trade.tp, reason: "TP" });
