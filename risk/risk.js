@@ -27,6 +27,7 @@ class RiskManager {
     this.circuitBreaker = false;  // true = bot parado por perda diária
     this.historyFile = path.join(__dirname, "../logs/trade_history.json");
     this.stateFile = path.join(__dirname, "../logs/bot_state.json");
+    log.info(`[RISK-INIT] Inicializando Gestor de Risco. State: ${this.stateFile}`);
     this._loadHistory();
     this._loadState();
   }
@@ -40,7 +41,7 @@ class RiskManager {
       this.dailyStartBalance = balance;
       this.dailyPnl = 0;
       this.circuitBreaker = false;
-      log.info(`Novo dia de trading | Saldo: $${balance.toFixed(2)}`);
+      log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)}`);
     }
   }
 
@@ -286,6 +287,7 @@ class RiskManager {
     // 🔼 atualizar pico
     if (currentProfit > (trade.peakProfit || 0)) {
       trade.peakProfit = currentProfit;
+      this._saveState(); // 💾 GRAVAR NO DISCO IMEDIATAMENTE
     }
 
     // ⚙️ CONFIG
@@ -317,6 +319,13 @@ class RiskManager {
   checkOpenTrades(pair, currentPrice, atr) {
     const toClose = [];
     
+    // AUDITORIA DE MEMÓRIA (Para debugar o F5)
+    if (this.openTrades.length > 0) {
+      log.info(`[AUDIT] Ordens em memória: ${this.openTrades.map(t => `${t.pair}(${t.direction})`).join(", ")}`);
+    } else {
+      log.warn(`[AUDIT] Nenhuma ordem em memória para monitorizar.`);
+    }
+
     // Normalizar o par para comparação (remove _ e sufixos como 'w')
     const normalize = (p) => p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().replace("W", "");
     const normalizedPair = normalize(pair);
