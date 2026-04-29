@@ -190,7 +190,7 @@ class RiskManager {
       rr: signal.rr,
       openedAt: new Date().toISOString(),
       status: "OPEN",
-      peakProfit: 0, // Expert: Rastreia o lucro máximo atingido em %
+      peakProfit: 0, 
     };
     this.openTrades.push(trade);
     log.info(`Trade registado: ${trade.id} | ${trade.direction} ${trade.pair} | ${lotSize} lotes`);
@@ -263,6 +263,44 @@ class RiskManager {
     return moved;
   }
 
+  // ── PROFIT PROTECTION (LOCK) ─────────────────────────
+  checkProfitProtection(trade, currentPrice) {
+    const isJpy = trade.pair.includes("JPY");
+    const isXau = trade.pair.includes("XAU") || trade.pair.includes("GOLD");
+
+    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
+
+    // 💰 calcular lucro atual
+    const pnlPips = trade.direction === "BUY"
+      ? (currentPrice - trade.entry) / pipSize
+      : (trade.entry - currentPrice) / pipSize;
+
+    const currentProfit = pnlPips * 10 * trade.lotSize; // pipValue = 10
+
+    // 🔼 atualizar pico
+    if (currentProfit > (trade.peakProfit || 0)) {
+      trade.peakProfit = currentProfit;
+    }
+
+    // ⚙️ CONFIG
+    const minProfitToActivate = 5;     // só ativa acima de $5
+    const drawdownPercent = 0.20;      // 20% de queda permitida
+
+    if (trade.peakProfit >= minProfitToActivate) {
+      const allowedDrop = trade.peakProfit * drawdownPercent;
+      const minAllowed = trade.peakProfit - allowedDrop;
+
+      if (currentProfit <= minAllowed) {
+        return {
+          shouldClose: true,
+          reason: `PROFIT_LOCK (${currentProfit.toFixed(2)}$ < ${minAllowed.toFixed(2)}$)`
+        };
+      }
+    }
+
+    return { shouldClose: false };
+  }
+
   // ── MONITOR DE TRADES ABERTOS ─────────────────────────
   /**
    * Verifica se TP ou SL foi atingido para cada trade aberto.
@@ -272,6 +310,17 @@ class RiskManager {
     const toClose = [];
 
     for (const trade of this.openTrades.filter(t => t.pair === pair)) {
+      // 🔐 PROFIT PROTECTION
+      const protection = this.checkProfitProtection(trade, currentPrice);
+      if (protection.shouldClose) {
+        toClose.push({
+          trade,
+          closePrice: currentPrice,
+          reason: protection.reason
+        });
+        continue;
+      }
+
       const tpHit = trade.direction === "BUY"
         ? currentPrice >= trade.tp
         : currentPrice <= trade.tp;
