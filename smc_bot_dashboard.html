@@ -3231,20 +3231,22 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
-// Auto-Start reactivado com verificação inteligente de conexão
+// Auto-Start reactivado com verificação inteligente de conexão e licença
 (function autoStartCheck() {
     const wasRunning = localStorage.getItem("aura_bot_running") === "true";
     if (wasRunning && !isRunning) {
-        if (brokerConnected) {
-            addLog("🔄 Retomando sessão de trading automaticamente...");
+        // Espera pela Corretora E pela Licença (carregada no checkAuth)
+        if (brokerConnected && userLicense) {
+            addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
         } else {
-            // Se ainda não ligou, tenta novamente em 2 segundos (máx 10 tentativas)
+            // Tenta novamente em 2 segundos (máx 20 tentativas = 40 segundos)
             window._autoStartAttempts = (window._autoStartAttempts || 0) + 1;
-            if (window._autoStartAttempts < 15) {
+            if (window._autoStartAttempts < 20) {
                 setTimeout(autoStartCheck, 2000);
             } else {
-                addLog("⚠️ Auto-início cancelado: Corretora não ligou a tempo.", "warn");
+                const reason = !brokerConnected ? "Corretora offline" : "Licença não carregada";
+                addLog(`⚠️ Auto-início cancelado: ${reason}.`, "warn");
             }
         }
     }
