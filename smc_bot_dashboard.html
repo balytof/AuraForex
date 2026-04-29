@@ -3140,7 +3140,8 @@ async function selectPlan(id, name, price) {
   document.getElementById("buyStep2").style.display = "block";
   document.getElementById("buyBackBtn").style.display = "block";
   document.getElementById("buyConfirmBtn").style.display = "block";
-  document.getElementByI// ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
+  loadWallets();
+}
 (function auraEngineMonitor() {
     const desiredState = localStorage.getItem("aura_bot_state");
     
