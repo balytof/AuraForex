@@ -98,6 +98,20 @@
   .dot.warn   { background:var(--warn); }
   .dot.danger { background:var(--bear); box-shadow:0 0 8px var(--bear); }
 
+  .vps-sentinel {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    color: var(--accent);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 10px rgba(0,212,255,0.1);
+  }
+
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
   .broker-badge {
@@ -202,7 +216,7 @@
     border-radius:14px; padding:18px 20px;
     position:relative; overflow:hidden; transition: border-color 0.3s;
   }
-  .stat-card:hover { border-color: var(--accent); }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); cursor: pointer; }
   .stat-card::before {
     content:''; position:absolute; top:0; left:0; right:0; height:2px;
     background: linear-gradient(90deg, transparent, var(--accent), transparent);
@@ -692,7 +706,7 @@
         <div class="dot danger"></div>
         <span id="brokerStatusText">Sem Corretora</span>
       </div>
-      <div class="status-badge">
+      <div class="status-badge" onclick="toggleBot()" style="cursor:pointer;" title="Clique para alternar o Bot">
         <div class="dot" id="botDot"></div>
         <span id="botStatus">Parado</span>
       </div>
@@ -700,18 +714,23 @@
         <div class="dot" id="uptimeDot"></div>
         <span id="botUptime">00:00:00</span>
       </div>
+      <div class="vps-sentinel" id="vpsSentinel">
+        <div class="dot active"></div>
+        <span>PROTEÇÃO VPS: ATIVA</span>
+      </div>
       <div class="license-badge" id="licenseStatusHeader" onclick="openBuyModal()">
         <span>Status: <b id="licenseLevel">Carregando...</b></span>
         <span id="licenseCountdown" style="opacity:0.8;">...</span>
       </div>
-      <div class="status-badge">
+      <div class="status-badge" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;">
         <div class="dot warn"></div>
-        <span id="sessionStatus">Fora de Sessão</span>
+        <span id="sessionStatus">Londres / NY</span>
       </div>
     </div>
     <div class="controls">
       <button class="btn btn-connect" id="connectBtn" onclick="openConnectModal()">🔗 Conectar Corretora</button>
-      <button class="btn btn-secondary" onclick="resetBot()">↺ Reset</button>
+      <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
+      <button class="btn btn-secondary" id="resetInfraBtn" style="border-color:var(--warn); color:var(--warn); font-weight:bold;" onclick="resetInfrastructure()">🧹 Limpar Infra</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
       <button class="btn btn-danger" id="buyLicenseBtn" style="background:var(--warn);color:#000;margin-left:10px;" onclick="openBuyModal()">💎 Comprar Licença</button>
       <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
@@ -754,27 +773,27 @@
 
   <!-- STATS -->
   <div class="stats-grid">
-    <div class="stat-card">
+    <div class="stat-card" onclick="openConnectModal()">
       <div class="stat-label">Saldo (Corretora)</div>
       <div class="stat-value accent" id="statBalance">—</div>
       <div class="stat-sub" id="statBalanceSub">Conecte uma corretora</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">P&L Não Realizado</div>
       <div class="stat-value bull" id="statPnl">$0.00</div>
       <div class="stat-sub">Posições abertas</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">Trades Abertos</div>
       <div class="stat-value accent" id="statOpen">0 / 3</div>
       <div class="stat-sub">Limite: <span id="statLimitDisplay">3</span> simultâneos</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="loadHistory()">
       <div class="stat-label">Execuções</div>
       <div class="stat-value bull" id="statWr">N/A</div>
       <div class="stat-sub">Total: <span id="statTotal">0</span></div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">Sinais Hoje</div>
       <div class="stat-value accent" id="statSig">0</div>
       <div class="stat-sub">Confluência ≥55%</div>
@@ -1788,15 +1807,27 @@ function addSignalCard(sig, execResult) {
         border: 1px solid var(--border);
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
       ">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:0.7rem; color:var(--muted);">LUCRO ATUAL:</span>
-          <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace;">$0.00</span>
+          <span style="font-size:0.7rem; color:var(--muted); font-weight:bold;">LUCRO AO VIVO:</span>
+          <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace; font-size:1rem;">$0.00</span>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.05); padding-top:4px;">
-          <span style="font-size:0.6rem; color:var(--muted);">NÍVEIS REAIS:</span>
-          <span style="font-size:0.6rem; font-family:'Space Mono',monospace;">
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top:6px;">
+           <div style="display:flex; flex-direction:column;">
+              <span style="font-size:0.55rem; color:var(--muted);">PICO ATINGIDO:</span>
+              <span id="peak-pnl-${execResult.orderId}" style="font-size:0.75rem; font-family:'Space Mono',monospace; color:var(--accent);">$0.00</span>
+           </div>
+           <div style="display:flex; flex-direction:column; align-items:flex-end;">
+              <span style="font-size:0.55rem; color:var(--muted);">GATILHO LOCK:</span>
+              <span id="lock-trigger-${execResult.orderId}" style="font-size:0.75rem; font-family:'Space Mono',monospace; color:var(--warn);">--</span>
+           </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.05); padding-top:6px;">
+          <span style="font-size:0.6rem; color:var(--muted);">NÍVEIS BROKER:</span>
+          <span style="font-size:0.65rem; font-family:'Space Mono',monospace;">
             SL: <span id="active-sl-${execResult.orderId}" style="color:var(--bear)">--</span> | 
             TP: <span id="active-tp-${execResult.orderId}" style="color:var(--bull)">--</span>
           </span>
@@ -2738,7 +2769,27 @@ async function updateStats() {
             if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(brokerInfo.precision || 5) : "--";
             if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(brokerInfo.precision || 5) : "--";
             
-            // Update Top Profit
+            // Update Top Profit & Lock Trigger
+            const peakEl = document.getElementById(`peak-pnl-${pos.id}`);
+            const lockEl = document.getElementById(`lock-trigger-${pos.id}`);
+            
+            // Peak simulation or real peak from memory if we had it
+            // For dashboard, we use a simple "current is peak" logic unless we track it in browser
+            let currentPeak = parseFloat(localStorage.getItem(`peak_${pos.id}`) || 0);
+            if (pnlVal > currentPeak) {
+                currentPeak = pnlVal;
+                localStorage.setItem(`peak_${pos.id}`, currentPeak);
+            }
+
+            if (peakEl) peakEl.textContent = formatCurrency(currentPeak, brokerInfo.currency);
+            
+            if (lockEl && currentPeak >= 3) {
+                const lockPrice = currentPeak * 0.70;
+                lockEl.textContent = formatCurrency(lockPrice, brokerInfo.currency);
+            } else if (lockEl) {
+                lockEl.textContent = "Aguardando $3";
+            }
+            
             const topPnl = document.getElementById(`top-pnl-${pos.id}`);
             if (topPnl) {
                 topPnl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);

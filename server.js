@@ -438,6 +438,22 @@ app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
   return res.json({ success: true });
 });
 
+// [EXPERT] Reset de Infraestrutura - Limpa todas as conexões mortas da BD
+app.post("/api/broker/reset-connections", requireAuth, async (req, res) => {
+  try {
+    await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+    const activeBroker = userBrokers.get(req.user.id);
+    if (activeBroker) {
+      await activeBroker.disconnect();
+      userBrokers.delete(req.user.id);
+    }
+    console.log(`[INFRA] Reset total de conexões para o usuário ${req.user.id}`);
+    return res.json({ success: true, message: "Infraestrutura limpa com sucesso." });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.get("/api/broker/account", requireAuth, requireBrokerAuth, async (req, res) => {
   try { res.json(await req.broker.getAccountInfo()); } catch (e) { res.status(500).json({ error: e.message }); }
 });
