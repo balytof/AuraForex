@@ -3231,13 +3231,24 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
-// Auto-Start reactivado para persistência após F5
-if (localStorage.getItem("aura_bot_running") === "true") {
-    setTimeout(() => {
-        if (brokerConnected) startBot();
-        else addLog("⚠️ Não foi possível auto-iniciar: Corretora offline.", "warn");
-    }, 3000);
-}
+// Auto-Start reactivado com verificação inteligente de conexão
+(function autoStartCheck() {
+    const wasRunning = localStorage.getItem("aura_bot_running") === "true";
+    if (wasRunning && !isRunning) {
+        if (brokerConnected) {
+            addLog("🔄 Retomando sessão de trading automaticamente...");
+            startBot();
+        } else {
+            // Se ainda não ligou, tenta novamente em 2 segundos (máx 10 tentativas)
+            window._autoStartAttempts = (window._autoStartAttempts || 0) + 1;
+            if (window._autoStartAttempts < 15) {
+                setTimeout(autoStartCheck, 2000);
+            } else {
+                addLog("⚠️ Auto-início cancelado: Corretora não ligou a tempo.", "warn");
+            }
+        }
+    }
+})();
 </script>
 </body>
 </html>
