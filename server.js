@@ -1546,7 +1546,7 @@ server.listen(PORT, () => {
         console.error(`[MONITOR-ERROR] User ${userId}:`, e.message);
       }
     }
-  }, 5000); // 🚀 Proteção Instantânea: Verifica a cada 5 segundos
+  }, 1000); // 🏎️ VELOCIDADE MÁXIMA: Verifica a cada 1 segundo para não perder picos
 });
 
 process.on('exit', (code) => {

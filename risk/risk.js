@@ -166,10 +166,17 @@ class RiskManager {
   // ── MONITOR DE TRADES ABERTOS ─────────────────────────
   checkOpenTrades(pair, currentPrice, currentProfit, atr) {
     const toClose = [];
-    const normalize = (p) => p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().replace("W", "");
+    const normalize = (p) => {
+        if (!p) return "";
+        // Remove tudo o que não é letra/número e remove sufixos comuns como W, m, etc.
+        return p.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/W$/, "").replace(/M$/, "");
+    };
     const normalizedPair = normalize(pair);
 
-    const tradesForThisPair = this.openTrades.filter(t => normalize(t.pair).includes(normalizedPair) || normalizedPair.includes(normalize(t.pair)));
+    const tradesForThisPair = this.openTrades.filter(t => {
+        const tPair = normalize(t.pair);
+        return tPair === normalizedPair || tPair.includes(normalizedPair) || normalizedPair.includes(tPair);
+    });
 
     for (const trade of tradesForThisPair) {
       const protection = this.checkProfitProtection(trade, currentProfit);
