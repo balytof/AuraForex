@@ -73,6 +73,8 @@ module.exports = {
     minRR:            1.2, // Reduzido de 1.5 para 1.2
     minConfluence:    55,
     trailingAtrMult:  1.5,
+    profitProtectionTrigger: 1.5, // % de lucro para ativar a proteção (era 1.0)
+    profitProtectionDrawdown: 0.7, // % de queda do pico para fechar (era 0.3)
     pipValueUSD:      10,
     simulatedBalance: 10000,
   },
