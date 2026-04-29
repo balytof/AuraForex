@@ -3266,6 +3266,33 @@ async function confirmPayment() {
     finishPurchase();
 }
 
+// ─── INFRASTRUCTURE RESET ─────────────────────
+async function resetInfrastructure() {
+  const btn = document.getElementById("resetInfraBtn");
+  if (!confirm("⚠️ ATENÇÃO: Isto irá apagar todas as conexões da base de dados e desligar as sessões ativas para garantir uma limpeza total. Deseja continuar?")) return;
+  
+  btn.textContent = "A limpar...";
+  btn.disabled = true;
+  
+  try {
+    const res = await apiFetch("/api/broker/reset-connections", "POST");
+    if (res.success) {
+      addLog("✅ Infraestrutura limpa com sucesso. Por favor, conecte-se novamente.", "buy");
+      brokerConnected = false;
+      brokerInfo = null;
+      updateBrokerUI();
+      alert("Limpeza concluída! Faça login novamente na sua corretora.");
+    } else {
+      alert("Erro no reset: " + res.error);
+    }
+  } catch(e) {
+    alert("Erro de conexão: " + e.message);
+  } finally {
+    btn.textContent = "🧹 Limpar Infra";
+    btn.disabled = false;
+  }
+}
+
 // ─── BOOT ─────────────────────────────────────
 restoreLogs(); 
 restoreSignals(); 
