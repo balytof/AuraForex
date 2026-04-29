@@ -3217,7 +3217,7 @@ async function confirmPayment() {
 
 // ─── BOOT ─────────────────────────────────────
 restoreLogs(); 
-restoreSignals(); // Restaurar Sinais
+restoreSignals(); 
 initPairsGrid();
 initBiases();
 loadConfig(); 
@@ -3227,26 +3227,22 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
-// Auto-Start Profissional com Diagnóstico
-(function autoStartCheck() {
-    const savedState = localStorage.getItem("aura_bot_state");
-    console.log(`[AuraBot] Auto-start check. Estado salvo: ${savedState} | Conectado: ${brokerConnected} | Licença: ${userLicense ? 'OK' : 'Pendente'}`);
-
-    if (savedState === "running" && !isRunning) {
+// ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
+(function auraEngineMonitor() {
+    const desiredState = localStorage.getItem("aura_bot_state");
+    
+    if (desiredState === "running" && !isRunning) {
         if (brokerConnected && userLicense) {
-            console.log("%c[AuraBot] ✅ Condições reunidas. Reiniciando robô...", "color: #00ff00; font-weight: bold;");
+            console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
             addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
         } else {
-            window._autoStartAttempts = (window._autoStartAttempts || 0) + 1;
-            if (window._autoStartAttempts < 30) { // Estendido para 60 segundos
-                setTimeout(autoStartCheck, 2000);
-            } else {
-                const reason = !brokerConnected ? "Corretora offline" : "Licença não carregada";
-                console.warn(`[AuraBot] ❌ Auto-início falhou após 60s: ${reason}`);
-                addLog(`⚠️ Auto-início cancelado: ${reason}.`, "warn");
-            }
+            // Tenta novamente a cada 1.5s enquanto as condições não forem ideais
+            setTimeout(auraEngineMonitor, 1500);
         }
+    } else {
+        // Vigilância de segurança (5s)
+        setTimeout(auraEngineMonitor, 5000);
     }
 })();
 </script>
