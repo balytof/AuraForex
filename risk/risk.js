@@ -273,46 +273,26 @@ class RiskManager {
     return moved;
   }
 
-  // ── PROFIT PROTECTION (LOCK) ─────────────────────────
-  checkProfitProtection(trade, currentPrice) {
-    log.info(`[CHECK] Monitorizando Profit Lock: ${trade.pair} | Preço: ${currentPrice}`);
-    const isJpy = trade.pair.includes("JPY");
-    const isXau = trade.pair.includes("XAU") || trade.pair.includes("GOLD");
-
-    const pipSize = isJpy ? 0.01 : isXau ? 0.1 : 0.0001;
-    
-    // 💰 Valor do pip dinâmico (Expert Logic)
-    let pipValue = 10; 
-    if (isJpy) pipValue = 7; // Aproximação para JPY
-    if (isXau) pipValue = 1; // Para XAU, 1 pip (0.1) = 1$ em 1.0 lote
-
-    // 💰 calcular lucro atual
-    const pnlPips = trade.direction === "BUY"
-      ? (currentPrice - trade.entry) / pipSize
-      : (trade.entry - currentPrice) / pipSize;
-
-    const currentProfit = pnlPips * pipValue * trade.lotSize;
-
+  // ── PROFIT PROTECTION (LOCK) ── Usando Lucro REAL do Broker
+  checkProfitProtection(trade, currentProfit) {
     // 🔼 atualizar pico
     if (currentProfit > (trade.peakProfit || 0)) {
       trade.peakProfit = currentProfit;
-      this._saveState(); // 💾 GRAVAR NO DISCO IMEDIATAMENTE
+      this._saveState(); // Salva o novo pico imediatamente
     }
 
-    // ⚙️ CONFIG
-    const minProfitToActivate = 3;     // Reduzido de 5 para 3
-    const drawdownPercent = 0.20;      // 20% de queda permitida
+    const minProfitToActivate = 3;   
+    const drawdown = 0.30; // 30% conforme plano profissional
 
     if (trade.peakProfit >= minProfitToActivate) {
-      const allowedDrop = trade.peakProfit * drawdownPercent;
-      const minAllowed = trade.peakProfit - allowedDrop;
-
-      log.info(`[PROFIT-LOCK] ${trade.pair} | Atual: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Min: $${minAllowed.toFixed(2)}`);
+      const minAllowed = trade.peakProfit * (1 - drawdown);
+      
+      console.log(`[PROFIT-LOCK] ${trade.pair} | Profit: ${currentProfit.toFixed(2)}$ | Pico: ${trade.peakProfit.toFixed(2)}$ | Min: ${minAllowed.toFixed(2)}$`);
 
       if (currentProfit <= minAllowed) {
         return {
           shouldClose: true,
-          reason: `PROFIT_LOCK (${currentProfit.toFixed(2)}$ < ${minAllowed.toFixed(2)}$)`
+          reason: `PROFIT_LOCK ${currentProfit.toFixed(2)}$ < ${minAllowed.toFixed(2)}$`
         };
       }
     }
@@ -325,29 +305,18 @@ class RiskManager {
    * Verifica se TP ou SL foi atingido para cada trade aberto.
    * Retorna lista de trades para fechar.
    */
-  checkOpenTrades(pair, currentPrice, atr) {
+  checkOpenTrades(pair, currentPrice, currentProfit, atr) {
     const toClose = [];
     
-    // AUDITORIA DE MEMÓRIA (Para debugar o F5)
-    if (this.openTrades.length > 0) {
-      log.info(`[AUDIT] Ordens em memória: ${this.openTrades.map(t => `${t.pair}(${t.direction})`).join(", ")}`);
-    } else {
-      log.warn(`[AUDIT] Nenhuma ordem em memória para monitorizar.`);
-    }
-
-    // Normalizar o par para comparação (remove _ e sufixos como 'w')
+    // Normalizar o par para comparação
     const normalize = (p) => p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().replace("W", "");
     const normalizedPair = normalize(pair);
 
     const tradesForThisPair = this.openTrades.filter(t => normalize(t.pair).includes(normalizedPair) || normalizedPair.includes(normalize(t.pair)));
 
-    if (this.openTrades.length > 0 && tradesForThisPair.length === 0) {
-      // log.debug(`Monitor: ${pair} ativo, mas não encontrou trades correspondentes em [${this.openTrades.map(t => t.pair).join(", ")}]`);
-    }
-
     for (const trade of tradesForThisPair) {
-      // 🔐 PROFIT PROTECTION
-      const protection = this.checkProfitProtection(trade, currentPrice);
+      // 🔐 PROFIT PROTECTION usando Lucro Real do Broker
+      const protection = this.checkProfitProtection(trade, currentProfit);
       if (protection.shouldClose) {
         toClose.push({
           trade,

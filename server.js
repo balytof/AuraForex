@@ -1510,16 +1510,17 @@ server.listen(PORT, () => {
 
         // 2. Para cada posição, verificar proteção
         for (const pos of positions) {
-          // Precisamos do preço atual do par
+          // Precisamos do preço atual do par para SL/TP internos
           const priceData = await broker.getPrice(pos.pair);
           const currentPrice = pos.direction === "BUY" ? priceData.bid : priceData.ask;
+          const currentProfit = pos.profit || 0; // 🔥 LUCRO REAL DO BROKER
 
           if (!currentPrice) continue;
 
           // Sincronizar trade na memória do RiskManager se não existir
           let internalTrade = risk.openTrades.find(t => t.brokerId === pos.id || t.id === pos.id);
           if (!internalTrade) {
-            console.log(`[MONITOR] Sincronizando ordem externa ${pos.pair} #${pos.id} para User ${userId}`);
+            console.log(`[MONITOR] Sincronizando ordem externa ${pos.pair} #${pos.id} (Profit: ${currentProfit}$)`);
             internalTrade = risk.registerTrade({
               pair: pos.pair,
               direction: pos.direction,
@@ -1530,13 +1531,14 @@ server.listen(PORT, () => {
             }, pos.lotSize, pos.id);
           }
 
-          // 3. Executar Verificação de Profit Lock
-          const protection = risk.checkProfitProtection(internalTrade, currentPrice);
-          if (protection.shouldClose) {
-            console.log(`[PROFIT-LOCK] 🚨 FECHANDO ORDEM: ${pos.pair} User: ${userId} Razão: ${protection.reason}`);
+          // 3. Executar Verificação de Profit Lock usando Lucro Real
+          const toClose = risk.checkOpenTrades(pos.pair, currentPrice, currentProfit, 0); // 0 = ATR (não usado no profit lock)
+          
+          for (const { trade, reason } of toClose) {
+            console.log(`[PROFIT-LOCK] 🚨 FECHANDO ORDEM: ${pos.pair} #${pos.id} | Lucro: ${currentProfit}$ | Razão: ${reason}`);
             const res = await broker.closePosition(pos.id);
             if (res.success) {
-              risk.closeTrade(internalTrade.id, currentPrice, protection.reason);
+              risk.closeTrade(trade.id, currentPrice, reason);
             }
           }
         }
