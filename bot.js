@@ -18,7 +18,8 @@ const log       = require("./utils/logger");
 const broker    = require("./data/broker");
 const { generateSignal } = require("./signals/signals");
 const { calcAll }        = require("./indicators/indicators");
-const risk               = require("./risk/risk");
+const RiskManager      = require("./risk/risk");
+const risk              = new RiskManager("server_bot"); // Instância única para o bot.js standalone
 const { executeSignal, exitTrade, updateStopLoss } = require("./execution/execution");
 const { analyzeBias }    = require("./ai/gemini");
 

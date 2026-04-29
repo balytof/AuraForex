@@ -17,7 +17,8 @@ const path = require("path");
 const cfg = config.risk;
 
 class RiskManager {
-  constructor() {
+  constructor(userId = "default") {
+    this.userId = userId;
     this.openTrades = [];     // trades atualmente abertos
     this.tradeHistory = [];     // todos os trades fechados
     this.balance = 0;
@@ -25,9 +26,17 @@ class RiskManager {
     this.dailyPnl = 0;
     this.dailyDate = null;
     this.circuitBreaker = false;  // true = bot parado por perda diária
-    this.historyFile = path.join(__dirname, "../logs/trade_history.json");
-    this.stateFile = path.join(__dirname, "../logs/bot_state.json");
-    log.info(`[RISK-INIT] Inicializando Gestor de Risco. State: ${this.stateFile}`);
+    
+    // Pasta de logs por utilizador
+    const logDir = path.join(__dirname, "../logs/users", userId);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    this.historyFile = path.join(logDir, "trade_history.json");
+    this.stateFile = path.join(logDir, "bot_state.json");
+    
+    log.info(`[RISK-INIT] [User: ${userId}] Inicializando Gestor de Risco.`);
     this._loadHistory();
     this._loadState();
   }
@@ -438,4 +447,4 @@ class RiskManager {
   }
 }
 
-module.exports = new RiskManager();
+module.exports = RiskManager;

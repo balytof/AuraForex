@@ -23,6 +23,7 @@ const { createBroker } = require("./apex_broker");
 
 const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
+const RiskManager = require("./risk/risk");
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Forçado para evitar conflito com processos fantasma na 3005
@@ -68,6 +69,7 @@ app.use("/api/", apiLimiter);
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
+const userRisks = new Map(); // Mapa de RiskManager por User ID
 
 function getBrokerAdapter(config) {
   return createBroker(config);
@@ -161,6 +163,13 @@ async function requireBrokerAuth(req, res, next) {
   }
   
   req.broker = activeBroker;
+  
+  // Garantir que existe um RiskManager para este user
+  if (!userRisks.has(req.user.id)) {
+    userRisks.set(req.user.id, new RiskManager(req.user.id));
+  }
+  req.risk = userRisks.get(req.user.id);
+  
   next();
 }
 
@@ -1469,6 +1478,58 @@ server.listen(PORT, () => {
   prisma.$connect()
     .then(() => console.log("[DIAGNOSTIC] ✅ Conexão Prisma OK"))
     .catch(err => console.error("[DIAGNOSTIC] ❌ Erro Prisma:", err.message));
+
+  // ── INICIAR MONITOR DE BACKGROUND (Profit Lock) ──
+  console.log("[DIAGNOSTIC] 🛡️ Iniciando Monitor de Background (Profit Lock)...");
+  setInterval(async () => {
+    for (const [userId, broker] of userBrokers.entries()) {
+      try {
+        if (!broker.connected) continue;
+
+        const risk = userRisks.get(userId) || new RiskManager(userId);
+        if (!userRisks.has(userId)) userRisks.set(userId, risk);
+
+        // 1. Obter posições atuais do broker
+        const positions = await broker.getOpenPositions();
+        if (!positions || positions.length === 0) continue;
+
+        // 2. Para cada posição, verificar proteção
+        for (const pos of positions) {
+          // Precisamos do preço atual do par
+          const priceData = await broker.getPrice(pos.pair);
+          const currentPrice = pos.direction === "BUY" ? priceData.bid : priceData.ask;
+
+          if (!currentPrice) continue;
+
+          // Sincronizar trade na memória do RiskManager se não existir
+          let internalTrade = risk.openTrades.find(t => t.brokerId === pos.id || t.id === pos.id);
+          if (!internalTrade) {
+            console.log(`[MONITOR] Sincronizando ordem externa ${pos.pair} #${pos.id} para User ${userId}`);
+            internalTrade = risk.registerTrade({
+              pair: pos.pair,
+              direction: pos.direction,
+              entry: pos.openPrice,
+              sl: pos.sl,
+              tp: pos.tp,
+              score: 100
+            }, pos.lotSize, pos.id);
+          }
+
+          // 3. Executar Verificação de Profit Lock
+          const protection = risk.checkProfitProtection(internalTrade, currentPrice);
+          if (protection.shouldClose) {
+            console.log(`[PROFIT-LOCK] 🚨 FECHANDO ORDEM: ${pos.pair} User: ${userId} Razão: ${protection.reason}`);
+            const res = await broker.closePosition(pos.id);
+            if (res.success) {
+              risk.closeTrade(internalTrade.id, currentPrice, protection.reason);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[MONITOR-ERROR] User ${userId}:`, e.message);
+      }
+    }
+  }, 30000); // Corre a cada 30 segundos
 });
 
 process.on('exit', (code) => {
