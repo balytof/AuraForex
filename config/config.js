@@ -90,6 +90,6 @@ module.exports = {
     intervalSeconds: 60,
     candleCount:     250,
     demoMode:        true,
-    logLevel:        "info",
+    logLevel:        "debug",
   },
 };

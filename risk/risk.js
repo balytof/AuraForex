@@ -265,6 +265,7 @@ class RiskManager {
 
   // ── PROFIT PROTECTION (LOCK) ─────────────────────────
   checkProfitProtection(trade, currentPrice) {
+    log.info(`[CHECK] Monitorizando Profit Lock: ${trade.pair} | Preço: ${currentPrice}`);
     const isJpy = trade.pair.includes("JPY");
     const isXau = trade.pair.includes("XAU") || trade.pair.includes("GOLD");
 
@@ -295,7 +296,7 @@ class RiskManager {
       const allowedDrop = trade.peakProfit * drawdownPercent;
       const minAllowed = trade.peakProfit - allowedDrop;
 
-      log.debug(`[PROFIT-LOCK] ${trade.pair} | Atual: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Min: $${minAllowed.toFixed(2)}`);
+      log.info(`[PROFIT-LOCK] ${trade.pair} | Atual: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Min: $${minAllowed.toFixed(2)}`);
 
       if (currentProfit <= minAllowed) {
         return {
