@@ -2920,6 +2920,10 @@ async function updateStats() {
       document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
 
       // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
+      if (tradeHistoryRaw.length === 0 && brokerConnected) {
+         loadHistory(); // Puxa histórico inicial
+      }
+
       if (tradeHistoryRaw.length > 0) {
         // Filtramos apenas os trades de HOJE para o "Sinais Hoje" ou deixamos cumulativo?
         // O utilizador quer que "Sinais Hoje" funcione.
