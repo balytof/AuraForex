@@ -8,12 +8,12 @@ const MetaApi = require('metaapi.cloud-sdk').default;
 
 // --- EXPERT UTILS ---
 const SYMBOL_MAP = {
-  "XAUUSD": ["GOLD", "XAUUSD", "XAUUSD.m", "XAUUSD.pro", "XAUUSD.ecn", "XAUUSD.raw", "XAUUSD.x", "GOLD.m", "GOLD.pro"],
-  "EURUSD": ["EURUSD", "EURUSD.m", "EURUSD.pro", "EURUSD.ecn", "EURUSD.raw", "EURUSD.x"],
-  "GBPUSD": ["GBPUSD", "GBPUSD.m", "GBPUSD.pro", "GBPUSD.ecn", "GBPUSD.raw", "GBPUSD.x"],
-  "USDJPY": ["USDJPY", "USDJPY.m", "USDJPY.pro", "USDJPY.ecn", "USDJPY.raw", "USDJPY.x"],
-  "GBPJPY": ["GBPJPY", "GBPJPY.m", "GBPJPY.pro", "GBPJPY.ecn", "GBPJPY.raw", "GBPJPY.x"],
-  "EURGBP": ["EURGBP", "EURGBP.m", "EURGBP.pro", "EURGBP.ecn", "EURGBP.raw", "EURGBP.x"]
+  "XAUUSD": ["GOLD", "XAUUSD", "XAUUSD.m", "XAUUSDm", "XAUUSD.pro", "XAUUSD.ecn", "XAUUSD.raw", "XAUUSD.x", "GOLD.m", "GOLD.pro"],
+  "EURUSD": ["EURUSD", "EURUSD.m", "EURUSDm", "EURUSD.pro", "EURUSD.ecn", "EURUSD.raw", "EURUSD.x"],
+  "GBPUSD": ["GBPUSD", "GBPUSD.m", "GBPUSDm", "GBPUSD.pro", "GBPUSD.ecn", "GBPUSD.raw", "GBPUSD.x"],
+  "USDJPY": ["USDJPY", "USDJPY.m", "USDJPYm", "USDJPY.pro", "USDJPY.ecn", "USDJPY.raw", "USDJPY.x"],
+  "GBPJPY": ["GBPJPY", "GBPJPY.m", "GBPJPYm", "GBPJPY.pro", "GBPJPY.ecn", "GBPJPY.raw", "GBPJPY.x"],
+  "EURGBP": ["EURGBP", "EURGBP.m", "EURGBPm", "EURGBP.pro", "EURGBP.ecn", "EURGBP.raw", "EURGBP.x"]
 };
 
 function normalizeToTick(price, tickSize = 0.00001) {
@@ -378,8 +378,20 @@ class MetaApiAdapter extends BrokerBase {
       const options = { comment: 'AURA FIX ' + signal.direction, magic: 202604 };
       
       // Normalizar SL/TP para o tick size do broker
-      const sl = normalizeToTick(signal.sl, tickSize);
-      const tp = normalizeToTick(signal.tp, tickSize);
+      let sl = normalizeToTick(signal.sl, tickSize);
+      let tp = normalizeToTick(signal.tp, tickSize);
+
+      // 🛡️ VIGIA DE ÚLTIMA INSTÂNCIA: Garante distância mínima contra o preço REAL (Tick)
+      // FBS/Exness são rápidos, o preço move-se. Re-calculamos se estiver perto demais.
+      const minDistance = (symbol.includes("XAU") || symbol.includes("GOLD")) ? 6.0 : (tickSize * 150); 
+      
+      if (signal.direction === 'BUY') {
+        if (sl > 0 && (entry - sl) < minDistance) sl = normalizeToTick(entry - minDistance, tickSize);
+        if (tp > 0 && (tp - entry) < minDistance) tp = normalizeToTick(entry + minDistance, tickSize);
+      } else {
+        if (sl > 0 && (sl - entry) < minDistance) sl = normalizeToTick(entry + minDistance, tickSize);
+        if (tp > 0 && (entry - tp) < minDistance) tp = normalizeToTick(entry - minDistance, tickSize);
+      }
 
       if (signal.direction === 'BUY') {
         result = await this.connection.createMarketBuyOrder(
