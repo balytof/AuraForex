@@ -2936,18 +2936,26 @@ async function updateStats() {
         const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
         
         // Sincronizar variáveis globais com o histórico para manter consistência
-        tradeCount = totalTradesHistorico;
-        wins = totalWins;
+        const totalFechados = tradeHistoryRaw.length;
+        const totalAbertos = positions.length;
+        
+        tradeCount = totalFechados + totalAbertos;
+        wins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
         
         // Sinais Hoje: Sinais detetados na sessão + trades já fechados hoje
         const sinaisReaisHoje = sigCount + tradesHoje.length;
         document.getElementById("statSig").textContent = sinaisReaisHoje;
       } else {
+        // Se não houver histórico, usamos apenas os dados da sessão
+        const totalAbertos = positions.length;
+        tradeCount = totalAbertos; 
         document.getElementById("statSig").textContent = sigCount;
       }
 
       document.getElementById("statTotal").textContent = tradeCount;
-      document.getElementById("statWr").textContent = tradeCount ? `${((wins/tradeCount)*100).toFixed(0)}%` : "N/A";
+      // Win Rate calculado apenas sobre trades FECHADOS para precisão
+      const fechadosCount = tradeHistoryRaw.length;
+      document.getElementById("statWr").textContent = fechadosCount ? `${((wins/fechadosCount)*100).toFixed(0)}%` : "N/A";
     } catch (e) {
       addLog(`⚠️ Erro ao atualizar dados: ${e.message}`, "warn");
     }
