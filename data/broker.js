@@ -91,5 +91,11 @@ module.exports = {
     if (b.modifySL) return await b.modifySL(brokerId, newSl);
     log.warn("modifySL não implementado para este broker.");
     return { success: false };
+  },
+  
+  getOpenPositions: async () => {
+    const b = getBroker();
+    if (!b.connected) await b.connect();
+    return await b.getOpenPositions();
   }
 };

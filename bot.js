@@ -63,13 +63,15 @@ async function runCycle() {
     return;
   }
 
-  // Atualiza saldo e passa para os pares
+  // Atualiza saldo e posições
   const account = await broker.getAccountInfo();
+  const positions = await broker.getOpenPositions();
+  
   if (account) {
     risk.setBalance(account.balance);
     
-    // Processa cada par em paralelo passando a conta atualizada
-    await Promise.allSettled(config.pairs.map(pair => processPair(pair, account)));
+    // Processa cada par em paralelo passando a conta e posições atuais
+    await Promise.allSettled(config.pairs.map(pair => processPair(pair, account, positions)));
   }
 
   // Stats a cada 10 ciclos
@@ -89,7 +91,7 @@ function scheduleNext() {
 // ══════════════════════════════════════════════
 //  PROCESSAR UM PAR
 // ══════════════════════════════════════════════
-async function processPair(pair, accountNow) {
+async function processPair(pair, accountNow, openPositions = []) {
   try {
     // 1. Dados de mercado (via broker universal)
     const marketData = await broker.getMarketData(pair);
@@ -102,8 +104,8 @@ async function processPair(pair, accountNow) {
     const ind    = calcAll(candles);
     const lastAtr = ind.last.atr;
 
-    // 2. Monitoriza trades abertos primeiro
-    await monitorOpenTrades(pair, currentPrice, lastAtr);
+    // 2. Monitoriza trades abertos primeiro (com lucro real)
+    await monitorOpenTrades(pair, currentPrice, lastAtr, openPositions);
 
     // 3. Bias da AI (com fallback de segurança)
     let aiResult = { bias: "neutral" };
@@ -184,8 +186,22 @@ async function processPair(pair, accountNow) {
 // ══════════════════════════════════════════════
 //  MONITORIZAR TRADES ABERTOS
 // ══════════════════════════════════════════════
-async function monitorOpenTrades(pair, currentPrice, atr) {
-  const toClose = risk.checkOpenTrades(pair, currentPrice, atr);
+async function monitorOpenTrades(pair, currentPrice, atr, brokerPositions = []) {
+  // Encontra o lucro real para as trades deste par
+  const pairPositions = brokerPositions.filter(p => p.pair.includes(pair) || pair.includes(p.pair));
+  
+  // Para cada trade aberta no nosso RiskManager, verifica se há lucro real correspondente
+  const toClose = [];
+  
+  for (const trade of risk.openTrades.filter(t => t.pair === pair)) {
+    const brokerPos = pairPositions.find(p => p.id === trade.brokerId || p.id === trade.id);
+    const currentProfit = brokerPos ? brokerPos.pnl : 0;
+    
+    const check = risk.checkOpenTrades(pair, currentPrice, currentProfit, atr);
+    if (check && check.length > 0) {
+      toClose.push(...check);
+    }
+  }
 
   for (const { trade, closePrice, reason } of toClose) {
     if (trade.brokerId && !config.bot.demoMode) {
