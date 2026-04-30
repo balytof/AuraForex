@@ -358,17 +358,7 @@ class MetaApiAdapter extends BrokerBase {
        if (symbol.includes("XAU") || symbol.includes("GOLD") || symbol.includes("BTC") || symbol.includes("ETH")) tickSize = 0.01;
        if (symbol.includes("US30") || symbol.includes("NAS100") || symbol.includes("DE40")) tickSize = 0.1;
 
-      // 💰 Calcular lote com a nova regra de segurança
-      const lot = this.calculateSafeLot(
-        account.balance,
-        account.freeMargin,
-        riskPercent,
-        entry,
-        signal.sl,
-        symbol
-      );
-
-      // 💰 Calcular lote com a nova regra de segurança profissional
+      // 💰 Calcular lote com a nova regra de segurança profissional (Expert Logic)
       const lot = this.calculateSafeLot(
         balance,
         account.freeMargin,
