@@ -3018,6 +3018,7 @@ async function botLoop(loopId) {
           }
 
           addLog(`🎯 SINAL PRO DETETADO: ${sig.direction} ${pair}`, "info");
+          sigCount++; // Incrementa contador de sinais
           
           const riskPercent = parseFloat(document.getElementById("riskSlider").value) || 1.0;
           const balance = brokerInfo ? (brokerInfo.balance || 10000) : 10000;
