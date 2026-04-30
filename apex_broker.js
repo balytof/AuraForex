@@ -404,10 +404,19 @@ class MetaApiAdapter extends BrokerBase {
 
     } catch (e) {
       const msg = e.message || String(e);
+      
+      // AUTO-CURA: Se o servidor der resposta inválida, força reconexão total
       if (msg.includes("Market is closed")) {
         console.warn(`[EXPERT-MA] ⚠️ Mercado fechado para ${signal.pair} — sinal ignorado.`);
         return { success: false, error: "Market is closed" };
       }
+      
+      if (msg.includes("Resposta inválida") || msg.includes("Invalid response") || msg.includes("not connected")) {
+        console.warn(`[EXPERT-MA] 🔄 Detetada instabilidade na corretora. Resetando conexão...`);
+        this.connected = false;
+        this.connection = null;
+      }
+
       console.error(`[EXPERT-MA] ❌ Erro de Execução: ${msg}`);
       return { success: false, error: msg };
     }
