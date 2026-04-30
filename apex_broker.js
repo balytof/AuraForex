@@ -183,12 +183,29 @@ class MetaApiAdapter extends BrokerBase {
 
   async connect() {
     try {
+      if (this.connected && this.connection) return { success: true };
+
+      console.log(`[EXPERT-MA] 🔌 Ligando à conta MetaApi ${this.accountId}...`);
       this.account = await this.api.metatraderAccountApi.getAccount(this.accountId);
-      if (this.account.state !== 'DEPLOYED') await this.account.deploy();
-      await this.account.waitConnected();
+      
+      if (this.account.state !== 'DEPLOYED') {
+        console.log(`[EXPERT-MA] 🚀 Fazendo deploy da conta...`);
+        await this.account.deploy();
+      }
+
+      // Timeout de segurança para não travar o bot se a conta estiver offline
+      console.log(`[EXPERT-MA] ⏳ Aguardando sincronização (Max 15s)...`);
+      await Promise.race([
+        this.account.waitConnected(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de conexão MetaApi")), 15000))
+      ]);
+
       this.connection = this.account.getRPCConnection();
       await this.connection.connect();
+      
       const info = await this.connection.getAccountInformation();
+      console.log(`[EXPERT-MA] ✅ Conectado! Saldo: ${info.balance} ${info.currency}`);
+      
       this.connected = true;
 
       // PRIORIDADE: Usa o ambiente que o utilizador selecionou no modal
@@ -300,7 +317,9 @@ class MetaApiAdapter extends BrokerBase {
         if (gold) return gold;
       }
 
-      return candidates[0] || upper;
+      console.error(`[EXPERT-MA] ❌ Falha crítica ao resolver símbolo: ${requestedSymbol}`);
+      console.log(`[EXPERT-MA] 🔍 Símbolos disponíveis no Broker:`, allSymbols.slice(0, 20).join(", ") + (allSymbols.length > 20 ? "..." : ""));
+      return requestedSymbol;
     } catch (e) {
       return requestedSymbol.toUpperCase();
     }

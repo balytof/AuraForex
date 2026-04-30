@@ -1232,23 +1232,28 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
       });
     }
 
+    console.log(`[BOT] Analisando ${pair} (HTF: ${htfBias})...`);
+    
     const { signal, reason } = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
     const analysis = analyzeAll(marketCandles);
 
-    res.json({
+    const responseData = {
       success: true,
       signal,
       reason,
       pair,
       analysis: {
-        obs: analysis.obs.slice(-5),
-        fvgs: analysis.fvgs.slice(-5),
-        structure: analysis.structure.slice(-3)
+        obs: (analysis.obs || []).slice(-5),
+        fvgs: (analysis.fvgs || []).slice(-5),
+        structure: (analysis.structure || []).slice(-3)
       }
-    });
+    };
+
+    res.json(responseData);
   } catch (err) {
-    console.error("Bot analysis error:", err);
-    res.status(500).json({ error: "Erro no motor de sinais profissional." });
+    const errorMsg = err.message || String(err);
+    console.error(`[BOT-ERROR] Falha na análise de ${req.body.pair}:`, errorMsg);
+    res.status(500).json({ success: false, error: "Erro no motor de sinais: " + errorMsg });
   }
 });
 
