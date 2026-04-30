@@ -2045,10 +2045,12 @@ async function apiFetch(endpoint, method = "GET", body = null) {
       return { success: false, error: "DEBUG: Sessão rejeitada pelo servidor (401)." };
     }
     
-    // Tenta ler JSON, se falhar, retorna erro amigável em vez de crashar
+    // Tenta ler JSON, se falhar, retorna erro amigável e loga a resposta bruta
+    const text = await res.text();
     try {
-      return await res.json();
+      return JSON.parse(text);
     } catch(e) {
+      remoteLog("RAW_RESPONSE_ERROR: " + text.substring(0, 200), "ERROR");
       return { success: false, error: "Resposta inválida do servidor." };
     }
   } catch (err) {
