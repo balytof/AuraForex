@@ -2850,7 +2850,7 @@ async function updateStats() {
          if (!pnlEl) {
             console.log(`[VIGILANTE] Detetada ordem órfã #${pos.id} em ${pos.symbol}. Recuperando controlo...`);
             const recoverySig = {
-                pair: pos.symbol,
+                pair: pos.pair,
                 direction: (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL',
                 entry: pos.openPrice || 0,
                 sl: pos.sl || 0,
