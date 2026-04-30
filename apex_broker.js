@@ -310,30 +310,26 @@ class MetaApiAdapter extends BrokerBase {
     const riskAmount = balance * (riskPercent / 100);
     const distance = Math.abs(entry - sl);
 
-    if (distance === 0) return 0.01;
+    if (distance <= 0) return 0.01;
 
-    // 💰 Detetar Contract Size (Expert Logic)
-    let contractSize = 100000; // Padrão Forex
+    // 🔥 cálculo realista (Forex padrão)
+    let lot = riskAmount / (distance * 100000);
+
+    // 🛡️ PROTEÇÃO FBS (Conservador)
     if (symbol.includes("XAU") || symbol.includes("GOLD")) {
-      contractSize = 100; // Padrão Ouro
-    } else if (symbol.includes("BTC") || symbol.includes("ETH")) {
-      contractSize = 1; // Padrão Crypto
+      lot = Math.min(lot, 0.02);
+    } else {
+      lot = Math.min(lot, 0.05);
     }
 
-    // 💰 lote baseado no risco
-    let lot = riskAmount / (distance * contractSize);
-
-    // 🔐 PROTEÇÃO DE MARGEM (CRÍTICO)
-    // Regra: Máximo de 1 lote para cada 500$ de margem livre (conservador)
-    const maxLotByMargin = freeMargin / 500;
-
+    // 🔒 Margem Real (Relação Segura 1:2000)
+    const maxLotByMargin = freeMargin / 2000;
     lot = Math.min(lot, maxLotByMargin);
 
-    // 🛡️ Limites Institucionais Adaptativos
-    if (symbol.includes("XAU") || symbol.includes("GOLD")) {
-      lot = Math.min(lot, 0.50); // Aumentado de 0.05 para 0.50 para contas Pro
-    } else {
-      lot = Math.min(lot, 2.00); // Aumentado de 0.10 para 2.00
+    // 🛡️ Bloqueio Rígido Final
+    if (lot > 0.05) {
+      console.warn("[EXPERT-MA] ⚠️ Lote alto demais, reduzido automaticamente para 0.01");
+      lot = 0.01;
     }
 
     return Math.max(0.01, Number(lot.toFixed(2)));
@@ -372,9 +368,18 @@ class MetaApiAdapter extends BrokerBase {
         symbol
       );
 
-      console.log("Balance:", account.balance);
-      console.log("FreeMargin:", account.freeMargin);
-      console.log("Lot:", lot);
+      // 💰 Calcular lote com a nova regra de segurança profissional
+      const lot = this.calculateSafeLot(
+        balance,
+        account.freeMargin,
+        riskPercent,
+        entry,
+        signal.sl,
+        symbol
+      );
+
+      console.log(`[EXPERT-MA] 📊 DEBUG: Balance=${balance} | FreeMargin=${account.freeMargin} | Lot=${lot}`);
+      console.log(`[EXPERT-MA] 📊 DEBUG: Entry=${entry} | SL=${signal.sl} | Pair=${symbol}`);
 
       console.log(`[EXPERT-MA] Executando ${signal.direction} em ${symbol} | Lote: ${lot}`);
 
