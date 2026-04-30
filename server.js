@@ -598,8 +598,14 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
  * Expande se necessário, nunca reduz.
  */
 function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10) {
+  // Ajuste profissional para Ouro: Stop Level costuma ser maior ($3-$5)
+  let effectiveMinDist = minDistPips;
+  if (pair.includes("XAU") || pair.includes("GOLD")) {
+      effectiveMinDist = 40; // 40 pips = $4.00 de distância mínima
+  }
+
   const pip = getPipValue(pair);
-  const minDist = pip * minDistPips;
+  const minDist = pip * effectiveMinDist;
 
   let finalSl = sl;
   let finalTp = tp;
@@ -676,8 +682,9 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     }
 
     // 3. Garantir distância mínima e normalização
-    sl = normPrice(sl, pair);
-    tp = normPrice(tp, pair);
+    const guarded = enforceMinStopDistance(sl, tp, entryPrice, direction, pair);
+    sl = guarded.sl;
+    tp = guarded.tp;
 
     // 3.5 Fallback final se ainda estiverem ausentes (segurança crítica)
     if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
