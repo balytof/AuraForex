@@ -1216,8 +1216,24 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
   
   try {
     let marketCandles = candles;
-    // Mock de velas se não houver conexão real ativa para testes
+    
+    // 🔍 EXPERT: Tentar buscar velas REAIS da corretora se não foram enviadas
     if (!marketCandles || marketCandles.length === 0) {
+      const broker = userBrokers.get(req.user.id);
+      if (broker && broker.connected) {
+        try {
+          console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name}...`);
+          marketCandles = await broker.getCandles(pair, "1m", 250);
+          console.log(`[BOT] ✅ ${marketCandles.length} velas obtidas.`);
+        } catch (e) {
+          console.warn(`[BOT] ⚠️ Falha ao buscar velas reais: ${e.message}`);
+        }
+      }
+    }
+
+    // Fallback para Mock apenas se tudo falhar (para não travar o painel)
+    if (!marketCandles || marketCandles.length === 0) {
+      console.log(`[BOT] 🛠️ Usando MOCK de velas para ${pair} (Corretora Offline)`);
       const isBullish = Math.random() > 0.5;
       marketCandles = Array.from({ length: 250 }, (_, i) => {
         const trend = isBullish ? i * 0.00001 : -i * 0.00001;
