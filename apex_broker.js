@@ -412,6 +412,18 @@ class MetaApiAdapter extends BrokerBase {
         if (tp > 0 && (entry - tp) < minDistance) tp = normalizeToTick(entry - minDistance, tickSize);
       }
 
+      // ⚠️ SANITY CHECK: Se o SL/TP estiver a mais de 50% do preço, algo está errado com a escala (ex: GOLD vs #GOLD)
+      const maxDist = entry * 0.5;
+      if (sl > 0 && Math.abs(entry - sl) > maxDist) {
+        console.warn(`[EXPERT-MA] 🚨 SL fora de escala (${sl}). Corrigindo para MinDist.`);
+        sl = signal.direction === 'BUY' ? normalizeToTick(entry - minDistance, tickSize) : normalizeToTick(entry + minDistance, tickSize);
+      }
+      if (tp > 0 && Math.abs(entry - tp) > maxDist) {
+        tp = signal.direction === 'BUY' ? normalizeToTick(entry + minDistance, tickSize) : normalizeToTick(entry - minDistance, tickSize);
+      }
+
+      console.log(`[EXPERT-MA] 🛡️ Ordem Final para ${symbol}: Entry=${entry}, SL=${sl}, TP=${tp} (MinDist=${minDistance})`);
+
       if (signal.direction === 'BUY') {
         result = await this.connection.createMarketBuyOrder(
           symbol,

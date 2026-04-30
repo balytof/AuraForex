@@ -620,6 +620,16 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
     if (entry - finalTp < minDist) finalTp = normPrice(entry - minDist, pair);
   }
 
+  // ⚠️ SANITY CHECK: Se a distância for maior que 50% do preço, há erro de escala
+  const maxAllowedDist = entry * 0.5;
+  if (Math.abs(entry - finalSl) > maxAllowedDist) {
+      console.warn(`[SANITY] SL muito longe (${finalSl}). Ajustando para escala local.`);
+      finalSl = direction === "BUY" ? normPrice(entry - minDist, pair) : normPrice(entry + minDist, pair);
+  }
+  if (Math.abs(finalTp - entry) > maxAllowedDist) {
+      finalTp = direction === "BUY" ? normPrice(entry + minDist, pair) : normPrice(entry - minDist, pair);
+  }
+
   return { sl: finalSl, tp: finalTp };
 }
 
@@ -664,7 +674,8 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
         const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
         sl = dyn.sl;
         tp = dyn.tp;
-        console.log(`[ORDER] ATR Dinâmico aplicado: SL=${sl} TP=${tp}`);
+        const pip = getPipValue(pair);
+        console.log(`[ORDER] ATR Dinâmico: Pip=${pip}, Dist=${(sl-entryPrice).toFixed(4)}, SL=${sl} TP=${tp}`);
       } catch (e) {
         console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
