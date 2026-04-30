@@ -573,10 +573,12 @@ async function computeDynamicSlTp(broker, pair, direction, entry) {
   try {
     const pip = getPipValue(pair);
     
-    // ESTRATÉGIA SMC PRO: 15 pips + 3 pips buffer = 18 pips
-    const slPips = 18; 
+    // ESTRATÉGIA SMC PRO: 18 pips para Forex, 60 pips para Gold (Segurança)
+    let slPips = 18; 
+    if (pair.includes("XAU") || pair.includes("GOLD")) slPips = 60;
+
     const slDist = pip * slPips;
-    const tpDist = slDist * 1.5; // Reduzido de 2.0 para 1.5 para maior precisão (Feedback do User)
+    const tpDist = slDist * 1.5; 
     
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
@@ -601,7 +603,7 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   // Ajuste profissional para Ouro: Stop Level costuma ser maior ($3-$5)
   let effectiveMinDist = minDistPips;
   if (pair.includes("XAU") || pair.includes("GOLD")) {
-      effectiveMinDist = 40; // 40 pips = $4.00 de distância mínima
+      effectiveMinDist = 60; // 60 pips = $6.00 de distância mínima (Segurança total)
   }
 
   const pip = getPipValue(pair);
