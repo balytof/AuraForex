@@ -2919,18 +2919,35 @@ async function updateStats() {
       document.getElementById("statOpen").textContent = `${positions.length} / ${maxTradesLimit}`;
       document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
 
-      // Auto-load history on first active fetch if empty
-      if (tradeHistoryRaw.length === 0) {
-        setTimeout(loadHistory, 1000);
+      // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
+      if (tradeHistoryRaw.length > 0) {
+        // Filtramos apenas os trades de HOJE para o "Sinais Hoje" ou deixamos cumulativo?
+        // O utilizador quer que "Sinais Hoje" funcione.
+        const hoje = new Date().toDateString();
+        const tradesHoje = tradeHistoryRaw.filter(t => new Date(t.closeTime).toDateString() === hoje);
+        
+        // Se sigCount for 0 (ao recarregar), podemos estimar pelos trades de hoje + sinais da sessão
+        // Mas o mais preciso é contar os trades fechados hoje + abertos
+        const totalTradesHistorico = tradeHistoryRaw.length;
+        const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
+        
+        // Sincronizar variáveis globais com o histórico para manter consistência
+        tradeCount = totalTradesHistorico;
+        wins = totalWins;
+        
+        // Sinais Hoje: Sinais detetados na sessão + trades já fechados hoje
+        const sinaisReaisHoje = sigCount + tradesHoje.length;
+        document.getElementById("statSig").textContent = sinaisReaisHoje;
+      } else {
+        document.getElementById("statSig").textContent = sigCount;
       }
+
+      document.getElementById("statTotal").textContent = tradeCount;
+      document.getElementById("statWr").textContent = tradeCount ? `${((wins/tradeCount)*100).toFixed(0)}%` : "N/A";
     } catch (e) {
       addLog(`⚠️ Erro ao atualizar dados: ${e.message}`, "warn");
     }
   }
-
-  document.getElementById("statSig").textContent = sigCount;
-  document.getElementById("statTotal").textContent = tradeCount;
-  document.getElementById("statWr").textContent = tradeCount ? `${((wins/tradeCount)*100).toFixed(0)}%` : "N/A";
 }
 
 function updateSessionStatus() {
