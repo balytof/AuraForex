@@ -240,18 +240,19 @@ class MetaApiAdapter extends BrokerBase {
       const allSymbols = await this.connection.getSymbols();
       const upper = requestedSymbol.toUpperCase();
 
-      // Prioridade FBS e variantes comuns
+      // Prioridade de busca: Direta -> Prefixo -> Variantes MetaTrader
+      const found = allSymbols.find(s => 
+        s === upper || 
+        s.startsWith(upper) ||
+        (upper === "XAUUSD" && (s.includes("GOLD") || s.includes("XAU")))
+      );
+
+      if (found) {
+        console.log(`[EXPERT-MA] ✅ Símbolo Resolvido: ${found}`);
+        return found;
+      }
+
       const fbsVariants = [
-        upper, 
-        upper + ".m", 
-        upper + ".pro", 
-        upper + ".ecn", 
-        upper + ".raw", 
-        upper + ".x",
-        upper + ".s",
-        upper + "m",
-        upper + "_i"
-      ];
 
       // 1. Tentar variantes diretas primeiro
       for (const variant of fbsVariants) {
@@ -341,11 +342,15 @@ class MetaApiAdapter extends BrokerBase {
 
       console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
 
-      // 📊 Preço em tempo real e Informações do Símbolo
-      const tick = await this.connection.getSymbolPrice(symbol);
-      const symbolInfo = await this.connection.getSymbol(symbol);
-      const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
-      const tickSize = symbolInfo.tickSize || 0.00001;
+       // 📊 Preço em tempo real
+       const tick = await this.connection.getSymbolPrice(symbol);
+       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
+       
+       // EXPERT FIX: Inferir TickSize (MetaApi getSymbol não existe)
+       let tickSize = 0.00001; 
+       if (symbol.includes("JPY") || symbol.includes("HUF")) tickSize = 0.001;
+       if (symbol.includes("XAU") || symbol.includes("GOLD") || symbol.includes("BTC") || symbol.includes("ETH")) tickSize = 0.01;
+       if (symbol.includes("US30") || symbol.includes("NAS100") || symbol.includes("DE40")) tickSize = 0.1;
 
       // 💰 Calcular lote com a nova regra de segurança
       const lot = this.calculateSafeLot(
