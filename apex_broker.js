@@ -403,8 +403,13 @@ class MetaApiAdapter extends BrokerBase {
       return { success: true, orderId: result.orderId || result.stringCode, fillPrice: entry, appliedSl: sl, appliedTp: tp };
 
     } catch (e) {
-      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${e.message}`);
-      return { success: false, error: e.message };
+      const msg = e.message || String(e);
+      if (msg.includes("Market is closed")) {
+        console.warn(`[EXPERT-MA] ⚠️ Mercado fechado para ${signal.pair} — sinal ignorado.`);
+        return { success: false, error: "Market is closed" };
+      }
+      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${msg}`);
+      return { success: false, error: msg };
     }
   }
 
