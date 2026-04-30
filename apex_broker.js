@@ -253,6 +253,16 @@ class MetaApiAdapter extends BrokerBase {
       }
 
       const fbsVariants = [
+        upper, 
+        upper + ".m", 
+        upper + ".pro", 
+        upper + ".ecn", 
+        upper + ".raw", 
+        upper + ".x",
+        upper + ".s",
+        upper + "m",
+        upper + "_i"
+      ];
 
       // 1. Tentar variantes diretas primeiro
       for (const variant of fbsVariants) {
