@@ -1835,73 +1835,8 @@ async function getBrokerStatus() {
 }
 
 // ═══════════════════════════════════════════════
-//  MODAL — --- (Lista Expandida)
+//  LEGACY BROKER MODAL LOGIC REMOVED
 // ═══════════════════════════════════════════════
-
-  // ── Legacy Broker Setup logic removed ──
-      identifier: document.getElementById("credEmail")?.value || "",
-      password: document.getElementById("credPassword")?.value || "",
-      environment: selectedEnv,
-    };
-  } else if (selectedBrokerType === "metaapi") {
-    credentials = {
-      metaApiToken: document.getElementById("credMetaToken")?.value || "",
-      accountId: document.getElementById("credMtAccountId")?.value || "",
-      environment: selectedEnv,
-    };
-  }
-
-  try {
-    const result = await SetupToBroker(selectedBrokerType, credentials);
-
-    document.getElementById("SetupingState").style.display = "none";
-    document.getElementById("SetupResult").style.display = "block";
-
-    if (result.success) {
-      brokerSetuped = true;
-      brokerInfo = result.accountInfo;
-
-      document.getElementById("SetupResult").innerHTML = `
-        <div class="result-icon">✅</div>
-        <div class="result-title">Conectado com Sucesso!</div>
-        <div class="result-balance">${formatCurrency(brokerInfo ? brokerInfo.balance : 0, brokerInfo ? brokerInfo.currency : 'USD')}</div>
-        <div class="result-detail">
-          ${brokerInfo ? `${brokerInfo.broker} · ${brokerInfo.accountType}` : ''}
-          <br>Conta: ${brokerInfo ? brokerInfo.accountId : ''}
-          <br>Moeda: ${brokerInfo ? brokerInfo.currency : ''}
-          ${brokerInfo && brokerInfo.leverage ? `<br>Alavancagem: 1:${brokerInfo.leverage}` : ''}
-        </div>
-      `;
-
-      updateBrokerUI();
-
-      // Auto-close after 2s
-      setTimeout(() => closeSetupModal(), 2000);
-    } else {
-      document.getElementById("SetupResult").innerHTML = `
-        <div class="result-icon">❌</div>
-        <div class="result-title">Falha na Conexão</div>
-        <div class="result-detail" style="color:var(--bear);">${result.error || "Erro desconhecido"}</div>
-      `;
-
-      // Show footer to go back
-      document.getElementById("modalFooter").style.display = "flex";
-      document.getElementById("modalBackBtn").style.display = "block";
-      document.getElementById("modalNextBtn").style.display = "none";
-    }
-  } catch (e) {
-    document.getElementById("SetupingState").style.display = "none";
-    document.getElementById("SetupResult").style.display = "block";
-    document.getElementById("SetupResult").innerHTML = `
-      <div class="result-icon">❌</div>
-      <div class="result-title">Erro de Conexão</div>
-      <div class="result-detail" style="color:var(--bear);">${e.message}</div>
-    `;
-    document.getElementById("modalFooter").style.display = "flex";
-    document.getElementById("modalBackBtn").style.display = "block";
-    document.getElementById("modalNextBtn").style.display = "none";
-  }
-}
 
 // ─── HISTORY LOGIC ─────────────────────────────
 let tradeHistoryRaw = [];
