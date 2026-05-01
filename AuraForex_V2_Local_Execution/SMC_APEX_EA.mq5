@@ -204,9 +204,9 @@ string SendPost(string url, string payload)
 
 string SendGet(string url)
 {
-   uchar result[];
+   uchar result[], dummy[];
    string result_headers;
-   int res = WebRequest("GET", url, NULL, 5000, NULL, result, result_headers);
+   int res = WebRequest("GET", url, "", 5000, dummy, result, result_headers);
    if(res == -1) return "Error";
    return CharArrayToString(result);
 }
