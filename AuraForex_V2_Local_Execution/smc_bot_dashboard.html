@@ -632,95 +632,6 @@
   .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; }
 </style>
 
-<!-- MODAL: SETUP EA -->
-<div id="setupModal" class="modal-overlay">
-  <div class="modal" style="width: 850px;">
-    <div class="modal-header">
-      <h2><i class="fas fa-robot"></i> Guia de Instalação SMC APEX EA</h2>
-      <button class="modal-close" onclick="closeSetupModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="download-area">
-        <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v1.0 Profissional - Compilada para MetaTrader 5</p>
-        <a href="/SMC_APEX_EA.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
-          <i class="fas fa-file-download"></i> DOWNLOAD SMC_APEX_EA.ex5
-        </a>
-      </div>
-
-      <div class="setup-grid">
-        <!-- Passo 1 -->
-        <div class="setup-step">
-          <h3><div class="step-number">1</div> Copiar o EA para o MetaTrader 5</h3>
-          <p style="font-size: 0.8rem; line-height: 1.5;">
-            1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
-            2. Navegue até: <code>MQL5 → Experts</code><br>
-            3. Cole o ficheiro <code>SMC_APEX_EA.ex5</code> para esta pasta<br>
-            4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
-          </p>
-        </div>
-
-        <!-- Passo 2 -->
-        <div class="setup-step">
-          <h3><div class="step-number">2</div> Autorizar WebRequest (OBRIGATÓRIO)</h3>
-          <p style="font-size: 0.8rem; line-height: 1.5;">
-            1. No MT5: <b>Ferramentas → Opções → Especialistas</b><br>
-            2. Marque: ☑ "Permitir WebRequest para os seguintes URLs"<br>
-            3. Clique no "+" e adicione o endereço do nosso servidor:
-          </p>
-          <div class="code-block" style="margin-top: 10px;">
-            <span id="apiUrlDisplay">https://yourdomain.com</span>
-            <button class="copy-btn" onclick="copyText(document.getElementById('apiUrlDisplay').textContent)">Copiar</button>
-          </div>
-          <div class="alert-box warn">
-            <i class="fas fa-exclamation-triangle"></i>
-            <span>⚠️ Sem este passo, o EA não consegue validar a licença e não arrancará.</span>
-          </div>
-        </div>
-
-        <!-- Passo 3 & 4 -->
-        <div class="setup-step">
-          <h3><div class="step-number">3</div> Ativar e Aplicar</h3>
-          <p style="font-size: 0.8rem; line-height: 1.5;">
-            1. Certifique-se que o botão <b>"Algotrading"</b> no topo do MT5 está <b>VERDE</b>.<br>
-            2. Abra um gráfico (ex: EURUSD H1) e arraste o <b>SMC_APEX_EA</b> para dentro dele.<br>
-            3. Na janela que surge, vá ao separador <b>"Inputs"</b>.
-          </p>
-        </div>
-
-        <!-- Passo 5 -->
-        <div class="setup-step">
-          <h3><div class="step-number">4</div> Configurar os Inputs</h3>
-          <table class="guide-table">
-            <thead>
-              <tr><th>Input</th><th>Valor</th><th>Descrição</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>LICENSE_KEY</td><td><b style="color:var(--accent)" id="eaLicenseKey">...</b></td><td>Sua chave pessoal</td></tr>
-              <tr><td>API_URL</td><td id="eaApiUrl">...</td><td>Endereço do servidor</td></tr>
-              <tr><td>RiskPercent</td><td>1.0</td><td>% do saldo por trade</td></tr>
-              <tr><td>TP_RR</td><td>2.0</td><td>Take Profit = 2x o SL</td></tr>
-            </tbody>
-          </table>
-          <div class="alert-box info">
-            <i class="fas fa-info-circle"></i>
-            <span>Dica: Use <b>LondonKZ</b> e <b>NewYorkKZ</b> como 'true' para operar apenas nas melhores sessões.</span>
-          </div>
-        </div>
-
-        <!-- Verificações -->
-        <div class="setup-step" style="border-color: rgba(0,230,118,0.3);">
-          <h3><i class="fas fa-check-double"></i> Verificações de Segurança</h3>
-          <p style="font-size: 0.75rem; color: var(--muted);">O EA verifica automaticamente a cada hora a validade da licença e a conta MT vinculada.</p>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeSetupModal()">Fechar Guia</button>
-      <button class="btn btn-primary" onclick="window.print()">Imprimir Guia</button>
-    </div>
-  </div>
-</div>
 </head>
 <body>
 <div id="licenseAlert" class="license-alert-bar">
@@ -1008,71 +919,10 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     MODAL — Comprar Licença
-     ═══════════════════════════════════════════ -->
-<div class="modal-overlay" id="buyModal">
-  <div class="modal" style="width:550px;">
-    <div class="modal-header">
-      <h2>💎 Planos de Licença</h2>
-      <button class="modal-close" onclick="closeBuyModal()">✕</button>
+      </div>
     </div>
-    <div class="modal-body">
-      
-      <!-- Passo 1: Seleção -->
-      <div id="buyStep1" class="buy-step active">
-        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:20px;">Escolha o plano ideal para sua conta:</p>
-        <div id="plansContainer" style="display:grid;gap:12px;margin-bottom:20px;">
-          <!-- Carregado via API -->
-          <div style="text-align:center;padding:20px;">A carregar planos...</div>
-        </div>
-      </div>
-
-      <!-- Passo 2: Pagamento -->
-      <div id="buyStep2" class="buy-step" style="display:none;">
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-size:0.85rem;color:var(--muted);">Você selecionou o plano:</div>
-          <div id="selectedPlanName" style="font-size:1.2rem;font-weight:800;color:var(--accent);">—</div>
-          <div id="selectedPlanPrice" style="font-size:1.5rem;font-weight:800;margin-top:5px;">—</div>
-        </div>
-
-        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
-          <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
-          <div id="walletsContainer" style="display:grid;gap:10px;">
-            <!-- Carregado via API -->
-          </div>
-        </div>
-
-        <p style="font-size:0.75rem;color:var(--muted);text-align:center;">Após realizar a transferência, clique no botão abaixo para inserir o comprovante (Hash).</p>
-      </div>
-
-      <!-- Passo 3: Inserir Hash -->
-      <div id="buyStep3" class="buy-step" style="display:none;">
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-size:0.85rem;color:var(--muted);">Quase lá!</div>
-          <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;">Insira o <b>ID da Transação (Hash/TxID)</b> para que possamos validar o seu pagamento mais rapidamente.</p>
-        </div>
-
-        <div class="form-group" style="margin-bottom:20px;">
-          <label class="form-label">Hash da Transação</label>
-          <input type="text" id="transactionHash" class="form-input" placeholder="Cole aqui o hash ou ID da operação">
-        </div>
-      </div>
-
-      <!-- Passo 4: Sucesso -->
-      <div id="buyStep4" class="buy-step" style="display:none;text-align:center;padding:20px;">
-        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
-        <h3 style="margin-bottom:10px;">Solicitação Enviada!</h3>
-        <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">
-          O administrador foi notificado. Assim que o pagamento for confirmado, seu acesso será liberado automaticamente.
-        </p>
-      </div>
-
-    </div>
-    <div class="modal-footer" id="buyModalFooter">
-      <button class="btn btn-secondary" id="buyBackBtn" onclick="buyBack()" style="display:none;">Voltar</button>
-      <button class="btn btn-primary" id="buyConfirmBtn" onclick="goToHashStep()" style="display:none;">Já Realizei o Pagamento</button>
-      <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
+  </div>
+</div>
     </div>
   </div>
 </div>
@@ -3385,5 +3235,128 @@ setInterval(() => {
     if (brokerSetuped) updateStats();
 }, 5000);
 </script>
+<!-- MODAIS MOVIDOS PARA O FIM DO BODY -->
+<div id="setupModal" class="modal-overlay">
+  <div class="modal" style="width: 850px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-robot"></i> Guia de Instalação SMC APEX EA</h2>
+      <button class="modal-close" onclick="closeSetupModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="download-area">
+        <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v1.0 Profissional - Compilada para MetaTrader 5</p>
+        <a href="/SMC_APEX_EA.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+          <i class="fas fa-file-download"></i> DOWNLOAD SMC_APEX_EA.ex5
+        </a>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-step">
+          <h3><div class="step-number">1</div> Copiar o EA para o MetaTrader 5</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
+            2. Navegue até: <code>MQL5 → Experts</code><br>
+            3. Cole o ficheiro <code>SMC_APEX_EA.ex5</code> para esta pasta<br>
+            4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
+          </p>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">2</div> Autorizar WebRequest (OBRIGATÓRIO)</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5: <b>Ferramentas → Opções → Especialistas</b><br>
+            2. Marque: ☑ "Permitir WebRequest para os seguintes URLs"<br>
+            3. Clique no "+" e adicione o endereço do nosso servidor:
+          </p>
+          <div class="code-block" style="margin-top: 10px;">
+            <span id="apiUrlDisplay">...</span>
+            <button class="copy-btn" onclick="copyText(document.getElementById('apiUrlDisplay').textContent)">Copiar</button>
+          </div>
+          <div class="alert-box warn">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>⚠️ Sem este passo, o EA não consegue validar a licença e não arrancará.</span>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">3</div> Ativar e Aplicar</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. Certifique-se que o botão <b>"Algotrading"</b> no topo do MT5 está <b>VERDE</b>.<br>
+            2. Abra um gráfico (ex: EURUSD H1) e arraste o <b>SMC_APEX_EA</b> para dentro dele.<br>
+            3. Na janela que surge, vá ao separador <b>"Inputs"</b>.
+          </p>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">4</div> Configurar os Inputs</h3>
+          <table class="guide-table">
+            <thead>
+              <tr><th>Input</th><th>Valor</th><th>Descrição</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>LICENSE_KEY</td><td><b style="color:var(--accent)" id="eaLicenseKey">...</b></td><td>Sua chave pessoal</td></tr>
+              <tr><td>API_URL</td><td id="eaApiUrl">...</td><td>Endereço do servidor</td></tr>
+              <tr><td>RiskPercent</td><td>1.0</td><td>% do saldo por trade</td></tr>
+              <tr><td>TP_RR</td><td>2.0</td><td>Take Profit = 2x o SL</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSetupModal()">Fechar Guia</button>
+      <button class="btn btn-primary" onclick="window.print()">Imprimir Guia</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="buyModal">
+  <div class="modal" style="width:550px;">
+    <div class="modal-header">
+      <h2>💎 Planos de Licença</h2>
+      <button class="modal-close" onclick="closeBuyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="buyStep1" class="buy-step active">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:20px;">Escolha o plano ideal para sua conta:</p>
+        <div id="plansContainer" style="display:grid;gap:12px;margin-bottom:20px;">
+          <div style="text-align:center;padding:20px;">A carregar planos...</div>
+        </div>
+      </div>
+
+      <div id="buyStep2" class="buy-step" style="display:none;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:0.85rem;color:var(--muted);">Você selecionou o plano:</div>
+          <div id="selectedPlanName" style="font-size:1.2rem;font-weight:800;color:var(--accent);">—</div>
+          <div id="selectedPlanPrice" style="font-size:1.5rem;font-weight:800;margin-top:5px;">—</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+          <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
+          <div id="walletsContainer" style="display:grid;gap:10px;"></div>
+        </div>
+      </div>
+
+      <div id="buyStep3" class="buy-step" style="display:none;">
+        <div class="form-group" style="margin-bottom:20px;">
+          <label class="form-label">Hash da Transação</label>
+          <input type="text" id="transactionHash" class="form-input" placeholder="Cole aqui o hash ou ID da operação">
+        </div>
+      </div>
+
+      <div id="buyStep4" class="buy-step" style="display:none;text-align:center;padding:20px;">
+        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
+        <h3>Solicitação Enviada!</h3>
+        <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">O administrador foi notificado. Assim que o pagamento for confirmado, seu acesso será liberado.</p>
+      </div>
+    </div>
+    <div class="modal-footer" id="buyModalFooter" style="display:none;">
+      <button class="btn btn-secondary" id="buyBackBtn" onclick="buyBack()" style="display:none;">Voltar</button>
+      <button class="btn btn-primary" id="buyConfirmBtn" onclick="goToHashStep()" style="display:none;">Já Realizei o Pagamento</button>
+      <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
