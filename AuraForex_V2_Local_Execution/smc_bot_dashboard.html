@@ -1800,12 +1800,12 @@ async function apiFetch(endpoint, method = "GET", body = null) {
 
 async function ConnectToBroker(brokerType, credentials) {
   const remember = document.getElementById("rememberCredentials").checked;
-  return apiFetch("/api/broker/Setup", "POST", { brokerType, credentials, remember });
+  return apiFetch("/api/broker/connect", "POST", { brokerType, credentials, remember });
 }
 
 async function disconnectBroker() {
   // Importante: Passamos forgetDb: false para NÃO apagar as credenciais da BD do servidor.
-  // Assim o auto-Setup funcionará no próximo login.
+  // Assim o auto-connect funcionará no próximo login.
   return apiFetch("/api/broker/disconnect", "POST", { forgetDb: false });
 }
 
@@ -1925,7 +1925,7 @@ function renderHistory() {
 // Inicializar ao conectar
 // (chamado de modais ou updates)
 
-// ─── DISSetup ───────────────────────────────
+// ─── DISCONNECT ───────────────────────────────
 async function doDisconnect() {
   const ConnectBtn = document.getElementById("ConnectBtn");
   ConnectBtn.disabled = true;
@@ -1943,7 +1943,7 @@ async function doDisconnect() {
   try {
     await disconnectBroker();
   } catch(e) {
-    console.warn("DisSetup API error (ignored):", e.message);
+    console.warn("Disconnect API error (ignored):", e.message);
   } finally {
     clearTimeout(safetyTimer);
   }
@@ -1982,7 +1982,7 @@ async function updateBrokerUI() {
   const ConnectBtn = document.getElementById("ConnectBtn");
 
   if (brokerConnected && brokerInfo) {
-    badge.className = "broker-badge Setuped";
+    badge.className = "broker-badge connected";
     badge.querySelector(".dot").className = "dot active";
 
     const typeBadge = brokerInfo.accountType === "LIVE"
@@ -2018,7 +2018,7 @@ async function updateBrokerUI() {
     statusText.textContent = "Sem MetaTrader 5";
     mainBtn.disabled = true;
     ConnectBtn.textContent = "🔗 ---";
-    ConnectBtn.className = "btn btn-Setup";
+    ConnectBtn.className = "btn btn-Connect";
     ConnectBtn.onclick = openSetupModal;
 
     document.getElementById("statBalance").textContent = "—";
