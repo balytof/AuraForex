@@ -2576,7 +2576,7 @@ function openSetupModal() {
   }
   
   // Atualizar dados dinâmicos no modal
-  document.getElementById("eaLicenseKey").textContent = userLicense.key || "CHAVE-NÃO-ENCONTRADA";
+  document.getElementById("eaLicenseKey").textContent = userLicense.id || "CHAVE-NÃO-ENCONTRADA";
   const currentUrl = window.location.origin;
   document.getElementById("apiUrlDisplay").textContent = currentUrl;
   document.getElementById("eaApiUrl").textContent = currentUrl;
