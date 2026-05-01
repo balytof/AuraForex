@@ -28,10 +28,30 @@ console.log(`[INIT] ROOT directory: ${ROOT}`);
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
 
-// ── GLOBAL REQUEST LOGGER (Diagnóstico) ───────────────────────────
 app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.url} - ${new Date().toISOString()}`);
   next();
+});
+
+// 🚀 PRIORIDADE MÁXIMA: Download do Robô
+app.get("/SMC_APEX_EA.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
+  console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
+  
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("[DOWNLOAD-ERROR]", err);
+      } else {
+        console.log("[DOWNLOAD-SUCCESS] Ficheiro enviado com sucesso.");
+      }
+    });
+  } else {
+    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado no disco!");
+    res.status(404).send("Ficheiro do Robô não encontrado no servidor.");
+  }
 });
 
 // ── Security Middlewares ─────────────────────────────────────────
@@ -48,16 +68,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Rota explícita para o download do EA com cabeçalhos corretos
-app.get("/SMC_APEX_EA.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, 'SMC_APEX_EA.ex5');
-  } else {
-    res.status(404).send("EA file not found");
-  }
-});
 
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.post("/api/debug/log", (req, res) => {
