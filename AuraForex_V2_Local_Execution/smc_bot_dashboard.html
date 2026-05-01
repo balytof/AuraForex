@@ -1838,465 +1838,7 @@ async function getBrokerStatus() {
 //  MODAL — --- (Lista Expandida)
 // ═══════════════════════════════════════════════
 
-function buildBrokerGrid() {
-  // Categories
-  const catEl = document.getElementById("brokerCategories");
-  catEl.innerHTML = BROKER_CATEGORIES.map(c =>
-    `<div class="cat-btn${c.id === activeBrokerCategory ? ' active' : ''}" onclick="filterCategory('${c.id}')">${c.icon} ${c.label}</div>`
-  ).join("");
-
-  // Grid
-  const grid = document.getElementById("brokerGrid");
-  grid.innerHTML = BROKERS.map(b => {
-    const platClass = b.platform === "API" ? "api" : b.platform.includes("cTrader") ? "ct" : "mt";
-    return `<div class="broker-card" data-id="${b.id}" data-cat="${b.cat}" data-name="${b.name.toLowerCase()}" onclick="selectBrokerCard('${b.id}')">
-      <div class="broker-logo">${b.icon}</div>
-      <div class="broker-card-info">
-        <h4>${b.region} ${b.name}</h4>
-        <p>${b.desc}</p>
-      </div>
-      <span class="platform-badge ${platClass}">${b.platform}</span>
-    </div>`;
-  }).join("");
-
-  updateBrokerCount();
-}
-
-function filterBrokers() {
-  const query = document.getElementById("brokerSearch").value.toLowerCase().trim();
-  const cards = document.querySelectorAll(".broker-card");
-  let visible = 0;
-  cards.forEach(card => {
-    const name = card.dataset.name;
-    const cat = card.dataset.cat;
-    const matchSearch = !query || name.includes(query);
-    const matchCat = activeBrokerCategory === "all" || cat === activeBrokerCategory || (activeBrokerCategory === "popular" && ["popular","api"].includes(cat));
-    const show = matchSearch && matchCat;
-    card.classList.toggle("hidden", !show);
-    if (show) visible++;
-  });
-  // Show no results
-  let noRes = document.getElementById("noResults");
-  if (visible === 0) {
-    if (!noRes) {
-      noRes = document.createElement("div");
-      noRes.id = "noResults";
-      noRes.className = "no-results";
-      noRes.textContent = "Nenhuma MetaTrader 5 encontrada";
-      document.getElementById("brokerGrid").appendChild(noRes);
-    }
-    noRes.style.display = "block";
-  } else if (noRes) {
-    noRes.style.display = "none";
-  }
-  updateBrokerCount(visible);
-}
-
-function filterCategory(cat) {
-  activeBrokerCategory = cat;
-  document.querySelectorAll(".cat-btn").forEach((btn, i) => {
-    btn.classList.toggle("active", BROKER_CATEGORIES[i].id === cat);
-  });
-  filterBrokers();
-}
-
-function updateBrokerCount(n) {
-  const total = n !== undefined ? n : document.querySelectorAll(".broker-card:not(.hidden)").length;
-  document.getElementById("brokerCount").textContent = `${total} broker${total !== 1 ? 's' : ''}`;
-}
-
-function selectBrokerCard(id) {
-  const entry = BROKERS.find(b => b.id === id);
-  if (!entry) return;
-  selectedBrokerEntry = entry;
-  selectedBrokerType = entry.adapter;
-  document.querySelectorAll(".broker-card").forEach(c => c.classList.remove("selected"));
-  document.querySelector(`.broker-card[data-id="${id}"]`)?.classList.add("selected");
-  document.getElementById("modalNextBtn").disabled = false;
-  document.getElementById("modalNextBtn").textContent = `Continuar com ${entry.name} →`;
-}
-
-function selectCustomBroker() {
-  // Set a special "custom" broker entry
-  selectedBrokerEntry = {
-    id: "custom",
-    name: "MetaTrader 5 Personalizada",
-    adapter: "metaapi", // default, changeable in form
-    platform: "MT4/MT5",
-    cat: "custom",
-    icon: "⚙️",
-    region: "🌐",
-    desc: "Configuração personalizada",
-    isCustom: true
-  };
-  selectedBrokerType = "metaapi";
-  // Go directly to credentials step
-  showModalStep(2);
-  buildCredForm();
-  document.getElementById("modalBackBtn").style.display = "block";
-  document.getElementById("modalNextBtn").textContent = "🔗 Conectar →";
-  document.getElementById("modalNextBtn").disabled = false;
-  document.getElementById("modalFooter").style.display = "flex";
-}
-
-async function openSetupModal() {
-  document.getElementById("SetupModal").classList.add("active");
-  
-  // VERIFICAÇÃO INTELIGENTE DE ÚLTIMA CONEXÃO [EXPERT]
-  try {
-    const res = await apiFetch("/api/broker/last-Setupion");
-    if (res && res.success) {
-       document.getElementById("smartBrokerName").textContent = res.brokerName;
-       document.getElementById("smartBrokerDetail").textContent = `Deseja reconectar à conta ${res.accountId} (${res.environment.toUpperCase()})?`;
-       
-       // Guardar temporariamente para o doSmartSetup
-       window._lastConn = res;
-       
-       showModalStep("Smart");
-       document.getElementById("modalFooter").style.display = "none";
-       return;
-    }
-  } catch(e) { console.warn("Erro ao buscar última conexão:", e); }
-
-  skipSmartSetup();
-}
-
-function skipSmartSetup() {
-  selectedBrokerType = null;
-  selectedBrokerEntry = null;
-  activeBrokerCategory = "all";
-  buildBrokerGrid();
-  showModalStep(1);
-  document.getElementById("brokerSearch").value = "";
-  document.getElementById("modalNextBtn").disabled = true;
-  document.getElementById("modalNextBtn").textContent = "Selecione uma MetaTrader 5 →";
-  document.getElementById("modalFooter").style.display = "flex";
-}
-
-async function doSmartSetup() {
-  if (!window._lastConn) return skipSmartSetup();
-  
-  const conn = window._lastConn;
-  // IMPORTANTE: Usar o brokerType técnico (ex: metaapi) vindo do banco
-  selectedBrokerType = conn.brokerType; 
-  selectedBrokerEntry = { name: conn.brokerName, adapter: conn.brokerType };
-  selectedEnv = conn.environment;
-  
-  showModalStep(3); // Mostra "Conectando..."
-  document.getElementById("SetupingState").style.display = "block";
-  document.getElementById("SetupResult").style.display = "none";
-  
-  try {
-    // 1. Tentar validar se o servidor já nos conectou via Status (Aproveita o middleware funcional)
-    const status = await getBrokerStatus();
-    if (status && status.success && status.Setuped) {
-      brokerSetuped = true;
-      brokerInfo = status.accountInfo || status.account;
-      addLog(`✅ Reconexão automática validada com ${conn.brokerName}!`, "buy");
-      updateBrokerUI();
-      setTimeout(() => closeSetupModal(), 1500);
-      return;
-    }
-
-    // 2. Se não estiver conectado, forçar o comando de conexão usando as chaves da DB
-    const result = await apiFetch("/api/broker/Setup", "POST", { 
-      brokerType: conn.brokerType, 
-      credentials: { environment: conn.environment }, 
-      remember: true 
-    });
-    
-    if (result && result.success) {
-      brokerSetuped = true;
-      brokerInfo = result.accountInfo || result.account;
-      addLog(`✅ Reconectado com sucesso a ${conn.brokerName}!`, "buy");
-      updateBrokerUI();
-      setTimeout(() => closeSetupModal(), 1500);
-    } else {
-      throw new Error(result ? result.error : "Falha na resposta do servidor.");
-    }
-  } catch (e) {
-    console.error("Erro no Smart Setup:", e);
-    // Em vez de fechar, mostramos o erro no próprio modal para o usuário saber o que houve
-    document.getElementById("SetupingState").style.display = "none";
-    document.getElementById("SetupResult").style.display = "block";
-    document.getElementById("SetupResult").innerHTML = `
-      <div class="result-icon">⚠️</div>
-      <div class="result-title">Falha na Reconexão</div>
-      <div class="result-detail" style="color:var(--bear);">${e.message || "Erro de autorização."}</div>
-      <button class="btn btn-secondary" onclick="skipSmartSetup()" style="margin-top:15px; width:100%;">Escolher Outra MetaTrader 5</button>
-    `;
-  }
-}
-
-function closeSetupModal() {
-  document.getElementById("SetupModal").classList.remove("active");
-}
-
-function showModalStep(step) {
-  currentModalStep = step;
-  document.querySelectorAll("#SetupModal .modal-step").forEach(s => s.classList.remove("active"));
-  document.getElementById(`modalStep${step}`).classList.add("active");
-
-  const backBtn = document.getElementById("modalBackBtn");
-  const nextBtn = document.getElementById("modalNextBtn");
-  const footer = document.getElementById("modalFooter");
-  const headerTitle = document.querySelector("#SetupModal .modal-header h2");
-
-  backBtn.style.display = (step !== 1 && step !== "Smart") ? "block" : "none";
-
-  if (step === "Smart") {
-    if (headerTitle) headerTitle.innerHTML = "🔄 Reconexão Rápida";
-    footer.style.display = "none";
-  } else if (step === 1) {
-    if (headerTitle) headerTitle.innerHTML = "🔗 ---";
-    footer.style.display = "flex";
-  } else if (step === 2) {
-    if (headerTitle) {
-      if (selectedBrokerEntry && selectedBrokerEntry.isCustom) {
-        headerTitle.innerHTML = "⚙️ Configurar MetaTrader 5 Personalizada";
-      } else if (selectedBrokerEntry) {
-        headerTitle.innerHTML = `${selectedBrokerEntry.icon || '🔗'} ${selectedBrokerEntry.name}`;
-      }
-    }
-    footer.style.display = "flex";
-  } else if (step === 3) {
-    if (headerTitle) headerTitle.innerHTML = "⚡ Conexão";
-    footer.style.display = "none";
-  }
-
-  if (step === 1) {
-    nextBtn.textContent = selectedBrokerEntry ? `Continuar com ${selectedBrokerEntry.name} →` : "Selecione uma MetaTrader 5 →";
-    nextBtn.disabled = !selectedBrokerEntry;
-    nextBtn.style.display = "block";
-    nextBtn.className = "btn btn-primary";
-  } else if (step === 2) {
-    nextBtn.textContent = `🔗 Conectar a ${selectedBrokerEntry?.name || 'MetaTrader 5'}`;
-    nextBtn.disabled = false;
-    nextBtn.style.display = "block";
-    nextBtn.className = "btn btn-Setup";
-    buildCredForm();
-  }
-}
-
-function buildCredForm() {
-  const form = document.getElementById("credForm");
-  const title = document.getElementById("credTitle");
-  if (!selectedBrokerEntry) return;
-  const b = selectedBrokerEntry;
-  let html = '';
-
-  // ── Custom Broker: adapter selector + name ──────────────────
-  if (b.isCustom) {
-    title.style.display = "none";
-    html += `
-      <div class="form-group">
-        <label class="form-label">Nome da MetaTrader 5</label>
-        <input type="text" class="form-input" id="customBrokerName" placeholder="Ex: MyFXBroker, TradeStation..." oninput="selectedBrokerEntry.name = this.value || 'Personalizada'">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Tipo de Ligação</label>
-        <div class="adapter-selector" id="adapterSelector">
-          <div class="adapter-btn selected" onclick="setCustomAdapter('metaapi', this)">📈 MetaAPI<br><span style="font-weight:400;font-size:0.65rem;">MT4 / MT5</span></div>
-          <div class="adapter-btn" onclick="setCustomAdapter('oanda', this)">📊 OANDA<br><span style="font-weight:400;font-size:0.65rem;">API v20 REST</span></div>
-          <div class="adapter-btn" onclick="setCustomAdapter('capital', this)">💹 Capital.com<br><span style="font-weight:400;font-size:0.65rem;">REST API</span></div>
-        </div>
-      </div>
-      <div id="customAdapterFields"></div>
-    `;
-    form.innerHTML = html;
-    renderCustomAdapterFields('metaapi');
-    return;
-  }
-
-  // ── Standard Broker ──────────────────────────────────────────
-  html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;margin-bottom:6px;">
-    <span style="font-size:1.4rem;">${b.icon}</span>
-    <div>
-      <div style="font-weight:700;font-size:0.9rem;">${b.name}</div>
-      <div style="font-size:0.65rem;color:var(--muted);font-family:'Space Mono',monospace;">${b.desc}</div>
-    </div>
-    <span class="platform-badge ${b.platform === 'API' ? 'api' : 'mt'}" style="margin-left:auto;">${b.platform}</span>
-  </div>`;
-
-  // Environment toggle (common)
-  html += `
-    <div class="form-group">
-      <label class="form-label">Ambiente</label>
-      <div class="env-toggle">
-        <div class="env-btn demo active" id="envDemo" onclick="setEnv('demo')">🟢 Demo</div>
-        <div class="env-btn live" id="envLive" onclick="setEnv('live')">🔴 Live</div>
-      </div>
-      <div class="live-warning" id="liveWarning">
-        ⚠️ ATENÇÃO: Modo LIVE usa dinheiro real. Certifique-se de que entende os riscos.
-      </div>
-    </div>
-  `;
-
-  // Adapter-specific fields
-  title.style.display = "none";
-  
-  if (b.adapter === "oanda") {
-    html += `
-      <div class="form-group">
-        <label class="form-label">API Token (OANDA)</label>
-        <input type="password" class="form-input" id="credToken" placeholder="Seu token de acesso pessoal OANDA">
-        <span style="font-size:0.65rem;color:var(--muted);">HUB → Tools → API → Generate</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account ID</label>
-        <input type="text" class="form-input" id="credAccountId" placeholder="xxx-xxx-xxxxxxx-xxx">
-      </div>
-    `;
-  } else if (b.adapter === "capital") {
-    html += `
-      <div class="form-group">
-        <label class="form-label">API Key</label>
-        <input type="password" class="form-input" id="credApiKey" placeholder="Sua chave API Capital.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email (Login)</label>
-        <input type="email" class="form-input" id="credEmail" placeholder="seu@email.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password (da API Key)</label>
-        <input type="password" class="form-input" id="credPassword" placeholder="Password da API Key">
-      </div>
-    `;
-  } else if (b.adapter === "metaapi") {
-    html += `
-      <div style="padding:10px 14px;border-radius:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);font-size:0.72rem;color:var(--accent);font-family:'Space Mono',monospace;margin-bottom:4px;">
-        ℹ️ Para conectar o ${b.name}, registe a sua conta MT4/MT5 no <a href="https://app.metaapi.cloud" target="_blank" style="color:var(--accent);font-weight:700;">MetaApi Cloud</a> (grátis).
-      </div>
-      <div class="form-group">
-        <label class="form-label">MetaApi Access Token</label>
-        <input type="password" class="form-input" id="credMetaToken" placeholder="Token de acesso MetaApi Cloud">
-        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Settings → API Access Token</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account ID (MetaApi)</label>
-        <input type="text" class="form-input" id="credMtAccountId" placeholder="ID da conta registada no MetaApi">
-        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Accounts → copiar ID da conta ${b.name}</span>
-      </div>
-    `;
-  }
-
-  form.innerHTML = html;
-}
-
-function setCustomAdapter(type, btn) {
-  selectedBrokerType = type;
-  selectedBrokerEntry.adapter = type;
-  document.querySelectorAll(".adapter-btn").forEach(b => b.classList.remove("selected"));
-  btn.classList.add("selected");
-  renderCustomAdapterFields(type);
-}
-
-function renderCustomAdapterFields(type) {
-  const el = document.getElementById("customAdapterFields");
-  if (!el) return;
-  let html = '';
-
-  // Environment toggle for all custom types
-  html += `
-    <div class="form-group">
-      <label class="form-label">Ambiente</label>
-      <div class="env-toggle">
-        <div class="env-btn demo active" id="envDemo" onclick="setEnv('demo')">🟢 Demo</div>
-        <div class="env-btn live" id="envLive" onclick="setEnv('live')">🔴 Live</div>
-      </div>
-      <div class="live-warning" id="liveWarning">⚠️ ATENÇÃO: Modo LIVE usa dinheiro real.</div>
-    </div>
-  `;
-
-  if (type === "metaapi") {
-    html += `
-      <div style="padding:10px 14px;border-radius:10px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);font-size:0.72rem;color:var(--accent);font-family:'Space Mono',monospace;margin-bottom:8px;">
-        ℹ️ Registe a conta MT4/MT5 no <a href="https://app.metaapi.cloud" target="_blank" style="color:var(--accent);font-weight:700;">MetaApi Cloud</a> (gratuito) e copie o token e o ID.
-      </div>
-      <div class="form-group">
-        <label class="form-label">MetaApi Access Token</label>
-        <input type="password" class="form-input" id="credMetaToken" placeholder="Token de acesso MetaApi Cloud">
-        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Settings → API Access Token</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account ID (MetaApi)</label>
-        <input type="text" class="form-input" id="credMtAccountId" placeholder="ID da conta no MetaApi">
-        <span style="font-size:0.65rem;color:var(--muted);">Painel MetaApi → Accounts → copiar ID</span>
-      </div>
-    `;
-  } else if (type === "oanda") {
-    html += `
-      <div class="form-group">
-        <label class="form-label">API Token (OANDA)</label>
-        <input type="password" class="form-input" id="credToken" placeholder="Token de acesso pessoal OANDA">
-        <span style="font-size:0.65rem;color:var(--muted);">HUB → Tools → API → Generate</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Account ID</label>
-        <input type="text" class="form-input" id="credAccountId" placeholder="xxx-xxx-xxxxxxx-xxx">
-      </div>
-    `;
-  } else if (type === "capital") {
-    html += `
-      <div class="form-group">
-        <label class="form-label">API Key</label>
-        <input type="password" class="form-input" id="credApiKey" placeholder="Chave API Capital.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email de Login</label>
-        <input type="email" class="form-input" id="credEmail" placeholder="seu@email.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-input" id="credPassword" placeholder="Password da conta Capital.com">
-      </div>
-    `;
-  }
-
-  el.innerHTML = html;
-}
-
-let selectedEnv = "demo";
-function setEnv(env) {
-  selectedEnv = env;
-  document.getElementById("envDemo").classList.toggle("active", env === "demo");
-  document.getElementById("envLive").classList.toggle("active", env === "live");
-  document.getElementById("liveWarning").classList.toggle("visible", env === "live");
-}
-
-function modalBack() {
-  if (currentModalStep > 1) showModalStep(currentModalStep - 1);
-}
-
-async function modalNext(e) {
-  if (e) e.preventDefault();
-  if (currentModalStep === 1) {
-    showModalStep(2);
-  } else if (currentModalStep === 2) {
-    await doSetup();
-  }
-}
-
-async function doSetup() {
-  showModalStep(3);
-  document.getElementById("SetupingState").style.display = "block";
-  document.getElementById("SetupResult").style.display = "none";
-
-  // Update Setuping message with broker name
-  const connMsg = document.querySelector("#SetupingState p:first-of-type");
-  if (connMsg && selectedBrokerEntry) connMsg.textContent = `Conectando a ${selectedBrokerEntry.name}...`;
-
-  let credentials = {};
-
-  if (selectedBrokerType === "oanda") {
-    credentials = {
-      apiToken: document.getElementById("credToken")?.value || "",
-      accountId: document.getElementById("credAccountId")?.value || "",
-      environment: selectedEnv,
-    };
-  } else if (selectedBrokerType === "capital") {
-    credentials = {
-      apiKey: document.getElementById("credApiKey")?.value || "",
+  // ── Legacy Broker Setup logic removed ──
       identifier: document.getElementById("credEmail")?.value || "",
       password: document.getElementById("credPassword")?.value || "",
       environment: selectedEnv,
@@ -2975,7 +2517,6 @@ function resetBot() {
   addLog("Bot reiniciado.");
 }
 
-// ─── LICENSING UI LOGIC ───────────────────────
 function updateLicenseUI() {
   const header = document.getElementById("licenseLevel");
   const count = document.getElementById("licenseCountdown");
@@ -2993,7 +2534,6 @@ function updateLicenseUI() {
 
     header.textContent = userLicense.type || "PRO";
     count.textContent = diff > 0 ? `${days}d ${hours}h restantes` : "Expirada";
-    // buyBtn.style.display = "none";  // COMENTADO: O usuário agora pode comprar mesmo tendo licença ativa
     
     if (diff > 0 && days <= 5) {
       alertBar.classList.add("visible");
@@ -3006,13 +2546,14 @@ function updateLicenseUI() {
       header.textContent = "EXPIRADA";
       startBtn.disabled = true;
       buyBtn.style.display = "block";
+    } else {
+      startBtn.disabled = false;
     }
   } else {
     header.textContent = "NENHUMA";
     count.textContent = "Sem licença ativa";
     alertBar.classList.remove("visible");
     startBtn.disabled = true;
-    // buyBtn.style.display = "block"; // Já está sempre visível no HTML agora
   }
 }
 
@@ -3109,15 +2650,33 @@ async function loadWallets() {
           <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">${m.name}</div>
           <div style="font-family:'Space Mono',monospace;font-size:0.75rem;word-break:break-all;margin-top:4px;color:var(--accent);">${m.details}</div>
         </div>
-        <button class="copy-btn" onclick="copyToClipboard('${m.details}')">Copiar</button>
+        <button class="copy-btn" onclick="copyToClipboard('${m.details}', this)">Copiar</button>
       </div>
     `).join("") || '<p>Contate o suporte para pagamento.</p>';
   }
 }
 
-function copyToClipboard(text) {
+function buyBack() {
+  const s1 = document.getElementById("buyStep1");
+  const s2 = document.getElementById("buyStep2");
+  const s3 = document.getElementById("buyStep3");
+  
+  if (s2.style.display === "block") {
+    s2.style.display = "none";
+    s1.style.display = "block";
+    document.getElementById("buyBackBtn").style.display = "none";
+    document.getElementById("buyConfirmBtn").style.display = "none";
+  } else if (s3.style.display === "block") {
+    s3.style.display = "none";
+    s2.style.display = "block";
+    document.getElementById("buyConfirmBtn").style.display = "block";
+    document.getElementById("buyFinishBtn").style.display = "none";
+  }
+}
+
+function copyToClipboard(text, btn) {
   navigator.clipboard.writeText(text).then(() => {
-    const originalBtn = event.target;
+    const originalBtn = btn || event.target;
     const originalText = originalBtn.textContent;
     originalBtn.textContent = 'Copiado!';
     originalBtn.style.borderColor = 'var(--bull)';
