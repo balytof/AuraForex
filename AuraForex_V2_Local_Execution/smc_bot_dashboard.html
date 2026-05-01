@@ -124,12 +124,12 @@
     cursor:pointer;
     transition: all 0.2s;
   }
-  .broker-badge.disSetuped {
+  .broker-badge.disconnected {
     background: rgba(255,68,68,0.1);
     border: 1px solid rgba(255,68,68,0.3);
     color: var(--bear);
   }
-  .broker-badge.Setuped {
+  .broker-badge.connected {
     background: rgba(0,230,118,0.1);
     border: 1px solid rgba(0,230,118,0.3);
     color: var(--bull);
@@ -513,7 +513,7 @@
   .live-warning.visible { display:block; }
 
   /* Step 3 — Setuping */
-  .Setuping-state { text-align:center; padding:30px 0; }
+  .Connecting-state { text-align:center; padding:30px 0; }
   .spinner {
     width:48px; height:48px; border:3px solid var(--border);
     border-top-color:var(--accent); border-radius:50%;
@@ -522,7 +522,7 @@
   }
   @keyframes spin { to { transform:rotate(360deg); } }
 
-  .Setup-result { text-align:center; padding:20px 0; }
+  .Connect-result { text-align:center; padding:20px 0; }
   .result-icon { font-size:3rem; margin-bottom:12px; }
   .result-title { font-size:1.1rem; font-weight:700; margin-bottom:6px; }
   .result-detail { font-size:0.78rem; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.6; }
@@ -1291,11 +1291,11 @@ function updatePositionsUI(positions) {
   // PNL e Equity já são tratados no updateStats()
 }
 
-async function checkBrokerSetupion() {
+async function checkBrokerConnection() {
   try {
     const data = await getBrokerStatus();
-    if (data && data.Setuped) {
-      brokerSetuped = true;
+    if (data && data.connected) {
+      brokerConnected = true;
       brokerInfo = data.accountInfo;
       updateBrokerUI();
       addLog(`🔄 Conexão restaurada automaticamente: ${brokerInfo.broker}`, "buy");
@@ -1399,7 +1399,7 @@ const BIASES = {};
 PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
 
 // ─── BROKER STATE ─────────────────────────────
-let brokerSetuped = false;
+let brokerConnected = false;
 let brokerInfo = null;
 let selectedBrokerType = null;
 let selectedBrokerEntry = null;
@@ -1798,15 +1798,15 @@ async function apiFetch(endpoint, method = "GET", body = null) {
   }
 }
 
-async function SetupToBroker(brokerType, credentials) {
+async function ConnectToBroker(brokerType, credentials) {
   const remember = document.getElementById("rememberCredentials").checked;
   return apiFetch("/api/broker/Setup", "POST", { brokerType, credentials, remember });
 }
 
-async function disSetupBroker() {
+async function disconnectBroker() {
   // Importante: Passamos forgetDb: false para NÃO apagar as credenciais da BD do servidor.
   // Assim o auto-Setup funcionará no próximo login.
-  return apiFetch("/api/broker/disSetup", "POST", { forgetDb: false });
+  return apiFetch("/api/broker/disconnect", "POST", { forgetDb: false });
 }
 
 
@@ -1842,7 +1842,7 @@ async function getBrokerStatus() {
 let tradeHistoryRaw = [];
 
 async function loadHistory() {
-  if (!brokerSetuped) return;
+  if (!brokerConnected) return;
 
   const btn = document.querySelector('button[onclick="loadHistory()"]');
   if (btn) btn.textContent = "A carregar...";
@@ -1926,14 +1926,14 @@ function renderHistory() {
 // (chamado de modais ou updates)
 
 // ─── DISSetup ───────────────────────────────
-async function doDisSetup() {
-  const SetupBtn = document.getElementById("SetupBtn");
-  SetupBtn.disabled = true;
-  SetupBtn.textContent = "A desconectar...";
+async function doDisconnect() {
+  const ConnectBtn = document.getElementById("ConnectBtn");
+  ConnectBtn.disabled = true;
+  ConnectBtn.textContent = "A desconectar...";
 
   // Safety timeout: always re-enable the button after 5s no matter what
   const safetyTimer = setTimeout(() => {
-    brokerSetuped = false;
+    brokerConnected = false;
     brokerInfo = null;
     openTrades = [];
     updateBrokerUI();
@@ -1941,14 +1941,14 @@ async function doDisSetup() {
   }, 5000);
 
   try {
-    await disSetupBroker();
+    await disconnectBroker();
   } catch(e) {
     console.warn("DisSetup API error (ignored):", e.message);
   } finally {
     clearTimeout(safetyTimer);
   }
 
-  brokerSetuped = false;
+  brokerConnected = false;
   brokerInfo = null;
   openTrades = [];
 
@@ -1957,15 +1957,15 @@ async function doDisSetup() {
 
   updateBrokerUI();
   addLog("🔌 MetaTrader 5 desconectada.", "sell");
-  SetupBtn.disabled = false;
+  ConnectBtn.disabled = false;
 }
 
 // ─── UPDATES ──────────────────────────────────
-async function checkBrokerSetupion() {
+async function checkBrokerConnection() {
   try {
     const status = await getBrokerStatus();
-    if (status && status.success && status.Setuped) {
-       brokerSetuped = true;
+    if (status && status.success && status.connected) {
+       brokerConnected = true;
        brokerInfo = status.accountInfo || status.account || status.info;
        updateBrokerUI();
        addLog("🔄 Conexão com a MetaTrader 5 restaurada automaticamente.", "buy");
@@ -1979,9 +1979,9 @@ async function updateBrokerUI() {
   const badge = document.getElementById("brokerBadge");
   const statusText = document.getElementById("brokerStatusText");
   const mainBtn = document.getElementById("mainBtn");
-  const SetupBtn = document.getElementById("SetupBtn");
+  const ConnectBtn = document.getElementById("ConnectBtn");
 
-  if (brokerSetuped && brokerInfo) {
+  if (brokerConnected && brokerInfo) {
     badge.className = "broker-badge Setuped";
     badge.querySelector(".dot").className = "dot active";
 
@@ -1991,9 +1991,9 @@ async function updateBrokerUI() {
 
     statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
     mainBtn.disabled = false;
-    SetupBtn.textContent = "🔌 Desconectar";
-    SetupBtn.className = "btn btn-danger";
-    SetupBtn.onclick = doDisSetup;
+    ConnectBtn.textContent = "🔌 Desconectar";
+    ConnectBtn.className = "btn btn-danger";
+    ConnectBtn.onclick = doDisconnect;
 
     // Update balance
     document.getElementById("statBalance").textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
@@ -2013,13 +2013,13 @@ async function updateBrokerUI() {
         </div>`;
     }
   } else {
-    badge.className = "broker-badge disSetuped";
+    badge.className = "broker-badge disconnected";
     badge.querySelector(".dot").className = "dot danger";
     statusText.textContent = "Sem MetaTrader 5";
     mainBtn.disabled = true;
-    SetupBtn.textContent = "🔗 ---";
-    SetupBtn.className = "btn btn-Setup";
-    SetupBtn.onclick = openSetupModal;
+    ConnectBtn.textContent = "🔗 ---";
+    ConnectBtn.className = "btn btn-Setup";
+    ConnectBtn.onclick = openSetupModal;
 
     document.getElementById("statBalance").textContent = "—";
     document.getElementById("statBalanceSub").textContent = "Conecte uma MetaTrader 5";
@@ -2042,7 +2042,7 @@ function updateLimitUI(val) {
 }
 
 async function updateStats() {
-  if (brokerSetuped) {
+  if (brokerConnected) {
     try {
       const info = await getBrokerAccount();
       if (info && info.balance !== undefined) {
@@ -2136,7 +2136,7 @@ async function updateStats() {
       document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
 
       // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
-      if (tradeHistoryRaw.length === 0 && brokerSetuped) {
+      if (tradeHistoryRaw.length === 0 && brokerConnected) {
          loadHistory(); // Puxa histórico inicial
       }
 
@@ -2271,7 +2271,7 @@ async function botLoop(loopId) {
           
           sig.lotSize = lotSize;
 
-          if (brokerSetuped) {
+          if (brokerConnected) {
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
             const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
 
@@ -2380,7 +2380,7 @@ function startBot() {
       openBuyModal();
       return;
     }
-    if (!brokerSetuped) {
+    if (!brokerConnected) {
       addLog("⚠️ Conecte a MetaTrader 5 primeiro.", "warn");
       return;
     }
@@ -2424,7 +2424,7 @@ function stopBot() {
   document.getElementById("botStatus").textContent = "Parado";
   document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
   document.getElementById("mainBtn").className = "btn btn-primary";
-  if (!brokerSetuped) document.getElementById("mainBtn").disabled = true;
+  if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
   
   if (typeof uptimeInterval !== 'undefined') clearInterval(uptimeInterval);
   const uptimeDot = document.getElementById("uptimeDot");
@@ -2441,8 +2441,8 @@ function resetBot() {
   PAIRS.forEach(p => { BIASES[p] = { bias:"NEUTRAL", confidence:0 }; });
   document.getElementById("signalsList").innerHTML = `
     <div class="empty-state">
-      <div class="em-icon">${brokerSetuped ? '🔍' : '🔗'}</div>
-      <p>${brokerSetuped ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
+      <div class="em-icon">${brokerConnected ? '🔍' : '🔗'}</div>
+      <p>${brokerConnected ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
     </div>`;
   clearLog();
   initBiases();
@@ -2675,10 +2675,10 @@ async function resetInfrastructure() {
   btn.disabled = true;
   
   try {
-    const res = await apiFetch("/api/broker/reset-Setupions", "POST");
+    const res = await apiFetch("/api/broker/reset-connections", "POST");
     if (res.success) {
       addLog("✅ Infraestrutura limpa com sucesso. Por favor, conecte-se novamente.", "buy");
-      brokerSetuped = false;
+      brokerConnected = false;
       brokerInfo = null;
       updateBrokerUI();
       alert("Limpeza concluída! Faça login novamente na sua MetaTrader 5.");
@@ -2701,7 +2701,7 @@ initBiases();
 loadConfig(); 
 updateStats();
 updateSessionStatus();
-checkBrokerSetupion();
+checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 
@@ -2710,7 +2710,7 @@ checkAuth();
     const desiredState = localStorage.getItem("aura_bot_state");
     
     if (desiredState === "running" && !isRunning) {
-        if (brokerSetuped && userLicense) {
+        if (brokerConnected && userLicense) {
             console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
             addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
@@ -2726,7 +2726,7 @@ checkAuth();
 
 // ─── SINCRONIZAÇÃO DE ORDENS EM TEMPO REAL (RECUPERAÇÃO) ───
 setInterval(() => {
-    if (brokerSetuped) updateStats();
+    if (brokerConnected) updateStats();
 }, 5000);
 </script>
 <!-- MODAIS MOVIDOS PARA O FIM DO BODY -->
