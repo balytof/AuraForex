@@ -313,6 +313,7 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 // ── Broker Endpoints ──────────────────────────────────────────────
 
 app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) => {
+  if (!req.broker) return res.json({ connected: false, status: "DISCONNECTED" });
   const status = await req.broker.getStatus();
   return res.json(status);
 });
@@ -464,11 +465,23 @@ app.post("/api/broker/reset-connections", requireAuth, async (req, res) => {
 });
 
 app.get("/api/broker/account", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json(await req.broker.getAccountInfo()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.status(404).json({ error: "Broker não conectado" });
+    const account = await req.broker.getAccountInfo();
+    res.json({ success: true, account });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json({ positions: await req.broker.getOpenPositions() }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.json({ success: true, positions: [] });
+    const positions = await req.broker.getOpenPositions();
+    res.json({ success: true, positions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
