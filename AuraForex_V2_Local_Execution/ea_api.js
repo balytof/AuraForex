@@ -112,6 +112,7 @@ router.post("/report", async (req, res) => {
       where: { id: signalId },
       data: {
         status: status, // EXECUTED, FAILED
+        brokerId: orderTicket ? orderTicket.toString() : null,
         executedAt: status === "EXECUTED" ? new Date() : null
       }
     });
@@ -121,6 +122,36 @@ router.post("/report", async (req, res) => {
 
   } catch (err) {
     console.error("[EA-REPORT] Erro ao reportar execução:", err);
+    return res.status(500).json({ error: "Erro interno no servidor." });
+  }
+});
+
+/**
+ * ── ENDPOINT: REPORT-BALANCE ─────────────────────────────────────────
+ * O EA chama este endpoint periodicamente para atualizar o saldo e equity
+ * da conta MetaTrader na base de dados.
+ * ─────────────────────────────────────────────────────────────────────
+ */
+router.post("/report-balance", async (req, res) => {
+  const { licenseKey, balance, equity } = req.body;
+
+  if (!licenseKey || balance === undefined || equity === undefined) {
+    return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
+  }
+
+  try {
+    await prisma.license.update({
+      where: { id: licenseKey },
+      data: {
+        balance: parseFloat(balance),
+        equity: parseFloat(equity),
+        updatedAt: new Date()
+      }
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);
     return res.status(500).json({ error: "Erro interno no servidor." });
   }
 });

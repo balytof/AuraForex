@@ -31,6 +31,7 @@ model User {
   bonusesGenerated    BonusTransaction[] @relation("BonusSource")
   withdrawals         WithdrawalRequest[]
   settings            UserSettings?
+  signals             Signal[]
 }
 
 model LicensePlan {
@@ -52,12 +53,33 @@ model License {
   planId    String?
   type      String   // "PRO", "VIP" (kept for compatibility)
   status    String   // "ACTIVE", "EXPIRED", "SUSPENDED"
+  mtAccount String?  // Conta MetaTrader vinculada
+  balance   Float    @default(0)
+  equity    Float    @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan LicensePlan? @relation(fields: [planId], references: [id])
+}
+
+model Signal {
+  id          String   @id @default(uuid())
+  userId      String
+  pair        String
+  direction   String
+  entry       Float
+  sl          Float
+  tp          Float
+  lot         Float
+  status      String   @default("PENDING") // PENDING, EXECUTED, FAILED
+  brokerId    String?  // ID da Ordem no MetaTrader (Ticket)
+  executedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PaymentMethod {
