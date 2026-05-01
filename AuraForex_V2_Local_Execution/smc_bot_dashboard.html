@@ -1120,46 +1120,7 @@ function updateLicenseUI() {
 
 function openModal(id) { document.getElementById(id).classList.add("active"); }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
-function openBuyModal() { 
-  document.getElementById("buyModal").classList.add("active"); 
-  loadPlans(); 
-  loadWallets(); // Consistent with selectPlan call
-}
 
-let selectedPlan = null;
-function selectPlan(type, price) {
-    selectedPlan = { type, price };
-    document.getElementById("selectedPlanName").textContent = `${type} ($${price})`;
-    document.getElementById("paymentInstructions").style.display = "block";
-}
-
-async function loadPaymentMethods() {
-    const data = await apiFetch("/api/payment-methods");
-    const list = document.getElementById("adminWalletsList");
-    if (data.success && data.methods.length > 0) {
-        list.innerHTML = data.methods.map(m => `
-            <div style="margin-bottom:8px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
-                <div style="font-size:0.75rem; color:var(--muted);">${m.name}</div>
-                <div style="font-size:0.82rem; font-family:'Space Mono'; color:var(--accent); word-break:break-all;">${m.details}</div>
-            </div>
-        `).join('');
-    } else {
-        list.innerHTML = `<p style="font-size:0.8rem; color:var(--bear);">Nenhum método de pagamento configurado pelo admin.</p>`;
-    }
-}
-
-async function submitPurchaseRequest() {
-    if (!selectedPlan) return;
-    const data = await apiFetch("/api/purchase/request", "POST", {
-        licenseType: selectedPlan.type,
-        paymentMethodId: "manual", // O admin já listou, apenas sinaliza
-        amount: selectedPlan.price
-    });
-    if (data.success) {
-        alert("Solicitação enviada! Aguarde a aprovação do administrador.");
-        closeModal("buyModal");
-    } else alert(data.error);
-}
 
 function logout() {
   localStorage.removeItem("aura_token");
