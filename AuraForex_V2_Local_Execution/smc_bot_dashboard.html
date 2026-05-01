@@ -2479,11 +2479,20 @@ function openSetupModal() {
   document.getElementById("apiUrlDisplay").textContent = currentUrl;
   document.getElementById("eaApiUrl").textContent = currentUrl;
   
-  document.getElementById("setupModal").classList.add("active");
+  console.log("%c[UI] Abrindo Modal de Setup...", "color: #00d4ff; font-weight: bold;");
+  const modal = document.getElementById("setupModal");
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add("active");
+  }
 }
 
 function closeSetupModal() {
-  document.getElementById("setupModal").classList.remove("active");
+  const modal = document.getElementById("setupModal");
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove("active");
+  }
 }
 
 function copyText(text) {
