@@ -2545,8 +2545,50 @@ async function selectPlan(id, name, price) {
   document.getElementById("buyStep1").style.display = "none";
   document.getElementById("buyStep2").style.display = "block";
   document.getElementById("buyBackBtn").style.display = "block";
-  document.getElementById("buyConfirmBtn").style.display = "block";
+  // document.getElementById("buyConfirmBtn").style.display = "block"; // Removido botão antigo
   loadWallets();
+}
+
+async function submitPaymentRequest() {
+  const hash = document.getElementById("paymentHash").value.trim();
+  if (!hash) {
+    alert("Por favor, cole a Hash da transação para confirmar o pagamento.");
+    return;
+  }
+  
+  if (!selectedPlanId) {
+    alert("Plano não selecionado.");
+    return;
+  }
+
+  const btn = event.currentTarget;
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
+  try {
+    const res = await apiFetch("/api/license/request", {
+      method: "POST",
+      body: JSON.stringify({
+        planId: selectedPlanId,
+        hash: hash,
+        amount: selectedAmount
+      })
+    });
+
+    if (res.success) {
+      alert("Solicitação enviada com sucesso! Aguarde a aprovação do administrador.");
+      closeBuyModal();
+    } else {
+      alert("Erro: " + (res.error || "Não foi possível enviar a solicitação."));
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Erro de conexão ao enviar solicitação.");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 async function loadWallets() {
   const container = document.getElementById("walletsContainer");
