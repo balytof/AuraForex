@@ -785,7 +785,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><span class="icon">📋</span> Log do Sistema</div>
-          <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="clearLog()">Limpar</button>
+          <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="auraClearSystemLogs()">Limpar</button>
         </div>
         <div class="log-area" id="logArea">
           <div class="log-line"><span class="log-time">[SISTEMA]</span><span class="log-msg">AuraForex pronto. Aguardando sinais do EA local.</span></div>
@@ -1473,11 +1473,10 @@ function restoreLogs() {
   area.scrollTop = area.scrollHeight;
 }
 
-function clearLog() { 
-  if (confirm("Limpar todo o histórico?")) {
-    localStorage.removeItem('bot_logs');
-    document.getElementById("logArea").innerHTML = ""; 
-  }
+function auraClearSystemLogs() { 
+  localStorage.removeItem('bot_logs');
+  document.getElementById("logArea").innerHTML = ""; 
+  console.log("[UI] Logs do sistema limpos.");
 }
 
 // ─── UPTIME TIMER ─────────────────────────────
@@ -2393,7 +2392,7 @@ function resetBot() {
       <div class="em-icon">${brokerConnected ? '🔍' : '🔗'}</div>
       <p>${brokerConnected ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
     </div>`;
-  clearLog();
+  auraClearSystemLogs();
   initBiases();
   updateStats();
   document.getElementById("botUptime").textContent = "00:00:00";
