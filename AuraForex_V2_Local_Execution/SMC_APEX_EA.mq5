@@ -156,9 +156,9 @@ void ExecuteSignal(string json)
       
    if(res)
    {
-      long ticket = trade.ResultOrder();
+      ulong ticket = trade.ResultOrder();
       Print("✅ ORDEM EXECUTADA! Ticket: " + (string)ticket);
-      ReportSignalStatus(signalId, "EXECUTED", ticket);
+      ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
    }
    else
    {
@@ -168,7 +168,7 @@ void ExecuteSignal(string json)
 }
 
 //+------------------------------------------------------------------+
-//| Reportar Status da Execuo para o Servidor                      |
+//| Reportar Status da Execução para o Servidor                      |
 //+------------------------------------------------------------------+
 void ReportSignalStatus(string sigId, string status, long ticket)
 {
@@ -188,7 +188,7 @@ void ReportAccountStatus()
 }
 
 //+------------------------------------------------------------------+
-//| FUNES AUXILIARES DE REDE E PARSING                             |
+//| FUNÇÕES AUXILIARES DE REDE E PARSING                             |
 //+------------------------------------------------------------------+
 
 string SendPost(string url, string payload)
@@ -196,7 +196,8 @@ string SendPost(string url, string payload)
    char post[], result[];
    string headers = "Content-Type: application/json\r\n";
    StringToCharArray(payload, post);
-   int res = WebRequest("POST", url, headers, 5000, post, result, headers);
+   string result_headers;
+   int res = WebRequest("POST", url, headers, 5000, post, result, result_headers); 
    if(res == -1) return "Error";
    return CharArrayToString(result);
 }
@@ -204,8 +205,8 @@ string SendPost(string url, string payload)
 string SendGet(string url)
 {
    char result[];
-   string headers;
-   int res = WebRequest("GET", url, NULL, 5000, NULL, result, headers);
+   string result_headers;
+   int res = WebRequest("GET", url, NULL, 5000, NULL, result, result_headers);
    if(res == -1) return "Error";
    return CharArrayToString(result);
 }
