@@ -1,0 +1,43 @@
+============================================================
+   AURATRADE MT — GUIA DE INSTALAÇÃO E CONEXÃO
+============================================================
+
+Olá! Siga este procedimento simples para conectar o seu terminal 
+MetaTrader ao nosso servidor de sinais de alta performance.
+
+PASSO 1: INSTALAR O ROBÔ (EA)
+------------------------------------------------------------
+1. No MetaTrader, clique no menu superior 'Arquivo' > 'Abrir Pasta de Dados'.
+2. Entre na pasta 'MQL5' (ou MQL4) e depois na pasta 'Experts'.
+3. Cole o arquivo do robô (.ex5) dentro desta pasta.
+4. Volte ao MetaTrader, na aba 'Navegador', clique com o botão direito 
+   em 'Expert Advisors' e selecione 'Atualizar'.
+
+PASSO 2: AUTORIZAR O SERVIDOR (OBRIGATÓRIO)
+------------------------------------------------------------
+Para receber os sinais, o MetaTrader precisa de permissão:
+1. Vá ao menu 'Ferramentas' > 'Opções'.
+2. Clique na aba 'Expert Advisors'.
+3. Marque a caixa: 'Permitir WebRequest para as URLs listadas'.
+4. Clique no símbolo '+' e adicione a URL do servidor:
+   http://SEU_IP_OU_DOMINIO_AQUI
+
+PASSO 3: ATIVAR O TRADING
+------------------------------------------------------------
+1. No topo do terminal, certifique-se que o botão 'Algo Trading' 
+   esteja VERDE.
+2. Arraste o robô para um gráfico (qualquer par, ex: EURUSD).
+
+PASSO 4: VALIDAR SUA LICENÇA
+------------------------------------------------------------
+1. Na janela que abrir ao colocar o robô no gráfico, vá na aba 'Entradas' (Inputs).
+2. No campo 'LICENSE_KEY', cole a sua chave de licença pessoal.
+3. Clique em 'OK'.
+
+PRONTO!
+Se tudo estiver correto, você verá uma mensagem no canto do gráfico: 
+"Conectado com Sucesso - Aguardando Sinais".
+
+============================================================
+   SUPORTE AURATRADE — TECNOLOGIA DE PONTA EM TRADING
+============================================================
