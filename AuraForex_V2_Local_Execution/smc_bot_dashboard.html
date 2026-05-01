@@ -2802,6 +2802,17 @@ setInterval(() => {
           <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
           <div id="walletsContainer" style="display:grid;gap:10px;"></div>
         </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Comprovativo (Hash da Transação):</label>
+          <input type="text" id="paymentHash" placeholder="Cole aqui a Hash da transação..." 
+            style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
+          <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;">* Após realizar o pagamento, cole a Hash acima para validação.</p>
+        </div>
+
+        <button onclick="submitPaymentRequest()" class="btn btn-primary" style="width:100%; padding:15px; font-weight:700;">
+          <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO
+        </button>
       </div>
 
       <div id="buyStep3" class="buy-step" style="display:none;">
