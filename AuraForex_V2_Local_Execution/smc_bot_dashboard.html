@@ -1961,7 +1961,7 @@ async function getBrokerStatus() {
 }
 
 // ═══════════════════════════════════════════════
-//  MODAL — Conectar Corretora (Lista Expandida)
+//  MODAL — --- (Lista Expandida)
 // ═══════════════════════════════════════════════
 
 function buildBrokerGrid() {
@@ -2174,7 +2174,7 @@ function showModalStep(step) {
     if (headerTitle) headerTitle.innerHTML = "🔄 Reconexão Rápida";
     footer.style.display = "none";
   } else if (step === 1) {
-    if (headerTitle) headerTitle.innerHTML = "🔗 Conectar Corretora";
+    if (headerTitle) headerTitle.innerHTML = "🔗 ---";
     footer.style.display = "flex";
   } else if (step === 2) {
     if (headerTitle) {
@@ -2666,7 +2666,7 @@ async function updateBrokerUI() {
     badge.querySelector(".dot").className = "dot danger";
     statusText.textContent = "Sem Corretora";
     mainBtn.disabled = true;
-    connectBtn.textContent = "🔗 Conectar Corretora";
+    connectBtn.textContent = "🔗 ---";
     connectBtn.className = "btn btn-connect";
     connectBtn.onclick = openConnectModal;
 
