@@ -207,6 +207,39 @@
   }
   .license-badge b { color: var(--accent); }
 
+  /* EA Setup Modal & Guide Styles */
+  .setup-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  .setup-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; }
+  .setup-step h3 { font-size: 0.9rem; margin-bottom: 15px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+  .setup-step .step-number { width: 24px; height: 24px; background: var(--accent); color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; }
+  
+  .guide-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.75rem; }
+  .guide-table th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .guide-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+  
+  .alert-box { padding: 12px; border-radius: 8px; font-size: 0.75rem; margin: 10px 0; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-box.warn { background: rgba(255, 179, 0, 0.1); border: 1px solid rgba(255, 179, 0, 0.3); color: var(--warn); }
+  .alert-box.info { background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); color: var(--accent); }
+  
+  .code-block { background: #000; padding: 10px; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--accent); position: relative; display: flex; justify-content: space-between; align-items: center; }
+  .download-area { text-align: center; padding: 30px; background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(124, 58, 237, 0.1)); border-radius: 16px; border: 1px dashed var(--accent); margin-bottom: 20px; }
+  
+  .btn-setup-ea {
+    background: rgba(0, 212, 255, 0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .btn-setup-ea:hover { background: var(--accent); color: #000; box-shadow: var(--glow); }
+
   /* Stats row */
   .stats-grid {
     display:grid; grid-template-columns: repeat(5, 1fr); gap:16px;
@@ -750,6 +783,96 @@
   }
   .highlight-panel { animation: highlightFade 2s ease-out; }
 </style>
+
+<!-- MODAL: SETUP EA -->
+<div id="setupModal" class="modal-overlay">
+  <div class="modal" style="width: 850px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-robot"></i> Guia de Instalação SMC APEX EA</h2>
+      <button class="modal-close" onclick="closeSetupModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="download-area">
+        <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v1.0 Profissional - Compilada para MetaTrader 5</p>
+        <a href="/SMC_APEX_EA.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+          <i class="fas fa-file-download"></i> DOWNLOAD SMC_APEX_EA.ex5
+        </a>
+      </div>
+
+      <div class="setup-grid">
+        <!-- Passo 1 -->
+        <div class="setup-step">
+          <h3><div class="step-number">1</div> Copiar o EA para o MetaTrader 5</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
+            2. Navegue até: <code>MQL5 → Experts</code><br>
+            3. Cole o ficheiro <code>SMC_APEX_EA.ex5</code> para esta pasta<br>
+            4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
+          </p>
+        </div>
+
+        <!-- Passo 2 -->
+        <div class="setup-step">
+          <h3><div class="step-number">2</div> Autorizar WebRequest (OBRIGATÓRIO)</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5: <b>Ferramentas → Opções → Especialistas</b><br>
+            2. Marque: ☑ "Permitir WebRequest para os seguintes URLs"<br>
+            3. Clique no "+" e adicione o endereço do nosso servidor:
+          </p>
+          <div class="code-block" style="margin-top: 10px;">
+            <span id="apiUrlDisplay">https://yourdomain.com</span>
+            <button class="copy-btn" onclick="copyText(document.getElementById('apiUrlDisplay').textContent)">Copiar</button>
+          </div>
+          <div class="alert-box warn">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>⚠️ Sem este passo, o EA não consegue validar a licença e não arrancará.</span>
+          </div>
+        </div>
+
+        <!-- Passo 3 & 4 -->
+        <div class="setup-step">
+          <h3><div class="step-number">3</div> Ativar e Aplicar</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. Certifique-se que o botão <b>"Algotrading"</b> no topo do MT5 está <b>VERDE</b>.<br>
+            2. Abra um gráfico (ex: EURUSD H1) e arraste o <b>SMC_APEX_EA</b> para dentro dele.<br>
+            3. Na janela que surge, vá ao separador <b>"Inputs"</b>.
+          </p>
+        </div>
+
+        <!-- Passo 5 -->
+        <div class="setup-step">
+          <h3><div class="step-number">4</div> Configurar os Inputs</h3>
+          <table class="guide-table">
+            <thead>
+              <tr><th>Input</th><th>Valor</th><th>Descrição</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>LICENSE_KEY</td><td><b style="color:var(--accent)" id="eaLicenseKey">...</b></td><td>Sua chave pessoal</td></tr>
+              <tr><td>API_URL</td><td id="eaApiUrl">...</td><td>Endereço do servidor</td></tr>
+              <tr><td>RiskPercent</td><td>1.0</td><td>% do saldo por trade</td></tr>
+              <tr><td>TP_RR</td><td>2.0</td><td>Take Profit = 2x o SL</td></tr>
+            </tbody>
+          </table>
+          <div class="alert-box info">
+            <i class="fas fa-info-circle"></i>
+            <span>Dica: Use <b>LondonKZ</b> e <b>NewYorkKZ</b> como 'true' para operar apenas nas melhores sessões.</span>
+          </div>
+        </div>
+
+        <!-- Verificações -->
+        <div class="setup-step" style="border-color: rgba(0,230,118,0.3);">
+          <h3><i class="fas fa-check-double"></i> Verificações de Segurança</h3>
+          <p style="font-size: 0.75rem; color: var(--muted);">O EA verifica automaticamente a cada hora a validade da licença e a conta MT vinculada.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSetupModal()">Fechar Guia</button>
+      <button class="btn btn-primary" onclick="window.print()">Imprimir Guia</button>
+    </div>
+  </div>
+</div>
 </head>
 <body>
 <div id="licenseAlert" class="license-alert-bar">
@@ -792,6 +915,9 @@
         <span>Status: <b id="licenseLevel">Carregando...</b></span>
         <span id="licenseCountdown" style="opacity:0.8;">...</span>
       </div>
+      <button class="btn-setup-ea" id="setupEABtn" onclick="openSetupModal()">
+        <i class="fas fa-download"></i> Configurar EA no MT5
+      </button>
       <div class="status-badge" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;">
         <div class="dot warn"></div>
         <span id="sessionStatus">Londres / NY</span>
@@ -3285,6 +3411,33 @@ function openBuyModal() {
 function closeBuyModal() {
   document.getElementById("buyModal").classList.remove("active");
   resetBuyModal();
+}
+
+// ─── EA SETUP MODAL ──────────────────────────
+function openSetupModal() {
+  if (!userLicense || userLicense.status !== "ACTIVE") {
+    alert("⚠️ Você precisa de uma licença ativa para configurar o EA.");
+    openBuyModal();
+    return;
+  }
+  
+  // Atualizar dados dinâmicos no modal
+  document.getElementById("eaLicenseKey").textContent = userLicense.key || "CHAVE-NÃO-ENCONTRADA";
+  const currentUrl = window.location.origin;
+  document.getElementById("apiUrlDisplay").textContent = currentUrl;
+  document.getElementById("eaApiUrl").textContent = currentUrl;
+  
+  document.getElementById("setupModal").classList.add("active");
+}
+
+function closeSetupModal() {
+  document.getElementById("setupModal").classList.remove("active");
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    alert("Copiado: " + text);
+  });
 }
 
 function resetBuyModal() {
