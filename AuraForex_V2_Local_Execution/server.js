@@ -49,6 +49,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Rota explícita para o download do EA com cabeçalhos corretos
+app.get("/SMC_APEX_EA.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, 'SMC_APEX_EA.ex5');
+  } else {
+    res.status(404).send("EA file not found");
+  }
+});
+
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.post("/api/debug/log", (req, res) => {
   const { msg, level } = req.body;
