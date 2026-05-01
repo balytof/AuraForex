@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraForex — Painel Administrativo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+        :root {
+            --bg: #060810;
+            --surface: #0d1117;
+            --surface2: #131922;
+            --border: #1e2d3d;
+            --accent: #00d4ff;
+            --accent2: #7c3aed;
+            --bull: #00e676;
+            --bear: #ff4444;
+            --warn: #ffb300;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --glow: 0 0 20px rgba(0,212,255,0.3);
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Syne', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content:'';
+            position:fixed; inset:0;
+            background-image:
+                linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events:none; z-index:0;
+        }
+
+        .wrapper { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:24px; }
+
+        header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding: 20px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            gap: 12px;
+        }
+
+        .logo { display:flex; align-items:center; gap:14px; }
+        .logo-icon {
+            width:44px; height:44px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius:12px;
+            display:flex; align-items:center; justify-content:center;
+            font-size:22px;
+            box-shadow: var(--glow);
+        }
+        .logo h1 { font-size:1.3rem; font-weight:800; letter-spacing:-0.5px; }
+        .logo span { color:var(--accent); }
+
+        .nav-tabs {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--muted);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0,212,255,0.05);
+        }
+
+        .stats-grid {
+            display:grid; grid-template-columns: repeat(4, 1fr); gap:16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius:14px; padding:18px 20px;
+        }
+        .stat-label {
+            font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace;
+            text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+        }
+        .stat-value { font-size:1.65rem; font-weight:800; letter-spacing:-1px; }
+
+        .panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius:16px; overflow:hidden;
+            display: none;
+        }
+        .panel.active { display: block; }
+
+        .panel-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 14px 20px; color: var(--muted); border-bottom: 1px solid var(--border); }
+        td { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .badge {
+            padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-family: 'Space Mono', monospace;
+        }
+        .badge-pro { background: rgba(124,58,237,0.2); color: #a78bfa; }
+        .badge-active { background: rgba(0,230,118,0.2); color: var(--bull); }
+        .badge-pending { background: rgba(255,179,0,0.2); color: var(--warn); }
+
+        .btn {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface2); color: var(--text); cursor: pointer;
+            font-size: 0.75rem; transition: all 0.2s;
+        }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--bull); color: #000; border: none; }
+        .btn-success:hover { background: #00c853; }
+
+        .modal-overlay {
+            display:none; position:fixed; inset:0; z-index:1000;
+            background:rgba(0,0,0,0.7); backdrop-filter:blur(8px);
+            justify-content:center; align-items:center;
+        }
+        .modal-overlay.active { display:flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius:20px; width:480px; padding: 24px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+        .form-input {
+            width: 100%; background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px; color: var(--text); outline: none;
+        }
+        .form-input:focus { border-color: var(--accent); }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <header>
+        <div class="logo">
+            <div class="logo-icon" style="background:none; box-shadow:none;">
+                <img src="/aura_bot.png" alt="AuraForex" style="width:40px; height:40px; object-fit:contain;">
+            </div>
+            <div>
+                <h1>Aura<span>Admin</span></h1>
+                <p>Gestão de Ecossistema Profissional</p>
+            </div>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="showPanel('stats')">Resumo</button>
+            <button class="tab-btn" onclick="showPanel('requests')">Solicitações</button>
+            <button class="tab-btn" onclick="showPanel('plans')">Planos</button>
+            <button class="tab-btn" onclick="showPanel('users')">Usuários</button>
+            <button class="tab-btn" onclick="showPanel('finance')">Financeiro</button>
+            <button class="tab-btn" onclick="showPanel('settings')">Configurações</button>
+        </div>
+        <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Bot</button>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Usuários</div>
+            <div class="stat-value" id="statUsers">...</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Licenças Ativas</div>
+            <div class="stat-value" id="statLicenses" style="color:var(--bull);">...</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Pedidos Pendentes</div>
+            <div class="stat-value" id="statRequests" style="color:var(--warn);">...</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Uptime Servidor</div>
+            <div class="stat-value" id="statUptime" style="font-size:1.2rem;font-family:'Space Mono';">...</div>
+        </div>
+    </div>
+
+    <!-- PANEL: REQUESTS -->
+    <div id="panel-requests" class="panel active">
+        <div class="panel-header">
+            <h3>Pendentes de Aprovação</h3>
+            <button class="btn" onclick="loadRequests()">Atualizar</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Plano</th>
+                        <th>Valor</th>
+                        <th>Hash</th>
+                        <th>Data</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="requestsTable">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: USERS -->
+    <div id="panel-users" class="panel">
+        <div class="panel-header">
+            <h3>Gestão de Usuários</h3>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Filtrar Mês</span>
+                    <input type="month" id="userReportPeriod" class="form-input" style="width:140px; height:34px; font-size:0.75rem;" onchange="filterUsers()">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Email</span>
+                    <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar..." onkeyup="filterUsers()" style="width:160px; height:34px; font-size:0.75rem;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Ref/ID</span>
+                    <input type="text" id="searchUserRef" class="form-input" placeholder="Ref/ID..." onkeyup="filterUsers()" style="width:120px; height:34px; font-size:0.75rem;">
+                </div>
+                <button class="btn btn-success" onclick="generateUsersReport()" style="display:flex; align-items:center; gap:8px; margin-top:14px;">
+                    <span style="font-size:1rem;">📄</span> PDF
+                </button>
+                <button class="btn" onclick="loadUsers()" style="margin-top:14px;">Atualizar</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email / Ref</th>
+                        <th>Role</th>
+                        <th>Registado</th>
+                        <th>Licença</th>
+                        <th>Expiração</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: PLANS [NEW] -->
+    <div id="panel-plans" class="panel">
+        <div class="panel-header">
+            <h3>Gestão de Planos de Licença</h3>
+            <button class="btn btn-success" onclick="openPlanModal()">+ Novo Plano</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome do Plano</th>
+                        <th>Preço ($)</th>
+                        <th>Validade (Dias)</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="plansTable">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: FINANCE -->
+    <div id="panel-finance" class="panel">
+        <div class="panel-header">
+            <h3>Saques & Gestão Financeira</h3>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="month" id="reportPeriod" class="form-input" style="width:160px; height:34px; font-size:0.8rem;">
+                <button class="btn btn-success" onclick="generateFinancialReport()" style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1rem;">📄</span> PDF
+                </button>
+                <button class="btn" onclick="loadFinance()">Atualizar</button>
+            </div>
+        </div>
+        <div style="padding: 20px;">
+            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Total Receitas</div>
+                    <div class="stat-value" id="finRevenue" style="color:var(--bull);">...</div>
+                </div>
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Total Pago (Bónus)</div>
+                    <div class="stat-value" id="finPaid" style="color:var(--bear);">...</div>
+                </div>
+                <div class="stat-card" style="background:var(--surface2);">
+                    <div class="stat-label">Balanço Líquido</div>
+                    <div class="stat-value" id="finBalance" style="color:var(--accent);">...</div>
+                </div>
+            </div>
+            
+            <h4 style="margin-bottom:12px; font-size:0.9rem; color:var(--muted);">Pedidos de Saque Pendentes</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Carteira/Rede</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="withdrawalsTable">
+                        <!-- Dynamic -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL: SETTINGS -->
+    <div id="panel-settings" class="panel">
+        <div class="panel-header">
+            <h3>Configurar Métodos de Pagamento</h3>
+        </div>
+        <div style="padding: 20px;">
+            <div class="form-group">
+                <label class="form-label">Nome do Método (ex: USDT TRC20)</label>
+                <input type="text" id="pmName" class="form-input" placeholder="Endereço Crypto">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Carteira / Detalhes</label>
+                <input type="text" id="pmDetails" class="form-input" placeholder="TL9...">
+            </div>
+            <button class="btn btn-success" onclick="addPaymentMethod()">Adicionar Método</button>
+            <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
+            <h4 style="margin-bottom:12px; font-size:0.8rem; color:var(--muted);">Métodos Atuais</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Detalhes</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pmsTable">
+                        <!-- Dynamic -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: APPROVE -->
+<div class="modal-overlay" id="approveModal">
+    <div class="modal">
+        <h3>Aprovar Licença</h3>
+        <p id="approveText" style="font-size:0.8rem;color:var(--muted);margin:10px 0;"></p>
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button class="btn" onclick="closeModal('approveModal')">Cancelar</button>
+            <button class="btn btn-success" id="confirmApproveBtn">Confirmar & Liberar Acesso</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: PLAN [NEW] -->
+<div class="modal-overlay" id="planModal">
+    <div class="modal">
+        <h3 id="planModalTitle">Configurar Plano</h3>
+        <div class="form-group" style="margin-top:20px;">
+            <label class="form-label">Nome do Plano (ex: Trimestral)</label>
+            <input type="text" id="planName" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Preço (USD)</label>
+            <input type="number" id="planPrice" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Validade (em dias)</label>
+            <input type="number" id="planDays" class="form-input">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button class="btn" onclick="closeModal('planModal')">Cancelar</button>
+            <button class="btn btn-success" id="savePlanBtn">Salvar Plano</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem("aura_token");
+    if (!token) window.location.href = "/login";
+
+    async function api(path, method = "GET", body = null) {
+        const options = {
+            method,
+            headers: { 
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+            }
+        };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch(path, options);
+        return res.json();
+    }
+
+    function showPanel(id) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + id)?.classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if (event) event.target.classList.add('active');
+        
+        if (id === 'stats') loadStats();
+        if (id === 'requests') loadRequests();
+        if (id === 'plans') loadPlans();
+        if (id === 'users') loadUsers();
+        if (id === 'finance') loadFinance();
+        if (id === 'settings') loadPaymentMethods();
+    }
+
+    async function loadStats() {
+        const data = await api("/api/admin/stats");
+        if (data.success) {
+            document.getElementById('statUsers').textContent = data.stats.totalUsers;
+            document.getElementById('statLicenses').textContent = data.stats.activeLicenses;
+            document.getElementById('statRequests').textContent = data.stats.pendingRequests;
+            document.getElementById('statUptime').textContent = formatUptime(data.stats.uptime);
+        }
+    }
+
+    function formatUptime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return `${h}h ${m}m`;
+    }
+
+    async function loadRequests() {
+        const data = await api("/api/admin/requests");
+        if (!data.success) return;
+        const tbody = document.getElementById('requestsTable');
+        tbody.innerHTML = data.requests.map(r => `
+            <tr>
+                <td>${r.user.email}</td>
+                <td><span class="badge badge-pro">${r.plan ? r.plan.name : (r.licenseType || 'N/A')}</span></td>
+                <td>$${r.amount}</td>
+                <td style="font-family:'Space Mono';font-size:0.7rem;color:var(--accent);">
+                    ${r.transactionHash ? `<a href="https://bscscan.com/tx/${r.transactionHash}" target="_blank" style="color:var(--accent); text-decoration:none;">${r.transactionHash} 🔗</a>` : '—'}
+                </td>
+                <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                <td>
+                    <button class="btn btn-success" onclick="openApproveModal('${r.id}', '${r.user.email}', '${r.plan ? r.plan.name : r.licenseType}')">Aprovar Pagamento</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="5" style="text-align:center;">Sem pendências.</td></tr>';
+    }
+
+    async function loadPlans() {
+        const data = await api("/api/admin/plans");
+        if (!data.success) return;
+        const tbody = document.getElementById('plansTable');
+        tbody.innerHTML = data.plans.map(p => `
+            <tr>
+                <td><strong>${p.name}</strong></td>
+                <td>$${p.price.toFixed(2)}</td>
+                <td>${p.durationDays} dias</td>
+                <td><span class="badge ${p.isActive ? 'badge-active' : ''}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
+                <td>
+                    <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays})">✏️</button>
+                    <button class="btn" style="color:var(--bear)" onclick="deletePlan('${p.id}')">🗑️</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="5" style="text-align:center;">Nenhum plano criado.</td></tr>';
+    }
+
+    let currentPlanId = null;
+    function openPlanModal(id = null, name = '', price = '', days = '') {
+        currentPlanId = id;
+        document.getElementById('planModalTitle').textContent = id ? 'Editar Plano' : 'Novo Plano de Licença';
+        document.getElementById('planName').value = name;
+        document.getElementById('planPrice').value = price;
+        document.getElementById('planDays').value = days;
+        document.getElementById('savePlanBtn').onclick = savePlan;
+        document.getElementById('planModal').classList.add('active');
+    }
+
+    async function savePlan() {
+        const payload = {
+            name: document.getElementById('planName').value,
+            price: document.getElementById('planPrice').value,
+            durationDays: document.getElementById('planDays').value
+        };
+        const method = currentPlanId ? "PUT" : "POST";
+        const url = "/api/admin/plans" + (currentPlanId ? "/" + currentPlanId : "");
+        const res = await api(url, method, payload);
+        if (res.success) {
+            closeModal('planModal');
+            loadPlans();
+        } else alert(res.error);
+    }
+
+    async function deletePlan(id) {
+        if (!confirm("Tem certeza que deseja excluir este plano?")) return;
+        const res = await api(`/api/admin/plans/${id}`, "DELETE");
+        if (res.success) loadPlans();
+        else alert(res.error);
+    }
+
+    let allUsers = [];
+    async function loadUsers() {
+        const data = await api("/api/admin/users");
+        if (!data.success) return;
+        allUsers = data.users;
+        renderUsers(allUsers);
+    }
+
+    function filterUsers() {
+        const email = document.getElementById('searchUserEmail').value.toLowerCase();
+        const ref = document.getElementById('searchUserRef').value.toLowerCase();
+        const period = document.getElementById('userReportPeriod').value; // YYYY-MM
+        
+        const filtered = allUsers.filter(u => {
+            const matchesEmail = u.email.toLowerCase().includes(email);
+            const matchesRef = (u.referralCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref));
+            
+            let matchesPeriod = true;
+            if (period) {
+                const [year, month] = period.split("-");
+                const d = new Date(u.createdAt);
+                matchesPeriod = (d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month));
+            }
+            
+            return matchesEmail && matchesRef && matchesPeriod;
+        });
+        renderUsers(filtered);
+    }
+
+    function renderUsers(users) {
+        const tbody = document.getElementById('usersTable');
+        tbody.innerHTML = users.map(u => {
+            const lic = u.licenses?.[0];
+            const regDate = new Date(u.createdAt).toLocaleDateString();
+            return `
+                <tr>
+                    <td>
+                        <div style="font-weight:700;">${u.email}</div>
+                        <div style="font-size:0.65rem; color:var(--muted);">ID: ${u.id.substring(0,8)}... | Ref: ${u.referralCode || '—'}</div>
+                    </td>
+                    <td>${u.role}</td>
+                    <td>
+                        <div style="font-size:0.85rem;">${regDate}</div>
+                    </td>
+                    <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
+                    <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
+                    <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset PW</button>
+                        <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="deleteUser('${u.id}', '${u.email}')">🗑️ Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+    }
+
+    // Período padrão para usuários
+    document.getElementById('userReportPeriod').value = new Date().toISOString().substring(0, 7);
+
+    async function generateUsersReport() {
+        if (!allUsers || allUsers.length === 0) return alert("Nenhum usuário carregado.");
+        
+        const period = document.getElementById('userReportPeriod').value;
+        if (!period) return alert("Selecione um período (Mês/Ano)");
+        const [year, month] = period.split("-");
+
+        const btn = document.querySelector('[onclick="generateUsersReport()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Gerando...";
+        btn.disabled = true;
+
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Filtrar usuários pelo período selecionado (Expert logic)
+            const filteredUsers = allUsers.filter(u => {
+                const d = new Date(u.createdAt);
+                return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+            });
+
+            // Header do PDF [EXPERT]
+            doc.setFillColor(6, 8, 16);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(0, 212, 255);
+            doc.setFontSize(22);
+            doc.text("AURAFOREX", 105, 20, { align: "center" });
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`CRESCIMENTO DE REDE - ${month}/${year}`, 105, 30, { align: "center" });
+
+            // Resumo de Registros
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text(`Novos Registros no Período: ${filteredUsers.length}`, 14, 50);
+
+            const tableData = filteredUsers.map(u => {
+                const lic = u.licenses?.[0];
+                return [
+                    u.email,
+                    u.referralCode || '—',
+                    lic ? (lic.plan ? lic.plan.name : lic.type) : 'Sem Licença',
+                    new Date(u.createdAt).toLocaleDateString()
+                ];
+            });
+
+            doc.autoTable({
+                startY: 55,
+                head: [['Email', 'Ref', 'Licença Atual', 'Data Registro']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillStyle: [0, 212, 255] },
+                styles: { fontSize: 8 }
+            });
+
+            // Rodapé
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Gerado em: ${new Date().toLocaleString()} | Total de registros no mês: ${filteredUsers.length}`, 14, doc.internal.pageSize.height - 10);
+
+            doc.save(`AuraForex_Novos_Usuarios_${period}.pdf`);
+            alert(`✅ Relatório gerado! ${filteredUsers.length} novos usuários no período.`);
+        } catch (e) {
+            alert("❌ Erro: " + e.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    function openResetPwModal(userId, email) {
+        const pw = prompt(`Definir nova password para:\n${email}\n\n(mín. 6 caracteres)`);
+        if (!pw) return;
+        if (pw.length < 6) { alert('A password deve ter pelo menos 6 caracteres.'); return; }
+        api(`/api/admin/users/${userId}/reset-password`, 'POST', { newPassword: pw })
+            .then(r => { if(r.success) alert('✅ Password redefinida com sucesso!'); else alert('❌ ' + r.error); })
+            .catch(() => alert('Erro de ligação.'));
+    }
+
+    async function deleteUser(userId, email) {
+        if (!confirm(`⚠️ Tem a certeza que deseja ELIMINAR a conta de:\n${email}\n\nEsta ação é IRREVERSíVEL!`)) return;
+        const r = await api(`/api/admin/users/${userId}`, 'DELETE');
+        if (r.success) { alert('✅ Conta eliminada.'); loadUsers(); }
+        else alert('❌ ' + r.error);
+    }
+
+    let currentRequestId = null;
+    function openApproveModal(id, email, type) {
+        currentRequestId = id;
+        document.getElementById('approveText').textContent = `Aprovar plano ${type} para ${email}`;
+        document.getElementById('confirmApproveBtn').onclick = confirmApprove;
+        document.getElementById('approveModal').classList.add('active');
+    }
+
+    async function confirmApprove() {
+        const res = await api(`/api/admin/requests/${currentRequestId}/approve`, "POST", { });
+        if (res.success) {
+            closeModal('approveModal');
+            loadRequests();
+            loadStats();
+        } else alert(res.error);
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    async function addPaymentMethod() {
+        const name = document.getElementById('pmName').value;
+        const details = document.getElementById('pmDetails').value;
+        const res = await api("/api/admin/payment-methods", "POST", { name, details });
+        if (res.success) {
+            alert("Método adicionado!");
+            loadPaymentMethods();
+            document.getElementById('pmName').value = '';
+            document.getElementById('pmDetails').value = '';
+        }
+    }
+
+    async function loadPaymentMethods() {
+        const data = await api("/api/payment-methods"); // Using user endpoint is fine or create admin one
+        const tbody = document.getElementById('pmsTable');
+        tbody.innerHTML = data.methods.map(m => `
+            <tr>
+                <td><strong>${m.name}</strong></td>
+                <td style="font-family:'Space Mono';font-size:0.75rem;">${m.details}</td>
+                <td><span class="badge ${m.isActive ? 'badge-active' : ''}">${m.isActive ? 'Ativo' : 'Inativo'}</span></td>
+                <td style="display:flex; gap:8px;">
+                    <button class="btn" onclick="editPaymentMethod('${m.id}', '${m.name}', '${m.details}', ${m.isActive})">✏️</button>
+                    <button class="btn" style="color:var(--bear)" onclick="deletePaymentMethod('${m.id}')">🗑️</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="4" style="text-align:center;">Nenhum método configurado.</td></tr>';
+    }
+
+    async function editPaymentMethod(id, name, details, isActive) {
+        const newName = prompt("Nome do Método:", name);
+        const newDetails = prompt("Detalhes/Carteira:", details);
+        if (newName === null || newDetails === null) return;
+        
+        const res = await api(`/api/admin/payment-methods/${id}`, "PUT", { 
+            name: newName, 
+            details: newDetails,
+            isActive: true 
+        });
+        if (res.success) loadPaymentMethods();
+        else alert(res.error);
+    }
+
+    async function deletePaymentMethod(id) {
+        if (!confirm("Tem certeza que deseja excluir este método de pagamento?")) return;
+        const res = await api(`/api/admin/payment-methods/${id}`, "DELETE");
+        if (res.success) loadPaymentMethods();
+        else alert(res.error);
+    }
+
+    async function loadFinance() {
+        const fRes = await api("/api/admin/finance");
+        if(fRes.success) {
+            document.getElementById("finRevenue").textContent = "$" + fRes.finance.totalRevenue.toFixed(2);
+            document.getElementById("finPaid").textContent = "$" + fRes.finance.totalPaid.toFixed(2);
+            document.getElementById("finBalance").textContent = "$" + fRes.finance.balance.toFixed(2);
+        }
+        
+        const wRes = await api("/api/admin/withdrawals");
+        if(wRes.success) {
+            const tbody = document.getElementById("withdrawalsTable");
+            tbody.innerHTML = wRes.withdrawals.map(w => `
+                <tr>
+                    <td>${w.user.email}</td>
+                    <td>${new Date(w.createdAt).toLocaleDateString()}</td>
+                    <td style="font-weight:bold; color:var(--accent);">$${w.amount.toFixed(2)}</td>
+                    <td style="font-family:'Space Mono'; font-size:0.75rem;">${w.network}<br>${w.walletAddress}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn btn-success" onclick="approveWithdraw('${w.id}')">Aprovar</button>
+                        <button class="btn" style="background:var(--bear);color:#fff;border:none;" onclick="rejectWithdraw('${w.id}')">Rejeitar</button>
+                    </td>
+                </tr>
+            `).join("") || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum pedido de saque pendente.</td></tr>';
+        }
+    }
+    
+    async function approveWithdraw(id) {
+        if(!confirm("Aprovar saque? Certifique-se de que o pagamento já foi enviado para a carteira do usuário.")) return;
+        const res = await api("/api/admin/withdrawals/" + id + "/approve", "POST");
+        if(res.success) {
+            alert("Saque aprovado com sucesso!");
+            loadFinance();
+        } else alert(res.error);
+    }
+    
+    async function rejectWithdraw(id) {
+        if(!confirm("Rejeitar saque? O valor será devolvido ao saldo disponível do usuário.")) return;
+        const res = await api("/api/admin/withdrawals/" + id + "/reject", "POST");
+        if(res.success) {
+            alert("Saque rejeitado com sucesso!");
+            loadFinance();
+        } else alert(res.error);
+    }
+
+    // Inicializar período padrão (mês atual)
+    document.getElementById('reportPeriod').value = new Date().toISOString().substring(0, 7);
+
+    async function generateFinancialReport() {
+        const period = document.getElementById('reportPeriod').value; // YYYY-MM
+        if (!period) return alert("Selecione um período (Mês/Ano)");
+
+        const [year, month] = period.split("-");
+        
+        const btn = document.querySelector('[onclick="generateFinancialReport()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Gerando...";
+        btn.disabled = true;
+
+        try {
+            const data = await api(`/api/admin/finance/report?year=${year}&month=${month}`);
+            if (!data.success) throw new Error(data.error);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header do PDF [EXPERT]
+            doc.setFillColor(6, 8, 16);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(0, 212, 255);
+            doc.setFontSize(22);
+            doc.text("AURAFOREX", 105, 20, { align: "center" });
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`RELATÓRIO FINANCEIRO - ${month}/${year}`, 105, 30, { align: "center" });
+
+            // Resumo
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text("Resumo do Período", 14, 55);
+            
+            const summaryData = [
+                ["Receita de Licenças", `$${data.revenue.toFixed(2)}`],
+                ["Saques Pagos", `$${data.withdrawals.toFixed(2)}`],
+                ["Bónus de Indicação", `$${data.bonuses.toFixed(2)}`],
+                ["Balanço Líquido", `$${data.balance.toFixed(2)}`]
+            ];
+
+            doc.autoTable({
+                startY: 60,
+                head: [['Descrição', 'Valor (USD)']],
+                body: summaryData,
+                theme: 'striped',
+                headStyles: { fillStyle: [0, 212, 255] }
+            });
+
+            // Rodapé
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, doc.internal.pageSize.height - 10);
+
+            doc.save(`AuraForex_Relatorio_${period}.pdf`);
+            alert("✅ Relatório gerado com sucesso!");
+        } catch (e) {
+            alert("❌ Erro: " + e.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    loadStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "name": "auraforex",
+  "version": "2.0.0",
+  "description": "SMC Forex Trading Bot — AI Studio Integration with Smart Money Concepts",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "forex",
+    "trading",
+    "smc",
+    "smart-money",
+    "ai-studio"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.7.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "express-session": "^1.19.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "metaapi.cloud-sdk": "^29.3.3",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.20.0",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "prisma": "^7.7.0"
+  }
+}
