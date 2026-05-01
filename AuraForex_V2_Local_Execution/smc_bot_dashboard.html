@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AuraForex SMC Bot v2.5.2-ULTRA-SYNC</title>
-<meta name="description" content="Bot de trading forex com Smart Money Concepts, integração com corretoras OANDA, Capital.com e MetaTrader">
+<meta name="description" content="Bot de trading forex com Smart Money Concepts, integração com MetaTrader 5s OANDA, Capital.com e MetaTrader">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
@@ -124,12 +124,12 @@
     cursor:pointer;
     transition: all 0.2s;
   }
-  .broker-badge.disconnected {
+  .broker-badge.disSetuped {
     background: rgba(255,68,68,0.1);
     border: 1px solid rgba(255,68,68,0.3);
     color: var(--bear);
   }
-  .broker-badge.connected {
+  .broker-badge.Setuped {
     background: rgba(0,230,118,0.1);
     border: 1px solid rgba(0,230,118,0.3);
     color: var(--bull);
@@ -175,7 +175,7 @@
   .btn-danger { background:#ff4444; color:#fff; }
   .btn-danger:hover { background:#ff2222; }
   .btn-secondary { background: var(--surface2); color:var(--text); border:1px solid var(--border); }
-  .btn-connect:hover { transform:translateY(-1px); box-shadow: 0 0 25px rgba(124,58,237,0.5); }
+  .btn-Setup:hover { transform:translateY(-1px); box-shadow: 0 0 25px rgba(124,58,237,0.5); }
 
   /* License Alert Layer */
   .license-alert-bar {
@@ -512,8 +512,8 @@
   }
   .live-warning.visible { display:block; }
 
-  /* Step 3 — Connecting */
-  .connecting-state { text-align:center; padding:30px 0; }
+  /* Step 3 — Setuping */
+  .Setuping-state { text-align:center; padding:30px 0; }
   .spinner {
     width:48px; height:48px; border:3px solid var(--border);
     border-top-color:var(--accent); border-radius:50%;
@@ -522,7 +522,7 @@
   }
   @keyframes spin { to { transform:rotate(360deg); } }
 
-  .connect-result { text-align:center; padding:20px 0; }
+  .Setup-result { text-align:center; padding:20px 0; }
   .result-icon { font-size:3rem; margin-bottom:12px; }
   .result-title { font-size:1.1rem; font-weight:700; margin-bottom:6px; }
   .result-detail { font-size:0.78rem; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.6; }
@@ -552,7 +552,7 @@
   .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
   .copy-btn:active { transform: scale(0.95); }
 
-  /* --- EXPERT SMART RECONNECT --- */
+  /* --- EXPERT SMART RESetup --- */
   .smart-glow-icon {
       animation: pulseGlow 3s infinite;
   }
@@ -884,7 +884,7 @@
             <thead>
               <tr>
                 <th>Data Fecho</th>
-                <th>Corretora</th>
+                <th>MetaTrader 5</th>
                 <th>Par/Ativo</th>
                 <th>Lote</th>
                 <th>Direção</th>
@@ -1417,11 +1417,11 @@ function updatePositionsUI(positions) {
   // PNL e Equity já são tratados no updateStats()
 }
 
-async function checkBrokerConnection() {
+async function checkBrokerSetupion() {
   try {
     const data = await getBrokerStatus();
-    if (data && data.connected) {
-      brokerConnected = true;
+    if (data && data.Setuped) {
+      brokerSetuped = true;
       brokerInfo = data.accountInfo;
       updateBrokerUI();
       addLog(`🔄 Conexão restaurada automaticamente: ${brokerInfo.broker}`, "buy");
@@ -1525,7 +1525,7 @@ const BIASES = {};
 PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
 
 // ─── BROKER STATE ─────────────────────────────
-let brokerConnected = false;
+let brokerSetuped = false;
 let brokerInfo = null;
 let selectedBrokerType = null;
 let selectedBrokerEntry = null;
@@ -1924,15 +1924,15 @@ async function apiFetch(endpoint, method = "GET", body = null) {
   }
 }
 
-async function connectToBroker(brokerType, credentials) {
+async function SetupToBroker(brokerType, credentials) {
   const remember = document.getElementById("rememberCredentials").checked;
-  return apiFetch("/api/broker/connect", "POST", { brokerType, credentials, remember });
+  return apiFetch("/api/broker/Setup", "POST", { brokerType, credentials, remember });
 }
 
-async function disconnectBroker() {
+async function disSetupBroker() {
   // Importante: Passamos forgetDb: false para NÃO apagar as credenciais da BD do servidor.
-  // Assim o auto-connect funcionará no próximo login.
-  return apiFetch("/api/broker/disconnect", "POST", { forgetDb: false });
+  // Assim o auto-Setup funcionará no próximo login.
+  return apiFetch("/api/broker/disSetup", "POST", { forgetDb: false });
 }
 
 
@@ -2008,7 +2008,7 @@ function filterBrokers() {
       noRes = document.createElement("div");
       noRes.id = "noResults";
       noRes.className = "no-results";
-      noRes.textContent = "Nenhuma corretora encontrada";
+      noRes.textContent = "Nenhuma MetaTrader 5 encontrada";
       document.getElementById("brokerGrid").appendChild(noRes);
     }
     noRes.style.display = "block";
@@ -2046,7 +2046,7 @@ function selectCustomBroker() {
   // Set a special "custom" broker entry
   selectedBrokerEntry = {
     id: "custom",
-    name: "Corretora Personalizada",
+    name: "MetaTrader 5 Personalizada",
     adapter: "metaapi", // default, changeable in form
     platform: "MT4/MT5",
     cat: "custom",
@@ -2065,17 +2065,17 @@ function selectCustomBroker() {
   document.getElementById("modalFooter").style.display = "flex";
 }
 
-async function openConnectModal() {
-  document.getElementById("connectModal").classList.add("active");
+async function openSetupModal() {
+  document.getElementById("SetupModal").classList.add("active");
   
   // VERIFICAÇÃO INTELIGENTE DE ÚLTIMA CONEXÃO [EXPERT]
   try {
-    const res = await apiFetch("/api/broker/last-connection");
+    const res = await apiFetch("/api/broker/last-Setupion");
     if (res && res.success) {
        document.getElementById("smartBrokerName").textContent = res.brokerName;
        document.getElementById("smartBrokerDetail").textContent = `Deseja reconectar à conta ${res.accountId} (${res.environment.toUpperCase()})?`;
        
-       // Guardar temporariamente para o doSmartConnect
+       // Guardar temporariamente para o doSmartSetup
        window._lastConn = res;
        
        showModalStep("Smart");
@@ -2084,10 +2084,10 @@ async function openConnectModal() {
     }
   } catch(e) { console.warn("Erro ao buscar última conexão:", e); }
 
-  skipSmartConnect();
+  skipSmartSetup();
 }
 
-function skipSmartConnect() {
+function skipSmartSetup() {
   selectedBrokerType = null;
   selectedBrokerEntry = null;
   activeBrokerCategory = "all";
@@ -2095,12 +2095,12 @@ function skipSmartConnect() {
   showModalStep(1);
   document.getElementById("brokerSearch").value = "";
   document.getElementById("modalNextBtn").disabled = true;
-  document.getElementById("modalNextBtn").textContent = "Selecione uma corretora →";
+  document.getElementById("modalNextBtn").textContent = "Selecione uma MetaTrader 5 →";
   document.getElementById("modalFooter").style.display = "flex";
 }
 
-async function doSmartConnect() {
-  if (!window._lastConn) return skipSmartConnect();
+async function doSmartSetup() {
+  if (!window._lastConn) return skipSmartSetup();
   
   const conn = window._lastConn;
   // IMPORTANTE: Usar o brokerType técnico (ex: metaapi) vindo do banco
@@ -2109,64 +2109,64 @@ async function doSmartConnect() {
   selectedEnv = conn.environment;
   
   showModalStep(3); // Mostra "Conectando..."
-  document.getElementById("connectingState").style.display = "block";
-  document.getElementById("connectResult").style.display = "none";
+  document.getElementById("SetupingState").style.display = "block";
+  document.getElementById("SetupResult").style.display = "none";
   
   try {
     // 1. Tentar validar se o servidor já nos conectou via Status (Aproveita o middleware funcional)
     const status = await getBrokerStatus();
-    if (status && status.success && status.connected) {
-      brokerConnected = true;
+    if (status && status.success && status.Setuped) {
+      brokerSetuped = true;
       brokerInfo = status.accountInfo || status.account;
       addLog(`✅ Reconexão automática validada com ${conn.brokerName}!`, "buy");
       updateBrokerUI();
-      setTimeout(() => closeConnectModal(), 1500);
+      setTimeout(() => closeSetupModal(), 1500);
       return;
     }
 
     // 2. Se não estiver conectado, forçar o comando de conexão usando as chaves da DB
-    const result = await apiFetch("/api/broker/connect", "POST", { 
+    const result = await apiFetch("/api/broker/Setup", "POST", { 
       brokerType: conn.brokerType, 
       credentials: { environment: conn.environment }, 
       remember: true 
     });
     
     if (result && result.success) {
-      brokerConnected = true;
+      brokerSetuped = true;
       brokerInfo = result.accountInfo || result.account;
       addLog(`✅ Reconectado com sucesso a ${conn.brokerName}!`, "buy");
       updateBrokerUI();
-      setTimeout(() => closeConnectModal(), 1500);
+      setTimeout(() => closeSetupModal(), 1500);
     } else {
       throw new Error(result ? result.error : "Falha na resposta do servidor.");
     }
   } catch (e) {
-    console.error("Erro no Smart Connect:", e);
+    console.error("Erro no Smart Setup:", e);
     // Em vez de fechar, mostramos o erro no próprio modal para o usuário saber o que houve
-    document.getElementById("connectingState").style.display = "none";
-    document.getElementById("connectResult").style.display = "block";
-    document.getElementById("connectResult").innerHTML = `
+    document.getElementById("SetupingState").style.display = "none";
+    document.getElementById("SetupResult").style.display = "block";
+    document.getElementById("SetupResult").innerHTML = `
       <div class="result-icon">⚠️</div>
       <div class="result-title">Falha na Reconexão</div>
       <div class="result-detail" style="color:var(--bear);">${e.message || "Erro de autorização."}</div>
-      <button class="btn btn-secondary" onclick="skipSmartConnect()" style="margin-top:15px; width:100%;">Escolher Outra Corretora</button>
+      <button class="btn btn-secondary" onclick="skipSmartSetup()" style="margin-top:15px; width:100%;">Escolher Outra MetaTrader 5</button>
     `;
   }
 }
 
-function closeConnectModal() {
-  document.getElementById("connectModal").classList.remove("active");
+function closeSetupModal() {
+  document.getElementById("SetupModal").classList.remove("active");
 }
 
 function showModalStep(step) {
   currentModalStep = step;
-  document.querySelectorAll("#connectModal .modal-step").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("#SetupModal .modal-step").forEach(s => s.classList.remove("active"));
   document.getElementById(`modalStep${step}`).classList.add("active");
 
   const backBtn = document.getElementById("modalBackBtn");
   const nextBtn = document.getElementById("modalNextBtn");
   const footer = document.getElementById("modalFooter");
-  const headerTitle = document.querySelector("#connectModal .modal-header h2");
+  const headerTitle = document.querySelector("#SetupModal .modal-header h2");
 
   backBtn.style.display = (step !== 1 && step !== "Smart") ? "block" : "none";
 
@@ -2179,7 +2179,7 @@ function showModalStep(step) {
   } else if (step === 2) {
     if (headerTitle) {
       if (selectedBrokerEntry && selectedBrokerEntry.isCustom) {
-        headerTitle.innerHTML = "⚙️ Configurar Corretora Personalizada";
+        headerTitle.innerHTML = "⚙️ Configurar MetaTrader 5 Personalizada";
       } else if (selectedBrokerEntry) {
         headerTitle.innerHTML = `${selectedBrokerEntry.icon || '🔗'} ${selectedBrokerEntry.name}`;
       }
@@ -2191,15 +2191,15 @@ function showModalStep(step) {
   }
 
   if (step === 1) {
-    nextBtn.textContent = selectedBrokerEntry ? `Continuar com ${selectedBrokerEntry.name} →` : "Selecione uma corretora →";
+    nextBtn.textContent = selectedBrokerEntry ? `Continuar com ${selectedBrokerEntry.name} →` : "Selecione uma MetaTrader 5 →";
     nextBtn.disabled = !selectedBrokerEntry;
     nextBtn.style.display = "block";
     nextBtn.className = "btn btn-primary";
   } else if (step === 2) {
-    nextBtn.textContent = `🔗 Conectar a ${selectedBrokerEntry?.name || 'Corretora'}`;
+    nextBtn.textContent = `🔗 Conectar a ${selectedBrokerEntry?.name || 'MetaTrader 5'}`;
     nextBtn.disabled = false;
     nextBtn.style.display = "block";
-    nextBtn.className = "btn btn-connect";
+    nextBtn.className = "btn btn-Setup";
     buildCredForm();
   }
 }
@@ -2216,7 +2216,7 @@ function buildCredForm() {
     title.style.display = "none";
     html += `
       <div class="form-group">
-        <label class="form-label">Nome da Corretora</label>
+        <label class="form-label">Nome da MetaTrader 5</label>
         <input type="text" class="form-input" id="customBrokerName" placeholder="Ex: MyFXBroker, TradeStation..." oninput="selectedBrokerEntry.name = this.value || 'Personalizada'">
       </div>
       <div class="form-group">
@@ -2399,17 +2399,17 @@ async function modalNext(e) {
   if (currentModalStep === 1) {
     showModalStep(2);
   } else if (currentModalStep === 2) {
-    await doConnect();
+    await doSetup();
   }
 }
 
-async function doConnect() {
+async function doSetup() {
   showModalStep(3);
-  document.getElementById("connectingState").style.display = "block";
-  document.getElementById("connectResult").style.display = "none";
+  document.getElementById("SetupingState").style.display = "block";
+  document.getElementById("SetupResult").style.display = "none";
 
-  // Update connecting message with broker name
-  const connMsg = document.querySelector("#connectingState p:first-of-type");
+  // Update Setuping message with broker name
+  const connMsg = document.querySelector("#SetupingState p:first-of-type");
   if (connMsg && selectedBrokerEntry) connMsg.textContent = `Conectando a ${selectedBrokerEntry.name}...`;
 
   let credentials = {};
@@ -2436,16 +2436,16 @@ async function doConnect() {
   }
 
   try {
-    const result = await connectToBroker(selectedBrokerType, credentials);
+    const result = await SetupToBroker(selectedBrokerType, credentials);
 
-    document.getElementById("connectingState").style.display = "none";
-    document.getElementById("connectResult").style.display = "block";
+    document.getElementById("SetupingState").style.display = "none";
+    document.getElementById("SetupResult").style.display = "block";
 
     if (result.success) {
-      brokerConnected = true;
+      brokerSetuped = true;
       brokerInfo = result.accountInfo;
 
-      document.getElementById("connectResult").innerHTML = `
+      document.getElementById("SetupResult").innerHTML = `
         <div class="result-icon">✅</div>
         <div class="result-title">Conectado com Sucesso!</div>
         <div class="result-balance">${formatCurrency(brokerInfo ? brokerInfo.balance : 0, brokerInfo ? brokerInfo.currency : 'USD')}</div>
@@ -2460,9 +2460,9 @@ async function doConnect() {
       updateBrokerUI();
 
       // Auto-close after 2s
-      setTimeout(() => closeConnectModal(), 2000);
+      setTimeout(() => closeSetupModal(), 2000);
     } else {
-      document.getElementById("connectResult").innerHTML = `
+      document.getElementById("SetupResult").innerHTML = `
         <div class="result-icon">❌</div>
         <div class="result-title">Falha na Conexão</div>
         <div class="result-detail" style="color:var(--bear);">${result.error || "Erro desconhecido"}</div>
@@ -2474,9 +2474,9 @@ async function doConnect() {
       document.getElementById("modalNextBtn").style.display = "none";
     }
   } catch (e) {
-    document.getElementById("connectingState").style.display = "none";
-    document.getElementById("connectResult").style.display = "block";
-    document.getElementById("connectResult").innerHTML = `
+    document.getElementById("SetupingState").style.display = "none";
+    document.getElementById("SetupResult").style.display = "block";
+    document.getElementById("SetupResult").innerHTML = `
       <div class="result-icon">❌</div>
       <div class="result-title">Erro de Conexão</div>
       <div class="result-detail" style="color:var(--bear);">${e.message}</div>
@@ -2491,7 +2491,7 @@ async function doConnect() {
 let tradeHistoryRaw = [];
 
 async function loadHistory() {
-  if (!brokerConnected) return;
+  if (!brokerSetuped) return;
 
   const btn = document.querySelector('button[onclick="loadHistory()"]');
   if (btn) btn.textContent = "A carregar...";
@@ -2574,30 +2574,30 @@ function renderHistory() {
 // Inicializar ao conectar
 // (chamado de modais ou updates)
 
-// ─── DISCONNECT ───────────────────────────────
-async function doDisconnect() {
-  const connectBtn = document.getElementById("connectBtn");
-  connectBtn.disabled = true;
-  connectBtn.textContent = "A desconectar...";
+// ─── DISSetup ───────────────────────────────
+async function doDisSetup() {
+  const SetupBtn = document.getElementById("SetupBtn");
+  SetupBtn.disabled = true;
+  SetupBtn.textContent = "A desconectar...";
 
   // Safety timeout: always re-enable the button after 5s no matter what
   const safetyTimer = setTimeout(() => {
-    brokerConnected = false;
+    brokerSetuped = false;
     brokerInfo = null;
     openTrades = [];
     updateBrokerUI();
-    addLog("🔌 Corretora desconectada.", "sell");
+    addLog("🔌 MetaTrader 5 desconectada.", "sell");
   }, 5000);
 
   try {
-    await disconnectBroker();
+    await disSetupBroker();
   } catch(e) {
-    console.warn("Disconnect API error (ignored):", e.message);
+    console.warn("DisSetup API error (ignored):", e.message);
   } finally {
     clearTimeout(safetyTimer);
   }
 
-  brokerConnected = false;
+  brokerSetuped = false;
   brokerInfo = null;
   openTrades = [];
 
@@ -2605,22 +2605,22 @@ async function doDisconnect() {
   if (typeof isRunning !== 'undefined' && isRunning) stopBot();
 
   updateBrokerUI();
-  addLog("🔌 Corretora desconectada.", "sell");
-  connectBtn.disabled = false;
+  addLog("🔌 MetaTrader 5 desconectada.", "sell");
+  SetupBtn.disabled = false;
 }
 
 // ─── UPDATES ──────────────────────────────────
-async function checkBrokerConnection() {
+async function checkBrokerSetupion() {
   try {
     const status = await getBrokerStatus();
-    if (status && status.success && status.connected) {
-       brokerConnected = true;
+    if (status && status.success && status.Setuped) {
+       brokerSetuped = true;
        brokerInfo = status.accountInfo || status.account || status.info;
        updateBrokerUI();
-       addLog("🔄 Conexão com a corretora restaurada automaticamente.", "buy");
+       addLog("🔄 Conexão com a MetaTrader 5 restaurada automaticamente.", "buy");
     }
   } catch (e) {
-    console.warn("Falha ao verificar status da corretora:", e.message);
+    console.warn("Falha ao verificar status da MetaTrader 5:", e.message);
   }
 }
 
@@ -2628,10 +2628,10 @@ async function updateBrokerUI() {
   const badge = document.getElementById("brokerBadge");
   const statusText = document.getElementById("brokerStatusText");
   const mainBtn = document.getElementById("mainBtn");
-  const connectBtn = document.getElementById("connectBtn");
+  const SetupBtn = document.getElementById("SetupBtn");
 
-  if (brokerConnected && brokerInfo) {
-    badge.className = "broker-badge connected";
+  if (brokerSetuped && brokerInfo) {
+    badge.className = "broker-badge Setuped";
     badge.querySelector(".dot").className = "dot active";
 
     const typeBadge = brokerInfo.accountType === "LIVE"
@@ -2640,9 +2640,9 @@ async function updateBrokerUI() {
 
     statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
     mainBtn.disabled = false;
-    connectBtn.textContent = "🔌 Desconectar";
-    connectBtn.className = "btn btn-danger";
-    connectBtn.onclick = doDisconnect;
+    SetupBtn.textContent = "🔌 Desconectar";
+    SetupBtn.className = "btn btn-danger";
+    SetupBtn.onclick = doDisSetup;
 
     // Update balance
     document.getElementById("statBalance").textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
@@ -2658,20 +2658,20 @@ async function updateBrokerUI() {
        document.getElementById("signalsList").innerHTML = `
         <div class="empty-state">
           <div class="em-icon">🔍</div>
-          <p>Corretora conectada. Inicie o bot para receber sinais SMC.</p>
+          <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
         </div>`;
     }
   } else {
-    badge.className = "broker-badge disconnected";
+    badge.className = "broker-badge disSetuped";
     badge.querySelector(".dot").className = "dot danger";
-    statusText.textContent = "Sem Corretora";
+    statusText.textContent = "Sem MetaTrader 5";
     mainBtn.disabled = true;
-    connectBtn.textContent = "🔗 ---";
-    connectBtn.className = "btn btn-connect";
-    connectBtn.onclick = openConnectModal;
+    SetupBtn.textContent = "🔗 ---";
+    SetupBtn.className = "btn btn-Setup";
+    SetupBtn.onclick = openSetupModal;
 
     document.getElementById("statBalance").textContent = "—";
-    document.getElementById("statBalanceSub").textContent = "Conecte uma corretora";
+    document.getElementById("statBalanceSub").textContent = "Conecte uma MetaTrader 5";
   }
 }
 
@@ -2691,7 +2691,7 @@ function updateLimitUI(val) {
 }
 
 async function updateStats() {
-  if (brokerConnected) {
+  if (brokerSetuped) {
     try {
       const info = await getBrokerAccount();
       if (info && info.balance !== undefined) {
@@ -2713,7 +2713,7 @@ async function updateStats() {
       positions.forEach(pos => {
          let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
          
-         // Se a ordem existe na corretora mas NÃO tem cartão no dashboard, recuperamos o controlo
+         // Se a ordem existe na MetaTrader 5 mas NÃO tem cartão no dashboard, recuperamos o controlo
          if (!pnlEl) {
             console.log(`[VIGILANTE] Detetada ordem órfã #${pos.id} em ${pos.symbol}. Recuperando controlo...`);
             const recoverySig = {
@@ -2785,7 +2785,7 @@ async function updateStats() {
       document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
 
       // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
-      if (tradeHistoryRaw.length === 0 && brokerConnected) {
+      if (tradeHistoryRaw.length === 0 && brokerSetuped) {
          loadHistory(); // Puxa histórico inicial
       }
 
@@ -2920,7 +2920,7 @@ async function botLoop(loopId) {
           
           sig.lotSize = lotSize;
 
-          if (brokerConnected) {
+          if (brokerSetuped) {
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
             const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
 
@@ -3029,8 +3029,8 @@ function startBot() {
       openBuyModal();
       return;
     }
-    if (!brokerConnected) {
-      addLog("⚠️ Conecte a corretora primeiro.", "warn");
+    if (!brokerSetuped) {
+      addLog("⚠️ Conecte a MetaTrader 5 primeiro.", "warn");
       return;
     }
 
@@ -3073,7 +3073,7 @@ function stopBot() {
   document.getElementById("botStatus").textContent = "Parado";
   document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
   document.getElementById("mainBtn").className = "btn btn-primary";
-  if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
+  if (!brokerSetuped) document.getElementById("mainBtn").disabled = true;
   
   if (typeof uptimeInterval !== 'undefined') clearInterval(uptimeInterval);
   const uptimeDot = document.getElementById("uptimeDot");
@@ -3090,8 +3090,8 @@ function resetBot() {
   PAIRS.forEach(p => { BIASES[p] = { bias:"NEUTRAL", confidence:0 }; });
   document.getElementById("signalsList").innerHTML = `
     <div class="empty-state">
-      <div class="em-icon">${brokerConnected ? '🔍' : '🔗'}</div>
-      <p>${brokerConnected ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma corretora e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
+      <div class="em-icon">${brokerSetuped ? '🔍' : '🔗'}</div>
+      <p>${brokerSetuped ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
     </div>`;
   clearLog();
   initBiases();
@@ -3307,13 +3307,13 @@ async function resetInfrastructure() {
   btn.disabled = true;
   
   try {
-    const res = await apiFetch("/api/broker/reset-connections", "POST");
+    const res = await apiFetch("/api/broker/reset-Setupions", "POST");
     if (res.success) {
       addLog("✅ Infraestrutura limpa com sucesso. Por favor, conecte-se novamente.", "buy");
-      brokerConnected = false;
+      brokerSetuped = false;
       brokerInfo = null;
       updateBrokerUI();
-      alert("Limpeza concluída! Faça login novamente na sua corretora.");
+      alert("Limpeza concluída! Faça login novamente na sua MetaTrader 5.");
     } else {
       alert("Erro no reset: " + res.error);
     }
@@ -3333,7 +3333,7 @@ initBiases();
 loadConfig(); 
 updateStats();
 updateSessionStatus();
-checkBrokerConnection();
+checkBrokerSetupion();
 loadSavedGeminiKey(); 
 checkAuth();
 
@@ -3342,7 +3342,7 @@ checkAuth();
     const desiredState = localStorage.getItem("aura_bot_state");
     
     if (desiredState === "running" && !isRunning) {
-        if (brokerConnected && userLicense) {
+        if (brokerSetuped && userLicense) {
             console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
             addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
@@ -3358,7 +3358,7 @@ checkAuth();
 
 // ─── SINCRONIZAÇÃO DE ORDENS EM TEMPO REAL (RECUPERAÇÃO) ───
 setInterval(() => {
-    if (brokerConnected) updateStats();
+    if (brokerSetuped) updateStats();
 }, 5000);
 </script>
 </body>
