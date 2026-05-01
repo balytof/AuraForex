@@ -748,9 +748,7 @@
       </div>
     </div>
     <div class="controls">
-      <button class="btn btn-connect" id="connectBtn" onclick="openConnectModal()">🔗 Conectar Corretora</button>
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
-      <button class="btn btn-secondary" id="resetInfraBtn" style="border-color:var(--warn); color:var(--warn); font-weight:bold;" onclick="resetInfrastructure()">🧹 Limpar Infra</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
       <button class="btn btn-danger" id="buyLicenseBtn" style="background:var(--warn);color:#000;margin-left:10px;" onclick="openBuyModal()">💎 Comprar Licença</button>
       <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
@@ -793,10 +791,10 @@
 
   <!-- STATS -->
   <div class="stats-grid">
-    <div class="stat-card" onclick="openConnectModal()">
-      <div class="stat-label">Saldo (Corretora)</div>
+    <div class="stat-card" onclick="openBuyModal()">
+      <div class="stat-label">Saldo (MetaTrader 5)</div>
       <div class="stat-value accent" id="statBalance">—</div>
-      <div class="stat-sub" id="statBalanceSub">Conecte uma corretora</div>
+      <div class="stat-sub" id="statBalanceSub">Configure o EA para sincronizar</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">P&L Não Realizado</div>
@@ -855,7 +853,7 @@
           <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="clearLog()">Limpar</button>
         </div>
         <div class="log-area" id="logArea">
-          <div class="log-line"><span class="log-time">[SISTEMA]</span><span class="log-msg">AuraForex pronto. Conecte uma corretora para iniciar.</span></div>
+          <div class="log-line"><span class="log-time">[SISTEMA]</span><span class="log-msg">AuraForex pronto. Aguardando sinais do EA local.</span></div>
         </div>
       </div>
 
@@ -895,7 +893,7 @@
             </thead>
             <tbody id="historyTableBody">
               <tr>
-                <td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-family:'Syne',sans-serif;">Nenhum histórico disponível ou corretora desconectada.</td>
+                <td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-family:'Syne',sans-serif;">Nenhum histórico disponível. Verifique o seu EA no MT5.</td>
               </tr>
             </tbody>
           </table>
@@ -1251,7 +1249,7 @@ function openModal(id) { document.getElementById(id).classList.add("active"); }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
 function openBuyModal() { 
   document.getElementById("buyModal").classList.add("active"); 
-  loadLicensePlans(); // Garante que os planos carreguem
+  loadPlans(); // Nome correto da função no arquivo
   loadPaymentMethods(); 
 }
 
