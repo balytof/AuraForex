@@ -630,7 +630,7 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   return { sl: finalSl, tp: finalTp };
 }
 
-app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
+app.post("/api/broker/order", requireAuth, async (req, res) => {
   let { pair, risk, sl, tp, entry } = req.body;
   const direction = req.body.direction?.toUpperCase();
   if (!pair || !direction || !risk) return res.status(400).json({ error: "Faltam parametros (pair, direction, risk)" });
@@ -659,8 +659,14 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     let entryPrice = entry;
     if (!entryPrice) {
       try {
-        const priceData = await req.broker.getPrice(pair);
-        entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
+        if (req.broker) {
+          const priceData = await req.broker.getPrice(pair);
+          entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
+        } else {
+          // Fallback para preço aproximado se não estiver conectado (para o EA pegar o preço real depois)
+          entryPrice = entry || 0; 
+          console.log(`[ORDER] Broker não conectado no Dashboard. Usando preço de entrada fornecido: ${entryPrice}`);
+        }
       } catch(e) { entryPrice = 0; }
     }
 
@@ -668,7 +674,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     if (entryPrice > 0) {
       try {
         console.log(`[ORDER] Calculando SL/TP Dinâmico (ATR) para ${pair}...`);
-        const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
+        const dyn = await computeDynamicSlTp(req.broker || null, pair, direction, entryPrice);
         sl = dyn.sl;
         tp = dyn.tp;
         const pip = getPipValue(pair);
