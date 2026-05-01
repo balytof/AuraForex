@@ -1060,10 +1060,36 @@ app.delete("/api/admin/payment-methods/:id", requireAuth, requireAdmin, async (r
 
 app.get("/api/plans", requireAuth, async (req, res) => {
   try {
-    const plans = await prisma.licensePlan.findMany({ where: { isActive: true }, orderBy: { price: 'asc' } });
+    const plans = await prisma.licensePlan.findMany({ where: { isActive: true } });
     res.json({ success: true, plans });
   } catch (err) {
-    res.status(500).json({ error: "Erro ao buscar planos." });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/license/request", requireAuth, async (req, res) => {
+  const { planId, hash, amount } = req.body;
+
+  if (!planId || !hash) {
+    return res.status(400).json({ success: false, error: "Dados incompletos." });
+  }
+
+  try {
+    const request = await prisma.purchaseRequest.create({
+      data: {
+        userId: req.user.id,
+        planId: planId,
+        transactionHash: hash,
+        amount: parseFloat(amount) || 0,
+        status: "PENDING"
+      }
+    });
+
+    console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
+    res.json({ success: true, request });
+  } catch (err) {
+    console.error("[PAYMENT-REQUEST] Erro:", err);
+    res.status(500).json({ success: false, error: "Erro interno ao processar solicitação." });
   }
 });
 
