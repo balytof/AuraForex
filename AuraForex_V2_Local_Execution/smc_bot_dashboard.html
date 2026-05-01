@@ -682,6 +682,10 @@
         <div class="dot warn"></div>
         <span id="sessionStatus">Londres / NY</span>
       </div>
+      <div class="status-badge" id="eaBadge" title="Status da ligação com o seu MetaTrader 5 (EA)">
+        <div class="dot" id="eaDot"></div>
+        <span id="eaStatusText">EA: Offline</span>
+      </div>
     </div>
     <div class="controls">
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
@@ -1690,9 +1694,20 @@ function restoreSignals() {
 
   // Ordem cronológica inversa para prepend funcionar corretamente
   [...savedSigs].reverse().forEach(sig => {
+      // Limpeza de erros legados (createOrder)
+      if (sig.execResult && !sig.execResult.success && sig.execResult.error && sig.execResult.error.includes("createOrder")) {
+          return; // Não restaura sinais com erro legado
+      }
       // Usar a mesma função addSignalCard para manter IDs e Badges
       addSignalCard(sig, sig.execResult);
   });
+  
+  // Limpeza forçada do localStorage se houver lixo legado
+  const cleanedSigs = savedSigs.filter(s => !(s.execResult && !s.execResult.success && s.execResult.error && s.execResult.error.includes("createOrder")));
+  if (cleanedSigs.length !== savedSigs.length) {
+      localStorage.setItem('bot_signals', JSON.stringify(cleanedSigs));
+      console.log("[CLEANUP] Sinais com erro legado 'createOrder' removidos.");
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1938,7 +1953,7 @@ async function updateBrokerUI() {
       : '<span class="account-type-badge demo">DEMO</span>';
 
     statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
-    mainBtn.disabled = false;
+    // mainBtn.disabled = false; // Removido para controle centralizado por licença
     ConnectBtn.textContent = "🔌 Desconectar";
     ConnectBtn.className = "btn btn-danger";
     ConnectBtn.onclick = doDisconnect;
@@ -1964,7 +1979,7 @@ async function updateBrokerUI() {
     badge.className = "broker-badge disconnected";
     badge.querySelector(".dot").className = "dot danger";
     statusText.textContent = "Sem MetaTrader 5";
-    mainBtn.disabled = true;
+    // mainBtn.disabled = true; // Removido: O Bot pode rodar em modo Local EA apenas com licença
     ConnectBtn.textContent = "🔗 ---";
     ConnectBtn.className = "btn btn-Connect";
     ConnectBtn.onclick = openSetupModal;
@@ -2330,8 +2345,8 @@ function startBot() {
       return;
     }
     if (!brokerConnected) {
-      addLog("⚠️ Conecte a MetaTrader 5 primeiro.", "warn");
-      return;
+      addLog("ℹ️ Modo Local EA Ativo: Os sinais serão enviados apenas para o seu terminal MetaTrader 5.", "info");
+      // Não bloqueamos mais, apenas informamos
     }
 
     isRunning = true;
@@ -2431,13 +2446,39 @@ function updateLicenseUI() {
       startBtn.disabled = true;
       buyBtn.style.display = "block";
     } else {
+      // Licença ativa: Bot pode ser iniciado
       startBtn.disabled = false;
+      if (buyBtn) buyBtn.style.display = "none";
     }
   } else {
     header.textContent = "NENHUMA";
     count.textContent = "Sem licença ativa";
     alertBar.classList.remove("visible");
     startBtn.disabled = true;
+  }
+  
+  // Atualizar Status do EA (Heartbeat)
+  const eaBadge = document.getElementById("eaBadge");
+  const eaDot = document.getElementById("eaDot");
+  const eaText = document.getElementById("eaStatusText");
+  
+  if (userLicense && userLicense.updatedAt) {
+      const lastSeen = new Date(userLicense.updatedAt);
+      const now = new Date();
+      const diffSeconds = Math.floor((now - lastSeen) / 1000);
+      
+      if (diffSeconds < 30) { // EA está a pingar a cada 30s ou menos
+          eaDot.className = "dot active";
+          eaText.textContent = "EA: Online";
+          eaBadge.title = `Última sincronização: ${lastSeen.toLocaleTimeString()}`;
+      } else {
+          eaDot.className = "dot danger";
+          eaText.textContent = "EA: Offline";
+          eaBadge.title = `EA não sincroniza há ${diffSeconds}s. Verifique o MT5.`;
+      }
+  } else {
+      eaDot.className = "dot";
+      eaText.textContent = "EA: Não Configurado";
   }
 }
 

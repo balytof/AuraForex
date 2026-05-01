@@ -86,6 +86,12 @@ router.get("/signals", async (req, res) => {
       orderBy: { createdAt: "asc" }
     });
 
+    // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
+    await prisma.license.update({
+      where: { id: licenseKey },
+      data: { updatedAt: new Date() }
+    });
+
     return res.json({ success: true, signals });
 
   } catch (err) {
