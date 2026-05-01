@@ -14,6 +14,8 @@
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licena (Dashboard)
 input string   InpServerUrl      = "http://localhost:3005"; // URL do Servidor API
+input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
+input double   InpTPRR           = 2.0;                     // Take Profit (Risk:Reward)
 input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
 
