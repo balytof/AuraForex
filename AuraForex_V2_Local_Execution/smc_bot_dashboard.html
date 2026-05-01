@@ -2443,14 +2443,26 @@ function updateLicenseUI() {
 
 
 function openBuyModal() {
-  document.getElementById("buyModal").classList.add("active");
-  loadPlans();
-  loadWallets();
+  console.log("%c[UI] Abrindo Modal de Compra...", "color: #7c3aed; font-weight: bold;");
+  const modal = document.getElementById("buyModal");
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add("active");
+    loadPlans();
+    loadWallets();
+  } else {
+    console.error("[UI] Erro: Elemento 'buyModal' não encontrado no DOM!");
+    alert("Erro crítico: Modal de compra não encontrado.");
+  }
 }
 
 function closeBuyModal() {
-  document.getElementById("buyModal").classList.remove("active");
-  resetBuyModal();
+  const modal = document.getElementById("buyModal");
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove("active");
+    resetBuyModal();
+  }
 }
 
 // ─── EA SETUP MODAL ──────────────────────────
