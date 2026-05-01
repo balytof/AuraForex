@@ -485,7 +485,12 @@ app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res
 });
 
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json({ history: await req.broker.getHistory(req.query) }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.json({ success: true, history: [] });
+    res.json({ history: await req.broker.getTradeHistory() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Helpers SL/TP dinâmico ──────────────────────────────────────
