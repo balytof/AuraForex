@@ -193,7 +193,7 @@ void ReportAccountStatus()
 
 string SendPost(string url, string payload)
 {
-   char post[], result[];
+   uchar post[], result[];
    string headers = "Content-Type: application/json\r\n";
    StringToCharArray(payload, post);
    string result_headers;
@@ -204,7 +204,7 @@ string SendPost(string url, string payload)
 
 string SendGet(string url)
 {
-   char result[];
+   uchar result[];
    string result_headers;
    int res = WebRequest("GET", url, NULL, 5000, NULL, result, result_headers);
    if(res == -1) return "Error";
