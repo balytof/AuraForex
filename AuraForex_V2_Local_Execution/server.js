@@ -21,7 +21,7 @@ const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Forçado para evitar conflito com processos fantasma na 3005
+const PORT = process.env.PORT || 3005; 
 const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
 console.log(`[INIT] ROOT directory: ${ROOT}`);
