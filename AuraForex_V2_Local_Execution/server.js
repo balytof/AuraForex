@@ -1173,6 +1173,7 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
     }
     res.json({ success: true, settings });
   } catch (err) {
+    console.error("[SETTINGS-ERROR]", err);
     res.status(500).json({ error: "Erro ao buscar configurações." });
   }
 });
