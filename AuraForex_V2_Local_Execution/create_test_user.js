@@ -24,22 +24,29 @@ async function createTestUser() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    await prisma.license.upsert({
-      where: { userId: user.id },
-      update: {
-        status: "ACTIVE",
-        expiresAt: expiresAt,
-        type: "PRO-TESTE",
-        key: "AURA-TEST-KEY-12345"
-      },
-      create: {
-        userId: user.id,
-        key: "AURA-TEST-KEY-12345",
-        status: "ACTIVE",
-        expiresAt: expiresAt,
-        type: "PRO-TESTE"
-      }
+    const existingLicense = await prisma.license.findFirst({
+      where: { userId: user.id }
     });
+
+    if (existingLicense) {
+      await prisma.license.update({
+        where: { id: existingLicense.id },
+        data: {
+          status: "ACTIVE",
+          expiresAt: expiresAt,
+          type: "PRO-TESTE"
+        }
+      });
+    } else {
+      await prisma.license.create({
+        data: {
+          userId: user.id,
+          status: "ACTIVE",
+          expiresAt: expiresAt,
+          type: "PRO-TESTE"
+        }
+      });
+    }
 
     console.log("==========================================");
     console.log("  ✅ USUÁRIO COMUM CRIADO COM LICENÇA!");
