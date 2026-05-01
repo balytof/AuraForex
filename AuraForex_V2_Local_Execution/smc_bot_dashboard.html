@@ -735,6 +735,10 @@
         <span>Status: <b id="licenseLevel">Carregando...</b></span>
         <span id="licenseCountdown" style="opacity:0.8;">...</span>
       </div>
+      <div class="status-badge" onclick="openBuyModal()" style="cursor:pointer; border: 1px solid var(--accent2); background: rgba(124,58,237,0.1);">
+        <div class="dot" style="background: var(--accent2);"></div>
+        <span>Comprar Licença</span>
+      </div>
       <button class="btn-setup-ea" id="setupEABtn" onclick="openSetupModal()">
         <i class="fas fa-download"></i> Configurar EA no MT5
       </button>
@@ -836,9 +840,10 @@
           </div>
         </div>
         <div class="signals-list" id="signalsList">
-          <div class="empty-state">
-            <div class="em-icon">🔗</div>
-            <p>Conecte uma corretora e inicie o bot<br>para receber sinais SMC com execução automática.</p>
+          <div class="empty-state" id="signalsEmptyState">
+            <div class="em-icon">📊</div>
+            <p>Aguardando sinais do mercado...</p>
+            <p style="font-size:0.7rem; color:var(--muted);">Certifique-se de que o seu EA está conectado no MT5.</p>
           </div>
         </div>
       </div>
@@ -1244,7 +1249,11 @@ function updateLicenseUI() {
 
 function openModal(id) { document.getElementById(id).classList.add("active"); }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
-function openBuyModal() { openModal("buyModal"); loadPaymentMethods(); }
+function openBuyModal() { 
+  document.getElementById("buyModal").classList.add("active"); 
+  loadLicensePlans(); // Garante que os planos carreguem
+  loadPaymentMethods(); 
+}
 
 let selectedPlan = null;
 function selectPlan(type, price) {
