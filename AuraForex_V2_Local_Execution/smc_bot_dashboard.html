@@ -2219,7 +2219,8 @@ async function botLoop(loopId) {
           
           sig.lotSize = lotSize;
 
-          if (brokerConnected) {
+          // Removida restrição de brokerConnected para permitir modo Sinal-EA
+          if (true) { 
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
             const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
 

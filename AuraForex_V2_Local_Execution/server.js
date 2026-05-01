@@ -156,7 +156,8 @@ async function requireBrokerAuth(req, res, next) {
   }
 
   if (!activeBroker || !activeBroker.connected) {
-    return res.status(403).json({ error: "Nenhuma corretora conectada neste momento. Por favor, conecte manualmente no painel." });
+    req.broker = null; 
+    return next();
   }
   
   req.broker = activeBroker;
