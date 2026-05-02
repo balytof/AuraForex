@@ -562,7 +562,15 @@
                 plan_days: "dias",
                 plan_support: "Suporte Prioritário",
                 plan_guide: "Guia de Instalação",
-                plan_buy: "Comprar Agora"
+                plan_buy: "Comprar Agora",
+                curiosities: [
+                    "Sabia que o mercado Forex movimenta mais de $7.5 triliões por dia?",
+                    "DeFi: O valor total bloqueado em finanças descentralizadas já ultrapassou os $100 mil milhões.",
+                    "O mercado Forex nunca dorme: funciona 24 horas por dia, 5 dias por semana.",
+                    "Smart Money Concepts: 90% dos traders perdem porque tentam lutar contra as instituições.",
+                    "Blockchain: A tecnologia que permite a transparência total sem custódia central.",
+                    "Gemini AI: A inteligência que processa triliões de pontos de dados em milissegundos."
+                ]
             },
             en: {
                 nav_services: "Bots",
@@ -606,7 +614,15 @@
                 plan_days: "days",
                 plan_support: "Priority Support",
                 plan_guide: "Installation Guide",
-                plan_buy: "Buy Now"
+                plan_buy: "Buy Now",
+                curiosities: [
+                    "Did you know the Forex market moves over $7.5 trillion per day?",
+                    "DeFi: Total value locked in decentralized finance has surpassed $100 billion.",
+                    "The Forex market never sleeps: it works 24 hours a day, 5 days a week.",
+                    "Smart Money Concepts: 90% of traders lose because they try to fight against institutions.",
+                    "Blockchain: The technology that allows total transparency without central custody.",
+                    "Gemini AI: Intelligence that processes trillions of data points in milliseconds."
+                ]
             },
             fr: {
                 nav_services: "Bots",
@@ -650,7 +666,15 @@
                 plan_days: "jours",
                 plan_support: "Support Prioritaire",
                 plan_guide: "Guide d'Installation",
-                plan_buy: "Acheter Maintenant"
+                plan_buy: "Acheter Maintenant",
+                curiosities: [
+                    "Saviez-vous que le marché Forex brasse plus de 7,5 billions de dollars par jour ?",
+                    "DeFi : La valeur totale verrouillée dans la finance décentralisée a dépassé les 100 milliards de dollars.",
+                    "Le marché Forex ne dort jamais : il fonctionne 24h/24, 5j/7.",
+                    "Smart Money Concepts : 90 % des traders perdent car ils tentent de lutter contre les institutions.",
+                    "Blockchain : La technologie qui permet une transparence totale sans garde centrale.",
+                    "Gemini AI : L'intelligence qui traite des billions de points de données en quelques millisecondes."
+                ]
             },
             es: {
                 nav_services: "Bots",
@@ -757,12 +781,14 @@
 
         let curIndex = 0;
         function rotateCuriosities() {
+            const lang = localStorage.getItem('aura_lang') || 'pt';
+            const list = translations[lang].curiosities;
             const box = document.getElementById("curiosityBox");
             if (!box) return;
             box.style.opacity = 0;
             setTimeout(() => {
-                curIndex = (curIndex + 1) % curiosities.length;
-                box.innerText = curiosities[curIndex];
+                curIndex = (curIndex + 1) % list.length;
+                box.innerText = list[curIndex];
                 box.style.opacity = 1;
             }, 1000);
         }
