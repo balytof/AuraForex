@@ -474,7 +474,10 @@
         if (id === 'plans') loadPlans();
         if (id === 'users') loadUsers();
         if (id === 'finance') loadFinance();
-        if (id === 'settings') loadPaymentMethods();
+        if (id === 'settings') {
+            loadPaymentMethods();
+            loadSystemSettings();
+        }
     }
 
     async function loadStats() {
@@ -737,6 +740,34 @@
             loadPaymentMethods();
             document.getElementById('pmName').value = '';
             document.getElementById('pmDetails').value = '';
+        }
+    }
+
+    async function loadSystemSettings() {
+        const res = await api("/api/admin/settings");
+        if (res.success && res.settings) {
+            const s = res.settings;
+            document.getElementById('sysGeminiKey').value = s.geminiApiKey || '';
+            document.getElementById('sysMetaToken').value = s.metaApiToken || '';
+            document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
+            document.getElementById('sysApiUrl').value = s.apiUrl || '';
+            document.getElementById('sysInstallGuide').value = s.installationGuide || '';
+        }
+    }
+
+    async function saveSystemSettings() {
+        const payload = {
+            geminiApiKey: document.getElementById('sysGeminiKey').value,
+            metaApiToken: document.getElementById('sysMetaToken').value,
+            metaApiAccountId: document.getElementById('sysMetaAccountId').value,
+            apiUrl: document.getElementById('sysApiUrl').value,
+            installationGuide: document.getElementById('sysInstallGuide').value
+        };
+        const res = await api("/api/admin/settings", "POST", payload);
+        if (res.success) {
+            alert("✅ Parâmetros do sistema guardados com sucesso!");
+        } else {
+            alert("❌ Erro ao guardar: " + res.error);
         }
     }
 
