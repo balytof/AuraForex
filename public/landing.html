@@ -557,7 +557,12 @@
                 p3_title: "💎 Tecnologia Non-Custodial",
                 p3_desc: "Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.",
                 feat_title: "🌐 O que é a AURATRADE",
-                about_intro: "A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:"
+                about_intro: "A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:",
+                plan_validity: "Validade",
+                plan_days: "dias",
+                plan_support: "Suporte Prioritário",
+                plan_guide: "Guia de Instalação",
+                plan_buy: "Comprar Agora"
             },
             en: {
                 nav_services: "Bots",
@@ -596,7 +601,12 @@
                 p3_title: "💎 Non-Custodial Tech",
                 p3_desc: "Recommend with security: your guests' funds always remain under their control.",
                 feat_title: "🌐 What is AURATRADE",
-                about_intro: "AURATRADE positions itself as a <strong>non-custodial</strong> company, meaning:"
+                about_intro: "AURATRADE positions itself as a <strong>non-custodial</strong> company, meaning:",
+                plan_validity: "Validity",
+                plan_days: "days",
+                plan_support: "Priority Support",
+                plan_guide: "Installation Guide",
+                plan_buy: "Buy Now"
             },
             fr: {
                 nav_services: "Bots",
@@ -635,7 +645,12 @@
                 p3_title: "💎 Technologie Non-Custodial",
                 p3_desc: "Recommandez en toute sécurité: les fonds de vos invités restent toujours sous leur contrôle.",
                 feat_title: "🌐 Qu'est-ce que l'AURATRADE",
-                about_intro: "AURATRADE se positionne comme une société <strong>non-custodial</strong>, c'est-à-dire:"
+                about_intro: "AURATRADE se positionne comme une société <strong>non-custodial</strong>, c'est-à-dire:",
+                plan_validity: "Validité",
+                plan_days: "jours",
+                plan_support: "Support Prioritaire",
+                plan_guide: "Guide d'Installation",
+                plan_buy: "Acheter Maintenant"
             },
             es: {
                 nav_services: "Bots",
@@ -656,7 +671,7 @@
                 srv_ai_desc: "Alto rendimiento en mercados de Criptomonedas con algoritmos adaptativos. (Próximamente)",
                 plans_title: "Planes de Licencia",
                 plans_subtitle: "Elija la modalidad que mejor se adapte a su capital y objetivos.",
-                how_title: "Cómo funciona el acceso",
+                how_title: "Cómo funciona el acesso",
                 step1_title: "Elija su Plan",
                 step1_desc: "Seleccione la duración de la licencia que deseja activar.",
                 step2_title: "Pago Seguro",
@@ -668,13 +683,18 @@
                 access_title: "¿Cómo tener acceso a los Bots?",
                 partner_title: "¿Por qué ser un Socio de AuraTrade?",
                 p1_title: "📈 Plan de Red",
-                p1_desc: "Comparta la tecnología y gane comisiones recurrentes sobre las licencias activadas en su red.",
+                p1_desc: "Comparta la tecnología y gane comisiones recurrentes sobre las licenças activadas en su red.",
                 p2_title: "🏆 Liderazgo Global",
                 p2_desc: "Acceso a mentorías exclusivas y ferramentas de marketing para expandir seu negócio digital.",
                 p3_title: "💎 Tecnologia Non-Custodial",
                 p3_desc: "Recomiende con seguridad: los fondos de sus invitados permanecen sempre bajo su control.",
                 feat_title: "🌐 Qué é AURATRADE",
-                about_intro: "AURATRADE se posiciona como una empresa <strong>non-custodial</strong>, es decir:"
+                about_intro: "AURATRADE se posiciona como una empresa <strong>non-custodial</strong>, es decir:",
+                plan_validity: "Validez",
+                plan_days: "días",
+                plan_support: "Soporte Prioritario",
+                plan_guide: "Guía de Instalación",
+                plan_buy: "Comprar Ahora"
             }
         };
 
@@ -700,14 +720,18 @@
                             <h3 class="syne" style="font-size: 1.2rem;">${p.name}</h3>
                             <div style="font-size: 2.5rem; font-weight: 800; margin: 20px 0; color: var(--accent);">$${p.price}</div>
                             <ul style="list-style: none; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;">
-                                <li style="margin-bottom: 8px;">✅ Validade: ${p.durationDays} dias</li>
-                                <li style="margin-bottom: 8px;">✅ Bot SMC Pro Forex</li>
-                                <li style="margin-bottom: 8px;">✅ Suporte Prioritário</li>
-                                <li style="margin-bottom: 8px;">✅ Guia de Instalação</li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_validity">Validade</span>: ${p.durationDays} <span data-i18n="plan_days">dias</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="srv_bot_title">Bot SMC Pro Forex</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_support">Suporte Prioritário</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_guide">Guia de Instalação</span></li>
                             </ul>
-                            <a href="/login" class="btn-access" style="text-align:center; padding: 12px;">Comprar Agora</a>
+                            <a href="/login" class="btn-access" style="text-align:center; padding: 12px;" data-i18n="plan_buy">Comprar Agora</a>
                         </div>
                     `).join('');
+                    
+                    // Re-aplicar traduções para os novos elementos injetados
+                    const currentLang = localStorage.getItem('aura_lang') || 'pt';
+                    changeLanguage(currentLang);
                 }
             } catch (e) { console.error("Erro ao carregar planos", e); }
         }
@@ -773,6 +797,7 @@
             } catch (e) { console.error("Erro ao carregar contactos:", e); }
         }
 
+        // Auto-detect language
         window.onload = () => {
             const savedLang = localStorage.getItem('aura_lang') || 'pt';
             const switcher = document.querySelector('.lang-switcher');
