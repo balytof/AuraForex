@@ -422,12 +422,6 @@
         }
 
         // Auto-detect language
-        // Página de Detalhes do Bot Forex
-        app.get("/smc-forex", (req, res) => {
-          res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
-        });
-
-        // Download do Robô
         window.onload = () => {
             const savedLang = localStorage.getItem('aura_lang') || 'pt';
             document.querySelector('.lang-switcher').value = savedLang;
