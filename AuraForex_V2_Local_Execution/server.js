@@ -89,6 +89,32 @@ app.use("/api/ea", eaApi);
 const userBrokers = new Map();
 const userRisks = new Map(); // Mapa de RiskManager por User ID
 
+let globalBroker = null; // Instância mestre para puxar velas para todos os usuários
+
+async function getGlobalBroker() {
+  if (globalBroker && globalBroker.connected) return globalBroker;
+  
+  try {
+    const settings = await prisma.systemSettings.findFirst();
+    if (settings && settings.metaApiToken && settings.metaApiAccountId) {
+      console.log("[ADMIN] 🌐 Inicializando Broker Global (MetaApi)...");
+      const config = {
+        brokerType: "metaapi",
+        apiToken: settings.metaApiToken,
+        metaApiAccountId: settings.metaApiAccountId,
+        region: "vint-hill"
+      };
+      
+      globalBroker = createBroker(config);
+      await globalBroker.connect();
+      return globalBroker;
+    }
+  } catch (e) {
+    console.error("[ADMIN] ❌ Falha ao ligar Broker Global:", e.message);
+  }
+  return null;
+}
+
 function getBrokerAdapter(config) {
   return createBroker(config);
 }
