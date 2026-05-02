@@ -33,17 +33,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚀 PRIORIDADE MÁXIMA: Landing Page (Página de Vendas)
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
-});
-
-// Página de Login (Design Atual Mantido)
-app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
-});
-
-// Download do Robô
+// 🚀 PRIORIDADE MÁXIMA: Download do Robô
 app.get("/SMC_APEX_EA.ex5", (req, res) => {
   const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
