@@ -369,7 +369,7 @@
                 <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Bot" style="height: 60px; margin-bottom: 20px; filter: grayscale(1) brightness(0.7);">
                 <h3 data-i18n="srv_ai_title">BOT SMC CRIPTO</h3>
                 <p data-i18n="srv_ai_desc">Alta performance em mercados de Criptomoedas com algoritmos adaptativos. (Brevemente)</p>
-                <div style="margin-top: 15px; color: var(--text-muted); font-weight: 600; font-size: 0.8rem;">Em Desenvolvimento...</div>
+                <div style="margin-top: 15px; color: var(--text-muted); font-weight: 600; font-size: 0.8rem;" data-i18n="dev_status">Em Desenvolvimento...</div>
             </div>
         </div>
     </section>
@@ -381,7 +381,7 @@
             <p style="text-align: center; color: var(--text-muted); margin-bottom: 50px;" data-i18n="plans_subtitle">Escolha a modalidade que melhor se adapta ao seu capital e objetivos.</p>
             <div id="plansGrid" class="services-grid">
                 <!-- Carregado via JS -->
-                <div style="color: var(--accent);">A carregar planos...</div>
+                <div style="color: var(--accent);" data-i18n="loading_plans">A carregar planos...</div>
             </div>
         </div>
     </section>
@@ -421,20 +421,20 @@
             <h2 class="section-title" data-i18n="access_title">Como ter acesso aos Bots?</h2>
             
             <div style="background: var(--surface); padding: 40px; border-radius: 24px; border: 1px solid var(--accent); margin-bottom: 50px;">
-                <p style="font-size: 1.1rem; margin-bottom: 20px;">A AuraTrade cresce de forma orgânica e exclusiva. Para garantir o melhor suporte, seguimos este fluxo:</p>
+                <p style="font-size: 1.1rem; margin-bottom: 20px;" data-i18n="access_desc">A AuraTrade cresce de forma orgânica e exclusiva. Para garantir o melhor suporte, seguimos este fluxo:</p>
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     <div style="display: flex; gap: 15px; align-items: flex-start;">
                         <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">1</span>
-                        <p>Contacte a pessoa que lhe convidou para este ecossistema. Ela será o seu patrocinador e guia inicial.</p>
+                        <p data-i18n="access_step1">Contacte a pessoa que lhe convidou para este ecossistema. Ela será o seu patrocinador e guia inicial.</p>
                     </div>
                     <div style="display: flex; gap: 15px; align-items: flex-start;">
                         <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">2</span>
                         <div>
-                            <p>Caso não tenha um patrocinador direto, utilize o código de indicação oficial no registo:</p>
+                            <p data-i18n="access_step2">Caso não tenha um patrocinador direto, utilize o código de indicação oficial no registo:</p>
                             <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
                                 <strong id="refCode" style="color: var(--accent); font-family: 'Space Mono', monospace; font-size: 1.6rem; letter-spacing: 2px;">1630FBED</strong>
                                 <button onclick="copyRefCode()" style="background: var(--glass); border: 1px solid var(--accent); color: var(--accent); padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: 0.3s;" onmouseover="this.style.background='var(--accent)'; this.style.color='var(--bg)'" onmouseout="this.style.background='var(--glass)'; this.style.color='var(--accent)'">
-                                    <i class="far fa-copy"></i> <span id="copyText">Copiar</span>
+                                    <i class="far fa-copy"></i> <span id="copyText" data-i18n="btn_copy">Copiar</span>
                                 </button>
                             </div>
                         </div>
@@ -718,7 +718,15 @@
                 plan_days: "días",
                 plan_support: "Soporte Prioritario",
                 plan_guide: "Guía de Instalación",
-                plan_buy: "Comprar Ahora"
+                plan_buy: "Comprar Ahora",
+                curiosities: [
+                    "¿Sabías que el mercado Forex mueve más de $7.5 billones al día?",
+                    "DeFi: El valor total bloqueado en finanzas descentralizadas ha superado los $100 mil millones.",
+                    "El mercado Forex nunca duerme: funciona las 24 horas del día, 5 días a la semana.",
+                    "Smart Money Concepts: el 90% de los traders pierden porque intentan luchar contra las instituciones.",
+                    "Blockchain: La tecnología que permite la transparencia total sin custodia central.",
+                    "Gemini AI: La inteligencia que procesa billones de puntos de datos en milisegundos."
+                ]
             }
         };
 
