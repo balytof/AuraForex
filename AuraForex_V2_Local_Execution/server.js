@@ -770,7 +770,7 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     return res.status(200).json({ 
       success: true, 
       message: "Sinal enviado para o terminal local (EA).",
-      signalId: signal.id,
+      orderId: signal.id,
       appliedSl: sl,
       appliedTp: tp
     });
