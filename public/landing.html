@@ -9,7 +9,7 @@
     <style>
         :root {
             --bg: #03050a;
-            --surface: #0a0d16;
+            --surface: rgba(10, 13, 22, 0.6);
             --accent: #00d4ff;
             --accent-purple: #9d50bb;
             --text: #ffffff;
@@ -34,7 +34,7 @@
             position: fixed; inset: 0;
             background: url('/aura_bot.png') no-repeat center center;
             background-size: cover;
-            filter: brightness(0.25) saturate(1.2);
+            filter: brightness(0.4) saturate(1.2);
             z-index: -2;
             animation: breatheBot 12s ease-in-out infinite;
         }
@@ -46,7 +46,7 @@
 
         .bg-overlay {
             position: fixed; inset: 0;
-            background: radial-gradient(circle at 50% 50%, transparent 10%, var(--bg) 90%);
+            background: radial-gradient(circle at 50% 50%, transparent 30%, var(--bg) 110%);
             z-index: -1;
         }
 
@@ -239,6 +239,7 @@
             min-width: 280px;
             max-width: 400px;
             background: var(--surface);
+            backdrop-filter: blur(12px);
             padding: 40px;
             border-radius: 24px;
             border: 1px solid var(--glass-border);
@@ -251,7 +252,7 @@
         .service-card:hover {
             transform: translateY(-10px);
             border-color: var(--accent);
-            background: rgba(0, 212, 255, 0.02);
+            background: rgba(0, 212, 255, 0.05);
         }
 
         .service-icon {
@@ -466,7 +467,7 @@
         </div>
     </section>
 
-    <section class="section" id="about" style="text-align: left; background: var(--surface);">
+    <section class="section" id="about" style="text-align: left; background: transparent;">
         <div class="container" style="max-width: 1000px; margin: 0 auto;">
             <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">🌐 O que é a AURATRADE</h2>
             
