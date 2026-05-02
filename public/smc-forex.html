@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMC Pro Forex | AuraTrade Ecosystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #03050a;
+            --surface: #0a0d16;
+            --accent: #00d4ff;
+            --accent-purple: #9d50bb;
+            --text: #ffffff;
+            --text-muted: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
+
+        .glow-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 80% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        header {
+            padding: 30px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+
+        .back-link:hover { transform: translateX(-5px); }
+
+        .container {
+            max-width: 1000px;
+            margin: 80px auto;
+            padding: 0 5%;
+        }
+
+        .hero-detail {
+            text-align: center;
+            margin-bottom: 100px;
+        }
+
+        .hero-detail h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, var(--accent), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .highlight-box {
+            background: var(--glass);
+            border-left: 4px solid var(--accent-purple);
+            padding: 30px;
+            margin: 60px 0;
+            border-radius: 0 20px 20px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 60px;
+            border-top: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .btn-cta {
+            display: inline-block;
+            margin-top: 40px;
+            background: linear-gradient(45deg, var(--accent), var(--accent-purple));
+            color: white;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 800;
+            transition: 0.3s;
+        }
+
+        .btn-cta:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="glow-bg"></div>
+
+    <header>
+        <a href="/" class="back-link">← Voltar ao Ecossistema</a>
+        <div class="logo-small" style="font-weight: 800; font-family: 'Syne';">AURATRADE</div>
+    </header>
+
+    <main class="container">
+        <section class="hero-detail">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🤖</div>
+            <h1>BOT SMC PRO FOREX</h1>
+            <p style="font-size: 1.2rem; color: var(--text-muted);">Tecnologia Institucional de Elite para o Mercado de Divisas Global.</p>
+        </section>
+
+        <div class="grid">
+            <div class="card">
+                <h3>01. Smart Money Concepts</h3>
+                <p>O nosso algoritmo não utiliza indicadores de retalho. Ele foca-se na identificação de Pegadas Institucionais (Order Blocks, Fair Value Gaps e Liquidez), operando a favor do "Big Money".</p>
+            </div>
+            <div class="card">
+                <h3>02. Validação Gemini AI</h3>
+                <p>Cada sinal é filtrado por um motor de Inteligência Artificial que analisa o sentimento macroeconómico em tempo real, evitando armadilhas em momentos de alta volatilidade.</p>
+            </div>
+            <div class="card">
+                <h3>03. Execução Local</h3>
+                <p>Segurança total. O robô corre diretamente no seu terminal MetaTrader 5, garantindo latência zero e controlo absoluto sobre os seus fundos.</p>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3 class="syne" style="margin-bottom: 15px;">Gestão de Risco Blindada</h3>
+            <p>O AuraTrade SMC Pro utiliza cálculos dinâmicos de Stop Loss baseados na volatilidade real (ATR) e possui um filtro de notícias integrado que desativa operações automáticas durante eventos de alto impacto.</p>
+        </div>
+
+        <section style="text-align: center;">
+            <h2 class="syne">Pronto para o Próximo Nível?</h2>
+            <a href="/login" class="btn-cta">Começar Agora</a>
+        </section>
+    </main>
+
+    <footer>
+        © 2026 AuraTrade Ecosystem. Tecnologia de Trading Institucional.
+    </footer>
+</body>
+</html>
