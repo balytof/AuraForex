@@ -181,5 +181,12 @@ model SystemSettings {
   metaApiAccountId  String?
   apiUrl            String?  @default("http://localhost:3005")
   installationGuide String?  @db.Text
+  
+  // Redes Sociais
+  telegramUrl       String?
+  whatsappNumber    String?
+  facebookUrl       String?
+  instagramUrl      String?
+
   updatedAt         DateTime @updatedAt
 }
