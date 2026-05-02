@@ -43,6 +43,11 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
+// Página de Detalhes do Bot Forex
+app.get("/smc-forex", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
+});
+
 // Download do Robô
 app.get("/SMC_APEX_EA.ex5", (req, res) => {
   const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
