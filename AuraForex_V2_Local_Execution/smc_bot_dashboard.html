@@ -2756,6 +2756,7 @@ updateSessionStatus();
 checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
+loadSystemConfig(); 
 
 // ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
 (function auraEngineMonitor() {
@@ -2780,6 +2781,34 @@ checkAuth();
 setInterval(() => {
     if (brokerConnected) updateStats();
 }, 5000);
+
+let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
+
+async function loadSystemConfig() {
+  try {
+    const res = await fetch("/api/system/config");
+    const data = await res.json();
+    if (data.success) {
+      systemConfig = data;
+      
+      // Update UI elements
+      if (document.getElementById("apiUrlDisplay")) {
+        document.getElementById("apiUrlDisplay").textContent = systemConfig.apiUrl;
+      }
+      if (document.getElementById("eaApiUrl")) {
+        document.getElementById("eaApiUrl").textContent = systemConfig.apiUrl;
+      }
+      
+      const customGuide = document.getElementById("customGuideContent");
+      if (customGuide && systemConfig.installationGuide) {
+        customGuide.innerHTML = systemConfig.installationGuide.replace(/\n/g, '<br>');
+        customGuide.style.display = "block";
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao carregar config do sistema:", e);
+  }
+}
 </script>
 <!-- MODAIS MOVIDOS PARA O FIM DO BODY -->
 <div id="setupModal" class="modal-overlay">
@@ -2848,6 +2877,9 @@ setInterval(() => {
             </tbody>
           </table>
         </div>
+      </div>
+      <div id="customGuideContent" style="margin-top: 20px; font-size: 0.85rem; line-height: 1.6; border-top: 1px solid var(--border); padding-top: 20px; display: none; color: var(--text);">
+        <!-- Dynamic content from admin -->
       </div>
     </div>
     <div class="modal-footer">
