@@ -1336,10 +1336,16 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     
     // 🔍 EXPERT: Tentar buscar velas REAIS da corretora se não foram enviadas
     if (!marketCandles || marketCandles.length === 0) {
-      const broker = userBrokers.get(req.user.id);
+      let broker = userBrokers.get(req.user.id);
+      
+      // Se o utilizador não tem broker ligado, tenta usar o Broker Global do Admin (puxado da Base de Dados)
+      if (!broker || !broker.connected) {
+        broker = await getGlobalBroker();
+      }
+
       if (broker && broker.connected) {
         try {
-          console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name}...`);
+          console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name || 'Global Admin'}...`);
           marketCandles = await broker.getCandles(pair, "1m", 250);
           console.log(`[BOT] ✅ ${marketCandles.length} velas obtidas.`);
         } catch (e) {
