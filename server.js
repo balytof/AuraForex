@@ -886,6 +886,18 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ── Configuração Pública (User) ───────────────────────────────────────
+app.get("/api/public/plans", async (req, res) => {
+  try {
+    const plans = await prisma.licensePlan.findMany({
+      where: { isActive: true },
+      orderBy: { price: 'asc' }
+    });
+    res.json({ success: true, plans });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.get("/api/system/config", async (req, res) => {
   try {
     const settings = await prisma.systemSettings.findFirst();
