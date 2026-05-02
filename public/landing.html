@@ -294,9 +294,22 @@
             opacity: 0.2;
         }
 
-        .feature-content { flex: 1; }
         .feature-content h2 { font-size: 3rem; margin-bottom: 20px; }
         .feature-content p { margin-bottom: 30px; color: var(--text-muted); }
+
+        .step-card {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+        }
+        .step-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            background: rgba(0, 212, 255, 0.03);
+        }
 
         /* Footer */
         footer {
