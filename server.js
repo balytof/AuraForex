@@ -33,24 +33,34 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚀 PRIORIDADE MÁXIMA: Download do Robô
+// 🚀 PRIORIDADE MÁXIMA: Landing Page (Página de Vendas)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
+// Página de Login (Design Atual Mantido)
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+// Download do Robô
 app.get("/SMC_APEX_EA.ex5", (req, res) => {
   const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
   
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
+    res.setHeader('Content-Disposition', 'attachment; filename="SMC_AURATRADE_EA.ex5"');
     res.sendFile(filePath, (err) => {
       if (err) {
         console.error("[DOWNLOAD-ERROR]", err);
       } else {
-        console.log("[DOWNLOAD-SUCCESS] Ficheiro enviado com sucesso.");
+        console.log("[DOWNLOAD-SUCCESS] Ficheiro AuraTrade enviado.");
       }
     });
   } else {
-    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado no disco!");
-    res.status(404).send("Ficheiro do Robô não encontrado no servidor.");
+    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado!");
+    res.status(404).send("Ficheiro do Robô AuraTrade não encontrado.");
   }
 });
 
