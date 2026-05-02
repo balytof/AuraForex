@@ -866,17 +866,17 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide } = req.body;
+    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl } = req.body;
     let settings = await prisma.systemSettings.findFirst();
     
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
       });
     } else {
       settings = await prisma.systemSettings.create({
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
       });
     }
     res.json({ success: true, settings });
@@ -892,7 +892,11 @@ app.get("/api/system/config", async (req, res) => {
     res.json({ 
       success: true, 
       apiUrl: settings?.apiUrl || "http://localhost:3005",
-      installationGuide: settings?.installationGuide || ""
+      installationGuide: settings?.installationGuide || "",
+      telegramUrl: settings?.telegramUrl || "",
+      whatsappNumber: settings?.whatsappNumber || "",
+      facebookUrl: settings?.facebookUrl || "",
+      instagramUrl: settings?.instagramUrl || ""
     });
   } catch (e) {
     res.json({ success: true, apiUrl: "http://localhost:3005" });
