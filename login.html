@@ -152,8 +152,19 @@
   
   <!-- Botão Voltar -->
   <a href="/" style="position: fixed; top: 20px; right: 20px; z-index: 1000; text-decoration: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 30px; color: white; font-size: 0.85rem; font-weight: 600; transition: 0.3s; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-    <span style="font-size: 1.1rem;">←</span> Voltar ao Início
+    <span style="font-size: 1.1rem;">←</span> <span data-i18n="back_home">Voltar ao Início</span>
   </a>
+
+  <!-- Seletor de Idioma -->
+  <div style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
+    <select class="lang-switcher" onchange="changeLanguage(this.value)" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; outline: none; cursor: pointer; backdrop-filter: blur(10px);">
+        <option value="pt">PT</option>
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+        <option value="es">ES</option>
+    </select>
+  </div>
+
   <div class="candles" id="candleLane"></div>
   <div class="moving-text">AURATRADE · INSTITUTIONAL BOTS · ECOSSISTEMA GLOBAL</div>
 
@@ -161,7 +172,7 @@
     <div class="logo-container">
       <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade Logo" style="height: 80px; margin-bottom: 20px;">
       <h1>AuraTrade</h1>
-      <div class="subtitle">Faça login para aceder ao Ecossistema de Bots</div>
+      <div class="subtitle" data-i18n="subtitle_login">Faça login para aceder ao Ecossistema de Bots</div>
     </div>
 
     <div id="errorBox" class="error-msg"></div>
@@ -169,42 +180,140 @@
 
     <div id="loginForm">
       <div class="form-group">
-        <label>Email</label>
+        <label data-i18n="label_email">Email</label>
         <input type="email" id="loginEmail" class="form-input" placeholder="exemplo@auratrade.com">
       </div>
       <div class="form-group">
-        <label>Password</label>
+        <label data-i18n="label_pass">Password</label>
         <div class="pass-wrapper">
           <input type="password" id="loginPass" class="form-input" placeholder="••••••••">
           <button type="button" class="pass-toggle" onclick="togglePass('loginPass', this)" tabindex="-1">👁️</button>
         </div>
       </div>
-      <button class="btn" onclick="doLogin(this)">Entrar na Plataforma</button>
-      <div class="toggle-text">Não tem conta? <a onclick="toggleMode()">Registar-se</a></div>
+      <button class="btn" onclick="doLogin(this)" data-i18n="btn_login">Entrar na Plataforma</button>
+      <div class="toggle-text"><span data-i18n="no_account">Não tem conta?</span> <a onclick="toggleMode()" data-i18n="btn_toggle_reg">Registar-se</a></div>
     </div>
 
     <div id="registerForm" style="display:none;">
       <div class="form-group">
-        <label>Novo Email</label>
+        <label data-i18n="label_new_email">Novo Email</label>
         <input type="email" id="regEmail" class="form-input" placeholder="exemplo@auraforex.com">
       </div>
       <div class="form-group">
-        <label>Password (Mín. 6 careteres)</label>
+        <label data-i18n="label_pass_min">Password (Mín. 6 careteres)</label>
         <div class="pass-wrapper">
           <input type="password" id="regPass" class="form-input" placeholder="••••••••">
           <button type="button" class="pass-toggle" onclick="togglePass('regPass', this)" tabindex="-1">👁️</button>
         </div>
       </div>
       <div class="form-group">
-        <label>Código de Indicação (Obrigatório)</label>
+        <label data-i18n="label_ref">Código de Indicação (Obrigatório)</label>
         <input type="text" id="regRef" class="form-input" placeholder="O seu código de indicação" required>
       </div>
-      <button class="btn" onclick="doRegister(this)" style="background:#10b981;">Criar Conta</button>
-      <div class="toggle-text">Já tem conta? <a onclick="toggleMode()">Voltar ao Login</a></div>
+      <button class="btn" onclick="doRegister(this)" style="background:#10b981;" data-i18n="btn_register">Criar Conta</button>
+      <div class="toggle-text"><span data-i18n="has_account">Já tem conta?</span> <a onclick="toggleMode()" data-i18n="btn_toggle_login">Voltar ao Login</a></div>
     </div>
   </div>
 
   <script>
+    const translations = {
+      pt: {
+        back_home: "Voltar ao Início",
+        subtitle_login: "Faça login para aceder ao Ecossistema de Bots",
+        subtitle_register: "Crie a sua conta de Trading",
+        label_email: "Email",
+        label_pass: "Password",
+        label_new_email: "Novo Email",
+        label_pass_min: "Password (Mín. 6 caracteres)",
+        label_ref: "Código de Indicação (Obrigatório)",
+        btn_login: "Entrar na Plataforma",
+        btn_register: "Criar Conta",
+        no_account: "Não tem conta?",
+        has_account: "Já tem conta?",
+        btn_toggle_reg: "Registar-se",
+        btn_toggle_login: "Voltar ao Login",
+        err_fields: "Preencha todos os campos.",
+        err_reg: "O email é obrigatório e a password deve ter pelo menos 6 caracteres.",
+        err_ref: "O código de indicação é obrigatório.",
+        msg_loading: "A processar...",
+        msg_succ_reg: "Conta criada de forma segura! Por favor faça Login."
+      },
+      en: {
+        back_home: "Back Home",
+        subtitle_login: "Login to access the Bot Ecosystem",
+        subtitle_register: "Create your Trading account",
+        label_email: "Email",
+        label_pass: "Password",
+        label_new_email: "New Email",
+        label_pass_min: "Password (Min. 6 characters)",
+        label_ref: "Referral Code (Required)",
+        btn_login: "Enter Platform",
+        btn_register: "Create Account",
+        no_account: "Don't have an account?",
+        has_account: "Already have an account?",
+        btn_toggle_reg: "Register Now",
+        btn_toggle_login: "Back to Login",
+        err_fields: "Please fill all fields.",
+        err_reg: "Email is required and password must be at least 6 characters.",
+        err_ref: "Referral code is required.",
+        msg_loading: "Processing...",
+        msg_succ_reg: "Account created securely! Please Login."
+      },
+      es: {
+        back_home: "Volver al Inicio",
+        subtitle_login: "Inicie sesión para acceder al Ecosistema de Bots",
+        subtitle_register: "Cree su cuenta de Trading",
+        label_email: "Correo electrónico",
+        label_pass: "Contraseña",
+        label_new_email: "Nuevo Correo",
+        label_pass_min: "Contraseña (Mín. 6 caracteres)",
+        label_ref: "Código de Referencia (Obligatorio)",
+        btn_login: "Entrar en la Plataforma",
+        btn_register: "Crear Cuenta",
+        no_account: "¿No tienes una cuenta?",
+        has_account: "¿Ya tienes una cuenta?",
+        btn_toggle_reg: "Registrarse",
+        btn_toggle_login: "Volver al Login",
+        err_fields: "Por favor complete todos los campos.",
+        err_reg: "El correo es obligatorio y la contraseña debe tener al menos 6 caracteres.",
+        err_ref: "El código de referencia es obligatorio.",
+        msg_loading: "Procesando...",
+        msg_succ_reg: "¡Cuenta creada con éxito! Por favor inicie sesión."
+      },
+      fr: {
+        back_home: "Retour à l'accueil",
+        subtitle_login: "Connectez-vous pour accéder à l'écosystème",
+        subtitle_register: "Créez votre compte de Trading",
+        label_email: "Email",
+        label_pass: "Mot de passe",
+        label_new_email: "Nouvel Email",
+        label_pass_min: "Mot de passe (Min. 6 caractères)",
+        label_ref: "Code de Parrainage (Obligatoire)",
+        btn_login: "Accéder à la Plateforme",
+        btn_register: "Créer un Compte",
+        no_account: "Vous n'avez pas de compte?",
+        has_account: "Vous avez déjà un compte?",
+        btn_toggle_reg: "S'inscrire",
+        btn_toggle_login: "Retour au Login",
+        err_fields: "Veuillez remplir tous les champs.",
+        err_reg: "L'email est requis et le mot de passe doit comporter au moins 6 caractères.",
+        err_ref: "Le code de parrainage est obligatoire.",
+        msg_loading: "Traitement...",
+        msg_succ_reg: "Compte créé avec succès! Veuillez vous connecter."
+      }
+    };
+
+    function changeLanguage(lang) {
+      const elements = document.querySelectorAll('[data-i18n]');
+      elements.forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+          el.innerHTML = translations[lang][key];
+        }
+      });
+      localStorage.setItem('aura_lang', lang);
+    }
+
     function togglePass(inputId, btn) {
       const input = document.getElementById(inputId);
       const show = input.type === 'password';
@@ -239,12 +348,16 @@
     checkAuth();
 
     function toggleMode() {
+      const lang = localStorage.getItem('aura_lang') || 'pt';
       mode = mode === 'login' ? 'register' : 'login';
       document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
       document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
       document.getElementById('errorBox').style.display = 'none';
       document.getElementById('successBox').style.display = 'none';
-      document.querySelector('.subtitle').textContent = mode === 'login' ? 'Faça login para aceder à Plataforma' : 'Crie a sua conta de Trading';
+      
+      const sub = document.querySelector('.subtitle');
+      sub.setAttribute('data-i18n', mode === 'login' ? 'subtitle_login' : 'subtitle_register');
+      sub.innerHTML = translations[lang][mode === 'login' ? 'subtitle_login' : 'subtitle_register'];
     }
 
     function showErr(msg) {
@@ -259,11 +372,13 @@
     }
 
     async function doLogin(btn) {
+      const lang = localStorage.getItem('aura_lang') || 'pt';
       const email = document.getElementById('loginEmail').value;
       const pass = document.getElementById('loginPass').value;
-      if(!email || !pass) return showErr("Preencha todos os campos.");
+      if(!email || !pass) return showErr(translations[lang].err_fields);
       
-      btn.disabled = true; btn.textContent = "A entrar...";
+      const originalText = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = translations[lang].msg_loading;
       try {
         const res = await fetch("/api/auth/login", {
           method: "POST", headers: {"Content-Type":"application/json"},
@@ -271,46 +386,45 @@
         });
         const data = await res.json();
         
-        if (!res.ok) throw new Error(data.error || "Erro ao entrar.");
+        if (!res.ok) throw new Error(data.error || "Login Error");
         
         localStorage.setItem("aura_token", data.token);
-        if(data.autoConnected) localStorage.setItem("aura_startup_broker", data.broker);
-        
         window.location.href = "/dashboard";
       } catch(e) {
         showErr(e.message);
       } finally {
-        btn.disabled = false; btn.textContent = "Entrar na Plataforma";
+        btn.disabled = false; btn.innerHTML = originalText;
       }
     }
 
     async function doRegister(btn) {
+      const lang = localStorage.getItem('aura_lang') || 'pt';
       const email = document.getElementById('regEmail').value;
       const pass = document.getElementById('regPass').value;
       const referralCode = document.getElementById('regRef').value;
       
-      if(!email || pass.length < 6) return showErr("O email é obrigatório e a password deve ter pelo menos 6 caracteres.");
-      if(!referralCode) return showErr("O código de indicação é obrigatório.");
+      if(!email || pass.length < 6) return showErr(translations[lang].err_reg);
+      if(!referralCode) return showErr(translations[lang].err_ref);
       
-      btn.disabled = true; btn.textContent = "A criar...";
+      const originalText = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = translations[lang].msg_loading;
       try {
         const res = await fetch("/api/auth/register", {
           method: "POST", headers: {"Content-Type":"application/json"},
           body: JSON.stringify({email, password: pass, referralCode})
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Erro no registo.");
+        if (!res.ok) throw new Error(data.error || "Registration Error");
         
-        showSucc("Conta criada de forma segura! Por favor faça Login.");
+        showSucc(translations[lang].msg_succ_reg);
         setTimeout(() => toggleMode(), 2000);
       } catch(e) {
         showErr(e.message);
       } finally {
-        btn.disabled = false; btn.textContent = "Criar Conta";
+        btn.disabled = false; btn.innerHTML = originalText;
       }
     }
 
-    // Animation Generator
     function initCandles() {
       const lane = document.getElementById('candleLane');
       const colors = ['#00e676', '#ff4444'];
@@ -328,7 +442,14 @@
         lane.appendChild(c);
       }
     }
-    initCandles();
+
+    window.onload = () => {
+      const savedLang = localStorage.getItem('aura_lang') || 'pt';
+      const switcher = document.querySelector('.lang-switcher');
+      if (switcher) switcher.value = savedLang;
+      changeLanguage(savedLang);
+      initCandles();
+    };
   </script>
 </body>
 </html>
