@@ -1,0 +1,2951 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuraForex SMC Bot v2.5.2-ULTRA-SYNC</title>
+<meta name="description" content="Bot de trading forex com Smart Money Concepts, integração com MetaTrader 5s OANDA, Capital.com e MetaTrader">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+:root {
+    --bg: #060810;
+    --surface: #0d1117;
+    --surface2: #131922;
+    --border: #1e2d3d;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --bull: #00e676;
+    --bear: #ff4444;
+    --warn: #ffb300;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --glow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+
+  .wrapper { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:24px; }
+
+  /* Header */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 20px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+    row-gap: 12px;
+  }
+
+  .logo { display:flex; align-items:center; gap:14px; }
+  .logo-icon {
+    width:44px; height:44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+    box-shadow: var(--glow);
+  }
+  .logo h1 { font-size:1.15rem; font-weight:800; letter-spacing:-0.5px; }
+  .logo h1 span { color:var(--accent); font-size: 0.6rem; vertical-align: top; margin-left: 4px; background: rgba(0,212,255,0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,212,255,0.2); }
+  .logo span { color:var(--accent); }
+  .logo p { font-size:0.68rem; color:var(--muted); font-family:'Space Mono',monospace; margin-top:2px; }
+
+  .welcome-text {
+    flex-grow: 1;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .welcome-text span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .status-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .status-badge {
+    display:flex; align-items:center; gap:7px;
+    padding: 7px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius:999px;
+    font-size:0.78rem;
+    font-family:'Space Mono',monospace;
+  }
+  .dot { width:8px; height:8px; border-radius:50%; background: var(--muted); }
+  .dot.active { background:var(--bull); box-shadow:0 0 8px var(--bull); animation: pulse 1.5s infinite; }
+  .dot.warn   { background:var(--warn); }
+  .dot.danger { background:var(--bear); box-shadow:0 0 8px var(--bear); }
+
+  .vps-sentinel {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    color: var(--accent);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 10px rgba(0,212,255,0.1);
+  }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  .broker-badge {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 14px;
+    border-radius:999px;
+    font-size:0.78rem;
+    font-family:'Space Mono',monospace;
+    cursor:pointer;
+    transition: all 0.2s;
+  }
+  .broker-badge.disconnected {
+    background: rgba(255,68,68,0.1);
+    border: 1px solid rgba(255,68,68,0.3);
+    color: var(--bear);
+  }
+  .broker-badge.connected {
+    background: rgba(0,230,118,0.1);
+    border: 1px solid rgba(0,230,118,0.3);
+    color: var(--bull);
+  }
+  .broker-badge:hover { transform:translateY(-1px); }
+
+  .account-type-badge {
+    padding:2px 8px; border-radius:4px;
+    font-size:0.65rem; font-weight:700;
+    font-family:'Space Mono',monospace;
+    text-transform:uppercase;
+  }
+  .account-type-badge.demo { background:rgba(0,230,118,0.2); color:var(--bull); }
+  .account-type-badge.live { background:rgba(255,68,68,0.2); color:var(--bear); }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls .btn {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 8px 14px;
+  }
+  .btn {
+    padding: 9px 20px; border-radius: 10px; border: none;
+    cursor: pointer; font-family:'Syne',sans-serif;
+    font-weight:600; font-size:0.85rem; transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    color: #000; box-shadow: var(--glow);
+  }
+  .btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow: 0 0 30px rgba(0,212,255,0.5); }
+  .btn-primary:disabled {
+    background: var(--surface2); color: var(--muted);
+    box-shadow:none; cursor:not-allowed; opacity:0.6;
+    border: 1px solid var(--border);
+  }
+  .btn-danger { background:#ff4444; color:#fff; }
+  .btn-danger:hover { background:#ff2222; }
+  .btn-secondary { background: var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-Connect:hover { transform:translateY(-1px); box-shadow: 0 0 25px rgba(124,58,237,0.5); }
+
+  /* License Alert Layer */
+  .license-alert-bar {
+    display: none;
+    background: linear-gradient(90deg, #ffb300, #ff8f00);
+    color: #000;
+    padding: 8px 24px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    position: relative;
+    z-index: 100;
+    animation: slideDown 0.5s ease;
+  }
+  .license-alert-bar.visible { display: block; }
+  @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+
+  .license-badge {
+    padding: 4px 12px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px;
+    color: #a78bfa;
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .license-badge b { color: var(--accent); }
+
+  /* EA Setup Modal & Guide Styles */
+  .setup-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  .setup-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; }
+  .setup-step h3 { font-size: 0.9rem; margin-bottom: 15px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+  .setup-step .step-number { width: 24px; height: 24px; background: var(--accent); color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; }
+  
+  .guide-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.75rem; }
+  .guide-table th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .guide-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+  
+  .alert-box { padding: 12px; border-radius: 8px; font-size: 0.75rem; margin: 10px 0; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-box.warn { background: rgba(255, 179, 0, 0.1); border: 1px solid rgba(255, 179, 0, 0.3); color: var(--warn); }
+  .alert-box.info { background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); color: var(--accent); }
+  
+  .code-block { background: #000; padding: 10px; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--accent); position: relative; display: flex; justify-content: space-between; align-items: center; }
+  .download-area { text-align: center; padding: 30px; background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(124, 58, 237, 0.1)); border-radius: 16px; border: 1px dashed var(--accent); margin-bottom: 20px; }
+  
+  .btn-setup-ea {
+    background: rgba(0, 212, 255, 0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .btn-setup-ea:hover { background: var(--accent); color: #000; box-shadow: var(--glow); }
+
+  /* Stats row */
+  .stats-grid {
+    display:grid; grid-template-columns: repeat(5, 1fr); gap:16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius:14px; padding:18px 20px;
+    position:relative; overflow:hidden; transition: border-color 0.3s;
+  }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); cursor: pointer; }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:0; transition:opacity 0.3s;
+  }
+  .stat-card:hover::before { opacity:1; }
+  .stat-label {
+    font-size:0.65rem; color:var(--muted); font-family:'Space Mono',monospace;
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+  }
+  .stat-value { font-size:1.4rem; font-weight:800; letter-spacing:-0.5px; }
+  .stat-value.bull { color:var(--bull); }
+  .stat-value.bear { color:var(--bear); }
+  .stat-value.accent { color:var(--accent); }
+  .stat-sub { font-size:0.65rem; color:var(--muted); margin-top:4px; font-family:'Space Mono',monospace; }
+
+  /* Main grid */
+  .main-grid { display:grid; grid-template-columns: 1fr 380px; gap:20px; }
+
+  /* Panel */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius:16px; overflow:hidden;
+  }
+  .panel-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .panel-title {
+    font-size:0.75rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:1px; display:flex; align-items:center; gap:8px;
+  }
+  .panel-title .icon { font-size:1rem; }
+
+  /* Signal cards */
+  .signals-list { padding:16px; display:flex; flex-direction:column; gap:12px; max-height:500px; overflow-y:auto; }
+   .signal-card {
+      background: var(--surface2); border: 2px solid var(--border);
+      border-radius:20px; padding:22px; position:relative;
+      overflow:hidden; animation: slideIn 0.4s ease;
+      margin-bottom: 20px;
+      min-height: 220px; /* Expert: Aumentamos a altura mínima para acomodar o PnL vivo */
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s;
+    }
+   .signal-card:hover { transform: scale(1.02); border-color: var(--accent); }
+   .signal-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:6px; }
+   .signal-card.buy::before  { background:var(--bull); box-shadow: 2px 0 10px var(--bull); }
+   .signal-card.sell::before { background:var(--bear); box-shadow: 2px 0 10px var(--bear); }
+
+   @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+   .signal-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; }
+   .signal-pair { font-size:1.1rem; font-weight:800; letter-spacing:-0.5px; color: #fff; }
+   .signal-dir {
+     padding: 6px 16px; border-radius:999px;
+     font-size:0.8rem; font-weight:800; font-family:'Space Mono',monospace;
+   }
+   .signal-dir.buy  { background: rgba(0,230,118,0.2); color:var(--bull); border:1px solid var(--bull); }
+   .signal-dir.sell { background: rgba(255,68,68,0.2);  color:var(--bear); border:1px solid var(--bear); }
+
+   .signal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:15px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+   .sig-item { display:flex; flex-direction:column; gap:4px; }
+   .sig-item span:first-child { font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; }
+   .sig-item span:last-child  { font-size:1rem; font-weight:700; font-family:'Space Mono',monospace; color: var(--text); }
+
+
+  .signal-score { display:flex; align-items:center; gap:8px; }
+  .score-bar { flex:1; height:5px; background:var(--border); border-radius:999px; overflow:hidden; }
+  .score-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width 0.6s; }
+  .score-label { font-size:0.72rem; color:var(--accent); font-family:'Space Mono',monospace; min-width:32px; text-align:right; }
+
+  .signal-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .tag {
+    padding:2px 8px; background: rgba(124,58,237,0.2);
+    border:1px solid rgba(124,58,237,0.3); border-radius:6px;
+    font-size:0.65rem; color:#a78bfa; font-family:'Space Mono',monospace;
+  }
+
+  /* Signal Navigation Buttons */
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    padding: 3px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    gap: 4px;
+  }
+  .btn-nav {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .btn-nav:hover {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .btn-nav:active { transform: scale(0.95); }
+  .tag.active { background:rgba(0,212,255,0.1); border-color:rgba(0,212,255,0.3); color:var(--accent); }
+
+  .exec-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:2px 8px; border-radius:6px;
+    font-size:0.65rem; font-family:'Space Mono',monospace;
+  }
+  .exec-badge.success { background:rgba(0,230,118,0.15); color:var(--bull); border:1px solid rgba(0,230,118,0.3); }
+  .exec-badge.failed  { background:rgba(255,68,68,0.15); color:var(--bear); border:1px solid rgba(255,68,68,0.3); }
+  .exec-badge.pending  { background:rgba(255,179,0,0.15); color:var(--warn); border:1px solid rgba(255,179,0,0.3); }
+
+  .btn-nav {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 2px 8px;
+    cursor: pointer; font-size: 0.7rem; transition: all 0.2s;
+  }
+  .btn-nav:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+  
+  .btn-nav {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 2px 8px;
+    cursor: pointer; font-size: 0.7rem; transition: all 0.2s;
+  }
+  .btn-nav:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+  
+  /* Log panel */
+  .log-area {
+    height:350px; overflow-y:auto; padding:14px;
+    font-family:'Space Mono',monospace; font-size:0.72rem;
+    color:var(--muted); line-height:1.7;
+  }
+  .log-area::-webkit-scrollbar { width:4px; }
+  .log-area::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .log-line { display:flex; gap:8px; }
+  .log-time { color:var(--accent2); white-space:nowrap; }
+  .log-msg.buy { color:var(--bull); }
+  .log-msg.sell { color:var(--bear); }
+  .log-msg.warn { color:var(--warn); }
+
+  /* Config panel */
+  .config-panel { padding:20px; display:flex; flex-direction:column; gap:14px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-label { font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; }
+  .form-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius:9px; padding:10px 14px; color:var(--text);
+    font-family:'Space Mono',monospace; font-size:0.82rem;
+    outline:none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color:var(--accent); }
+  .form-input::placeholder { color:var(--muted); }
+
+  .slider-row { display:flex; align-items:center; gap:10px; }
+  .slider {
+    flex:1; -webkit-appearance:none; appearance:none; height:4px;
+    border-radius:999px; background:var(--border); outline:none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); cursor:pointer;
+    box-shadow:0 0 8px rgba(0,212,255,0.5);
+  }
+
+  .pairs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .pair-toggle {
+    padding:7px 6px; border-radius:8px;
+    border:1px solid var(--border); background:var(--surface2);
+    color:var(--muted); font-family:'Space Mono',monospace;
+    font-size:0.72rem; cursor:pointer; text-align:center; transition:all 0.2s;
+  }
+  .pair-toggle.active { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.1); }
+
+  /* Right sidebar */
+  .sidebar { display:flex; flex-direction:column; gap:20px; }
+
+  /* AI Panel */
+  .ai-status-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius:16px; overflow:hidden;
+  }
+  .ai-header {
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(0,212,255,0.1));
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+  .ai-icon { font-size:1.4rem; }
+  .ai-title { font-weight:800; font-size:0.9rem; }
+  .ai-subtitle { font-size:0.7rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  .ai-biases { padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .bias-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; background:var(--surface2); border-radius:9px;
+  }
+  .bias-pair { font-size:0.82rem; font-weight:700; font-family:'Space Mono',monospace; }
+  .bias-tag {
+    padding:3px 10px; border-radius:999px;
+    font-size:0.68rem; font-weight:700; font-family:'Space Mono',monospace;
+  }
+  .bias-tag.bull  { background:rgba(0,230,118,0.15); color:var(--bull); }
+  .bias-tag.bear  { background:rgba(255,68,68,0.15);  color:var(--bear); }
+  .bias-tag.neut  { background:rgba(100,116,139,0.15); color:var(--muted); }
+  .bias-conf { font-size:0.7rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  /* Empty state */
+  .empty-state { padding:40px; text-align:center; color:var(--muted); }
+  .empty-state .em-icon { font-size:2.5rem; margin-bottom:12px; }
+  .empty-state p { font-size:0.82rem; line-height:1.6; }
+
+
+
+
+  /* History Panel */
+  .history-controls { display:flex; gap:10px; padding:12px; background:var(--surface2); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .history-controls select, .history-controls input {
+    background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:6px 10px; font-size:0.75rem; 
+  }
+  .history-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+  .history-table th { background:var(--surface2); color:var(--muted); font-weight:700; text-align:left; padding:8px 12px; border-bottom:1px solid var(--border); font-family:'Syne',sans-serif; }
+  .history-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-family:'Space Mono',monospace; }
+  .history-table tr:hover td { background:rgba(255,255,255,0.02); }
+  .history-wrapper { max-height: 350px; overflow-y: auto; }
+  .history-wrapper::-webkit-scrollbar { width:4px; }
+  .history-wrapper::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  /* Step 2 — Credentials */
+  .cred-form { display:flex; flex-direction:column; gap:14px; }
+  .cred-form .form-input { width:100%; }
+  .env-toggle {
+    display:flex; gap:8px;
+  }
+  .env-btn {
+    flex:1; padding:10px; border-radius:10px;
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--muted); font-family:'Space Mono',monospace;
+    font-size:0.82rem; cursor:pointer; text-align:center;
+    transition:all 0.2s;
+  }
+  .env-btn.active.demo { border-color:var(--bull); color:var(--bull); background:rgba(0,230,118,0.1); }
+  .env-btn.active.live { border-color:var(--bear); color:var(--bear); background:rgba(255,68,68,0.1); }
+
+  .live-warning {
+    padding:10px 14px; border-radius:10px;
+    background:rgba(255,68,68,0.1); border:1px solid rgba(255,68,68,0.3);
+    font-size:0.75rem; color:var(--bear); font-family:'Space Mono',monospace;
+    display:none;
+  }
+  .live-warning.visible { display:block; }
+
+  /* Step 3 — Setuping */
+  .Connecting-state { text-align:center; padding:30px 0; }
+  .spinner {
+    width:48px; height:48px; border:3px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%;
+    animation:spin 0.8s linear infinite;
+    margin:0 auto 16px;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .Connect-result { text-align:center; padding:20px 0; }
+  .result-icon { font-size:3rem; margin-bottom:12px; }
+  .result-title { font-size:1.1rem; font-weight:700; margin-bottom:6px; }
+  .result-detail { font-size:0.78rem; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.6; }
+  .result-balance {
+    font-size:1.8rem; font-weight:800; color:var(--accent);
+    margin:12px 0; letter-spacing:-1px;
+  }
+
+  .modal-footer {
+    padding:16px 24px; border-top:1px solid var(--border);
+    display:flex; justify-content:space-between; gap:10px;
+  }
+  .modal-footer .btn { flex:1; }
+
+  /* Responsive */
+  @media (max-width:900px) {
+    .main-grid { grid-template-columns:1fr; }
+    .stats-grid { grid-template-columns:repeat(2,1fr); }
+    header { flex-direction:column; align-items:stretch; }
+  }
+  /* Utility copy button */
+  .copy-btn {
+    padding: 4px 8px; font-size: 0.65rem; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px; color: var(--accent);
+    cursor: pointer; transition: all 0.2s; font-family: 'Space Mono', monospace;
+  }
+  .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
+  .copy-btn:active { transform: scale(0.95); }
+
+  /* --- EXPERT SMART RESetup --- */
+  .smart-glow-icon {
+      animation: pulseGlow 3s infinite;
+  }
+  @keyframes pulseGlow {
+      0% { box-shadow: 0 0 10px rgba(0,212,255,0.1); }
+      50% { box-shadow: 0 0 30px rgba(0,212,255,0.3); }
+      100% { box-shadow: 0 0 10px rgba(0,212,255,0.1); }
+  }
+  .btn-premium:hover {
+      transform: translateY(-3px) scale(1.02);
+      filter: brightness(1.1);
+  }
+  .btn-ghost:hover {
+      background: rgba(255,255,255,0.05) !important;
+      border-color: var(--muted) !important;
+  }
+
+  /* 📱 RESPONSIVIDADE ULTRA-PREMIUM (Mobile/Tablet/Desktop) */
+  @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 992px) {
+      header { padding: 15px 20px; }
+      .status-row { overflow-x: auto; padding-bottom: 8px; width: 100%; justify-content: flex-start; }
+      .status-badge, .vps-sentinel, .license-badge { white-space: nowrap; flex-shrink: 0; }
+  }
+
+  @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      header { flex-direction: column; align-items: flex-start; gap: 15px; }
+      .controls { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .controls .btn { margin: 0 !important; width: 100%; font-size: 0.7rem; }
+      .controls .btn-primary { grid-column: span 2; }
+      .logo-icon { width: 36px; height: 36px; }
+      .logo h1 { font-size: 1.1rem; }
+  }
+
+  @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .wrapper { padding: 10px; }
+      .panel-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .history-controls { flex-direction: column; }
+      .stat-value { font-size: 1.3rem; }
+  }
+
+  /* Modais */
+  .modal-overlay {
+    display: none;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0,0,0,0.85) !important;
+    backdrop-filter: blur(8px) !important;
+    z-index: 99999 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+  }
+  .modal-overlay.active { display: flex !important; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h2 { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s; }
+  .modal-close:hover { color: var(--accent); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; }
+</style>
+
+</head>
+<body>
+<div id="licenseAlert" class="license-alert-bar">
+    ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+</div>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon" style="background:none; box-shadow:none;">
+        <img src="/aura_bot.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
+      <div>
+        <h1>Aura<span>SMC v2.5.2</span></h1>
+        <p>SMC Signal Engine · AI Integration</p>
+      </div>
+    </div>
+    <div class="welcome-text" id="welcomeMsg">
+      Seja bem-vindo, <span id="userEmail">...</span>
+    </div>
+    <div class="status-row">
+      <div class="status-badge" onclick="toggleBot()" style="cursor:pointer;" title="Clique para alternar o Bot">
+        <div class="dot" id="botDot"></div>
+        <span id="botStatus">Parado</span>
+      </div>
+      <div class="status-badge">
+        <div class="dot" id="uptimeDot"></div>
+        <span id="botUptime">00:00:00</span>
+      </div>
+      <div class="vps-sentinel" id="vpsSentinel">
+        <div class="dot active"></div>
+        <span>PROTEÇÃO VPS: ATIVA</span>
+      </div>
+      <div class="license-badge" id="licenseStatusHeader" onclick="openBuyModal()">
+        <span>Status: <b id="licenseLevel">Carregando...</b></span>
+        <span id="licenseCountdown" style="opacity:0.8;">...</span>
+      </div>
+      <div class="status-badge" onclick="openBuyModal()" style="cursor:pointer; border: 1px solid var(--accent2); background: rgba(124,58,237,0.1);">
+        <div class="dot" style="background: var(--accent2);"></div>
+        <span>Comprar Licença</span>
+      </div>
+      <button class="btn-setup-ea" id="setupEABtn" onclick="openSetupModal()">
+        <i class="fas fa-download"></i> Configurar EA no MT5
+      </button>
+      <div class="status-badge" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;">
+        <div class="dot warn"></div>
+        <span id="sessionStatus">Londres / NY</span>
+      </div>
+      <div class="status-badge" id="eaBadge" title="Status da ligação com o seu MetaTrader 5 (EA)">
+        <div class="dot" id="eaDot"></div>
+        <span id="eaStatusText">EA: Offline</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
+      <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
+      <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
+      <button class="btn btn-secondary" style="margin-left: 6px; border-color: var(--accent2);" onclick="openChangePwModal()">🔑 Password</button>
+    </div>
+  </header>
+
+  <!-- MODAL: CHANGE PASSWORD -->
+  <div id="changePwModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:400px; margin:20px;">
+      <h3 style="margin-bottom:20px; font-size:1rem;">🔑 Alterar Password</h3>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Password Atual</label>
+        <div style="position:relative;">
+          <input type="password" id="cpCurrentPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpCurrentPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Nova Password (mín. 6 caracteres)</label>
+        <div style="position:relative;">
+          <input type="password" id="cpNewPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpNewPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Confirmar Nova Password</label>
+        <div style="position:relative;">
+          <input type="password" id="cpConfirmPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
+          <button type="button" onclick="dashTogglePass('cpConfirmPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+        </div>
+      </div>
+      <div id="cpMsg" style="display:none; margin-bottom:12px; font-size:0.8rem; padding:8px 12px; border-radius:6px;"></div>
+      <div style="display:flex; gap:10px;">
+        <button onclick="doChangePassword()" style="flex:1; background:var(--accent2); color:#fff; border:none; border-radius:8px; padding:11px; font-weight:bold; cursor:pointer; font-size:0.85rem;">Confirmar</button>
+        <button onclick="closeChangePwModal()" style="flex:1; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:11px; cursor:pointer; font-size:0.85rem;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card" onclick="openBuyModal()">
+      <div class="stat-label">Saldo (MetaTrader 5)</div>
+      <div class="stat-value accent" id="statBalance">—</div>
+      <div class="stat-sub" id="statBalanceSub">Configure o EA para sincronizar</div>
+    </div>
+    <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
+      <div class="stat-label">P&L Não Realizado</div>
+      <div class="stat-value bull" id="statPnl">$0.00</div>
+      <div class="stat-sub">Posições abertas</div>
+    </div>
+    <div class="stat-card" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})">
+      <div class="stat-label">Trades Abertos</div>
+      <div class="stat-value accent" id="statOpen">0 / 3</div>
+      <div class="stat-sub">Limite: <span id="statLimitDisplay">3</span> simultâneos</div>
+    </div>
+    <div class="stat-card" onclick="loadHistoryAndScroll()">
+      <div class="stat-label">Execuções</div>
+      <div class="stat-value bull" id="statWr">N/A</div>
+      <div class="stat-sub">Total: <span id="statTotal">0</span></div>
+    </div>
+    <div class="stat-card" onclick="highlightSection('signalsList')">
+      <div class="stat-label">Sinais Hoje</div>
+      <div class="stat-value accent" id="statSig">0</div>
+      <div class="stat-sub">Confluência ≥55%</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- SIGNALS -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">🎯</span> Sinais & Execuções</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+             <div class="nav-controls" id="signalNav" style="display:none; gap:6px;">
+                <button class="btn-nav" onclick="prevSignal()">◀</button>
+                <span id="signalIndex" style="font-size:0.65rem; font-family:'Space Mono',monospace; min-width:30px; text-align:center;">1/1</span>
+                <button class="btn-nav" onclick="nextSignal()">▶</button>
+             </div>
+             <span style="font-size:0.72rem;color:var(--muted);font-family:'Space Mono',monospace;">Execução automática ativada</span>
+          </div>
+        </div>
+        <div class="signals-list" id="signalsList">
+          <div class="empty-state" id="signalsEmptyState">
+            <div class="em-icon">📊</div>
+            <p>Aguardando sinais do mercado...</p>
+            <p style="font-size:0.7rem; color:var(--muted);">Certifique-se de que o seu EA está conectado no MT5.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">📋</span> Log do Sistema</div>
+          <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="auraClearSystemLogs()">Limpar</button>
+        </div>
+        <div class="log-area" id="logArea">
+          <div class="log-line"><span class="log-time">[SISTEMA]</span><span class="log-msg">AuraForex pronto. Aguardando sinais do EA local.</span></div>
+        </div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">📜</span> Histórico de Negociações</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadHistory()">Atualizar</button>
+            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;border-color:var(--bear);color:var(--bear);" onclick="clearHistory()">Limpar</button>
+          </div>
+        </div>
+        <div class="history-controls">
+          <input type="text" id="histFilterPair" placeholder="Par (ex: EURUSD)" oninput="renderHistory()">
+          <select id="histFilterResult" onchange="renderHistory()">
+            <option value="ALL">Todos os Resultados</option>
+            <option value="WIN">Lucro</option>
+            <option value="LOSS">Prejuízo</option>
+          </select>
+          <select id="histFilterPeriod" onchange="renderHistory()">
+            <option value="ALL">Todo Histórico (30 dias)</option>
+            <option value="TODAY">Hoje</option>
+            <option value="WEEK">Esta Semana</option>
+          </select>
+        </div>
+        <div class="history-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Data Fecho</th>
+                <th>MetaTrader 5</th>
+                <th>Par/Ativo</th>
+                <th>Lote</th>
+                <th>Direção</th>
+                <th>P&L Líquido</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-family:'Syne',sans-serif;">Nenhum histórico disponível. Verifique o seu EA no MT5.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- AI STUDIO -->
+      <div class="ai-status-card">
+        <div class="ai-header">
+          <div class="ai-icon">🤖</div>
+          <div>
+            <div class="ai-title">AI Studio · Gemini</div>
+            <div class="ai-subtitle">Bias de mercado por IA</div>
+          </div>
+        </div>
+        <div class="ai-biases" id="aiBiases">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- CONFIG -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="icon">⚙️</span> Configuração</div>
+        </div>
+        <div class="config-panel">
+
+          <div class="form-group">
+            <label class="form-label">Gemini API Key</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="password" class="form-input" id="apiKey" placeholder="AIza..." style="flex:1;">
+              <button id="saveApiKeyBtn" onclick="saveGeminiApiKey()" style="
+                background: linear-gradient(135deg, var(--accent), var(--accent2));
+                color: #000; border: none; border-radius: 8px;
+                padding: 9px 14px; font-size: 0.75rem; font-weight: 700;
+                cursor: pointer; white-space: nowrap; transition: all 0.2s;
+                font-family: inherit;
+              ">💾 Guardar</button>
+            </div>
+            <span id="apiKeySaveMsg" style="font-size:0.68rem;color:var(--bull);display:none;margin-top:4px;">✅ API Key guardada!</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Risco por Trade: <span id="riskVal">1.5</span>%</label>
+            <div class="slider-row">
+              <input type="range" class="slider" min="0.5" max="3" step="0.1" value="1.5" id="riskSlider"
+                oninput="document.getElementById('riskVal').textContent=this.value; saveConfig();">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Score Mínimo: <span id="scoreVal">55</span></label>
+            <div class="slider-row">
+              <input type="range" class="slider" min="40" max="90" step="5" value="55" id="scoreSlider"
+                oninput="document.getElementById('scoreVal').textContent=this.value; saveConfig();">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Limite de Ordens: <span id="limitVal">3</span></label>
+            <div class="slider-row">
+              <input type="range" class="slider" min="1" max="15" step="1" value="3" id="limitSlider"
+                oninput="updateLimitUI(this.value); saveConfig();">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Pares Ativos</label>
+            <div class="pairs-grid" id="pairsGrid">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Intervalo (segundos)</label>
+            <input type="number" class="form-input" id="interval" value="60" min="15" onchange="saveConfig()">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatCurrency(value, currency = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
+}
+
+// ─── GEMINI API KEY — Save & Load ─────────────────────
+function saveGeminiApiKey() {
+  const key = document.getElementById("apiKey").value.trim();
+  if (!key) {
+    alert("Por favor insira a sua API Key antes de guardar.");
+    return;
+  }
+  localStorage.setItem("aura_gemini_key", key);
+  const msg = document.getElementById("apiKeySaveMsg");
+  const btn = document.getElementById("saveApiKeyBtn");
+  msg.style.display = "block";
+  btn.textContent = "✅ Guardado!";
+  setTimeout(() => {
+    msg.style.display = "none";
+    btn.textContent = "💾 Guardar";
+  }, 2500);
+}
+
+function loadSavedGeminiKey() {
+  const saved = localStorage.getItem("aura_gemini_key");
+  if (saved) {
+    const input = document.getElementById("apiKey");
+    if (input) input.value = saved;
+  }
+}
+
+// ─── DIAGNÓSTICO REMOTO (Expert) ───────────────
+async function remoteLog(msg, level = "INFO") {
+  try {
+    fetch("/api/debug/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ msg, level })
+    }).catch(e => {});
+  } catch(e) {}
+}
+
+// ─── AUTH CHECK (Auditado) ────────────────────────
+let currentUser = null;
+
+async function checkAuth() {
+  console.log("%c[AuraAuth] Iniciando verificação de segurança...", "color: cyan; font-weight: bold; font-size: 12px;");
+  const token = localStorage.getItem("aura_token");
+  if (!token) {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  // 1. Mostrar email IMEDIATAMENTE do token
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    const payload = JSON.parse(jsonPayload);
+    
+    if (payload.email) {
+      document.getElementById("userEmail").textContent = payload.email;
+      console.log("[AuraAuth] Email extraído do token:", payload.email);
+    }
+    
+    // Se o token já diz que é ADMIN, injeta logo o botão
+    if (payload.role === "ADMIN") injectAdminButton();
+  } catch(e) {
+    console.error("[AuraAuth] Falha na leitura rápida do token:", e);
+  }
+  
+  // 2. Sincronização em tempo real com o servidor para garantir
+  retrySync(3);
+}
+
+async function retrySync(attempts) {
+  console.log(`[AuraAuth] Sincronizando com o servidor... (Tentativas: ${attempts})`);
+  try {
+    const data = await apiFetch("/api/auth/me");
+    if (data.success && data.user) {
+      currentUser = data.user;
+      
+      // Atualiza email com dado oficial do servidor
+      document.getElementById("userEmail").textContent = currentUser.email;
+      console.log("[AuraAuth] Sessão sincronizada com o servidor para:", currentUser.email);
+      
+      injectAffiliateButton();
+      
+      if (currentUser.role === "ADMIN") {
+        injectAdminButton();
+      }
+      
+      userLicense = currentUser.license;
+      updateLicenseUI();
+    } else if (attempts > 0) {
+      setTimeout(() => retrySync(attempts - 1), 1000);
+    }
+  } catch(e) {
+    if (attempts > 0) setTimeout(() => retrySync(attempts - 1), 2000);
+  }
+}
+
+function injectAdminButton() {
+  const controls = document.querySelector(".controls");
+  if (!controls) {
+    console.warn("[AuraAuth] Container '.controls' não encontrado ainda. Retentando em 500ms...");
+    setTimeout(injectAdminButton, 500);
+    return;
+  }
+
+  if (document.getElementById("adminPanelBtn")) return;
+  
+  const adminBtn = document.createElement("button");
+  adminBtn.className = "btn btn-secondary";
+  adminBtn.id = "adminPanelBtn";
+  adminBtn.innerHTML = "🛡️ PAINEL ADMIN";
+  adminBtn.style.marginRight = "10px";
+  adminBtn.style.border = "2px solid #00d4ff";
+  adminBtn.style.boxShadow = "0 0 15px rgba(0,212,255,0.4)";
+  adminBtn.style.fontWeight = "bold";
+  adminBtn.onclick = () => window.location.href = "/admin_dashboard.html";
+  
+  controls.prepend(adminBtn);
+  console.log("%c[AuraAuth] BOTÃO INJETADO COM SUCESSO!", "color: yellow; font-weight: bold;");
+}
+
+function injectAffiliateButton() {
+  const controls = document.querySelector(".controls");
+  if (!controls) return;
+  if (document.getElementById("affiliatePanelBtn")) return;
+  const affiliateBtn = document.createElement("button");
+  affiliateBtn.className = "btn btn-secondary";
+  affiliateBtn.id = "affiliatePanelBtn";
+  affiliateBtn.innerHTML = "👥 AFILIADOS";
+  affiliateBtn.style.marginRight = "10px";
+  affiliateBtn.style.border = "2px solid var(--accent2)";
+  affiliateBtn.style.boxShadow = "0 0 15px rgba(124,58,237,0.4)";
+  affiliateBtn.style.fontWeight = "bold";
+  affiliateBtn.onclick = () => window.location.href = "/affiliate_dashboard.html";
+  controls.prepend(affiliateBtn);
+}
+
+if (document.readyState === 'complete') {
+  checkAuth();
+} else {
+  window.addEventListener('load', checkAuth);
+}
+
+let userLicense = null;
+
+// Removida checkLicenseStatus antiga, agora integrada no syncSession
+
+function updateLicenseUI() {
+  const header = document.getElementById("licenseLevel");
+  const count = document.getElementById("licenseCountdown");
+  const alertBar = document.getElementById("licenseAlert");
+  const daysLeftEl = document.getElementById("licenseDaysLeft");
+
+  if (!userLicense) {
+    header.textContent = "NENHUMA";
+    header.style.color = "var(--bear)";
+    count.textContent = "Expira em: —";
+    alertBar.classList.remove("visible");
+    return;
+  }
+
+  const expires = new Date(userLicense.expiresAt);
+  const now = new Date();
+  const diffTime = expires - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  header.textContent = userLicense.type;
+  header.style.color = "var(--accent)";
+
+  if (diffTime <= 0) {
+    count.textContent = "EXPIRADA";
+    count.style.color = "var(--bear)";
+    userLicense = null; // Mark as null so startBot fails
+  } else {
+    count.textContent = diffDays + " dias";
+    
+    if (diffDays <= 5) {
+      alertBar.classList.add("visible");
+      daysLeftEl.textContent = diffDays;
+    } else {
+      alertBar.classList.remove("visible");
+    }
+  }
+}
+
+function openModal(id) { document.getElementById(id).classList.add("active"); }
+function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+
+function logout() {
+  localStorage.removeItem("aura_token");
+  localStorage.removeItem("aura_startup_broker");
+  window.location.href = "/login.html";
+}
+
+function dashTogglePass(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁️';
+}
+
+function openChangePwModal() {
+  document.getElementById('cpCurrentPw').value = '';
+  document.getElementById('cpNewPw').value = '';
+  document.getElementById('cpConfirmPw').value = '';
+  const msg = document.getElementById('cpMsg');
+  msg.style.display = 'none';
+  document.getElementById('changePwModal').style.display = 'flex';
+}
+
+function closeChangePwModal() {
+  document.getElementById('changePwModal').style.display = 'none';
+}
+
+async function doChangePassword() {
+  const currentPassword = document.getElementById('cpCurrentPw').value;
+  const newPassword = document.getElementById('cpNewPw').value;
+  const confirmPassword = document.getElementById('cpConfirmPw').value;
+  const msg = document.getElementById('cpMsg');
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'Preencha todos os campos.';
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'As novas passwords não coincidem.';
+    return;
+  }
+  if (newPassword.length < 6) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = 'A nova password deve ter pelo menos 6 caracteres.';
+    return;
+  }
+
+  const data = await apiFetch('/api/user/change-password', 'POST', { currentPassword, newPassword });
+  msg.style.display = 'block';
+  if (data.success) {
+    msg.style.background = 'rgba(0,230,118,0.1)';
+    msg.style.color = 'var(--bull)';
+    msg.textContent = '✅ Password alterada com sucesso!';
+    setTimeout(closeChangePwModal, 1500);
+  } else {
+    msg.style.background = 'rgba(255,68,68,0.1)';
+    msg.style.color = 'var(--bear)';
+    msg.textContent = '❌ ' + (data.error || 'Erro desconhecido.');
+  }
+}
+// ─── UTILITÁRIOS E SIMULADORES ────────────────
+const PRICES = { EURUSD:1.0850, GBPUSD:1.2650, USDJPY:149.50, XAUUSD:2320.0, GBPJPY:189.0, EURGBP:0.8580 };
+
+function isActiveSession() {
+  return true; 
+}
+
+function simulateAIBias(pair) {
+  const biases = ["BULLISH", "BEARISH", "NEUTRAL"];
+  const random = Math.random();
+  const bias = random > 0.6 ? biases[0] : (random > 0.2 ? biases[1] : biases[2]);
+  return { 
+    bias, 
+    confidence: Math.floor(Math.random() * 30) + 60, 
+    reasoning: "Análise SMC confirmada em H1/M15 com fluxo de ordens institucional." 
+  };
+}
+
+function updateBiasUI(pair, bias, confidence) {
+  const row = document.getElementById(`bias-${pair}`);
+  if (!row) return;
+  const tag = row.querySelector(".bias-tag");
+  const conf = row.querySelector(".bias-conf");
+  
+  if (tag) {
+    tag.textContent = bias;
+    tag.className = `bias-tag ${bias === "BULLISH" ? "bull" : bias === "BEARISH" ? "bear" : "neut"}`;
+  }
+  if (conf) conf.textContent = `${confidence}%`;
+}
+
+function simulateSignal(pair, candles, price) {
+  // Aumentado para 40% para testes imediatos
+  if (Math.random() > 0.40) return null; 
+  
+  const direction = Math.random() > 0.5 ? "BUY" : "SELL";
+  const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") ? 1 : 0.0001);
+  const slPips = 18 + Math.floor(Math.random() * 5);
+  const tpPips = slPips * 1.5; // Sincronizado com 1.5 RR Ratio
+  
+  const sl = direction === "BUY" ? price - (slPips * pip) : price + (slPips * pip);
+  const tp = direction === "BUY" ? price + (tpPips * pip) : price - (tpPips * pip);
+  
+  return {
+    pair, direction, entry: price, sl, tp,
+    score: Math.floor(Math.random() * 25) + 60,
+    rr: (tpPips / slPips).toFixed(1),
+    factors: { 
+      smcStructure: true, 
+      orderBlock: Math.random() > 0.4, 
+      fvg: Math.random() > 0.5,
+      emaAlignment: true 
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+function updatePositionsUI(positions) {
+  document.getElementById("statOpen").textContent = `${positions.length} / 3`;
+  // PNL e Equity já são tratados no updateStats()
+}
+
+async function checkBrokerConnection() {
+  try {
+    const data = await getBrokerStatus();
+    if (data && data.connected) {
+      brokerConnected = true;
+      brokerInfo = data.accountInfo;
+      updateBrokerUI();
+      addLog(`🔄 Conexão restaurada automaticamente: ${brokerInfo.broker}`, "buy");
+    }
+  } catch(e) {
+    console.warn("Falha ao verificar status inicial do broker.");
+  }
+}
+
+// ─── PERSISTÊNCIA DE CONFIGURAÇÕES ─────────────
+async function saveConfig() {
+  const config = {
+    risk: document.getElementById("riskSlider").value,
+    score: document.getElementById("scoreSlider").value,
+    interval: document.getElementById("interval").value,
+    activePairs: Array.from(activePairs).join(","),
+    geminiKey: localStorage.getItem("aura_gemini_key")
+  };
+  
+  // Backup local
+  localStorage.setItem("aura_bot_config", JSON.stringify(config));
+  
+  // Sincronização com Servidor
+  try {
+    await apiFetch("/api/user/settings", "POST", config);
+    remoteLog("Configurações sincronizadas com o servidor.");
+  } catch(e) {
+    console.warn("Falha ao sincronizar com o servidor, guardado localmente.");
+  }
+}
+
+async function loadConfig() {
+  // 1. Tentar carregar do servidor (Nuvem)
+  try {
+    const data = await apiFetch("/api/user/settings");
+    if (data.success && data.settings) {
+      const s = data.settings;
+      document.getElementById("riskSlider").value = s.risk;
+      document.getElementById("riskVal").textContent = s.risk;
+      document.getElementById("scoreSlider").value = s.score;
+      document.getElementById("scoreVal").textContent = s.score;
+      document.getElementById("interval").value = s.interval;
+      if (s.activePairs) activePairs = new Set(s.activePairs.split(","));
+      
+      if (s.geminiKey) {
+        localStorage.setItem("aura_gemini_key", s.geminiKey);
+        loadSavedGeminiKey();
+      }
+      
+      initPairsGrid();
+      addLog("⚙️ Definições sincronizadas com a nuvem.");
+      return;
+    }
+  } catch(e) {
+    console.warn("Erro ao carregar da nuvem, tentando local...");
+  }
+
+  // 2. Fallback para localStorage
+  const saved = localStorage.getItem("aura_bot_config");
+  if (saved) {
+    try {
+      const config = JSON.parse(saved);
+      document.getElementById("riskSlider").value = config.risk;
+      document.getElementById("riskVal").textContent = config.risk;
+      document.getElementById("scoreSlider").value = config.score;
+      document.getElementById("scoreVal").textContent = config.score;
+      document.getElementById("interval").value = config.interval;
+      if (config.activePairs) activePairs = new Set(Array.isArray(config.activePairs) ? config.activePairs : config.activePairs.split(","));
+      initPairsGrid();
+      addLog("⚙️ Configurações locais carregadas.");
+    } catch(e) {}
+  }
+}
+
+// ─── ESTADO ───────────────────────────────────
+window.onerror = function(msg, url, line, col, error) {
+  if (typeof addLog === 'function') {
+    addLog(`❌ ERRO CRÍTICO: ${msg} (Linha: ${line})`, "sell");
+  }
+  return false;
+};
+
+const VERSION = "2.5.2-RR-FIX";
+const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
+let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
+let isRunning = false;
+let loopTimer = null;
+let currentLoopId = 0;
+let sigCount = 0;
+let tradeCount = 0;
+let wins = 0;
+let losses = 0;
+let botStartTime = 0;
+let lastTradeTime = {};
+let signals = [];
+let openTrades = [];
+let maxProfitTrack = {}; // Rastreia o lucro máximo atingido por cada ordem para a trava de 1%
+let uptimeInterval = null;
+
+const BIASES = {};
+PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
+
+// ─── BROKER STATE ─────────────────────────────
+let brokerConnected = false;
+let brokerInfo = null;
+let selectedBrokerType = null;
+let selectedBrokerEntry = null;
+let currentModalStep = 1;
+let activeBrokerCategory = "all";
+
+// ─── BROKER DATABASE ──────────────────────────
+const BROKERS = [
+  // ── API Directa ──
+  { id:"oanda",       name:"OANDA",           adapter:"oanda",   platform:"API",  cat:"api",     icon:"📊", region:"🌎", desc:"API v20 · REST · Token pessoal" },
+  { id:"capital",     name:"Capital.com",     adapter:"capital", platform:"API",  cat:"api",     icon:"💹", region:"🇪🇺", desc:"REST API · API Key + Login" },
+  // ── MetaTrader Popular ──
+  { id:"xm",          name:"XM",              adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟢", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"icmarkets",   name:"IC Markets",      adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔵", region:"🇦🇺", desc:"Raw Spread · MT4/MT5" },
+  { id:"pepperstone", name:"Pepperstone",     adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟠", region:"🇦🇺", desc:"Razor Account · MT4/MT5" },
+  { id:"exness",      name:"Exness",          adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟡", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"fbs",         name:"FBS",             adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟣", region:"🇧🇿", desc:"MT4/MT5 via MetaApi" },
+  { id:"fxtm",        name:"FXTM (ForexTime)",adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔴", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"hotforex",    name:"HFM (HotForex)",  adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"⭐", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"avatrade",    name:"AvaTrade",        adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔷", region:"🇮🇪", desc:"MT4/MT5 via MetaApi" },
+  // ── MetaTrader Outros ──
+  { id:"tickmill",    name:"Tickmill",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"✅", region:"🇬🇧", desc:"Pro Account · MT4/MT5" },
+  { id:"fpmarkets",   name:"FP Markets",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔹", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
+  { id:"roboforex",   name:"RoboForex",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🤖", region:"🇧🇿", desc:"ECN · MT4/MT5" },
+  { id:"admirals",    name:"Admirals",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚓", region:"🇪🇪", desc:"MT4/MT5 via MetaApi" },
+  { id:"vantage",     name:"Vantage",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔶", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
+  { id:"octafx",      name:"OctaFX",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐙", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"alpari",      name:"Alpari",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🅰️", region:"🇰🇳", desc:"ECN · MT4/MT5" },
+  { id:"liteforex",   name:"LiteFinance",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💡", region:"🇲🇭", desc:"MT4/MT5 via MetaApi" },
+  { id:"instaforex",  name:"InstaForex",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏆", region:"🇻🇬", desc:"MT4/MT5 via MetaApi" },
+  { id:"fxpro",       name:"FxPro",           adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💎", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  { id:"forex_com",   name:"Forex.com",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌐", region:"🇺🇸", desc:"MT4/MT5 via MetaApi" },
+  { id:"thinkmarkets",name:"ThinkMarkets",    adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💭", region:"🇬🇧", desc:"MT4/MT5 via MetaApi" },
+  { id:"axi",         name:"Axi",             adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔺", region:"🇦🇺", desc:"Pro Account · MT4" },
+  { id:"justforex",   name:"JustMarkets",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚡", region:"🇸🇨", desc:"MT4/MT5 via MetaApi" },
+  { id:"fxcm",        name:"FXCM",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏛️", region:"🇬🇧", desc:"MT4 via MetaApi" },
+  { id:"swissquote",  name:"Swissquote",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🇨🇭", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
+  { id:"axitrader",   name:"AxiTrader",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📐", region:"🇦🇺", desc:"MT4 via MetaApi" },
+  { id:"multibank",   name:"MultiBank",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏦", region:"🇦🇪", desc:"MT4/MT5 via MetaApi" },
+  { id:"eightcap",    name:"Eightcap",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"8️⃣", region:"🇦🇺", desc:"Raw Account · MT4/MT5" },
+  { id:"bdswiss",     name:"BDSwiss",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔘", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
+  { id:"xmglobal",    name:"XM Global",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌍", region:"🇧🇿", desc:"Ultra Low · MT4/MT5" },
+  { id:"naga",        name:"NAGA",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐉", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
+  // ── MetaTrader Genérico ──
+  { id:"mt_generic",  name:"Outro (MT4/MT5)", adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📈", region:"🌐", desc:"Qualquer broker MT4/MT5 via MetaApi" },
+];
+
+const BROKER_CATEGORIES = [
+  { id:"all",     label:"Todas",       icon:"🌐" },
+  { id:"popular", label:"Popular",     icon:"⭐" },
+  { id:"api",     label:"API Directa", icon:"⚡" },
+  { id:"mt",      label:"MetaTrader",  icon:"📈" },
+];
+
+// ─── INIT UI ─────────────────────────────────
+function initPairsGrid() {
+  const g = document.getElementById("pairsGrid");
+  g.innerHTML = "";
+  PAIRS.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "pair-toggle" + (activePairs.has(p) ? " active" : "");
+    btn.textContent = p;
+    btn.onclick = () => {
+      activePairs.has(p) ? activePairs.delete(p) : activePairs.add(p);
+      btn.classList.toggle("active");
+      saveConfig();
+    };
+    g.appendChild(btn);
+  });
+}
+
+function initBiases() {
+  const el = document.getElementById("aiBiases");
+  if (!el) return;
+  el.innerHTML = "";
+  PAIRS.forEach(p => {
+    // Garante que existe um bias inicial para não dar erro de undefined
+    if (!BIASES[p]) BIASES[p] = { bias: "NEUTRAL", confidence: 0 };
+    
+    const b = BIASES[p];
+    const cls = b.bias === "BULLISH" ? "bull" : b.bias === "BEARISH" ? "bear" : "neut";
+    el.innerHTML += `
+      <div class="bias-row" id="bias-${p}">
+        <span class="bias-pair">${p}</span>
+        <span class="bias-tag ${cls}">${b.bias}</span>
+        <span class="bias-conf">${b.confidence}%</span>
+      </div>`;
+  });
+}
+
+// ─── LOG ───────────────────────────────────────
+// --- SISTEMA DE LOGS COM PERSISTÊNCIA ---
+function addLog(msg, type = "info") {
+  const now = new Date().toLocaleTimeString("pt-PT");
+  const area = document.getElementById("logArea");
+  if (!area) return;
+
+  const line = document.createElement("div");
+  line.className = "log-line";
+  line.innerHTML = `<span class="log-time">[${now}]</span><span class="log-msg ${type}">${msg}</span>`;
+  area.appendChild(line);
+  area.scrollTop = area.scrollHeight;
+
+  // Salvar no Navegador (Persistência)
+  const logs = JSON.parse(localStorage.getItem('bot_logs') || '[]');
+  logs.push({ msg, type, time: now });
+  if (logs.length > 100) logs.shift(); // Limite de 100 logs
+  localStorage.setItem('bot_logs', JSON.stringify(logs));
+}
+
+function restoreLogs() {
+  const logs = JSON.parse(localStorage.getItem('bot_logs') || '[]');
+  const area = document.getElementById("logArea");
+  if (!area || logs.length === 0) return;
+
+  logs.forEach(l => {
+    const line = document.createElement("div");
+    line.className = "log-line";
+    line.innerHTML = `<span class="log-time">[${l.time}]</span><span class="log-msg ${l.type}">${l.msg}</span>`;
+    area.appendChild(line);
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
+function auraClearSystemLogs() { 
+  localStorage.removeItem('bot_logs');
+  document.getElementById("logArea").innerHTML = ""; 
+  console.log("[UI] Logs do sistema limpos.");
+}
+
+// ─── UPTIME TIMER ─────────────────────────────
+function updateUptime() {
+  if (!botStartTime) return;
+  const diff = Date.now() - botStartTime;
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  const formatted = 
+    String(hours).padStart(2, '0') + ":" + 
+    String(minutes).padStart(2, '0') + ":" + 
+    String(seconds).padStart(2, '0');
+  document.getElementById("botUptime").textContent = formatted;
+}
+
+// ─── SIGNALS UI ───────────────────────────────
+function addSignalCard(sig, execResult) {
+  const list = document.getElementById("signalsList");
+  const empty = list.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  const tagHtml = Object.entries(sig.factors || {})
+    .filter(([,v]) => v)
+    .map(([k]) => `<span class="tag active">${k}</span>`)
+    .join("") || '<span class="tag">Sem tags</span>';
+
+  let execHtml = '';
+  if (execResult) {
+    if (execResult.success) {
+      const msg = execResult.message || `Executado #${execResult.orderId || ''}`;
+      execHtml = `<span class="exec-badge success">✓ ${msg}</span>`;
+    } else {
+      execHtml = `<span class="exec-badge failed">✗ ${execResult.error || 'Falhou'}</span>`;
+    }
+  } else {
+    execHtml = `<span class="exec-badge pending">⏳ Simulação</span>`;
+  }
+
+  const el = document.createElement("div");
+  el.className = `signal-card ${(sig.direction || 'BUY').toLowerCase()}`;
+  el.innerHTML = `
+    <div class="signal-top">
+      <span class="signal-pair">${sig.pair || 'SMC Signal'}</span>
+      
+      ${execResult && execResult.success && execResult.orderId ? `
+        <div id="top-pnl-${execResult.orderId}" style="
+          font-weight: 800; font-family: 'Space Mono', monospace; 
+          font-size: 0.9rem; color: var(--muted);
+          background: rgba(255,255,255,0.03);
+          padding: 2px 8px; border-radius: 4px;
+        ">$0.00</div>
+        <button onclick="closeTradeNow('${execResult.orderId}', '${sig.pair}')" style="
+          background: rgba(255,68,68,0.2); color: var(--bear); border: 1px solid rgba(255,68,68,0.3);
+          border-radius: 4px; padding: 4px 10px; font-size: 0.62rem; 
+          font-weight: 800; cursor: pointer; transition: all 0.2s;
+          text-transform: uppercase;
+        " onmouseover="this.style.background='var(--bear)'; this.style.color='#fff';" onmouseout="this.style.background='rgba(255,68,68,0.2)'; this.style.color='var(--bear)';">Fechar</button>
+      ` : ''}
+
+      <span class="signal-dir ${(sig.direction || 'BUY').toLowerCase()}">${sig.direction || 'BUY'}</span>
+    </div>
+    <div class="signal-grid">
+      <div class="sig-item"><span>Entrada</span><span>${sig.entry?.toFixed(5)}</span></div>
+      <div class="sig-item"><span>Stop Loss</span><span style="color:var(--bear)">${sig.sl?.toFixed(5)}</span></div>
+      <div class="sig-item"><span>Take Profit</span><span style="color:var(--bull)">${sig.tp?.toFixed(5)}</span></div>
+    </div>
+    <div class="signal-score">
+      <div class="score-bar"><div class="score-fill" style="width:${sig.score}%"></div></div>
+      <span class="score-label">${sig.score}%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px;">
+      <div class="signal-tags">${tagHtml}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${execHtml}
+        <span style="font-size:0.7rem;color:var(--muted);font-family:'Space Mono',monospace;">R:R ${sig.rr}</span>
+      </div>
+    </div>
+    ${execResult && execResult.success && execResult.orderId ? `
+      <div id="pnl-container-${execResult.orderId}" class="pnl-float-badge" style="
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      ">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.7rem; color:var(--muted); font-weight:bold;">LUCRO AO VIVO:</span>
+          <span id="pnl-val-${execResult.orderId}" style="font-weight:800; font-family:'Space Mono',monospace; font-size:1rem;">$0.00</span>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top:6px;">
+           <div style="display:flex; flex-direction:column;">
+              <span style="font-size:0.55rem; color:var(--muted);">PICO ATINGIDO:</span>
+              <span id="peak-pnl-${execResult.orderId}" style="font-size:0.75rem; font-family:'Space Mono',monospace; color:var(--accent);">$0.00</span>
+           </div>
+           <div style="display:flex; flex-direction:column; align-items:flex-end;">
+              <span style="font-size:0.55rem; color:var(--muted);">GATILHO LOCK:</span>
+              <span id="lock-trigger-${execResult.orderId}" style="font-size:0.75rem; font-family:'Space Mono',monospace; color:var(--warn);">--</span>
+           </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.05); padding-top:6px;">
+          <span style="font-size:0.6rem; color:var(--muted);">NÍVEIS BROKER:</span>
+          <span style="font-size:0.65rem; font-family:'Space Mono',monospace;">
+            SL: <span id="active-sl-${execResult.orderId}" style="color:var(--bear)">--</span> | 
+            TP: <span id="active-tp-${execResult.orderId}" style="color:var(--bull)">--</span>
+          </span>
+        </div>
+      </div>
+    ` : ''}
+  `;
+  list.prepend(el);
+  if (list.children.length > 20) list.removeChild(list.lastChild);
+
+  // Expert Fix: Update Carousel Visibility
+  updateSignalCarousel();
+
+  // Salvar Sinais no Navegador com dados de execução para F5 Persistence
+  const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
+  const sigToSave = { ...sig, execResult }; 
+  savedSigs.unshift(sigToSave);
+  if (savedSigs.length > 20) savedSigs.pop();
+  localStorage.setItem('bot_signals', JSON.stringify(savedSigs));
+}
+
+let activeSignalIdx = 0;
+function updateSignalCarousel() {
+    const list = document.getElementById("signalsList");
+    const cards = list.querySelectorAll(".signal-card");
+    const nav = document.getElementById("signalNav");
+    const indexEl = document.getElementById("signalIndex");
+    
+    if (cards.length <= 1) {
+        nav.style.display = "none";
+        cards.forEach(c => c.style.display = "flex");
+        activeSignalIdx = 0;
+        return;
+    }
+    
+    nav.style.display = "flex";
+    if (activeSignalIdx >= cards.length) activeSignalIdx = 0;
+    
+    cards.forEach((c, idx) => {
+        c.style.display = (idx === activeSignalIdx) ? "flex" : "none";
+    });
+    
+    indexEl.textContent = `${activeSignalIdx + 1}/${cards.length}`;
+}
+
+function nextSignal() {
+    const cards = document.querySelectorAll("#signalsList .signal-card");
+    if (cards.length === 0) return;
+    activeSignalIdx = (activeSignalIdx + 1) % cards.length;
+    updateSignalCarousel();
+}
+
+function prevSignal() {
+    const cards = document.querySelectorAll("#signalsList .signal-card");
+    if (cards.length === 0) return;
+    activeSignalIdx = (activeSignalIdx - 1 + cards.length) % cards.length;
+    updateSignalCarousel();
+}
+
+async function closeTradeNow(positionId, pair) {
+  if (!confirm(`Deseja realmente fechar a ordem ${pair} (#${positionId}) agora?`)) return;
+  
+  addLog(`🛠️ Solicitando fechamento manual: ${pair} #${positionId}...`, "info");
+  try {
+    const res = await apiFetch("/api/broker/close", "POST", { positionId });
+    if (res.success) {
+      addLog(`✅ Sucesso: ${pair} #${positionId} fechada manualmente.`, "buy");
+      // Feedback visual no card
+      const topPnl = document.getElementById(`top-pnl-${positionId}`);
+      if (topPnl) topPnl.textContent = "FECHADA";
+    } else {
+      addLog(`❌ Erro ao fechar: ${res.error}`, "sell");
+      alert("Erro ao fechar ordem: " + res.error);
+    }
+  } catch(e) {
+    addLog(`❌ Erro de conexão: ${e.message}`, "sell");
+  }
+}
+
+function highlightSection(id) {
+    const el = document.getElementById(id);
+    const panel = el.closest('.panel');
+    if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        panel.classList.remove('highlight-panel');
+        void panel.offsetWidth; // Trigger reflow
+        panel.classList.add('highlight-panel');
+    }
+}
+
+async function loadHistoryAndScroll() {
+    await loadHistory();
+    highlightSection('historyTableBody');
+}
+
+function restoreSignals() {
+  const savedSigs = JSON.parse(localStorage.getItem('bot_signals') || '[]');
+  const list = document.getElementById("signalsList");
+  if (!list || savedSigs.length === 0) return;
+  
+  const empty = list.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  // Ordem cronológica inversa para prepend funcionar corretamente
+  [...savedSigs].reverse().forEach(sig => {
+      // Limpeza de erros legados (createOrder)
+      if (sig.execResult && !sig.execResult.success && sig.execResult.error && sig.execResult.error.includes("createOrder")) {
+          return; // Não restaura sinais com erro legado
+      }
+      // Usar a mesma função addSignalCard para manter IDs e Badges
+      addSignalCard(sig, sig.execResult);
+  });
+  
+  // Limpeza forçada do localStorage se houver lixo legado
+  const cleanedSigs = savedSigs.filter(s => !(s.execResult && !s.execResult.success && s.execResult.error && s.execResult.error.includes("createOrder")));
+  if (cleanedSigs.length !== savedSigs.length) {
+      localStorage.setItem('bot_signals', JSON.stringify(cleanedSigs));
+      console.log("[CLEANUP] Sinais com erro legado 'createOrder' removidos.");
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  BROKER API CALLS & AUTH
+// ═══════════════════════════════════════════════
+
+// Logout centralizado removido por duplicidade (já existe na linha 1256)
+
+
+async function apiFetch(endpoint, method = "GET", body = null) {
+  const token = localStorage.getItem("aura_token");
+  remoteLog(`API_CALL: ${method} ${endpoint} (Token local: ${token ? 'Presente' : 'Ausente'})`);
+
+  if (!token) {
+    remoteLog("API_ABORT: Chamada abortada por falta de token", "ERROR");
+    // Bloqueado para diagnóstico: window.location.href = "/login.html";
+    return { success: false, error: "Sem sessão." };
+  }
+
+  const opts = { 
+    method, 
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    } 
+  };
+  
+  if (body) opts.body = JSON.stringify(body);
+  
+  try {
+    const res = await fetch(endpoint, opts);
+    remoteLog(`API_RESPONSE: ${endpoint} Status=${res.status}`);
+
+    if (res.status === 401) {
+      remoteLog("API_401: Servidor rejeitou o token", "ERROR");
+      // Desativado para auditoria: logout();
+      return { success: false, error: "DEBUG: Sessão rejeitada pelo servidor (401)." };
+    }
+    
+    // Tenta ler JSON, se falhar, retorna erro amigável e loga a resposta bruta
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      remoteLog("RAW_RESPONSE_ERROR: " + text.substring(0, 200), "ERROR");
+      return { success: false, error: "Resposta inválida do servidor." };
+    }
+  } catch (err) {
+    console.error("Erro de Rede:", err);
+    return { success: false, error: "Erro de ligação ao servidor. Verifique a sua internet." };
+  }
+}
+
+async function ConnectToBroker(brokerType, credentials) {
+  const remember = document.getElementById("rememberCredentials").checked;
+  return apiFetch("/api/broker/connect", "POST", { brokerType, credentials, remember });
+}
+
+async function disconnectBroker() {
+  // Importante: Passamos forgetDb: false para NÃO apagar as credenciais da BD do servidor.
+  // Assim o auto-connect funcionará no próximo login.
+  return apiFetch("/api/broker/disconnect", "POST", { forgetDb: false });
+}
+
+
+async function getBrokerAccount() {
+  return apiFetch("/api/broker/account");
+}
+
+async function getBrokerPositions() {
+  return apiFetch("/api/broker/positions");
+}
+
+async function placeBrokerOrder(pair, direction, risk, sl, tp) {
+  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp });
+}
+
+async function getBrokerCandles(pair, timeframe, count) {
+  return apiFetch(`/api/broker/candles?pair=${pair}&timeframe=${timeframe || 'H1'}&count=${count || 250}`);
+}
+
+async function getBrokerPrice(pair) {
+  return apiFetch(`/api/broker/price?pair=${pair}`);
+}
+
+async function getBrokerStatus() {
+  return apiFetch("/api/broker/status");
+}
+
+// ═══════════════════════════════════════════════
+//  LEGACY BROKER MODAL LOGIC REMOVED
+// ═══════════════════════════════════════════════
+
+// ─── HISTORY LOGIC ─────────────────────────────
+let tradeHistoryRaw = [];
+
+async function loadHistory() {
+  if (!brokerConnected) return;
+
+  const btn = document.querySelector('button[onclick="loadHistory()"]');
+  if (btn) btn.textContent = "A carregar...";
+
+  try {
+    const data = await apiFetch("/api/broker/history");
+    if (data && data.history) {
+      tradeHistoryRaw = data.history;
+      renderHistory();
+    }
+  } catch(e) {
+    console.error("Erro ao puxar history:", e);
+  } finally {
+    if (btn) btn.textContent = "Atualizar";
+  }
+}
+
+function clearHistory() {
+  tradeHistoryRaw = [];
+  renderHistory();
+  addLog("🧹 Histórico local limpo.", "info");
+}
+
+function renderHistory() {
+  const tbody = document.getElementById("historyTableBody");
+  if (!tradeHistoryRaw || tradeHistoryRaw.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-family:\'Syne\',sans-serif;">Nenhum histórico disponível.</td></tr>';
+    return;
+  }
+
+  const filterPair = document.getElementById("histFilterPair").value.toUpperCase().trim();
+  const filterResult = document.getElementById("histFilterResult").value;
+  const filterPeriod = document.getElementById("histFilterPeriod").value;
+
+  const now = new Date();
+  
+  let filtered = tradeHistoryRaw.filter(t => {
+    // Par filter
+    if (filterPair && !t.pair.toUpperCase().includes(filterPair)) return false;
+
+    // Res filter
+    if (filterResult === "WIN" && t.pnl <= 0) return false;
+    if (filterResult === "LOSS" && t.pnl > 0) return false;
+
+    // Time filter
+    if (filterPeriod !== "ALL") {
+      const closeDate = new Date(t.closeTime);
+      const diffDays = (now - closeDate) / (1000 * 3600 * 24);
+      if (filterPeriod === "TODAY" && closeDate.toDateString() !== now.toDateString()) return false;
+      if (filterPeriod === "WEEK" && diffDays > 7) return false;
+    }
+
+    return true;
+  });
+
+  const formatData = (d) => {
+    try {
+      const date = new Date(d);
+      return date.toLocaleString();
+    } catch(e) { return d; }
+  };
+
+  tbody.innerHTML = filtered.map(t => {
+    const pnlClass = t.pnl > 0 ? 'bull' : (t.pnl < 0 ? 'bear' : '');
+    const pnlStr = t.pnl > 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
+    const dirColor = t.direction === "BUY" ? 'var(--bull)' : 'var(--bear)';
+    return `
+      <tr>
+        <td>${formatData(t.closeTime)}</td>
+        <td style="color:var(--muted);">${t.broker}</td>
+        <td style="font-weight:700;">${t.pair}</td>
+        <td>${t.lotSize}</td>
+        <td style="color:${dirColor};">${t.direction}</td>
+        <td class="${pnlClass}" style="font-weight:700;">${pnlStr}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// Inicializar ao conectar
+// (chamado de modais ou updates)
+
+// ─── DISCONNECT ───────────────────────────────
+async function doDisconnect() {
+  const ConnectBtn = document.getElementById("ConnectBtn");
+  ConnectBtn.disabled = true;
+  ConnectBtn.textContent = "A desconectar...";
+
+  // Safety timeout: always re-enable the button after 5s no matter what
+  const safetyTimer = setTimeout(() => {
+    brokerConnected = false;
+    brokerInfo = null;
+    openTrades = [];
+    updateBrokerUI();
+    addLog("🔌 MetaTrader 5 desconectada.", "sell");
+  }, 5000);
+
+  try {
+    await disconnectBroker();
+  } catch(e) {
+    console.warn("Disconnect API error (ignored):", e.message);
+  } finally {
+    clearTimeout(safetyTimer);
+  }
+
+  brokerConnected = false;
+  brokerInfo = null;
+  openTrades = [];
+
+  // Stop bot if running (use isRunning variable)
+  if (typeof isRunning !== 'undefined' && isRunning) stopBot();
+
+  updateBrokerUI();
+  addLog("🔌 MetaTrader 5 desconectada.", "sell");
+  ConnectBtn.disabled = false;
+}
+
+// ─── UPDATES ──────────────────────────────────
+async function checkBrokerConnection() {
+  try {
+    const status = await getBrokerStatus();
+    if (status && status.success && status.connected) {
+       brokerConnected = true;
+       brokerInfo = status.accountInfo || status.account || status.info;
+       updateBrokerUI();
+       addLog("🔄 Conexão com a MetaTrader 5 restaurada automaticamente.", "buy");
+    }
+  } catch (e) {
+    console.warn("Falha ao verificar status da MetaTrader 5:", e.message);
+  }
+}
+
+async function updateBrokerUI() {
+  const badge = document.getElementById("brokerBadge");
+  const statusText = document.getElementById("brokerStatusText");
+  const mainBtn = document.getElementById("mainBtn");
+  const ConnectBtn = document.getElementById("ConnectBtn");
+
+  if (brokerConnected && brokerInfo) {
+    badge.className = "broker-badge connected";
+    badge.querySelector(".dot").className = "dot active";
+
+    const typeBadge = brokerInfo.accountType === "LIVE"
+      ? '<span class="account-type-badge live">LIVE</span>'
+      : '<span class="account-type-badge demo">DEMO</span>';
+
+    statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
+    // mainBtn.disabled = false; // Removido para controle centralizado por licença
+    ConnectBtn.textContent = "🔌 Desconectar";
+    ConnectBtn.className = "btn btn-danger";
+    ConnectBtn.onclick = doDisconnect;
+
+    // Update balance
+    document.getElementById("statBalance").textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
+    document.getElementById("statBalanceSub").textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
+
+    addLog(`✅ Conectado: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    
+    // Expert Fix: Limpar sinais antigos ao conectar para evitar confusão com simulações
+    if (signals.length > 0 || openTrades.length === 0) {
+       addLog("🧹 Limpando ambiente para nova sessão de trading...");
+       signals = [];
+       localStorage.setItem('bot_signals', '[]');
+       document.getElementById("signalsList").innerHTML = `
+        <div class="empty-state">
+          <div class="em-icon">🔍</div>
+          <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
+        </div>`;
+    }
+  } else {
+    badge.className = "broker-badge disconnected";
+    badge.querySelector(".dot").className = "dot danger";
+    statusText.textContent = "Sem MetaTrader 5";
+    // mainBtn.disabled = true; // Removido: O Bot pode rodar em modo Local EA apenas com licença
+    ConnectBtn.textContent = "🔗 ---";
+    ConnectBtn.className = "btn btn-Connect";
+    ConnectBtn.onclick = openSetupModal;
+
+    document.getElementById("statBalance").textContent = "—";
+    document.getElementById("statBalanceSub").textContent = "Conecte uma MetaTrader 5";
+  }
+}
+
+function updateLimitUI(val) {
+    const limitVal = document.getElementById('limitVal');
+    const statLimitDisplay = document.getElementById('statLimitDisplay');
+    const statOpen = document.getElementById('statOpen');
+    
+    if (limitVal) limitVal.textContent = val;
+    if (statLimitDisplay) statLimitDisplay.textContent = val;
+    
+    if (statOpen) {
+        const parts = statOpen.textContent.split(' / ');
+        const current = parts[0] || '0';
+        statOpen.textContent = `${current} / ${val}`;
+    }
+}
+
+async function updateStats() {
+  if (brokerConnected) {
+    try {
+      const info = await getBrokerAccount();
+      if (info && info.balance !== undefined) {
+        brokerInfo.balance = info.balance;
+        brokerInfo.equity = info.equity;
+        document.getElementById("statBalance").textContent = formatCurrency(info.balance, info.currency || brokerInfo.currency);
+
+        const pnlVal = info.unrealizedPL || (info.equity - info.balance) || 0;
+        const pnlEl = document.getElementById("statPnl");
+        pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, info.currency || brokerInfo.currency);
+        pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
+      }
+
+      const posData = await getBrokerPositions();
+      const positions = posData.positions || [];
+      openTrades = positions;
+      
+      // EXPERT: Sincronização e Recuperação de Ordens Órfãs
+      positions.forEach(pos => {
+         let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         
+         // Se a ordem existe na MetaTrader 5 mas NÃO tem cartão no dashboard, recuperamos o controlo
+         if (!pnlEl) {
+            console.log(`[VIGILANTE] Detetada ordem órfã #${pos.id} em ${pos.symbol}. Recuperando controlo...`);
+            const recoverySig = {
+                pair: pos.pair,
+                direction: (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL',
+                entry: pos.openPrice || 0,
+                sl: pos.sl || 0,
+                tp: pos.tp || 0,
+                score: 100,
+                rr: 'EXTERNA',
+                factors: { "VPS VIGILANTE": true, "RECUPERADA": true }
+            };
+            const recoveryExec = { success: true, orderId: pos.id, message: "Controlo Recuperado" };
+            addSignalCard(recoverySig, recoveryExec);
+            
+            // Re-seleciona o elemento recém-criado para continuar a atualização
+            pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+         }
+
+         if (pnlEl) {
+            const pnlVal = pos.pnl || 0;
+            pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
+            pnlEl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+            
+            // Update Real SL/TP
+            const slEl = document.getElementById(`active-sl-${pos.id}`);
+            const tpEl = document.getElementById(`active-tp-${pos.id}`);
+            if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(brokerInfo.precision || 5) : "--";
+            if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(brokerInfo.precision || 5) : "--";
+            
+            // Update Top Profit & Lock Trigger
+            const peakEl = document.getElementById(`peak-pnl-${pos.id}`);
+            const lockEl = document.getElementById(`lock-trigger-${pos.id}`);
+            
+            // Peak simulation or real peak from memory if we had it
+            // For dashboard, we use a simple "current is peak" logic unless we track it in browser
+            let currentPeak = parseFloat(localStorage.getItem(`peak_${pos.id}`) || 0);
+            if (pnlVal > currentPeak) {
+                currentPeak = pnlVal;
+                localStorage.setItem(`peak_${pos.id}`, currentPeak);
+            }
+
+            if (peakEl) peakEl.textContent = formatCurrency(currentPeak, brokerInfo.currency);
+            
+            if (lockEl && currentPeak >= 3) {
+                const lockPrice = currentPeak * 0.70;
+                lockEl.textContent = formatCurrency(lockPrice, brokerInfo.currency);
+            } else if (lockEl) {
+                lockEl.textContent = "Aguardando $3";
+            }
+            
+            const topPnl = document.getElementById(`top-pnl-${pos.id}`);
+            if (topPnl) {
+                topPnl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
+                topPnl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+            }
+
+            // Highlight container
+            const container = document.getElementById(`pnl-container-${pos.id}`);
+            if (container) {
+               container.style.borderColor = pnlVal >= 0 ? "rgba(0,230,118,0.3)" : "rgba(255,68,68,0.3)";
+               container.style.background = pnlVal >= 0 ? "rgba(0,230,118,0.05)" : "rgba(255,68,68,0.05)";
+            }
+         }
+      });
+
+      const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
+      document.getElementById("statOpen").textContent = `${positions.length} / ${maxTradesLimit}`;
+      document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
+
+      // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
+      if (tradeHistoryRaw.length === 0 && brokerConnected) {
+         loadHistory(); // Puxa histórico inicial
+      }
+
+      if (tradeHistoryRaw.length > 0) {
+        // Filtramos apenas os trades de HOJE para o "Sinais Hoje" ou deixamos cumulativo?
+        // O utilizador quer que "Sinais Hoje" funcione.
+        const hoje = new Date().toDateString();
+        const tradesHoje = tradeHistoryRaw.filter(t => new Date(t.closeTime).toDateString() === hoje);
+        
+        // Se sigCount for 0 (ao recarregar), podemos estimar pelos trades de hoje + sinais da sessão
+        // Mas o mais preciso é contar os trades fechados hoje + abertos
+        const totalTradesHistorico = tradeHistoryRaw.length;
+        const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
+        
+        // Sincronizar variáveis globais com o histórico para manter consistência
+        const totalFechados = tradeHistoryRaw.length;
+        const totalAbertos = positions.length;
+        
+        tradeCount = totalFechados + totalAbertos;
+        wins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
+        
+        // Sinais Hoje: Sinais detetados na sessão + trades já fechados hoje
+        const sinaisReaisHoje = sigCount + tradesHoje.length;
+        document.getElementById("statSig").textContent = sinaisReaisHoje;
+      } else {
+        // Se não houver histórico, usamos apenas os dados da sessão
+        const totalAbertos = positions.length;
+        tradeCount = totalAbertos; 
+        document.getElementById("statSig").textContent = sigCount;
+      }
+
+      document.getElementById("statTotal").textContent = tradeCount;
+      // Win Rate calculado apenas sobre trades FECHADOS para precisão
+      const fechadosCount = tradeHistoryRaw.length;
+      document.getElementById("statWr").textContent = fechadosCount ? `${((wins/fechadosCount)*100).toFixed(0)}%` : "N/A";
+    } catch (e) {
+      addLog(`⚠️ Erro ao atualizar dados: ${e.message}`, "warn");
+    }
+  }
+}
+
+function updateSessionStatus() {
+  const el = document.getElementById("sessionStatus");
+  el.textContent = "Londres / NY Ativa";
+}
+
+async function botLoop(loopId) {
+  if (!isRunning || loopId !== currentLoopId) return;
+  
+  const h = new Date().getUTCHours();
+  addLog(`🔍 AuraBot [${VERSION}]: A iniciar análise... (UTC: ${h}h)`, "info");
+
+  try {
+    // 1. Verificar Sessão
+    try {
+      updateSessionStatus();
+    } catch(e) { console.warn("Erro session status:", e); }
+
+    // 2. Validar Pares
+    if (!activePairs || !(activePairs instanceof Set) || activePairs.size === 0) {
+      addLog("⚙️ Lista de pares vazia. A usar pares padrão.");
+      activePairs = new Set(["EURUSD", "GBPUSD", "XAUUSD"]);
+    }
+
+    // 3. Trava de Aquecimento (Expert) - Apenas na primeira execução
+    const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
+    if (Date.now() - botStartTime < 10000) {
+       addLog("⏳ AuraBot em aquecimento... Analisando fluxo de ordens.");
+       if (isRunning && loopId === currentLoopId) {
+         loopTimer = setTimeout(() => botLoop(loopId), ms);
+       }
+       return;
+    }
+
+    addLog(`📈 Analisando ${activePairs.size} ativos (Motor APEX Pro)...`);
+
+    for (const pair of activePairs) {
+      try {
+        // Trava de Cooldown (Não abrir muitas ordens no mesmo par)
+        if (lastTradeTime[pair] && (Date.now() - lastTradeTime[pair] < 300000)) {
+           continue; 
+        }
+
+        // 1. Chamar Análise Profissional no Servidor
+        const htfBias = BIASES[pair] ? BIASES[pair].bias : "NEUTRAL";
+        const analyzeRes = await apiFetch("/api/bot/analyze", "POST", { pair, htfBias });
+        
+        if (!analyzeRes.success) throw new Error(analyzeRes.error || "Erro na análise do servidor");
+
+        const aiResult = simulateAIBias(pair); // Mantemos simulação para o painel visual
+        BIASES[pair] = aiResult;
+        updateBiasUI(pair, aiResult.bias, aiResult.confidence);
+        
+        // 4. Processar Sinal Profissional com Filtro de Tendência
+        const sig = analyzeRes.signal;
+        
+        const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
+        if (sig && openTrades.length < maxTradesLimit) {
+          // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
+          if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
+             addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
+             continue;
+          }
+
+          addLog(`🎯 SINAL PRO DETETADO: ${sig.direction} ${pair}`, "info");
+          sigCount++; // Incrementa contador de sinais
+          
+          const riskPercent = parseFloat(document.getElementById("riskSlider").value) || 1.0;
+          const balance = brokerInfo ? (brokerInfo.balance || 10000) : 10000;
+          
+          // EXPERT: Cálculo Preciso de Valor por Pip/Lote
+          let pipValuePerLot = 10; // Padrão Forex (1 lot = $10/pip)
+          if (pair.includes("XAU") || pair.includes("GOLD")) pipValuePerLot = 100; // Ouro (1 lot = $100/$1 move)
+          if (pair.includes("JPY")) pipValuePerLot = 6.5; // JPY (Aprox. $6.5-$7/pip dependendo da taxa)
+          
+          const pipVal = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
+          
+          // EXPERT: Forçar risco de 18 pips para cálculo de lote (SMC Standard)
+          const slPips = 18; 
+          
+          // Cálculo: (Saldo * %Risco) / (Distância SL * Valor do Pip por Lote)
+          let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
+          
+          // EXPERT: Ajuste de Margem Dinâmico baseada no Limite de Ordens
+          const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
+          let safeMaxLot = (pair.includes("XAU") || pair.includes("GOLD")) ? 0.30 : 0.15; // Forex é mais pesado em margem
+          
+          if (maxTradesLimit > 5) safeMaxLot = safeMaxLot * 0.7;
+          if (maxTradesLimit > 10) safeMaxLot = safeMaxLot * 0.5;
+          
+          lotSize = Math.min(Math.max(parseFloat(lotSize.toFixed(2)), 0.01), safeMaxLot);
+          
+          sig.lotSize = lotSize;
+
+          // Removida restrição de brokerConnected para permitir modo Sinal-EA
+          if (true) { 
+            addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
+            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
+
+            if (res.success) {
+              lastTradeTime[pair] = Date.now();
+              tradeCount++;
+              addLog(`✅ Ordem confirmada: ${pair} #${res.orderId}`, "buy");
+              addSignalCard(sig, res);
+            } else {
+              addLog(`❌ Broker rejeitou: ${res.error}`, "sell");
+              addSignalCard(sig, { success: false, error: res.error });
+            }
+          }
+        }
+        // 5. Monitor de Lucro, Reversão e Proteção (Expert SMC Pro)
+        const openPos = openTrades.find(t => t.pair === pair);
+        if (openPos) {
+           const balance = brokerInfo?.balance || 10000;
+           const currentProfit = openPos.profit || 0;
+           const pip = pair.includes("JPY") ? 0.01 : (pair.includes("XAU") || pair.includes("GOLD")) ? 1 : 0.0001;
+           
+           // Cálculo de Pips Atuais
+           const currentPrice = aiResult.currentPrice || (openPos.direction === "BUY" ? openPos.openPrice + (currentProfit / (openPos.lotSize * 10)) : openPos.openPrice - (currentProfit / (openPos.lotSize * 10)));
+           const pipsProfit = (openPos.direction === "BUY" ? (currentPrice - openPos.openPrice) : (openPos.openPrice - currentPrice)) / pip;
+
+           // GATILHO BREAKEVEN: Se atingir 15 pips (1:1), move SL para Entrada
+           if (pipsProfit >= 15 && openPos.sl !== openPos.openPrice) {
+              addLog(`🛡️ BREAKEVEN ATIVADO: ${pair} atingiu 15 pips (1:1). Movendo SL para entrada ($${openPos.openPrice})!`, "info");
+              await apiFetch("/api/broker/order/update", "POST", { 
+                 positionId: openPos.id, 
+                 sl: openPos.openPrice,
+                 tp: openPos.tp 
+              });
+              // Evitar disparar de novo na mesma ordem
+              openPos.sl = openPos.openPrice;
+           }
+
+           // Atualizar Pico de Lucro (Proteção 1%)
+           if (!maxProfitTrack[openPos.id] || currentProfit > maxProfitTrack[openPos.id]) {
+              maxProfitTrack[openPos.id] = Math.max(0, currentProfit);
+           }
+           
+           const peak = maxProfitTrack[openPos.id];
+           const drop = peak - currentProfit;
+           const dropPercentOfProfit = (peak > 2.0) ? (drop / peak) * 100 : 0;
+
+           // Gatilho Trava 1%: Proteção contra recuo de lucro
+           if (peak > 5.0 && dropPercentOfProfit >= 1.0) {
+              addLog(`🛡️ TRAVA DE LUCRO: ${pair} recuou 1% do lucro ($${drop.toFixed(2)}) em relação ao pico de $${peak.toFixed(2)}. Fechando!`, "warn");
+              await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
+              delete maxProfitTrack[openPos.id];
+              continue;
+           }
+
+           // Gatilho Reversão: Mudança de Bias (Bias contra a posição)
+           if (currentProfit > 0 && aiResult.bias !== "NEUTRAL" && aiResult.bias !== openPos.direction) {
+              addLog(`🛡️ REVERSÃO DETETADA: Fechando ${pair} para garantir $${currentProfit.toFixed(2)}`, "info");
+              await apiFetch("/api/broker/close", "POST", { positionId: openPos.id });
+              delete maxProfitTrack[openPos.id];
+              continue;
+           }
+        }
+
+      } catch (err) {
+        addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");
+      }
+    }
+
+    await updateStats();
+    
+    // 6. Lucro Global por Cesta (Basket Take Profit - Meta de 2%)
+    if (openTrades.length > 0 && brokerInfo) {
+       const totalProfit = openTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+       const targetProfit = brokerInfo.balance * 0.02; // Meta de 2%
+       
+       if (totalProfit >= targetProfit) {
+          addLog(`💰 META ATINGIDA: Lucro total de $${totalProfit.toFixed(2)} atingiu 2% do saldo. Fechando todas as ordens!`, "buy");
+          for (const pos of openTrades) {
+             await apiFetch("/api/broker/close", "POST", { positionId: pos.id });
+          }
+       }
+    }
+
+  } catch (totalErr) {
+    addLog(`❌ ERRO NA ANÁLISE: ${totalErr.message}. Tentando novamente no próximo ciclo...`, "warn");
+    console.error(totalErr);
+  }
+
+  // Agendamento Garantido (Expert Resilience)
+  const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
+  if (isRunning && loopId === currentLoopId) {
+    loopTimer = setTimeout(() => botLoop(loopId), ms);
+  }
+}
+
+// ─── CONTROLOS ───────────────────────────────────────
+function toggleBot() {
+  if (!isRunning) startBot(); else stopBot();
+}
+
+function startBot() {
+  addLog("Debug: Chamada startBot()");
+  try {
+    if (!userLicense) {
+      addLog("❌ Sem licença ativa.", "bear");
+      openBuyModal();
+      return;
+    }
+    if (!brokerConnected) {
+      addLog("ℹ️ Modo Local EA Ativo: Os sinais serão enviados apenas para o seu terminal MetaTrader 5.", "info");
+      // Não bloqueamos mais, apenas informamos
+    }
+
+    isRunning = true;
+    localStorage.setItem("aura_bot_state", "running"); // Chave nova e mais robusta
+    currentLoopId++;
+    document.getElementById("botDot").classList.add("active");
+    document.getElementById("botStatus").textContent = "Rodando";
+    document.getElementById("mainBtn").textContent = "⏹ Parar Bot";
+    document.getElementById("mainBtn").className = "btn btn-danger";
+    
+    addLog(`🚀 Bot SMC iniciado com sucesso! (ID: ${currentLoopId})`, "buy");
+    
+    botStartTime = Date.now();
+    const uptimeDot = document.getElementById("uptimeDot");
+    if (uptimeDot) uptimeDot.classList.add("active");
+    
+    if (typeof updateUptime === 'function') {
+      uptimeInterval = setInterval(updateUptime, 1000);
+    }
+    
+    // Pequeno delay para garantir estabilidade antes do loop
+    setTimeout(() => {
+      if (isRunning) {
+        addLog("⚙️ Motor de execução ativado.");
+        botLoop(currentLoopId);
+      }
+    }, 500);
+  } catch (e) {
+    addLog("❌ FALHA AO INICIAR: " + e.message, "sell");
+    console.error(e);
+  }
+}
+
+function stopBot() {
+  isRunning = false;
+  localStorage.setItem("aura_bot_state", "stopped");
+  if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
+  document.getElementById("botDot").classList.remove("active");
+  document.getElementById("botStatus").textContent = "Parado";
+  document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
+  document.getElementById("mainBtn").className = "btn btn-primary";
+  if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
+  
+  if (typeof uptimeInterval !== 'undefined') clearInterval(uptimeInterval);
+  const uptimeDot = document.getElementById("uptimeDot");
+  if (uptimeDot) uptimeDot.classList.remove("active");
+  
+  addLog("⏹ Bot parado.");
+}
+
+function resetBot() {
+  stopBot();
+  sigCount = 0; tradeCount = 0; wins = 0;
+  openTrades = [];
+  signals = [];
+  PAIRS.forEach(p => { BIASES[p] = { bias:"NEUTRAL", confidence:0 }; });
+  document.getElementById("signalsList").innerHTML = `
+    <div class="empty-state">
+      <div class="em-icon">${brokerConnected ? '🔍' : '🔗'}</div>
+      <p>${brokerConnected ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
+    </div>`;
+  auraClearSystemLogs();
+  initBiases();
+  updateStats();
+  document.getElementById("botUptime").textContent = "00:00:00";
+  botStartTime = null;
+  addLog("Bot reiniciado.");
+}
+
+function updateLicenseUI() {
+  const header = document.getElementById("licenseLevel");
+  const count = document.getElementById("licenseCountdown");
+  const alertBar = document.getElementById("licenseAlert");
+  const daysLeftEl = document.getElementById("licenseDaysLeft");
+  const startBtn = document.getElementById("mainBtn");
+  const buyBtn = document.getElementById("buyLicenseBtn");
+
+  if (userLicense && userLicense.status === "ACTIVE") {
+    const expires = new Date(userLicense.expiresAt);
+    const now = new Date();
+    const diff = expires - now;
+    const days = Math.floor(diff / (1000 * 3600 * 24));
+    const hours = Math.floor((diff % (1000 * 3600 * 24)) / (1000 * 3600));
+
+    header.textContent = userLicense.type || "PRO";
+    count.textContent = diff > 0 ? `${days}d ${hours}h restantes` : "Expirada";
+    
+    if (diff > 0 && days <= 5) {
+      alertBar.classList.add("visible");
+      daysLeftEl.textContent = days;
+    } else {
+      alertBar.classList.remove("visible");
+    }
+
+    if (diff <= 0) {
+      header.textContent = "EXPIRADA";
+      startBtn.disabled = true;
+      buyBtn.style.display = "block";
+    } else {
+      // Licença ativa: Bot pode ser iniciado
+      startBtn.disabled = false;
+      if (buyBtn) buyBtn.style.display = "none";
+    }
+  } else {
+    header.textContent = "NENHUMA";
+    count.textContent = "Sem licença ativa";
+    alertBar.classList.remove("visible");
+    startBtn.disabled = true;
+  }
+  
+  // Atualizar Status do EA (Heartbeat)
+  const eaBadge = document.getElementById("eaBadge");
+  const eaDot = document.getElementById("eaDot");
+  const eaText = document.getElementById("eaStatusText");
+  
+  if (userLicense && userLicense.updatedAt) {
+      const lastSeen = new Date(userLicense.updatedAt);
+      const now = new Date();
+      const diffSeconds = Math.floor((now - lastSeen) / 1000);
+      
+      if (diffSeconds < 30) { // EA está a pingar a cada 30s ou menos
+          eaDot.className = "dot active";
+          eaText.textContent = "EA: Online";
+          eaBadge.title = `Última sincronização: ${lastSeen.toLocaleTimeString()}`;
+      } else {
+          eaDot.className = "dot danger";
+          eaText.textContent = "EA: Offline";
+          eaBadge.title = `EA não sincroniza há ${diffSeconds}s. Verifique o MT5.`;
+      }
+  } else {
+      eaDot.className = "dot";
+      eaText.textContent = "EA: Não Configurado";
+  }
+}
+
+
+
+function openBuyModal() {
+  console.log("%c[UI] Abrindo Modal de Compra...", "color: #7c3aed; font-weight: bold;");
+  const modal = document.getElementById("buyModal");
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add("active");
+    loadPlans();
+    loadWallets();
+  } else {
+    console.error("[UI] Erro: Elemento 'buyModal' não encontrado no DOM!");
+    alert("Erro crítico: Modal de compra não encontrado.");
+  }
+}
+
+function closeBuyModal() {
+  const modal = document.getElementById("buyModal");
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove("active");
+    resetBuyModal();
+  }
+}
+
+// ─── EA SETUP MODAL ──────────────────────────
+function openSetupModal() {
+  if (!userLicense || userLicense.status !== "ACTIVE") {
+    alert("⚠️ Você precisa de uma licença ativa para configurar o EA.");
+    openBuyModal();
+    return;
+  }
+  
+  // Atualizar dados dinâmicos no modal
+  document.getElementById("eaLicenseKey").textContent = userLicense.id || "CHAVE-NÃO-ENCONTRADA";
+  const currentUrl = window.location.origin;
+  document.getElementById("apiUrlDisplay").textContent = currentUrl;
+  document.getElementById("eaApiUrl").textContent = currentUrl;
+  
+  console.log("%c[UI] Abrindo Modal de Setup...", "color: #00d4ff; font-weight: bold;");
+  const modal = document.getElementById("setupModal");
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add("active");
+  }
+}
+
+function closeSetupModal() {
+  const modal = document.getElementById("setupModal");
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove("active");
+  }
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    alert("Copiado: " + text);
+  });
+}
+
+function resetBuyModal() {
+  document.getElementById("buyStep1").style.display = "block";
+  document.getElementById("buyStep2").style.display = "none";
+  document.getElementById("buyStep3").style.display = "none";
+  document.getElementById("buyStep4").style.display = "none";
+  document.getElementById("buyBackBtn").style.display = "none";
+  document.getElementById("buyConfirmBtn").style.display = "none";
+  document.getElementById("buyFinishBtn").style.display = "none";
+  document.getElementById("buyModalFooter").style.display = "none";
+}
+
+async function loadPlans() {
+  const container = document.getElementById("plansContainer");
+  const data = await apiFetch("/api/plans");
+  if (data.success && data.plans) {
+    container.innerHTML = data.plans.map(p => `
+      <div class="broker-card" onclick="selectPlan('${p.id}', '${p.name}', ${p.price})">
+        <div class="broker-logo">💎</div>
+        <div class="broker-card-info">
+          <h4>${p.name}</h4>
+          <p>${p.durationDays} dias de acesso ilimitado</p>
+        </div>
+        <div style="font-weight:800;color:var(--accent);">$${p.price.toFixed(0)}</div>
+      </div>
+    `).join("");
+  } else {
+    container.innerHTML = `<p style="color:var(--bear)">Erro ao carregar planos.</p>`;
+  }
+}
+
+let selectedPlanId = null;
+let selectedAmount = 0;
+
+async function selectPlan(id, name, price) {
+  selectedPlanId = id;
+  selectedAmount = price;
+  document.getElementById("selectedPlanName").textContent = name;
+  document.getElementById("selectedPlanPrice").textContent = `$${price.toFixed(2)}`;
+  
+  // Show next step
+  document.getElementById("buyStep1").style.display = "none";
+  document.getElementById("buyStep2").style.display = "block";
+  document.getElementById("buyBackBtn").style.display = "block";
+  // document.getElementById("buyConfirmBtn").style.display = "block"; // Removido botão antigo
+  loadWallets();
+}
+
+async function submitPaymentRequest(btn) {
+  const hash = document.getElementById("paymentHash").value.trim();
+  if (!hash) {
+    alert("Por favor, cole a Hash da transação para confirmar o pagamento.");
+    return;
+  }
+  
+  if (!selectedPlanId) {
+    alert("Plano não selecionado.");
+    return;
+  }
+
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
+  try {
+    const res = await apiFetch("/api/license/request", "POST", {
+      planId: selectedPlanId,
+      hash: hash,
+      amount: selectedAmount
+    });
+
+    if (res.success) {
+      alert("Solicitação enviada com sucesso! Aguarde a aprovação do administrador.");
+      closeBuyModal();
+    } else {
+      alert("Erro: " + (res.error || "Não foi possível enviar a solicitação."));
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Erro de conexão ao enviar solicitação.");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+async function loadWallets() {
+  const container = document.getElementById("walletsContainer");
+  const data = await apiFetch("/api/payment-methods");
+  if (data.success && data.methods) {
+    container.innerHTML = data.methods.map(m => `
+      <div style="background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">${m.name}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:0.75rem;word-break:break-all;margin-top:4px;color:var(--accent);">${m.details}</div>
+        </div>
+        <button class="copy-btn" onclick="copyToClipboard('${m.details}', this)">Copiar</button>
+      </div>
+    `).join("") || '<p>Contate o suporte para pagamento.</p>';
+  }
+}
+
+function buyBack() {
+  const s1 = document.getElementById("buyStep1");
+  const s2 = document.getElementById("buyStep2");
+  const s3 = document.getElementById("buyStep3");
+  
+  if (s2.style.display === "block") {
+    s2.style.display = "none";
+    s1.style.display = "block";
+    document.getElementById("buyBackBtn").style.display = "none";
+    document.getElementById("buyConfirmBtn").style.display = "none";
+  } else if (s3.style.display === "block") {
+    s3.style.display = "none";
+    s2.style.display = "block";
+    document.getElementById("buyConfirmBtn").style.display = "block";
+    document.getElementById("buyFinishBtn").style.display = "none";
+  }
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalBtn = btn || event.target;
+    const originalText = originalBtn.textContent;
+    originalBtn.textContent = 'Copiado!';
+    originalBtn.style.borderColor = 'var(--bull)';
+    originalBtn.style.color = 'var(--bull)';
+    setTimeout(() => {
+        originalBtn.textContent = originalText;
+        originalBtn.style.borderColor = '';
+        originalBtn.style.color = '';
+    }, 2000);
+  });
+}
+
+function goToHashStep() {
+  document.getElementById("buyStep2").style.display = "none";
+  document.getElementById("buyStep3").style.display = "block";
+  document.getElementById("buyConfirmBtn").style.display = "none";
+  document.getElementById("buyFinishBtn").style.display = "block";
+}
+
+async function finishPurchase() {
+  const hash = document.getElementById("transactionHash").value.trim();
+  if (!hash) {
+      alert("Por favor, insira o hash da transação para validar o pagamento.");
+      return;
+  }
+
+  const btn = document.getElementById("buyFinishBtn");
+  btn.disabled = true;
+  btn.textContent = "A carregar...";
+
+  const res = await apiFetch("/api/purchase/request", "POST", {
+    planId: selectedPlanId,
+    amount: selectedAmount,
+    transactionHash: hash
+  });
+  
+  btn.disabled = false;
+  btn.textContent = "Finalizar Solicitação";
+
+  if (res.success) {
+    document.getElementById("buyStep3").style.display = "none";
+    document.getElementById("buyStep4").style.display = "block";
+    document.getElementById("buyBackBtn").style.display = "none";
+    document.getElementById("buyFinishBtn").style.display = "none";
+  } else {
+    alert("Erro: " + res.error);
+  }
+}
+
+async function confirmPayment() {
+    // Redundant now, but kept for compatibility or updated to finish later
+    finishPurchase();
+}
+
+// ─── INFRASTRUCTURE RESET ─────────────────────
+async function resetInfrastructure() {
+  const btn = document.getElementById("resetInfraBtn");
+  if (!confirm("⚠️ ATENÇÃO: Isto irá apagar todas as conexões da base de dados e desligar as sessões ativas para garantir uma limpeza total. Deseja continuar?")) return;
+  
+  btn.textContent = "A limpar...";
+  btn.disabled = true;
+  
+  try {
+    const res = await apiFetch("/api/broker/reset-connections", "POST");
+    if (res.success) {
+      addLog("✅ Infraestrutura limpa com sucesso. Por favor, conecte-se novamente.", "buy");
+      brokerConnected = false;
+      brokerInfo = null;
+      updateBrokerUI();
+      alert("Limpeza concluída! Faça login novamente na sua MetaTrader 5.");
+    } else {
+      alert("Erro no reset: " + res.error);
+    }
+  } catch(e) {
+    alert("Erro de conexão: " + e.message);
+  } finally {
+    btn.textContent = "🧹 Limpar Infra";
+    btn.disabled = false;
+  }
+}
+
+// ─── BOOT ─────────────────────────────────────
+restoreLogs(); 
+restoreSignals(); 
+initPairsGrid();
+initBiases();
+loadConfig(); 
+updateStats();
+updateSessionStatus();
+checkBrokerConnection();
+loadSavedGeminiKey(); 
+checkAuth();
+loadSystemConfig(); 
+
+// ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
+(function auraEngineMonitor() {
+    const desiredState = localStorage.getItem("aura_bot_state");
+    
+    if (desiredState === "running" && !isRunning) {
+        if (brokerConnected && userLicense) {
+            console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
+            addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
+            startBot();
+        } else {
+            // Tenta novamente a cada 1.5s enquanto as condições não forem ideais
+            setTimeout(auraEngineMonitor, 1500);
+        }
+    } else {
+        // Vigilância de segurança (5s)
+        setTimeout(auraEngineMonitor, 5000);
+    }
+})();
+
+// ─── SINCRONIZAÇÃO DE ORDENS EM TEMPO REAL (RECUPERAÇÃO) ───
+setInterval(() => {
+    if (brokerConnected) updateStats();
+}, 5000);
+
+let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
+
+async function loadSystemConfig() {
+  try {
+    const res = await fetch("/api/system/config");
+    const data = await res.json();
+    if (data.success) {
+      systemConfig = data;
+      
+      // Update UI elements
+      if (document.getElementById("apiUrlDisplay")) {
+        document.getElementById("apiUrlDisplay").textContent = systemConfig.apiUrl;
+      }
+      if (document.getElementById("eaApiUrl")) {
+        document.getElementById("eaApiUrl").textContent = systemConfig.apiUrl;
+      }
+      
+      const customGuide = document.getElementById("customGuideContent");
+      if (customGuide && systemConfig.installationGuide) {
+        customGuide.innerHTML = systemConfig.installationGuide.replace(/\n/g, '<br>');
+        customGuide.style.display = "block";
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao carregar config do sistema:", e);
+  }
+}
+</script>
+<!-- MODAIS MOVIDOS PARA O FIM DO BODY -->
+<div id="setupModal" class="modal-overlay">
+  <div class="modal" style="width: 850px;">
+    <div class="modal-header">
+      <h2><i class="fas fa-robot"></i> Guia de Instalação SMC APEX EA</h2>
+      <button class="modal-close" onclick="closeSetupModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="download-area">
+        <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v1.0 Profissional - Compilada para MetaTrader 5</p>
+        <a href="/SMC_APEX_EA.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+          <i class="fas fa-file-download"></i> DOWNLOAD SMC_APEX_EA.ex5
+        </a>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-step">
+          <h3><div class="step-number">1</div> Copiar o EA para o MetaTrader 5</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
+            2. Navegue até: <code>MQL5 → Experts</code><br>
+            3. Cole o ficheiro <code>SMC_APEX_EA.ex5</code> para esta pasta<br>
+            4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
+          </p>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">2</div> Autorizar WebRequest (OBRIGATÓRIO)</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. No MT5: <b>Ferramentas → Opções → Especialistas</b><br>
+            2. Marque: ☑ "Permitir WebRequest para os seguintes URLs"<br>
+            3. Clique no "+" e adicione o endereço do nosso servidor:
+          </p>
+          <div class="code-block" style="margin-top: 10px;">
+            <span id="apiUrlDisplay">...</span>
+            <button class="copy-btn" onclick="copyText(document.getElementById('apiUrlDisplay').textContent)">Copiar</button>
+          </div>
+          <div class="alert-box warn">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>⚠️ Sem este passo, o EA não consegue validar a licença e não arrancará.</span>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">3</div> Ativar e Aplicar</h3>
+          <p style="font-size: 0.8rem; line-height: 1.5;">
+            1. Certifique-se que o botão <b>"Algotrading"</b> no topo do MT5 está <b>VERDE</b>.<br>
+            2. Abra um gráfico (ex: EURUSD H1) e arraste o <b>SMC_APEX_EA</b> para dentro dele.<br>
+            3. Na janela que surge, vá ao separador <b>"Inputs"</b>.
+          </p>
+        </div>
+
+        <div class="setup-step">
+          <h3><div class="step-number">4</div> Configurar os Inputs</h3>
+          <table class="guide-table">
+            <thead>
+              <tr><th>Input</th><th>Valor</th><th>Descrição</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>LICENSE_KEY</td><td><b style="color:var(--accent)" id="eaLicenseKey">...</b></td><td>Sua chave pessoal</td></tr>
+              <tr><td>API_URL</td><td id="eaApiUrl">...</td><td>Endereço do servidor</td></tr>
+              <tr><td>RiskPercent</td><td>1.0</td><td>% do saldo por trade</td></tr>
+              <tr><td>TP_RR</td><td>2.0</td><td>Take Profit = 2x o SL</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="customGuideContent" style="margin-top: 20px; font-size: 0.85rem; line-height: 1.6; border-top: 1px solid var(--border); padding-top: 20px; display: none; color: var(--text);">
+        <!-- Dynamic content from admin -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSetupModal()">Fechar Guia</button>
+      <button class="btn btn-primary" onclick="window.print()">Imprimir Guia</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="buyModal">
+  <div class="modal" style="width:550px;">
+    <div class="modal-header">
+      <h2>💎 Planos de Licença</h2>
+      <button class="modal-close" onclick="closeBuyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="buyStep1" class="buy-step active">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:20px;">Escolha o plano ideal para sua conta:</p>
+        <div id="plansContainer" style="display:grid;gap:12px;margin-bottom:20px;">
+          <div style="text-align:center;padding:20px;">A carregar planos...</div>
+        </div>
+      </div>
+
+      <div id="buyStep2" class="buy-step" style="display:none;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:0.85rem;color:var(--muted);">Você selecionou o plano:</div>
+          <div id="selectedPlanName" style="font-size:1.2rem;font-weight:800;color:var(--accent);">—</div>
+          <div id="selectedPlanPrice" style="font-size:1.5rem;font-weight:800;margin-top:5px;">—</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+          <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
+          <div id="walletsContainer" style="display:grid;gap:10px;"></div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Comprovativo (Hash da Transação):</label>
+          <input type="text" id="paymentHash" placeholder="Cole aqui a Hash da transação..." 
+            style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
+          <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;">* Após realizar o pagamento, cole a Hash acima para validação.</p>
+        </div>
+
+        <button onclick="submitPaymentRequest(this)" class="btn btn-primary" style="width:100%; padding:15px; font-weight:700;">
+          <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO
+        </button>
+      </div>
+
+      <div id="buyStep3" class="buy-step" style="display:none;">
+        <div class="form-group" style="margin-bottom:20px;">
+          <label class="form-label">Hash da Transação</label>
+          <input type="text" id="transactionHash" class="form-input" placeholder="Cole aqui o hash ou ID da operação">
+        </div>
+      </div>
+
+      <div id="buyStep4" class="buy-step" style="display:none;text-align:center;padding:20px;">
+        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
+        <h3>Solicitação Enviada!</h3>
+        <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">O administrador foi notificado. Assim que o pagamento for confirmado, seu acesso será liberado.</p>
+      </div>
+    </div>
+    <div class="modal-footer" id="buyModalFooter" style="display:none;">
+      <button class="btn btn-secondary" id="buyBackBtn" onclick="buyBack()" style="display:none;">Voltar</button>
+      <button class="btn btn-primary" id="buyConfirmBtn" onclick="goToHashStep()" style="display:none;">Já Realizei o Pagamento</button>
+      <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

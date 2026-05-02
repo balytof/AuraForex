@@ -8,6 +8,8 @@
 const { createBroker } = require("../apex_broker");
 const config = require("../config/config");
 const log = require("../utils/logger");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 let activeBroker = null;
 
@@ -64,18 +66,52 @@ module.exports = {
     const b = getBroker();
     if (!b.connected) await b.connect();
     
-    // O novo placeOrder aceita (signal, riskPercent)
-    // Para manter compatibilidade com o bot legado que passa lotSize:
-    // Vou injetar o lotSize no placeOrder se o adaptador suportar ou ajustar a chamada.
-    
-    const result = await b.placeOrder(signal, config.risk.riskPerTradePct);
-    
-    return {
-      success: result.success,
-      brokerId: result.orderId,
-      fillPrice: result.fillPrice,
-      demo: config.bot.demoMode
-    };
+    log.info(`[BROADCAST] Gerando sinal para todos os usuários ativos: ${signal.pair} ${signal.direction}`);
+
+    try {
+      // 1. Buscar todos os usuários com licença ativa
+      const activeLicenses = await prisma.license.findMany({
+        where: {
+          status: "ACTIVE",
+          expiresAt: { gt: new Date() }
+        },
+        select: { userId: true }
+      });
+
+      if (activeLicenses.length === 0) {
+        log.warn("[BROADCAST] Nenhum usuário com licença ativa encontrado para receber o sinal.");
+        return { success: false, error: "Sem usuários ativos" };
+      }
+
+      // 2. Criar um sinal na DB para cada usuário (o EA vai buscar)
+      const signalPromises = activeLicenses.map(license => {
+        return prisma.signal.create({
+          data: {
+            userId: license.userId,
+            pair: signal.pair,
+            direction: signal.direction,
+            entry: signal.entry,
+            sl: signal.sl,
+            tp: signal.tp,
+            lot: 0.01, // Lote padrão, o EA pode ajustar conforme o risco local
+            status: "PENDING"
+          }
+        });
+      });
+
+      await Promise.all(signalPromises);
+      log.info(`[BROADCAST] ✅ Sinal enviado para ${activeLicenses.length} usuários.`);
+
+      return {
+        success: true,
+        count: activeLicenses.length,
+        demo: config.bot.demoMode
+      };
+
+    } catch (err) {
+      log.error(`[BROADCAST] Erro ao distribuir sinal: ${err.message}`);
+      return { success: false, error: err.message };
+    }
   },
   
   closeOrder: async (brokerId, pair) => {

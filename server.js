@@ -9,13 +9,7 @@ const path = require("path");
 const crypto = require("crypto");
 require("dotenv").config();
 
-const { PrismaClient } = require("@prisma/client");
-const { Pool } = require("pg");
-const { PrismaPg } = require("@prisma/adapter-pg");
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = require("./db");
 const { encrypt, decrypt } = require("./utils/encryption");
 
 // APEX SMC Broker Layer
@@ -24,18 +18,40 @@ const { createBroker } = require("./apex_broker");
 const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
+const eaApi = require("./ea_api");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Forçado para evitar conflito com processos fantasma na 3005
+const PORT = process.env.PORT || 3005; 
 const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
+console.log(`[INIT] ROOT directory: ${ROOT}`);
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
 
-// ── GLOBAL REQUEST LOGGER (Diagnóstico) ───────────────────────────
 app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.url} - ${new Date().toISOString()}`);
   next();
+});
+
+// 🚀 PRIORIDADE MÁXIMA: Download do Robô
+app.get("/SMC_APEX_EA.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
+  console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
+  
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("[DOWNLOAD-ERROR]", err);
+      } else {
+        console.log("[DOWNLOAD-SUCCESS] Ficheiro enviado com sucesso.");
+      }
+    });
+  } else {
+    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado no disco!");
+    res.status(404).send("Ficheiro do Robô não encontrado no servidor.");
+  }
 });
 
 // ── Security Middlewares ─────────────────────────────────────────
@@ -51,6 +67,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.post("/api/debug/log", (req, res) => {
@@ -66,10 +83,37 @@ const apiLimiter = rateLimit({
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
+app.use("/api/ea", eaApi);
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
 const userRisks = new Map(); // Mapa de RiskManager por User ID
+
+let globalBroker = null; // Instância mestre para puxar velas para todos os usuários
+
+async function getGlobalBroker() {
+  if (globalBroker && globalBroker.connected) return globalBroker;
+  
+  try {
+    const settings = await prisma.systemSettings.findFirst();
+    if (settings && settings.metaApiToken && settings.metaApiAccountId) {
+      console.log("[ADMIN] 🌐 Inicializando Broker Global (MetaApi)...");
+      const config = {
+        brokerType: "metaapi",
+        apiToken: settings.metaApiToken,
+        metaApiAccountId: settings.metaApiAccountId,
+        region: "vint-hill"
+      };
+      
+      globalBroker = createBroker(config);
+      await globalBroker.connect();
+      return globalBroker;
+    }
+  } catch (e) {
+    console.error("[ADMIN] ❌ Falha ao ligar Broker Global:", e.message);
+  }
+  return null;
+}
 
 function getBrokerAdapter(config) {
   return createBroker(config);
@@ -159,7 +203,8 @@ async function requireBrokerAuth(req, res, next) {
   }
 
   if (!activeBroker || !activeBroker.connected) {
-    return res.status(403).json({ error: "Nenhuma corretora conectada neste momento. Por favor, conecte manualmente no painel." });
+    req.broker = null; 
+    return next();
   }
   
   req.broker = activeBroker;
@@ -304,6 +349,7 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 // ── Broker Endpoints ──────────────────────────────────────────────
 
 app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) => {
+  if (!req.broker) return res.json({ connected: false, status: "DISCONNECTED" });
   const status = await req.broker.getStatus();
   return res.json(status);
 });
@@ -455,15 +501,32 @@ app.post("/api/broker/reset-connections", requireAuth, async (req, res) => {
 });
 
 app.get("/api/broker/account", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json(await req.broker.getAccountInfo()); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.status(404).json({ error: "Broker não conectado" });
+    const account = await req.broker.getAccountInfo();
+    res.json({ success: true, account });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json({ positions: await req.broker.getOpenPositions() }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.json({ success: true, positions: [] });
+    const positions = await req.broker.getOpenPositions();
+    res.json({ success: true, positions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
-  try { res.json({ history: await req.broker.getHistory(req.query) }); } catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    if (!req.broker) return res.json({ success: true, history: [] });
+    res.json({ history: await req.broker.getTradeHistory() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Helpers SL/TP dinâmico ──────────────────────────────────────
@@ -633,7 +696,7 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   return { sl: finalSl, tp: finalTp };
 }
 
-app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) => {
+app.post("/api/broker/order", requireAuth, async (req, res) => {
   let { pair, risk, sl, tp, entry } = req.body;
   const direction = req.body.direction?.toUpperCase();
   if (!pair || !direction || !risk) return res.status(400).json({ error: "Faltam parametros (pair, direction, risk)" });
@@ -662,8 +725,14 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     let entryPrice = entry;
     if (!entryPrice) {
       try {
-        const priceData = await req.broker.getPrice(pair);
-        entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
+        if (req.broker) {
+          const priceData = await req.broker.getPrice(pair);
+          entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
+        } else {
+          // Fallback para preço aproximado se não estiver conectado (para o EA pegar o preço real depois)
+          entryPrice = entry || 0; 
+          console.log(`[ORDER] Broker não conectado no Dashboard. Usando preço de entrada fornecido: ${entryPrice}`);
+        }
       } catch(e) { entryPrice = 0; }
     }
 
@@ -671,7 +740,7 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
     if (entryPrice > 0) {
       try {
         console.log(`[ORDER] Calculando SL/TP Dinâmico (ATR) para ${pair}...`);
-        const dyn = await computeDynamicSlTp(req.broker, pair, direction, entryPrice);
+        const dyn = await computeDynamicSlTp(req.broker || null, pair, direction, entryPrice);
         sl = dyn.sl;
         tp = dyn.tp;
         const pip = getPipValue(pair);
@@ -708,45 +777,33 @@ app.post("/api/broker/order", requireAuth, requireBrokerAuth, async (req, res) =
         if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
     }
 
-    // 4. Executar Ordem com Risco Dinâmico (Expert Logic)
-    // O adaptador agora resolve o símbolo e calcula o lote seguro internamente.
-    let result = await req.broker.placeOrder({ pair, direction, sl, tp }, risk);
-
-    // 5. Tratamento de Erros de Stop Level (Se o broker rejeitar por SL/TP muito próximo)
-    if (result && !result.success) {
-      const err = (result.error || "").toLowerCase();
-      if (err.includes("stop") || err.includes("validation") || err.includes("sl") || err.includes("tp") || err.includes("invalid stops")) {
-        console.warn(`[ORDER] Stop rejeitado — tentando expansão de emergência para ${pair}`);
-        const pip = getPipValue(pair);
-        const expandedSl = direction === "BUY" ? normPrice(sl - pip * 50, pair) : normPrice(sl + pip * 50, pair);
-        const expandedTp = direction === "BUY" ? normPrice(tp + pip * 50, pair) : normPrice(tp - pip * 50, pair);
-        
-        result = await req.broker.placeOrder({ pair, direction, sl: expandedSl, tp: expandedTp }, risk);
+    // 4. EM VEZ DE EXECUTAR NA CORRETORA (METADEV/METAAPI), SALVAMOS COMO SINAL PARA O EA
+    const signal = await prisma.signal.create({
+      data: {
+        userId: req.user.id,
+        pair: pair,
+        direction: direction,
+        entry: entryPrice,
+        sl: sl,
+        tp: tp,
+        lot: 0.01, // Lote padrão, pode ser ajustado pelo risco no EA
+        status: "PENDING"
       }
-    }
+    });
 
-    // 6. Enriquecer resposta com SL/TP aplicados e registar no RiskManager
-    if (result && result.success) {
-      result.appliedSl = sl;
-      result.appliedTp = tp;
-      
-      // [EXPERT] Registar para monitorização de background (Profit Lock)
-      if (req.risk) {
-        req.risk.registerTrade({
-          pair: pair,
-          direction: direction,
-          entry: entryPrice,
-          sl: sl,
-          tp: tp,
-          score: 100
-        }, result.lot || 0.01, result.orderId || result.id);
-      }
-    }
+    console.log(`[V2-LOCAL] ✅ Sinal gerado com sucesso para ${pair} ${direction}. ID: ${signal.id}`);
 
-    return res.status(result && result.success ? 200 : 400).json(result || { success: false, error: "Ordem falhou" });
+    return res.status(200).json({ 
+      success: true, 
+      message: "Sinal enviado para o terminal local (EA).",
+      orderId: signal.id,
+      appliedSl: sl,
+      appliedTp: tp
+    });
+
   } catch (e) { 
-    console.error("Order Critical Error:", e);
-    res.status(500).json({ error: "Erro crítico na execução: " + e.message }); 
+    console.error("Signal Generation Error:", e);
+    res.status(500).json({ error: "Erro ao gerar sinal: " + e.message }); 
   }
 });
 
@@ -778,6 +835,54 @@ app.get("/api/broker/price", requireAuth, requireBrokerAuth, requireActiveLicens
 });
 
 // ── Admin Endpoints ──────────────────────────────────────────────
+
+// ── Configurações do Sistema (Admin) ──────────────────────────────────
+app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    let settings = await prisma.systemSettings.findFirst();
+    if (!settings) {
+      settings = await prisma.systemSettings.create({ data: {} });
+    }
+    res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide } = req.body;
+    let settings = await prisma.systemSettings.findFirst();
+    
+    if (settings) {
+      settings = await prisma.systemSettings.update({
+        where: { id: settings.id },
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+      });
+    } else {
+      settings = await prisma.systemSettings.create({
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+      });
+    }
+    res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Configuração Pública (User) ───────────────────────────────────────
+app.get("/api/system/config", async (req, res) => {
+  try {
+    const settings = await prisma.systemSettings.findFirst();
+    res.json({ 
+      success: true, 
+      apiUrl: settings?.apiUrl || "http://localhost:3005",
+      installationGuide: settings?.installationGuide || ""
+    });
+  } catch (e) {
+    res.json({ success: true, apiUrl: "http://localhost:3005" });
+  }
+});
 
 app.get("/api/admin/stats", requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -1029,10 +1134,36 @@ app.delete("/api/admin/payment-methods/:id", requireAuth, requireAdmin, async (r
 
 app.get("/api/plans", requireAuth, async (req, res) => {
   try {
-    const plans = await prisma.licensePlan.findMany({ where: { isActive: true }, orderBy: { price: 'asc' } });
+    const plans = await prisma.licensePlan.findMany({ where: { isActive: true } });
     res.json({ success: true, plans });
   } catch (err) {
-    res.status(500).json({ error: "Erro ao buscar planos." });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/license/request", requireAuth, async (req, res) => {
+  const { planId, hash, amount } = req.body;
+
+  if (!planId || !hash) {
+    return res.status(400).json({ success: false, error: "Dados incompletos." });
+  }
+
+  try {
+    const request = await prisma.purchaseRequest.create({
+      data: {
+        userId: req.user.id,
+        planId: planId,
+        transactionHash: hash,
+        amount: parseFloat(amount) || 0,
+        status: "PENDING"
+      }
+    });
+
+    console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
+    res.json({ success: true, request });
+  } catch (err) {
+    console.error("[PAYMENT-REQUEST] Erro:", err);
+    res.status(500).json({ success: false, error: "Erro interno ao processar solicitação." });
   }
 });
 
@@ -1188,6 +1319,7 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
     }
     res.json({ success: true, settings });
   } catch (err) {
+    console.error("[SETTINGS-ERROR]", err);
     res.status(500).json({ error: "Erro ao buscar configurações." });
   }
 });
@@ -1230,10 +1362,16 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     
     // 🔍 EXPERT: Tentar buscar velas REAIS da corretora se não foram enviadas
     if (!marketCandles || marketCandles.length === 0) {
-      const broker = userBrokers.get(req.user.id);
+      let broker = userBrokers.get(req.user.id);
+      
+      // Se o utilizador não tem broker ligado, tenta usar o Broker Global do Admin (puxado da Base de Dados)
+      if (!broker || !broker.connected) {
+        broker = await getGlobalBroker();
+      }
+
       if (broker && broker.connected) {
         try {
-          console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name}...`);
+          console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name || 'Global Admin'}...`);
           marketCandles = await broker.getCandles(pair, "1m", 250);
           console.log(`[BOT] ✅ ${marketCandles.length} velas obtidas.`);
         } catch (e) {
