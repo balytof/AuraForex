@@ -140,6 +140,42 @@
             -webkit-text-fill-color: transparent;
         }
 
+        /* Animação de Fundo (Ticker) */
+        .moving-text {
+            position: absolute;
+            top: 15%;
+            left: 0;
+            width: 100%;
+            white-space: nowrap;
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.02);
+            z-index: -1;
+            pointer-events: none;
+            user-select: none;
+            text-transform: uppercase;
+            font-family: 'Syne', sans-serif;
+            animation: moveText 60s linear infinite;
+        }
+
+        @keyframes moveText {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
+        }
+
+        .curiosity-box {
+            position: absolute;
+            bottom: 10%;
+            left: 5%;
+            max-width: 300px;
+            color: rgba(0, 212, 255, 0.4);
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 0;
+            pointer-events: none;
+            transition: 1s;
+        }
+
         /* Stats Bar */
         .stats-bar {
             display: flex;
