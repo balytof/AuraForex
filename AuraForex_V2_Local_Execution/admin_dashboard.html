@@ -373,6 +373,40 @@
                     </tbody>
                 </table>
             </div>
+
+            <hr style="margin:30px 0; border:0; border-top:1px solid var(--border);">
+            <h3 style="margin-bottom:16px; color:var(--accent);">Parâmetros do Sistema</h3>
+            <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap:20px; display: grid;">
+                <div class="stat-card" style="background:var(--surface2); border-color:var(--accent);">
+                    <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">APIs & Chaves</h4>
+                    <div class="form-group">
+                        <label class="form-label">Gemini API Key</label>
+                        <input type="password" id="sysGeminiKey" class="form-input" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MetaApi Token</label>
+                        <input type="password" id="sysMetaToken" class="form-input" placeholder="eyJ...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MetaApi Account ID</label>
+                        <input type="text" id="sysMetaAccountId" class="form-input" placeholder="UUID-...">
+                    </div>
+                </div>
+                <div class="stat-card" style="background:var(--surface2); border-color:var(--accent2);">
+                    <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">Configurações do EA</h4>
+                    <div class="form-group">
+                        <label class="form-label">Server API URL (Ex: http://seu-ip:3005)</label>
+                        <input type="text" id="sysApiUrl" class="form-input" placeholder="http://localhost:3005">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Guia de Instalação (Markdown/Texto)</label>
+                        <textarea id="sysInstallGuide" class="form-input" style="height:120px; font-family:'Space Mono'; font-size:0.75rem; resize:vertical;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                <button class="btn btn-success" onclick="saveSystemSettings()" style="padding:12px 30px; font-weight:bold;">Guardar Parâmetros</button>
+            </div>
         </div>
     </div>
 </div>

@@ -173,3 +173,13 @@ model UserSettings {
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model SystemSettings {
+  id                String   @id @default(uuid())
+  geminiApiKey      String?
+  metaApiToken      String?
+  metaApiAccountId  String?
+  apiUrl            String?  @default("http://localhost:3005")
+  installationGuide String?  @db.Text
+  updatedAt         DateTime @updatedAt
+}
