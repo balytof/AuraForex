@@ -290,7 +290,10 @@
                     <span class="service-icon">🤖</span>
                     <h3 data-i18n="srv_bot_title">BOT SMC PRO FOREX</h3>
                     <p data-i18n="srv_bot_desc">Execução local via MetaTrader 5 com lógica de Smart Money Concepts e proteção de capital integrada.</p>
-                    <div style="margin-top: 15px; color: var(--accent); font-weight: 600; font-size: 0.9rem;">Aceder agora →</div>
+                    <div style="margin-top: 15px; display: flex; gap: 15px;">
+                        <span style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">Aceder agora →</span>
+                        <a href="/smc-forex" style="color: var(--text-muted); text-decoration: underline; font-size: 0.9rem; z-index: 10;">Saber mais</a>
+                    </div>
                 </div>
             </a>
             <div class="service-card" style="opacity: 0.7; cursor: not-allowed;">
@@ -419,6 +422,12 @@
         }
 
         // Auto-detect language
+        // Página de Detalhes do Bot Forex
+        app.get("/smc-forex", (req, res) => {
+          res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
+        });
+
+        // Download do Robô
         window.onload = () => {
             const savedLang = localStorage.getItem('aura_lang') || 'pt';
             document.querySelector('.lang-switcher').value = savedLang;
