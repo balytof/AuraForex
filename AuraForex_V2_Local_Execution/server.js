@@ -810,6 +810,54 @@ app.get("/api/broker/price", requireAuth, requireBrokerAuth, requireActiveLicens
 
 // ── Admin Endpoints ──────────────────────────────────────────────
 
+// ── Configurações do Sistema (Admin) ──────────────────────────────────
+app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    let settings = await prisma.systemSettings.findFirst();
+    if (!settings) {
+      settings = await prisma.systemSettings.create({ data: {} });
+    }
+    res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide } = req.body;
+    let settings = await prisma.systemSettings.findFirst();
+    
+    if (settings) {
+      settings = await prisma.systemSettings.update({
+        where: { id: settings.id },
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+      });
+    } else {
+      settings = await prisma.systemSettings.create({
+        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide }
+      });
+    }
+    res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Configuração Pública (User) ───────────────────────────────────────
+app.get("/api/system/config", async (req, res) => {
+  try {
+    const settings = await prisma.systemSettings.findFirst();
+    res.json({ 
+      success: true, 
+      apiUrl: settings?.apiUrl || "http://localhost:3005",
+      installationGuide: settings?.installationGuide || ""
+    });
+  } catch (e) {
+    res.json({ success: true, apiUrl: "http://localhost:3005" });
+  }
+});
+
 app.get("/api/admin/stats", requireAuth, requireAdmin, async (req, res) => {
   try {
     const userCount = await prisma.user.count();
