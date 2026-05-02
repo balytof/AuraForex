@@ -169,18 +169,24 @@
         }
 
         .services-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
             gap: 30px;
         }
 
         .service-card {
+            flex: 1;
+            min-width: 280px;
+            max-width: 400px;
             background: var(--surface);
             padding: 40px;
             border-radius: 24px;
             border: 1px solid var(--glass-border);
             transition: 0.3s;
             text-align: left;
+            display: flex;
+            flex-direction: column;
         }
 
         .service-card:hover {
@@ -285,17 +291,17 @@
         <h2 class="section-title" data-i18n="services_title">Nossos Bots</h2>
         <div class="services-grid" id="servicesList">
             <!-- BOT SMC PRO FOREX Card -->
-            <a href="/login" style="text-decoration: none; color: inherit;">
+            <div style="text-decoration: none; color: inherit;">
                 <div class="service-card">
                     <span class="service-icon">🤖</span>
                     <h3 data-i18n="srv_bot_title">BOT SMC PRO FOREX</h3>
                     <p data-i18n="srv_bot_desc">Execução local via MetaTrader 5 com lógica de Smart Money Concepts e proteção de capital integrada.</p>
-                    <div style="margin-top: 15px; display: flex; gap: 15px;">
-                        <span style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">Aceder agora →</span>
-                        <a href="/smc-forex" style="color: var(--text-muted); text-decoration: underline; font-size: 0.9rem; z-index: 10;">Saber mais</a>
+                    <div style="margin-top: auto; padding-top: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <a href="/login" class="btn-access" style="font-size: 0.85rem; padding: 10px 20px; white-space: nowrap;">Aceder agora</a>
+                        <a href="/smc-forex" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.85rem; border: 1px solid var(--accent); padding: 9px 20px; border-radius: 30px; transition: 0.3s; white-space: nowrap;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'">Saber mais</a>
                     </div>
                 </div>
-            </a>
+            </div>
             <div class="service-card" style="opacity: 0.7; cursor: not-allowed;">
                 <span class="service-icon">🪙</span>
                 <h3 data-i18n="srv_ai_title">BOT SMC CRIPTO</h3>
