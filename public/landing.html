@@ -576,6 +576,16 @@
             } catch (e) { console.error("Erro ao carregar planos", e); }
         }
 
+        function copyRefCode() {
+            const code = document.getElementById("refCode").innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btnText = document.getElementById("copyText");
+                const originalText = btnText.innerText;
+                btnText.innerText = "Copiado!";
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            });
+        }
+
         async function loadSocialLinks() {
             try {
                 const res = await fetch("/api/system/config");
