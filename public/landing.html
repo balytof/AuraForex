@@ -352,7 +352,16 @@
     </section>
 
     <footer>
-        <div class="logo" style="font-size: 1.2rem;">AuraTrade</div>
+        <div class="logo" style="font-size: 1.2rem; margin-bottom: 20px;">AuraTrade</div>
+        
+        <!-- Contactos Dinâmicos -->
+        <div id="socialBox" style="display: flex; justify-content: center; gap: 25px; margin-bottom: 25px;">
+            <a id="linkTelegram" href="#" target="_blank" style="display:none; color: #0088cc; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-telegram"></i></a>
+            <a id="linkWhatsApp" href="#" target="_blank" style="display:none; color: #25d366; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-whatsapp"></i></a>
+            <a id="linkFacebook" href="#" target="_blank" style="display:none; color: #1877f2; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-facebook"></i></a>
+            <a id="linkInstagram" href="#" target="_blank" style="display:none; color: #e4405f; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-instagram"></i></a>
+        </div>
+
         <div class="copyright">© 2026 AuraTrade Ecosystem. All rights reserved.</div>
     </footer>
 
@@ -453,11 +462,41 @@
             localStorage.setItem('aura_lang', lang);
         }
 
+        async function loadSocialLinks() {
+            try {
+                const res = await fetch("/api/system/config");
+                const data = await res.json();
+                if (data.success) {
+                    if (data.telegramUrl) {
+                        const el = document.getElementById("linkTelegram");
+                        el.href = data.telegramUrl;
+                        el.style.display = "inline-block";
+                    }
+                    if (data.whatsappNumber) {
+                        const el = document.getElementById("linkWhatsApp");
+                        el.href = `https://wa.me/${data.whatsappNumber.replace(/\+/g, '')}`;
+                        el.style.display = "inline-block";
+                    }
+                    if (data.facebookUrl) {
+                        const el = document.getElementById("linkFacebook");
+                        el.href = data.facebookUrl;
+                        el.style.display = "inline-block";
+                    }
+                    if (data.instagramUrl) {
+                        const el = document.getElementById("linkInstagram");
+                        el.href = data.instagramUrl;
+                        el.style.display = "inline-block";
+                    }
+                }
+            } catch (e) { console.error("Erro ao carregar contactos:", e); }
+        }
+
         // Auto-detect language
         window.onload = () => {
             const savedLang = localStorage.getItem('aura_lang') || 'pt';
             document.querySelector('.lang-switcher').value = savedLang;
             changeLanguage(savedLang);
+            loadSocialLinks();
         };
     </script>
 </body>
