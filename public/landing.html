@@ -265,6 +265,9 @@
 <body>
     <div class="glow-bg"></div>
 
+    <div class="moving-text">AURATRADE · FOREX · DEFI · INSTITUTIONAL · BLOCKCHAIN · SMART MONEY</div>
+    <div class="curiosity-box" id="curiosityBox">Sabia que o mercado Forex movimenta mais de $6.6 triliões por dia?</div>
+
     <header>
         <div class="logo">
             <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Logo" style="height: 65px; margin-right: 15px;">
@@ -586,6 +589,27 @@
                 setTimeout(() => { btnText.innerText = originalText; }, 2000);
             });
         }
+
+        const curiosities = [
+            "Sabia que o mercado Forex movimenta mais de $7.5 triliões por dia?",
+            "DeFi: O valor total bloqueado em finanças descentralizadas já ultrapassou os $100 mil milhões.",
+            "O mercado Forex nunca dorme: funciona 24 horas por dia, 5 dias por semana.",
+            "Smart Money Concepts: 90% dos traders perdem porque tentam lutar contra as instituições.",
+            "Blockchain: A tecnologia que permite a transparência total sem custódia central.",
+            "Gemini AI: A inteligência que processa triliões de pontos de dados em milissegundos."
+        ];
+
+        let curIndex = 0;
+        function rotateCuriosities() {
+            const box = document.getElementById("curiosityBox");
+            box.style.opacity = 0;
+            setTimeout(() => {
+                curIndex = (curIndex + 1) % curiosities.length;
+                box.innerText = curiosities[curIndex];
+                box.style.opacity = 1;
+            }, 1000);
+        }
+        setInterval(rotateCuriosities, 8000);
 
         async function loadSocialLinks() {
             try {
