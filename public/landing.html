@@ -312,6 +312,47 @@
         </div>
     </section>
 
+    <!-- SECÇÃO DE PLANOS -->
+    <section class="section" id="plans">
+        <div class="container">
+            <h2 class="section-title">Planos de Licença</h2>
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 50px;">Escolha a modalidade que melhor se adapta ao seu capital e objetivos.</p>
+            <div id="plansGrid" class="services-grid">
+                <!-- Carregado via JS -->
+                <div style="color: var(--accent);">A carregar planos...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section class="section" style="background: rgba(0,0,0,0.3);">
+        <div class="container">
+            <h2 class="section-title">Como Funciona o Acesso</h2>
+            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center;">
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">1</div>
+                    <h4 class="syne">Escolha seu Plano</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Selecione a duração da licença que deseja ativar.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">2</div>
+                    <h4 class="syne">Pagamento Seguro</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Realize o pagamento via USDT (TRC20) ou outro método disponível.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">3</div>
+                    <h4 class="syne">Submeta a Hash</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">No dashboard, cole a hash da transação para validação.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">4</div>
+                    <h4 class="syne">Aprovação & Setup</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Após a aprovação (max. 24h), descarregue o bot e comece a operar.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="section" id="about" style="text-align: left; background: var(--surface);">
         <div class="container" style="max-width: 1000px; margin: 0 auto;">
             <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">🌐 O que é a AURATRADE</h2>
@@ -463,6 +504,29 @@
             localStorage.setItem('aura_lang', lang);
         }
 
+        async function loadPlans() {
+            try {
+                const res = await fetch("/api/public/plans");
+                const data = await res.json();
+                if (data.success) {
+                    const grid = document.getElementById("plansGrid");
+                    grid.innerHTML = data.plans.map(p => `
+                        <div class="service-card" style="border: 1px solid ${p.name.toLowerCase().includes('vip') ? 'var(--accent-purple)' : 'var(--glass-border)'};">
+                            <h3 class="syne" style="font-size: 1.2rem;">${p.name}</h3>
+                            <div style="font-size: 2.5rem; font-weight: 800; margin: 20px 0; color: var(--accent);">$${p.price}</div>
+                            <ul style="list-style: none; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;">
+                                <li style="margin-bottom: 8px;">✅ Validade: ${p.durationDays} dias</li>
+                                <li style="margin-bottom: 8px;">✅ Bot SMC Pro Forex</li>
+                                <li style="margin-bottom: 8px;">✅ Suporte Prioritário</li>
+                                <li style="margin-bottom: 8px;">✅ Guia de Instalação</li>
+                            </ul>
+                            <a href="/login" class="btn-access" style="text-align:center; padding: 12px;">Comprar Agora</a>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) { console.error("Erro ao carregar planos", e); }
+        }
+
         async function loadSocialLinks() {
             try {
                 const res = await fetch("/api/system/config");
@@ -498,6 +562,7 @@
             document.querySelector('.lang-switcher').value = savedLang;
             changeLanguage(savedLang);
             loadSocialLinks();
+            loadPlans();
         };
     </script>
 </body>
