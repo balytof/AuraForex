@@ -1155,43 +1155,7 @@ let userLicense = null;
 
 // Removida checkLicenseStatus antiga, agora integrada no syncSession
 
-function updateLicenseUI() {
-  const header = document.getElementById("licenseLevel");
-  const count = document.getElementById("licenseCountdown");
-  const alertBar = document.getElementById("licenseAlert");
-  const daysLeftEl = document.getElementById("licenseDaysLeft");
-
-  if (!userLicense) {
-    header.textContent = "NENHUMA";
-    header.style.color = "var(--bear)";
-    count.textContent = "Expira em: —";
-    alertBar.classList.remove("visible");
-    return;
-  }
-
-  const expires = new Date(userLicense.expiresAt);
-  const now = new Date();
-  const diffTime = expires - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  header.textContent = userLicense.type;
-  header.style.color = "var(--accent)";
-
-  if (diffTime <= 0) {
-    count.textContent = "EXPIRADA";
-    count.style.color = "var(--bear)";
-    userLicense = null; // Mark as null so startBot fails
-  } else {
-    count.textContent = diffDays + " dias";
-    
-    if (diffDays <= 5) {
-      alertBar.classList.add("visible");
-      daysLeftEl.textContent = diffDays;
-    } else {
-      alertBar.classList.remove("visible");
-    }
-  }
-}
+// updateLicenseUI foi movida para o fim do arquivo para unificação
 
 function openModal(id) { document.getElementById(id).classList.add("active"); }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
@@ -2470,7 +2434,6 @@ function stopBot() {
   document.getElementById("botStatus").textContent = "Parado";
   document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
   document.getElementById("mainBtn").className = "btn btn-primary";
-  if (!brokerConnected) document.getElementById("mainBtn").disabled = true;
   
   if (typeof uptimeInterval !== 'undefined') clearInterval(uptimeInterval);
   const uptimeDot = document.getElementById("uptimeDot");
