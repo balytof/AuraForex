@@ -1,4 +1,4 @@
-const prisma = require('./db');
+const prisma = require('../db');
 
 async function main() {
   const admin = await prisma.user.findUnique({ where: { email: 'admin@auraforex.com' } });
@@ -14,13 +14,13 @@ async function main() {
     update: {
       status: 'ACTIVE',
       expiresAt: new Date('2026-12-31'),
-      mtAccount: null // Permitir que ele se vincule na primeira execução
+      mtAccount: null
     },
     create: {
       id: licenseId,
       userId: admin.id,
       status: 'ACTIVE',
-      planId: 'pro', // Assumindo que existe um plano 'pro'
+      planId: 'pro',
       expiresAt: new Date('2026-12-31')
     }
   });
