@@ -128,30 +128,46 @@
             box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
         }
 
+        /* Mobile Menu Toggle */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        .menu-toggle span {
+            width: 30px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+
         /* Hero Section */
         .hero {
-            min-height: 70vh;
+            min-height: 80vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding: 120px 10% 60px 10%;
+            padding: 160px 5% 80px 5%;
             position: relative;
         }
 
         .hero h1 {
-            font-size: 3.2rem;
+            font-size: clamp(2rem, 5vw, 4rem);
             font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 20px;
-            max-width: 1200px;
+            line-height: 1.1;
+            margin-bottom: 25px;
+            max-width: 1000px;
         }
 
         .hero p {
-            font-size: 1.2rem;
+            font-size: clamp(1rem, 2vw, 1.25rem);
             color: var(--text-muted);
-            max-width: 700px;
+            max-width: 800px;
             margin-bottom: 40px;
         }
 
@@ -218,14 +234,14 @@
 
         /* Services Section */
         .section {
-            padding: 100px 10%;
+            padding: clamp(60px, 10vw, 120px) 5%;
             text-align: center;
             background: transparent;
         }
 
         .section-title {
-            font-size: 2.5rem;
-            margin-bottom: 50px;
+            font-size: clamp(1.8rem, 4vw, 3rem);
+            margin-bottom: clamp(30px, 8vw, 60px);
         }
 
         .services-grid {
@@ -313,21 +329,61 @@
         }
 
         /* Footer */
-        footer {
-            padding: 60px 10%;
-            border-top: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
         .copyright { color: var(--text-muted); font-size: 0.8rem; }
 
+        /* Responsividade Master */
+        @media (max-width: 1024px) {
+            .services-grid { grid-template-columns: repeat(2, 1fr); }
+            .hero { padding-top: 140px; }
+        }
+
         @media (max-width: 768px) {
-            .hero h1 { font-size: 3rem; }
-            .nav-links { display: none; }
-            .stats-bar { flex-direction: column; gap: 30px; }
-            .features { flex-direction: column; }
+            header { padding: 15px 5%; }
+            .logo { font-size: 1.2rem; }
+            .logo img { height: 45px !important; }
+
+            .menu-toggle { display: flex; }
+            
+            .nav-links {
+                position: fixed;
+                top: 0; right: -100%;
+                width: 80%; height: 100vh;
+                background: rgba(3, 5, 10, 0.98);
+                flex-direction: column;
+                justify-content: center;
+                gap: 40px;
+                transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                backdrop-filter: blur(20px);
+                border-left: 1px solid var(--glass-border);
+            }
+
+            .nav-links.active { right: 0; }
+
+            .nav-links a { font-size: 1.2rem; }
+
+            .stats-bar { width: 100%; flex-direction: column; gap: 40px; padding: 40px 20px; }
+
+            .services-grid { grid-template-columns: 1fr; }
+            .section { padding: 80px 5%; }
+
+            .moving-text { font-size: 4rem; top: 10%; }
+            
+            .curiosity-box { display: none; }
+
+            .features { flex-direction: column; text-align: center; gap: 40px; }
+            .feature-img { width: 100%; height: 300px; }
+
+            footer { flex-direction: column; gap: 30px; text-align: center; }
+
+            /* Ajuste do Chat Aura no Mobile */
+            .aura-window { width: calc(100vw - 40px); height: 70vh; bottom: 80px; right: 20px; }
+            .aura-chat-widget { bottom: 20px; right: 20px; }
+        }
+
+        @media (max-width: 480px) {
+            .hero { padding-top: 120px; }
+            .btn-access { width: 100%; text-align: center; }
+            .step-card { padding: 20px; }
         }
 
         /* 🤖 AURA AI CHAT WIDGET */
@@ -435,11 +491,16 @@
             <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Logo" style="height: 65px; margin-right: 15px;">
             AuraTrade
         </div>
-        <div class="nav-links">
-            <a href="#services" data-i18n="nav_services">Bots</a>
-            <a href="#about" data-i18n="nav_about">Sobre</a>
-            <a href="#plans" data-i18n="nav_plans">Planos</a>
-            <a href="#access" style="color: var(--accent); font-weight: 700;">Acesso</a>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="#services" data-i18n="nav_services" onclick="toggleMenu()">Bots</a>
+            <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
+            <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
+            <a href="#access" style="color: var(--accent); font-weight: 700;" onclick="toggleMenu()">Acesso</a>
             <select class="lang-switcher" onchange="changeLanguage(this.value)">
                 <option value="pt">PT</option>
                 <option value="en">EN</option>
@@ -1021,6 +1082,24 @@
                     }
                 }
             } catch (e) { console.error("Erro ao carregar contactos:", e); }
+        }
+
+        function toggleMenu() {
+            const nav = document.getElementById("navLinks");
+            const toggle = document.querySelector(".menu-toggle");
+            nav.classList.toggle("active");
+            
+            // Animação básica do hambúrguer
+            const spans = toggle.querySelectorAll("span");
+            if(nav.classList.contains("active")) {
+                spans[0].style.transform = "rotate(45deg) translate(6px, 6px)";
+                spans[1].style.opacity = "0";
+                spans[2].style.transform = "rotate(-45deg) translate(6px, -7px)";
+            } else {
+                spans[0].style.transform = "none";
+                spans[1].style.opacity = "1";
+                spans[2].style.transform = "none";
+            }
         }
 
         // 🤖 AURA AI CHAT LOGIC
