@@ -1,10 +1,8 @@
 const prisma = require('../db');
 
 async function main() {
-  const deleted = await prisma.signal.deleteMany({
-    where: { status: 'PENDING' }
-  });
-  console.log(`✅ ${deleted.count} sinais pendentes antigos foram removidos.`);
+  const deleted = await prisma.signal.deleteMany({});
+  console.log(`✅ ${deleted.count} sinais totais foram removidos da base de dados.`);
 }
 
 main()
