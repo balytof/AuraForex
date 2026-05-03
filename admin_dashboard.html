@@ -555,6 +555,10 @@
                         <input type="password" id="sysGeminiKey" class="form-input" placeholder="sk-...">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Gemini API URL (Opcional - IP/Proxy)</label>
+                        <input type="text" id="sysGeminiUrl" class="form-input" placeholder="https://generativelanguage.googleapis.com">
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">MetaApi Token</label>
                         <input type="password" id="sysMetaToken" class="form-input" placeholder="eyJ...">
                     </div>
@@ -620,6 +624,31 @@
 </div> <!-- /dashboard-container -->
 
 <script>
+    // ─── API HELPER (RESTORED) ───────────────────
+    async function api(path, method = "GET", body = null) {
+        const token = localStorage.getItem("aura_token");
+        const opts = {
+            method,
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token 
+            }
+        };
+        if (body) opts.body = JSON.stringify(body);
+        try {
+            const res = await fetch(path, opts);
+            if (res.status === 401) {
+                localStorage.removeItem("aura_token");
+                window.location.href = "/login.html";
+                return { success: false, error: "Sessão expirada." };
+            }
+            return await res.json();
+        } catch (e) {
+            console.error("API Error:", e);
+            return { success: false, error: "Erro de ligação ao servidor." };
+        }
+    }
+
     // ─── SIDEBAR TOGGLE ──────────────────────────
     function toggleSidebar() {
         const sidebar = document.getElementById("sidebarNav");
@@ -925,6 +954,7 @@
         if (res.success && res.settings) {
             const s = res.settings;
             document.getElementById('sysGeminiKey').value = s.geminiApiKey || '';
+            document.getElementById('sysGeminiUrl').value = s.geminiApiUrl || '';
             document.getElementById('sysMetaToken').value = s.metaApiToken || '';
             document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
@@ -935,6 +965,7 @@
     async function saveSystemSettings() {
         const payload = {
             geminiApiKey: document.getElementById('sysGeminiKey').value,
+            geminiApiUrl: document.getElementById('sysGeminiUrl').value,
             metaApiToken: document.getElementById('sysMetaToken').value,
             metaApiAccountId: document.getElementById('sysMetaAccountId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
