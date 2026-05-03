@@ -113,6 +113,120 @@
             width: 100%; box-sizing: border-box;
         }
         .form-input:focus { border-color: var(--accent); }
+
+        /* --- SIDEBAR NAVIGATION --- */
+        .dashboard-container { display: flex; min-height: 100vh; position: relative; }
+        
+        .sidebar-nav {
+            width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding: 0 12px;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .nav-item i { font-size: 1.1rem; width: 24px; text-align: center; }
+        .nav-item:hover { background: rgba(255,255,255,0.03); color: var(--text); border-color: var(--border); }
+        .nav-item.active { background: rgba(0,212,255,0.05); color: var(--accent); border-color: var(--accent); }
+
+        .nav-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hamburger Menu Toggle */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1100;
+            padding: 10px;
+            background: var(--surface2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .menu-toggle span {
+            width: 24px;
+            height: 2px;
+            background: var(--text);
+            transition: 0.3s;
+            border-radius: 2px;
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar-nav {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                bottom: 0;
+            }
+            .sidebar-nav.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+            .sidebar-overlay.active { display: block; }
+            .menu-toggle { display: flex; }
+            header { padding: 15px 20px; flex-direction: column; align-items: flex-start; }
+            .ref-link-box { width: 100%; max-width: 100%; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .wrapper { padding: 12px; }
+        }
         .ref-link-box {
             display: flex; align-items: center; gap: 10px;
             background: var(--surface2); padding: 8px 14px;
@@ -167,9 +281,45 @@
     </style>
 </head>
 <body>
-<div class="wrapper">
-    <header>
-        <div class="logo">
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar-nav" id="sidebarNav">
+        <div class="sidebar-logo">
+            <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 32px; height: 32px; object-fit: contain;">
+            <h2 style="font-size: 1.1rem; font-weight: 800;">Aura<span>Afiliados</span></h2>
+        </div>
+
+        <nav class="nav-links">
+            <a href="/smc_bot_dashboard.html" class="nav-item">
+                <i class="fas fa-robot"></i>
+                <span>Voltar ao Dashboard</span>
+            </a>
+            <a href="#" class="nav-item active">
+                <i class="fas fa-users"></i>
+                <span>Afiliados</span>
+            </a>
+        </nav>
+
+        <div class="nav-footer">
+            <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="wrapper">
+            <header>
+                <div class="menu-toggle" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="logo">
             <div class="logo-icon" style="background:none; box-shadow:none;">
                 <img src="/aura_bot.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
             </div>
@@ -184,7 +334,7 @@
             <span class="ref-code-badge" id="refCodeBadge" title="O seu código de referência">——</span>
             <button class="btn" style="background:var(--accent2); color:#fff; border:none; padding:6px 12px; font-weight:bold; white-space:nowrap; font-size:0.75rem;" onclick="copyRefLink()">Copiar</button>
         </div>
-        <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Dashboard</button>
+        <button class="btn" onclick="window.location.href='/smc_bot_dashboard.html'">Voltar ao Dashboard</button>
     </header>
 
     <div class="panel">
@@ -258,9 +408,24 @@
         </div>
     </div>
 
-</div>
+    </div> <!-- /wrapper -->
+  </main> <!-- /main-content -->
+</div> <!-- /dashboard-container -->
 
 <script>
+    // ─── SIDEBAR TOGGLE ──────────────────────────
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebarNav");
+        const overlay = document.querySelector(".sidebar-overlay");
+        sidebar.classList.toggle("active");
+        overlay.classList.toggle("active");
+    }
+
+    async function logout() {
+        localStorage.removeItem("aura_token");
+        window.location.href = "/login.html";
+    }
+
     const token = localStorage.getItem("aura_token");
     if (!token) window.location.href = "/login";
 
