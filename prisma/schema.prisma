@@ -188,6 +188,7 @@ model SystemSettings {
   whatsappNumber    String?
   facebookUrl       String?
   instagramUrl      String?
+  youtubeUrl        String? // Novo campo
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
