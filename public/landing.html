@@ -19,12 +19,16 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
         body {
             background-color: var(--bg);
             color: var(--text);
             font-family: 'Inter', sans-serif;
-            overflow-x: hidden;
             line-height: 1.6;
+            position: relative;
         }
 
         h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
@@ -179,18 +183,23 @@
         }
 
         /* Animação de Fundo (Ticker) */
-        .moving-text {
+        .ticker-container {
             position: absolute;
             top: 15%;
             left: 0;
             width: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: -1;
+            user-select: none;
+        }
+
+        .moving-text {
             white-space: nowrap;
             font-size: 8rem;
             font-weight: 900;
             color: rgba(255, 255, 255, 0.02);
-            z-index: -1;
-            pointer-events: none;
-            user-select: none;
+            display: inline-block;
             text-transform: uppercase;
             font-family: 'Syne', sans-serif;
             animation: moveText 60s linear infinite;
