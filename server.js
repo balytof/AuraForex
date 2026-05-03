@@ -19,6 +19,7 @@ const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
+const supportApi = require("./support_api");
 
 const app = express();
 const PORT = process.env.PORT || 3005; 
