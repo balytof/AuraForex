@@ -81,7 +81,17 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    // Limpar caracteres nulos (\0) que o MetaTrader costuma enviar no final do payload
+    if (buf && buf.length > 0) {
+      const content = buf.toString();
+      if (content.includes('\0')) {
+        req.rawBody = content.replace(/\0/g, '');
+      }
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
