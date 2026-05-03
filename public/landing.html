@@ -1160,23 +1160,20 @@
                     // Crypto Bot Card Logic
                     const cryptoCard = document.getElementById("cryptoBotCard");
                     if (cryptoCard) {
-                        // Mostrar por padrão se não houver configuração explícita (ou se estiver habilitado)
-                        if (s.cryptoBotEnabled !== false) {
-                            cryptoCard.style.display = "flex";
-                            if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
-                                cryptoCard.style.opacity = "1";
-                                cryptoCard.style.cursor = "pointer";
-                                cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
-                                const statusEl = document.getElementById("cryptoBotStatus");
-                                if (statusEl) {
-                                    statusEl.innerText = "Aceder agora";
-                                    statusEl.style.color = "var(--accent)";
-                                }
-                                const img = cryptoCard.querySelector('img');
-                                if (img) img.style.filter = "none";
+                        // Vamos apenas mostrar por padrão. Se estiver desativado no admin, ele fica em "Brevemente".
+                        cryptoCard.style.display = "flex"; 
+                        
+                        if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
+                            cryptoCard.style.opacity = "1";
+                            cryptoCard.style.cursor = "pointer";
+                            cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
+                            const statusEl = document.getElementById("cryptoBotStatus");
+                            if (statusEl) {
+                                statusEl.innerText = "Aceder agora";
+                                statusEl.style.color = "var(--accent)";
                             }
-                        } else {
-                            cryptoCard.style.display = "none";
+                            const img = cryptoCard.querySelector('img');
+                            if (img) img.style.filter = "none";
                         }
                     }
                 }
