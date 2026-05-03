@@ -2560,11 +2560,11 @@ function openSetupModal() {
     return;
   }
   
+  // Recarregar configurações para garantir sincronia com o Admin
+  loadSystemConfig();
+  
   // Atualizar dados dinâmicos no modal
   document.getElementById("eaLicenseKey").textContent = userLicense.id || "CHAVE-NÃO-ENCONTRADA";
-  const currentUrl = window.location.origin;
-  document.getElementById("apiUrlDisplay").textContent = currentUrl;
-  document.getElementById("eaApiUrl").textContent = currentUrl;
   
   console.log("%c[UI] Abrindo Modal de Setup...", "color: #00d4ff; font-weight: bold;");
   const modal = document.getElementById("setupModal");
@@ -2836,12 +2836,14 @@ async function loadSystemConfig() {
     if (data.success) {
       systemConfig = data;
       
+      const url = systemConfig.apiUrl || window.location.origin;
+      
       // Update UI elements
       if (document.getElementById("apiUrlDisplay")) {
-        document.getElementById("apiUrlDisplay").textContent = systemConfig.apiUrl;
+        document.getElementById("apiUrlDisplay").textContent = url;
       }
       if (document.getElementById("eaApiUrl")) {
-        document.getElementById("eaApiUrl").textContent = systemConfig.apiUrl;
+        document.getElementById("eaApiUrl").textContent = url;
       }
       
       const customGuide = document.getElementById("customGuideContent");
