@@ -13,6 +13,7 @@ async function main() {
     where: { id: licenseId },
     update: {
       status: 'ACTIVE',
+      type: 'PRO',
       expiresAt: new Date('2026-12-31'),
       mtAccount: null
     },
@@ -20,7 +21,7 @@ async function main() {
       id: licenseId,
       userId: admin.id,
       status: 'ACTIVE',
-      planId: 'pro',
+      type: 'PRO',
       expiresAt: new Date('2026-12-31')
     }
   });
