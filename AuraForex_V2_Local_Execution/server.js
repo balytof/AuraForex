@@ -38,6 +38,28 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
+// ── CORREÇÃO MT5: Limpeza de Caracteres Nulos ──────────────────────
+app.use((req, res, next) => {
+  if (req.url && req.url.includes("/ea/")) {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        const cleanData = data.replace(/\0/g, '').trim();
+        if (cleanData) {
+          req.body = JSON.parse(cleanData);
+        }
+        next();
+      } catch (e) {
+        next();
+      }
+    });
+  } else {
+    next();
+  }
+});
+
 // Página de Login (Design Atual Mantido)
 app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));

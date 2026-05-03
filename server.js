@@ -41,19 +41,18 @@ app.get("/", (req, res) => {
 
 // ── CORREÇÃO MT5: Limpeza de Caracteres Nulos ──────────────────────
 app.use((req, res, next) => {
-  if (req.url.includes("/ea/")) {
-    let rawData = '';
-    req.on('data', chunk => { rawData += chunk; });
+  if (req.url && req.url.includes("/ea/")) {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => { data += chunk; });
     req.on('end', () => {
       try {
-        const cleanData = rawData.replace(/\0/g, '').trim();
+        const cleanData = data.replace(/\0/g, '').trim();
         if (cleanData) {
           req.body = JSON.parse(cleanData);
-          console.log(`[MT5-CLEAN] Body parsed for ${req.url}`);
         }
         next();
       } catch (e) {
-        console.error("[MT5-CLEAN-ERROR]", e.message);
         next();
       }
     });
