@@ -100,6 +100,7 @@ const apiLimiter = rateLimit({
 });
 app.use("/api/", apiLimiter);
 app.use("/api/ea", eaApi);
+app.use("/api/support", supportApi);
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
