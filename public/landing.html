@@ -1033,5 +1033,37 @@
             loadPlans();
         };
     </script>
+    <!-- 🤖 AURA AI CHAT WIDGET -->
+    <div class="aura-chat-widget">
+        <div class="aura-window" id="auraWindow">
+            <div class="aura-header">
+                <div class="aura-avatar">🤖</div>
+                <div class="aura-info">
+                    <h4>Aura AI</h4>
+                    <span>Online • Suporte Inteligente</span>
+                </div>
+                <div class="aura-close" onclick="toggleAura()">✕</div>
+            </div>
+            <div class="aura-messages" id="auraMessages">
+                <div class="msg bot">Olá! Eu sou a <b>Aura</b>. Estou aqui para te ajudar com tudo sobre a AuraTrade. Como posso ajudar hoje?</div>
+            </div>
+            <div class="aura-typing" id="auraTyping">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+            <div class="aura-input-area">
+                <input type="text" class="aura-input" id="auraInput" placeholder="Pergunte-me qualquer coisa..." onkeypress="handleAuraKey(event)">
+                <div class="aura-send" onclick="sendAuraMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </div>
+            </div>
+        </div>
+        <div class="aura-btn" onclick="toggleAura()">
+            <span class="aura-status"></span>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+    </div>
+
 </body>
 </html>
