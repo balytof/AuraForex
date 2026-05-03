@@ -41,6 +41,30 @@ INSTRUÇÕES DE RESPOSTA:
 - Se não souber a resposta, peça ao usuário para contatar o suporte humano no Telegram @AuraTradeSupport.
 `;
 
+router.post("/chat/public", async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Mensagem vazia." });
+    
+    try {
+        const AI_KEY = process.env.SUPPORT_AI_KEY;
+        if (AI_KEY && AI_KEY.startsWith("sk-")) {
+            // Chamada AI (Simulada ou Real)
+            return res.json({ reply: "A Aura (Pública) está ativa! (Configure a AI_KEY para respostas reais)." });
+        } else {
+            let reply = "Olá! Sou a Aura. Como posso ajudar com sua primeira conta na AuraTrade?";
+            const m = message.toLowerCase();
+            if (m.includes("investir") || m.includes("plano") || m.includes("preço")) {
+                reply = "Temos diversos planos conforme sua banca! Veja a seção 'Planos' na nossa página inicial.";
+            } else if (m.includes("rede") || m.includes("convite")) {
+                reply = "A AuraTrade funciona via convites. Se não tem um, use o código oficial **1630FBED** no registo!";
+            }
+            return res.json({ reply });
+        }
+    } catch (err) {
+        res.status(500).json({ error: "Erro na Aura." });
+    }
+});
+
 // Middleware de autenticação simples (pode ser importado se houver um arquivo de utils)
 function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
