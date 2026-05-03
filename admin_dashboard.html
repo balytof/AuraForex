@@ -579,6 +579,34 @@
                     </div>
                 </div>
             </div>
+
+            <!-- NOVA SECÇÃO: REDES SOCIAIS -->
+            <div class="stat-card" style="background:var(--surface2); border-color:var(--warn); margin-top:20px;">
+                <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">Redes Sociais & Contactos</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div class="form-group">
+                        <label class="form-label">Telegram URL</label>
+                        <input type="text" id="sysTelegram" class="form-input" placeholder="https://t.me/seu-grupo">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">WhatsApp (Número com DDI)</label>
+                        <input type="text" id="sysWhatsapp" class="form-input" placeholder="351912345678">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">YouTube URL</label>
+                        <input type="text" id="sysYoutube" class="form-input" placeholder="https://youtube.com/@seu-canal">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Facebook URL</label>
+                        <input type="text" id="sysFacebook" class="form-input" placeholder="https://facebook.com/sua-pagina">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Instagram URL</label>
+                        <input type="text" id="sysInstagram" class="form-input" placeholder="https://instagram.com/seu-perfil">
+                    </div>
+                </div>
+            </div>
+
             <div style="margin-top:20px; display:flex; justify-content:flex-end;">
                 <button class="btn btn-success" onclick="saveSystemSettings()" style="padding:12px 30px; font-weight:bold;">Guardar Parâmetros</button>
             </div>
@@ -959,6 +987,12 @@
             document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysInstallGuide').value = s.installationGuide || '';
+            // Social
+            document.getElementById('sysTelegram').value = s.telegramUrl || '';
+            document.getElementById('sysWhatsapp').value = s.whatsappNumber || '';
+            document.getElementById('sysYoutube').value = s.youtubeUrl || '';
+            document.getElementById('sysFacebook').value = s.facebookUrl || '';
+            document.getElementById('sysInstagram').value = s.instagramUrl || '';
         }
     }
 
@@ -969,7 +1003,12 @@
             metaApiToken: document.getElementById('sysMetaToken').value,
             metaApiAccountId: document.getElementById('sysMetaAccountId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
-            installationGuide: document.getElementById('sysInstallGuide').value
+            installationGuide: document.getElementById('sysInstallGuide').value,
+            telegramUrl: document.getElementById('sysTelegram').value,
+            whatsappNumber: document.getElementById('sysWhatsapp').value,
+            youtubeUrl: document.getElementById('sysYoutube').value,
+            facebookUrl: document.getElementById('sysFacebook').value,
+            instagramUrl: document.getElementById('sysInstagram').value
         };
         const res = await api("/api/admin/settings", "POST", payload);
         if (res.success) {

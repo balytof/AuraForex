@@ -868,17 +868,26 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl } = req.body;
+    const { 
+      geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
+      installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+    } = req.body;
     let settings = await prisma.systemSettings.findFirst();
     
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: { 
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+        }
       });
     } else {
       settings = await prisma.systemSettings.create({
-        data: { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: { 
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+        }
       });
     }
     res.json({ success: true, settings });
@@ -888,6 +897,22 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ── Configuração Pública (User) ───────────────────────────────────────
+app.get("/api/public/settings", async (req, res) => {
+  try {
+    const settings = await prisma.systemSettings.findFirst({
+      select: {
+        telegramUrl: true,
+        whatsappNumber: true,
+        facebookUrl: true,
+        instagramUrl: true,
+        youtubeUrl: true
+      }
+    });
+    res.json({ success: true, settings: settings || {} });
+  } catch (e) {
+    res.status(500).json({ success: false, error: "Erro ao buscar configurações públicas." });
+  }
+});
 app.get("/api/public/plans", async (req, res) => {
   try {
     const plans = await prisma.licensePlan.findMany({
