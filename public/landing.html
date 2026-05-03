@@ -1142,127 +1142,8 @@
                 const data = await res.json();
                 if (data.success && data.settings) {
                     const s = data.settings;
-                    if (s.telegramUrl) {
-                        const el = document.getElementById("linkTelegram");
-                        el.href = s.telegramUrl;
-                        el.style.display = "inline-block";
-                    }
-                    if (s.whatsappNumber) {
-                        const el = document.getElementById("linkWhatsApp");
-                        el.href = `https://wa.me/${s.whatsappNumber.replace(/\D/g, '')}`;
-                        el.style.display = "inline-block";
-                    }
-                    if (s.facebookUrl) {
-                        const el = document.getElementById("linkFacebook");
-                        el.href = s.facebookUrl;
-                        el.style.display = "inline-block";
-                    }
-                    if (s.instagramUrl) {
-                        const el = document.getElementById("linkInstagram");
-                        el.href = s.instagramUrl;
-                        el.style.display = "inline-block";
-                    }
-
-                    // Crypto Bot Logic
-                    const cryptoCard = document.getElementById("cryptoBotCard");
-                    if (s.cryptoBotEnabled) {
-                        cryptoCard.style.display = "flex";
-                        if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
-                            cryptoCard.style.opacity = "1";
-                            cryptoCard.style.cursor = "pointer";
-                            cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
-                            const statusEl = document.getElementById("cryptoBotStatus");
-                            statusEl.innerText = "Aceder agora";
-                            statusEl.style.color = "var(--accent)";
-                            cryptoCard.querySelector('img').style.filter = "none";
-                        }
-                    } else {
-                        cryptoCard.style.display = "none";
-                    }
-                }
-            } catch (e) { console.error("Erro ao carregar contactos:", e); }
-        }
-
-        function toggleMenu() {
-            const nav = document.getElementById("navLinks");
-            const toggle = document.querySelector(".menu-toggle");
-            nav.classList.toggle("active");
-            
-            // Animação básica do hambúrguer
-            const spans = toggle.querySelectorAll("span");
-            if(nav.classList.contains("active")) {
-                spans[0].style.transform = "rotate(45deg) translate(6px, 6px)";
-                spans[1].style.opacity = "0";
-                spans[2].style.transform = "rotate(-45deg) translate(6px, -7px)";
-            } else {
-                spans[0].style.transform = "none";
-                spans[1].style.opacity = "1";
-                spans[2].style.transform = "none";
-            }
-        }
-
-        // 🤖 AURA AI CHAT LOGIC
-        function toggleAura() {
-            const win = document.getElementById("auraWindow");
-            win.classList.toggle("active");
-            if (win.classList.contains("active")) {
-                document.getElementById("auraInput").focus();
-            }
-        }
-
-        function handleAuraKey(e) {
-            if (e.key === "Enter") sendAuraMessage();
-        }
-
-        async function sendAuraMessage() {
-            const input = document.getElementById("auraInput");
-            const text = input.value.trim();
-            if (!text) return;
-
-            addChatMessage(text, 'user');
-            input.value = "";
-
-            const typing = document.getElementById("auraTyping");
-            typing.style.display = "block";
-            const messagesDiv = document.getElementById("auraMessages");
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            try {
-                // Na Landing Page, não temos token, então enviamos como "Público"
-                const res = await fetch("/api/support/chat/public", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: text })
-                });
-                const data = await res.json();
-                
-                typing.style.display = "none";
-                if (data.reply) {
-                    addChatMessage(data.reply, 'bot');
-                } else {
-                    addChatMessage("Desculpe, tive um problema ao processar sua pergunta.", 'bot');
-                }
-            } catch (e) {
-                typing.style.display = "none";
-                addChatMessage("Erro de conexão com a Aura.", 'bot');
-            }
-        }
-
-        function addChatMessage(text, side) {
-            const messagesDiv = document.getElementById("auraMessages");
-            const msg = document.createElement("div");
-            msg.className = `msg ${side}`;
-            msg.innerHTML = text.replace(/\n/g, '<br>');
-            messagesDiv.appendChild(msg);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        async function loadSocialLinks() {
-            try {
-                const res = await fetch("/api/public/settings");
-                const data = await res.json();
-                if (data.success && data.settings) {
-                    const s = data.settings;
+                    
+                    // Social Links (Footer)
                     if (s.telegramUrl) document.querySelectorAll('.social-telegram').forEach(el => el.href = s.telegramUrl);
                     if (s.youtubeUrl) document.querySelectorAll('.social-youtube').forEach(el => el.href = s.youtubeUrl);
                     if (s.facebookUrl) document.querySelectorAll('.social-facebook').forEach(el => el.href = s.facebookUrl);
@@ -1271,9 +1152,31 @@
                         const waLink = `https://wa.me/${s.whatsappNumber.replace(/\D/g, '')}`;
                         document.querySelectorAll('.social-whatsapp').forEach(el => el.href = waLink);
                     }
+
+                    // Crypto Bot Card Logic
+                    const cryptoCard = document.getElementById("cryptoBotCard");
+                    if (cryptoCard) {
+                        if (s.cryptoBotEnabled) {
+                            cryptoCard.style.display = "flex";
+                            if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
+                                cryptoCard.style.opacity = "1";
+                                cryptoCard.style.cursor = "pointer";
+                                cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
+                                const statusEl = document.getElementById("cryptoBotStatus");
+                                if (statusEl) {
+                                    statusEl.innerText = "Aceder agora";
+                                    statusEl.style.color = "var(--accent)";
+                                }
+                                const img = cryptoCard.querySelector('img');
+                                if (img) img.style.filter = "none";
+                            }
+                        } else {
+                            cryptoCard.style.display = "none";
+                        }
+                    }
                 }
             } catch (e) {
-                console.error("Erro ao carregar links sociais:", e);
+                console.error("Erro ao carregar configurações:", e);
             }
         }
 
