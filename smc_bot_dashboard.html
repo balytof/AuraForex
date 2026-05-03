@@ -2959,6 +2959,69 @@ async function loadSystemConfig() {
   }
 }
 </script>
+
+<script>
+// 🤖 AURA AI CHAT LOGIC
+function toggleAura() {
+    const win = document.getElementById("auraWindow");
+    win.classList.toggle("active");
+    if (win.classList.contains("active")) {
+        document.getElementById("auraInput").focus();
+    }
+}
+
+function handleAuraKey(e) {
+    if (e.key === "Enter") sendAuraMessage();
+}
+
+async function sendAuraMessage() {
+    const input = document.getElementById("auraInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    // Add User Message
+    addChatMessage(text, 'user');
+    input.value = "";
+
+    // Show Typing
+    const typing = document.getElementById("auraTyping");
+    typing.style.display = "block";
+    const messagesDiv = document.getElementById("auraMessages");
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    try {
+        const token = localStorage.getItem("aura_token");
+        const res = await fetch("/api/support/chat", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        
+        typing.style.display = "none";
+        if (data.reply) {
+            addChatMessage(data.reply, 'bot');
+        } else {
+            addChatMessage("Desculpe, tive um problema ao processar sua pergunta. Tente novamente em instantes.", 'bot');
+        }
+    } catch (e) {
+        typing.style.display = "none";
+        addChatMessage("Erro de conexão com a Aura. Verifique sua internet.", 'bot');
+    }
+}
+
+function addChatMessage(text, side) {
+    const messagesDiv = document.getElementById("auraMessages");
+    const msg = document.createElement("div");
+    msg.className = `msg ${side}`;
+    msg.innerHTML = text.replace(/\n/g, '<br>');
+    messagesDiv.appendChild(msg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+</script>
 <!-- MODAIS MOVIDOS PARA O FIM DO BODY -->
 <div id="setupModal" class="modal-overlay">
   <div class="modal" style="width: 850px;">
