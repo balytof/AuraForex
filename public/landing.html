@@ -328,6 +328,48 @@
             background: rgba(0, 212, 255, 0.03);
         }
 
+        /* Responsive Containers & Boxes */
+        .content-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .glass-box {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: clamp(20px, 5vw, 40px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 50px;
+        }
+
+        .accent-border {
+            border: 1px solid var(--accent);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .about-list {
+            list-style: none;
+            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .about-list li {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid var(--accent);
+        }
+
         /* Footer */
         .copyright { color: var(--text-muted); font-size: 0.8rem; }
 
@@ -582,12 +624,12 @@
 
     <!-- COMO TER ACESSO & PLANO DE REDE -->
     <section class="section" id="access">
-        <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <div class="content-container">
             <h2 class="section-title" data-i18n="access_title">Como ter acesso aos Bots?</h2>
             
-            <div style="background: var(--surface); backdrop-filter: blur(10px); padding: 40px; border-radius: 24px; border: 1px solid var(--accent); margin-bottom: 50px;">
+            <div class="glass-box accent-border">
                 <p style="font-size: 1.1rem; margin-bottom: 20px;" data-i18n="access_desc">A AuraTrade cresce de forma orgânica e exclusiva. Para garantir o melhor suporte, seguimos este fluxo:</p>
-                <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
                     <div style="display: flex; gap: 15px; align-items: flex-start;">
                         <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">1</span>
                         <p data-i18n="access_step1">Contacte a pessoa que lhe convidou para este ecossistema. Ela será o seu patrocinador e guia inicial.</p>
@@ -596,7 +638,7 @@
                         <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">2</span>
                         <div>
                             <p data-i18n="access_step2">Caso não tenha um patrocinador direto, utilize o código de indicação oficial no registo:</p>
-                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap;">
                                 <strong id="refCode" style="color: var(--accent); font-family: 'Space Mono', monospace; font-size: 1.6rem; letter-spacing: 2px;">1630FBED</strong>
                                 <button onclick="copyRefCode()" style="background: var(--glass); border: 1px solid var(--accent); color: var(--accent); padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: 0.3s;" onmouseover="this.style.background='var(--accent)'; this.style.color='var(--bg)'" onmouseout="this.style.background='var(--glass)'; this.style.color='var(--accent)'">
                                     <i class="far fa-copy"></i> <span id="copyText" data-i18n="btn_copy">Copiar</span>
@@ -608,16 +650,16 @@
             </div>
 
             <h2 class="section-title" data-i18n="partner_title">Porquê ser um Parceiro AuraTrade?</h2>
-            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px;">
-                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border);">
+            <div class="info-grid">
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
                     <h4 class="syne" style="color: var(--accent);" data-i18n="p1_title">📈 Plano de Rede</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p1_desc">Partilhe a tecnologia e ganhe comissões recorrentes sobre as licenças ativadas na sua rede.</p>
                 </div>
-                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border);">
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
                     <h4 class="syne" style="color: var(--accent);" data-i18n="p2_title">🏆 Liderança Global</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p2_desc">Acesso a mentorias exclusivas e ferramentas de marketing para expandir o seu negócio digital.</p>
                 </div>
-                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border);">
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
                     <h4 class="syne" style="color: var(--accent);" data-i18n="p3_title">💎 Tecnologia Non-Custodial</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p3_desc">Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.</p>
                 </div>
@@ -630,26 +672,26 @@
     </section>
 
     <section class="section" id="about" style="text-align: left; background: transparent;">
-        <div class="container" style="max-width: 1000px; margin: 0 auto;">
+        <div class="content-container">
             <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">🌐 O que é a AURATRADE</h2>
             
             <div class="about-content">
                 <p style="font-size: 1.1rem; margin-bottom: 30px;" data-i18n="about_intro">A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:</p>
-                <ul style="list-style: none; margin-bottom: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-                    <li style="background: var(--surface); backdrop-filter: blur(10px); padding: 20px; border-radius: 15px; border-left: 4px solid var(--accent);" data-i18n="about_card1">👉 Não guarda o dinheiro do utilizador</li>
-                    <li style="background: var(--surface); backdrop-filter: blur(10px); padding: 20px; border-radius: 15px; border-left: 4px solid var(--accent);" data-i18n="about_card2">👉 Não controla os fundos</li>
-                    <li style="background: var(--surface); backdrop-filter: blur(10px); padding: 20px; border-radius: 15px; border-left: 4px solid var(--accent);" data-i18n="about_card3">👉 Não interfere na posse dos ativos</li>
+                <ul class="about-list">
+                    <li data-i18n="about_card1">👉 Não guarda o dinheiro do utilizador</li>
+                    <li data-i18n="about_card2">👉 Não controla os fundos</li>
+                    <li data-i18n="about_card3">👉 Não interfere na posse dos ativos</li>
                 </ul>
 
                 <h3 class="syne" style="color: var(--accent); margin-bottom: 20px;" data-i18n="about_phil_title">🔐 Filosofia Non-Custodial</h3>
                 <p style="color: var(--text-muted); margin-bottom: 30px;" data-i18n="about_phil_desc">Inspirada pela tecnologia Blockchain: <strong>“Not your keys, not your money.”</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.</p>
 
-                <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; margin-top: 50px;">
-                    <div class="card" style="background: var(--surface); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; border: 1px solid var(--glass-border);">
+                <div class="info-grid" style="margin-top: 50px;">
+                    <div class="glass-box" style="margin-bottom: 0;">
                         <h3 class="syne" data-i18n="about_inst_title">🤖 Inteligência Institucional</h3>
                         <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_inst_desc">Sistemas inspirados em fundos hedge e bancos de investimento, baseados em análise quantitativa e machine learning para redução de erro humano.</p>
                     </div>
-                    <div class="card" style="background: var(--surface); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; border: 1px solid var(--glass-border);">
+                    <div class="glass-box" style="margin-bottom: 0;">
                         <h3 class="syne" data-i18n="about_defi_title">🔗 Conexão Forex & DeFi</h3>
                         <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_defi_desc">Um ecossistema híbrido que une a liquidez do Forex tradicional com a inovação dos Smart Contracts e staking do mundo DeFi.</p>
                     </div>
