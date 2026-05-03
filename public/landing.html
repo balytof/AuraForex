@@ -1138,38 +1138,39 @@
 
         async function loadSocialLinks() {
             try {
-                const res = await fetch("/api/system/config");
+                const res = await fetch("/api/public/settings");
                 const data = await res.json();
-                if (data.success) {
-                    if (data.telegramUrl) {
+                if (data.success && data.settings) {
+                    const s = data.settings;
+                    if (s.telegramUrl) {
                         const el = document.getElementById("linkTelegram");
-                        el.href = data.telegramUrl;
+                        el.href = s.telegramUrl;
                         el.style.display = "inline-block";
                     }
-                    if (data.whatsappNumber) {
+                    if (s.whatsappNumber) {
                         const el = document.getElementById("linkWhatsApp");
-                        el.href = `https://wa.me/${data.whatsappNumber.replace(/\+/g, '')}`;
+                        el.href = `https://wa.me/${s.whatsappNumber.replace(/\D/g, '')}`;
                         el.style.display = "inline-block";
                     }
-                    if (data.facebookUrl) {
+                    if (s.facebookUrl) {
                         const el = document.getElementById("linkFacebook");
-                        el.href = data.facebookUrl;
+                        el.href = s.facebookUrl;
                         el.style.display = "inline-block";
                     }
-                    if (data.instagramUrl) {
+                    if (s.instagramUrl) {
                         const el = document.getElementById("linkInstagram");
-                        el.href = data.instagramUrl;
+                        el.href = s.instagramUrl;
                         el.style.display = "inline-block";
                     }
 
                     // Crypto Bot Logic
                     const cryptoCard = document.getElementById("cryptoBotCard");
-                    if (data.cryptoBotEnabled) {
+                    if (s.cryptoBotEnabled) {
                         cryptoCard.style.display = "flex";
-                        if (data.cryptoBotUrl && data.cryptoBotUrl.trim() !== "") {
+                        if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
                             cryptoCard.style.opacity = "1";
                             cryptoCard.style.cursor = "pointer";
-                            cryptoCard.onclick = () => window.open(data.cryptoBotUrl, "_blank");
+                            cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
                             const statusEl = document.getElementById("cryptoBotStatus");
                             statusEl.innerText = "Aceder agora";
                             statusEl.style.color = "var(--accent)";
