@@ -13,24 +13,41 @@ const prisma = new PrismaClient();
 
 let activeBroker = null;
 
-function getBroker() {
+async function getBroker() {
   if (!activeBroker) {
-    const provider = config.credentials.provider;
+    let provider = config.credentials.provider;
+    let apiToken = config.credentials.oandaApiKey || config.credentials.apiToken;
+    let accountId = config.credentials.oandaAccountId || config.credentials.accountId;
+    let metaApiToken = config.credentials.metaApiToken;
+    let metaApiAccountId = config.credentials.metaApiAccountId;
+
+    // 🔍 EXPERT FALLBACK: Se não houver chaves no .env, busca na DB (SystemSettings do Admin)
+    if (!apiToken && !metaApiToken) {
+      try {
+        const settings = await prisma.systemSettings.findFirst();
+        if (settings) {
+          log.info("[BROKER] 📂 Usando chaves da Base de Dados (SystemSettings)");
+          metaApiToken = settings.metaApiToken;
+          metaApiAccountId = settings.metaApiAccountId;
+          // Se o provider for Oanda mas não houver chaves, forçamos para MetaApi se houver chaves lá
+          if (metaApiToken) provider = "metaapi";
+        }
+      } catch (e) {
+        log.warn("[BROKER] Erro ao buscar SystemSettings da DB:", e.message);
+      }
+    }
+
     log.info(`Inicializando broker: ${provider}`);
     
     const brokerConfig = {
       provider: provider,
       environment: config.bot.demoMode ? "demo" : "live",
-      accountId: config.credentials.oandaAccountId, // Fallback OANDA
-      apiToken: config.credentials.oandaApiKey,     // Fallback OANDA
-      // Adicionar mapeamento para outros providers se necessário
+      accountId: accountId,
+      apiToken: apiToken,
+      metaApiToken: metaApiToken,
+      metaApiAccountId: metaApiAccountId,
+      region: "vint-hill"
     };
-    
-    // Mapeamento específico para MetaApi se estiver no config
-    if (provider === "metaapi") {
-      brokerConfig.metaApiToken = config.credentials.metaApiToken || config.credentials.apiToken;
-      brokerConfig.metaApiAccountId = config.credentials.metaApiAccountId || config.credentials.accountId;
-    }
     
     activeBroker = createBroker(brokerConfig);
   }
@@ -41,7 +58,7 @@ module.exports = {
   getBrokerName: () => config.credentials.provider.toUpperCase(),
   
   getAccountInfo: async () => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     // O novo apex_broker usa getAccountInfo() ou connect() retorna accountInfo
     if (b.type === "metaapi") return await b.getAccountInfo();
@@ -49,7 +66,7 @@ module.exports = {
   },
   
   getMarketData: async (pair) => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     
     const candles = await b.getCandles(pair, config.timeframes.mtf || "H1", config.bot.candleCount || 250);
@@ -63,7 +80,7 @@ module.exports = {
   },
   
   openOrder: async (signal, lotSize) => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     
     log.info(`[BROADCAST] Gerando sinal para todos os usuários ativos: ${signal.pair} ${signal.direction}`);
@@ -115,13 +132,13 @@ module.exports = {
   },
   
   closeOrder: async (brokerId, pair) => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     return await b.closePosition(brokerId);
   },
   
   modifyStopLoss: async (brokerId, newSl) => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     // Nota: O novo apex_broker ainda não implementa modifySL em todos os adaptadores
     if (b.modifySL) return await b.modifySL(brokerId, newSl);
@@ -130,7 +147,7 @@ module.exports = {
   },
   
   getOpenPositions: async () => {
-    const b = getBroker();
+    const b = await getBroker();
     if (!b.connected) await b.connect();
     return await b.getOpenPositions();
   }
