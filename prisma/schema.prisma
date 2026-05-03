@@ -189,6 +189,10 @@ model SystemSettings {
   facebookUrl       String?
   instagramUrl      String?
   youtubeUrl        String? // Novo campo
+  
+  // Card Crypto Bot
+  cryptoBotEnabled  Boolean  @default(true)
+  cryptoBotUrl      String?
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

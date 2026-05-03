@@ -607,6 +607,23 @@
                 </div>
             </div>
 
+            <!-- NOVA SECÇÃO: BOT CRIPTO -->
+            <div class="stat-card" style="background:var(--surface2); border-color:var(--accent2); margin-top:20px;">
+                <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">Configurações do Card Crypto Bot</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items: center;">
+                    <div class="form-group">
+                        <label class="form-label" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                            <input type="checkbox" id="sysCryptoEnabled" style="width:20px; height:20px;">
+                            Habilitar Card na Landing Page
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Link Externo (URL)</label>
+                        <input type="text" id="sysCryptoUrl" class="form-input" placeholder="https://seu-site-crypto.com">
+                    </div>
+                </div>
+            </div>
+
             <div style="margin-top:20px; display:flex; justify-content:flex-end;">
                 <button class="btn btn-success" onclick="saveSystemSettings()" style="padding:12px 30px; font-weight:bold;">Guardar Parâmetros</button>
             </div>
@@ -993,6 +1010,9 @@
             document.getElementById('sysYoutube').value = s.youtubeUrl || '';
             document.getElementById('sysFacebook').value = s.facebookUrl || '';
             document.getElementById('sysInstagram').value = s.instagramUrl || '';
+            // Crypto Bot
+            document.getElementById('sysCryptoEnabled').checked = s.cryptoBotEnabled !== false;
+            document.getElementById('sysCryptoUrl').value = s.cryptoBotUrl || '';
         }
     }
 
@@ -1008,7 +1028,9 @@
             whatsappNumber: document.getElementById('sysWhatsapp').value,
             youtubeUrl: document.getElementById('sysYoutube').value,
             facebookUrl: document.getElementById('sysFacebook').value,
-            instagramUrl: document.getElementById('sysInstagram').value
+            instagramUrl: document.getElementById('sysInstagram').value,
+            cryptoBotEnabled: document.getElementById('sysCryptoEnabled').checked,
+            cryptoBotUrl: document.getElementById('sysCryptoUrl').value
         };
         const res = await api("/api/admin/settings", "POST", payload);
         if (res.success) {

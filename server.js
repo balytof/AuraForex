@@ -870,7 +870,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { 
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
-      installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+      installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
+      cryptoBotEnabled, cryptoBotUrl
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
     
@@ -879,14 +880,14 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
         where: { id: settings.id },
         data: { 
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
         }
       });
     } else {
       settings = await prisma.systemSettings.create({
         data: { 
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, 
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl 
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
         }
       });
     }
@@ -905,7 +906,9 @@ app.get("/api/public/settings", async (req, res) => {
         whatsappNumber: true,
         facebookUrl: true,
         instagramUrl: true,
-        youtubeUrl: true
+        youtubeUrl: true,
+        cryptoBotEnabled: true,
+        cryptoBotUrl: true
       }
     });
     res.json({ success: true, settings: settings || {} });
