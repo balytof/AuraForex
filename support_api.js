@@ -47,11 +47,20 @@ INSTRUÇÕES DE RESPOSTA:
  * Helper para chamar a API do Gemini 1.5 Flash
  */
 async function callGeminiAI(userMessage) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // 1. Tentar buscar a chave na base de dados (Configurada no Admin)
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+        const settings = await prisma.systemSettings.findFirst();
+        if (settings && settings.geminiApiKey && !settings.geminiApiKey.includes("COLOQUE_SUA_CHAVE")) {
+            apiKey = settings.geminiApiKey;
+        }
+    } catch (dbErr) {
+        console.warn("[AURA] Erro ao buscar SystemSettings, usando fallback do env.", dbErr);
+    }
     
     // Se não houver chave real, retorna null para cair no fallback
     if (!apiKey || apiKey.includes("COLOQUE_SUA_CHAVE")) {
-        console.warn("[AURA] ⚠️ Chave GEMINI_API_KEY não configurada no .env");
+        console.warn("[AURA] ⚠️ Chave GEMINI_API_KEY não configurada no .env nem no Banco de Dados.");
         return null;
     }
 
