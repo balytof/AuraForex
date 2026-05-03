@@ -39,6 +39,29 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
+// ── CORREÇÃO MT5: Limpeza de Caracteres Nulos ──────────────────────
+app.use((req, res, next) => {
+  if (req.url.includes("/ea/")) {
+    let rawData = '';
+    req.on('data', chunk => { rawData += chunk; });
+    req.on('end', () => {
+      try {
+        const cleanData = rawData.replace(/\0/g, '').trim();
+        if (cleanData) {
+          req.body = JSON.parse(cleanData);
+          console.log(`[MT5-CLEAN] Body parsed for ${req.url}`);
+        }
+        next();
+      } catch (e) {
+        console.error("[MT5-CLEAN-ERROR]", e.message);
+        next();
+      }
+    });
+  } else {
+    next();
+  }
+});
+
 // Página de Login (Design Atual Mantido)
 app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
@@ -80,30 +103,6 @@ app.use(cors({
   origin: "*", 
   credentials: true
 }));
-
-// Middleware robusto para limpar dados do MetaTrader (caracteres nulos)
-app.use((req, res, next) => {
-  if (req.url.includes("/ea/")) {
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk) => { data += chunk; });
-    req.on('end', () => {
-      try {
-        // Limpar \0 e tentar parsear manualmente
-        const cleanData = data.replace(/\0/g, '').trim();
-        if (cleanData) {
-          req.body = JSON.parse(cleanData);
-        }
-        next();
-      } catch (e) {
-        console.error("[MT5-PARSE-ERROR] Erro ao limpar JSON do EA:", e.message);
-        next();
-      }
-    });
-  } else {
-    next();
-  }
-});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
