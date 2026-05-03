@@ -44,39 +44,52 @@ INSTRUÇÕES DE RESPOSTA:
 `;
 
 /**
- * Helper para chamar a API do Gemini
+ * Helper para chamar a API do Gemini 1.5 Flash
  */
 async function callGeminiAI(userMessage) {
     const apiKey = process.env.GEMINI_API_KEY;
     
     // Se não houver chave real, retorna null para cair no fallback
-    if (!apiKey || apiKey === "COLOQUE_SUA_CHAVE_AQUI" || apiKey === "COLOQUE_AQUI_SUA_CHAVE_GEMINI") {
+    if (!apiKey || apiKey.includes("COLOQUE_SUA_CHAVE")) {
+        console.warn("[AURA] ⚠️ Chave GEMINI_API_KEY não configurada no .env");
         return null;
     }
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contents: [{ 
                         parts: [{ 
-                            text: `SISTEMA: ${AURA_KNOWLEDGE}\n\nUSUÁRIO: ${userMessage}` 
+                            text: `Você é a Aura, a assistente de IA da AuraTrade.\n\nCONTEXTO DO SISTEMA:\n${AURA_KNOWLEDGE}\n\nPERGUNTA DO USUÁRIO:\n${userMessage}\n\nResponda de forma curta, prestativa e profissional.` 
                         }] 
                     }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 1024,
+                    }
                 }),
             }
         );
 
         const data = await response.json();
+        
+        if (data.error) {
+            console.error("[AURA-GEMINI-API-ERROR]", data.error);
+            return null;
+        }
+
         if (data.candidates && data.candidates[0] && data.candidates[0].content) {
             return data.candidates[0].content.parts[0].text;
         }
         return null;
     } catch (err) {
-        console.error("[AURA-GEMINI-ERROR]", err);
+        console.error("[AURA-GEMINI-FETCH-ERROR]", err);
         return null;
     }
 }
