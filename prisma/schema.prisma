@@ -177,6 +177,7 @@ model UserSettings {
 model SystemSettings {
   id                String   @id @default(uuid())
   geminiApiKey      String?
+  geminiApiUrl      String? // Novo campo para o "IP do Gemini"
   metaApiToken      String?
   metaApiAccountId  String?
   apiUrl            String?  @default("http://localhost:3005")
@@ -188,5 +189,6 @@ model SystemSettings {
   facebookUrl       String?
   instagramUrl      String?
 
+  createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
