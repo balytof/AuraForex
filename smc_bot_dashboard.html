@@ -648,6 +648,100 @@
       border-color: var(--muted) !important;
   }
 
+  /* --- SIDEBAR NAVIGATION --- */
+  .dashboard-container { display: flex; min-height: 100vh; position: relative; }
+  
+  .sidebar-nav {
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    transition: all 0.3s ease;
+    z-index: 1000;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 0 12px;
+  }
+
+  .nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  .nav-item i { font-size: 1.1rem; width: 24px; text-align: center; }
+  .nav-item:hover { background: rgba(255,255,255,0.03); color: var(--text); border-color: var(--border); }
+  .nav-item.active { background: rgba(0,212,255,0.05); color: var(--accent); border-color: var(--accent); }
+
+  .nav-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hamburger Menu Toggle */
+  .menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    z-index: 1100;
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .menu-toggle span {
+    width: 24px;
+    height: 2px;
+    background: var(--text);
+    transition: 0.3s;
+    border-radius: 2px;
+  }
+
+  /* Overlay for mobile */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+  }
+
   /* 📱 RESPONSIVIDADE ULTRA-PREMIUM (Mobile/Tablet/Desktop) */
   @media (max-width: 1200px) {
       .main-grid { grid-template-columns: 1fr; }
@@ -655,6 +749,15 @@
   }
 
   @media (max-width: 992px) {
+      .sidebar-nav {
+        position: fixed;
+        left: -260px;
+        top: 0;
+        bottom: 0;
+      }
+      .sidebar-nav.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+      .sidebar-overlay.active { display: block; }
+      .menu-toggle { display: flex; }
       header { padding: 15px 20px; }
       .status-row { overflow-x: auto; padding-bottom: 8px; width: 100%; justify-content: flex-start; }
       .status-badge, .vps-sentinel, .license-badge { white-space: nowrap; flex-shrink: 0; }
@@ -794,14 +897,58 @@
 
 </head>
 <body>
-<div id="licenseAlert" class="license-alert-bar">
-    ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
-</div>
-<div class="wrapper">
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">
+<div class="dashboard-container">
+  <!-- SIDEBAR -->
+  <aside class="sidebar-nav" id="sidebarNav">
+    <div class="sidebar-logo">
+      <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 32px; height: 32px; object-fit: contain;">
+      <h2 style="font-size: 1.1rem; font-weight: 800;">Aura<span>Trade</span></h2>
+    </div>
+
+    <nav class="nav-links">
+      <a href="#" class="nav-item active">
+        <i class="fas fa-chart-line"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="/affiliate_dashboard.html" class="nav-item">
+        <i class="fas fa-users"></i>
+        <span>Afiliados</span>
+      </a>
+      <a href="/admin_dashboard.html" class="nav-item" id="adminLink" style="display: none;">
+        <i class="fas fa-user-shield"></i>
+        <span>Admin Panel</span>
+      </a>
+    </nav>
+
+    <div class="nav-footer">
+      <a href="#" class="nav-item" onclick="openChangePwModal()">
+        <i class="fas fa-key"></i>
+        <span>Alterar Senha</span>
+      </a>
+      <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Sair</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div id="licenseAlert" class="license-alert-bar">
+        ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+    </div>
+
+    <div class="wrapper">
+      <!-- HEADER -->
+      <header>
+        <div class="menu-toggle" onclick="toggleSidebar()">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="logo">
       <div class="logo-icon" style="background:none; box-shadow:none;">
         <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 100%; height: 100%; object-fit: contain;">
       </div>
@@ -849,8 +996,6 @@
     <div class="controls">
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
-      <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
-      <button class="btn btn-secondary" style="margin-left: 6px; border-color: var(--accent2);" onclick="openChangePwModal()">🔑 Password</button>
     </div>
   </header>
 
@@ -1125,6 +1270,14 @@ async function remoteLog(msg, level = "INFO") {
 // ─── AUTH CHECK (Auditado) ────────────────────────
 let currentUser = null;
 
+// ─── SIDEBAR TOGGLE ──────────────────────────
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebarNav");
+  const overlay = document.querySelector(".sidebar-overlay");
+  sidebar.classList.toggle("active");
+  overlay.classList.toggle("active");
+}
+
 async function checkAuth() {
   console.log("%c[AuraAuth] Iniciando verificação de segurança...", "color: cyan; font-weight: bold; font-size: 12px;");
   const token = localStorage.getItem("aura_token");
@@ -1183,6 +1336,9 @@ async function retrySync(attempts) {
 }
 
 function injectAdminButton() {
+  const sidebarAdminLink = document.getElementById("adminLink");
+  if (sidebarAdminLink) sidebarAdminLink.style.display = "flex";
+
   const controls = document.querySelector(".controls");
   if (!controls) {
     console.warn("[AuraAuth] Container '.controls' não encontrado ainda. Retentando em 500ms...");
@@ -1207,6 +1363,9 @@ function injectAdminButton() {
 }
 
 function injectAffiliateButton() {
+  const sidebarAffLink = document.querySelector('.nav-item[href="/affiliate_dashboard.html"]');
+  if (sidebarAffLink) sidebarAffLink.style.display = "flex";
+
   const controls = document.querySelector(".controls");
   if (!controls) return;
   if (document.getElementById("affiliatePanelBtn")) return;
@@ -3071,7 +3230,7 @@ async function loadSystemConfig() {
       <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
     </div>
   </div>
-</div>
-
-</body>
+    </div> <!-- /wrapper -->
+  </main> <!-- /main-content -->
+</div> <!-- /dashboard-container -->
 </html>

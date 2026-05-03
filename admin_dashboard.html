@@ -158,12 +158,183 @@
             border-radius: 10px; padding: 10px; color: var(--text); outline: none;
         }
         .form-input:focus { border-color: var(--accent); }
+
+        /* --- SIDEBAR NAVIGATION --- */
+        .dashboard-container { display: flex; min-height: 100vh; position: relative; }
+        
+        .sidebar-nav {
+            width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding: 0 12px;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .nav-item i { font-size: 1.1rem; width: 24px; text-align: center; }
+        .nav-item:hover { background: rgba(255,255,255,0.03); color: var(--text); border-color: var(--border); }
+        .nav-item.active { background: rgba(0,212,255,0.05); color: var(--accent); border-color: var(--accent); }
+
+        .nav-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hamburger Menu Toggle */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1100;
+            padding: 10px;
+            background: var(--surface2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .menu-toggle span {
+            width: 24px;
+            height: 2px;
+            background: var(--text);
+            transition: 0.3s;
+            border-radius: 2px;
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar-nav {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                bottom: 0;
+            }
+            .sidebar-nav.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+            .sidebar-overlay.active { display: block; }
+            .menu-toggle { display: flex; }
+            header { padding: 15px 20px; flex-direction: column; align-items: flex-start; }
+            .nav-tabs { width: 100%; overflow-x: auto; padding-bottom: 8px; }
+            .tab-btn { white-space: nowrap; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .wrapper { padding: 12px; }
+        }
     </style>
 </head>
 <body>
-<div class="wrapper">
-    <header>
-        <div class="logo">
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar-nav" id="sidebarNav">
+        <div class="sidebar-logo">
+            <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 32px; height: 32px; object-fit: contain;">
+            <h2 style="font-size: 1.1rem; font-weight: 800;">Aura<span>Admin</span></h2>
+        </div>
+
+        <nav class="nav-links">
+            <a href="/smc_bot_dashboard.html" class="nav-item">
+                <i class="fas fa-robot"></i>
+                <span>Voltar ao Bot</span>
+            </a>
+            <a href="#" class="nav-item active" onclick="showPanel('stats')">
+                <i class="fas fa-chart-pie"></i>
+                <span>Resumo</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('requests')">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Solicitações</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('plans')">
+                <i class="fas fa-gem"></i>
+                <span>Planos</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('users')">
+                <i class="fas fa-users"></i>
+                <span>Usuários</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('finance')">
+                <i class="fas fa-wallet"></i>
+                <span>Financeiro</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('settings')">
+                <i class="fas fa-cog"></i>
+                <span>Configurações</span>
+            </a>
+        </nav>
+
+        <div class="nav-footer">
+            <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="wrapper">
+            <header>
+                <div class="menu-toggle" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="logo">
             <div class="logo-icon" style="background:none; box-shadow:none;">
                 <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width:40px; height:40px; object-fit:contain;">
             </div>
@@ -172,7 +343,7 @@
                 <p>Gestão de Ecossistema Global</p>
             </div>
         </div>
-        <div class="nav-tabs">
+        <div class="nav-tabs" style="display: none;"> <!-- Hidden as we use sidebar -->
             <button class="tab-btn active" onclick="showPanel('stats')">Resumo</button>
             <button class="tab-btn" onclick="showPanel('requests')">Solicitações</button>
             <button class="tab-btn" onclick="showPanel('plans')">Planos</button>
@@ -180,7 +351,7 @@
             <button class="tab-btn" onclick="showPanel('finance')">Financeiro</button>
             <button class="tab-btn" onclick="showPanel('settings')">Configurações</button>
         </div>
-        <button class="btn" onclick="window.location.href='/dashboard'">Voltar ao Bot</button>
+        <button class="btn" onclick="window.location.href='/smc_bot_dashboard.html'" id="backToBotBtn">Voltar ao Bot</button>
     </header>
 
     <div class="stats-grid">
@@ -444,31 +615,37 @@
             <button class="btn btn-success" id="savePlanBtn">Salvar Plano</button>
         </div>
     </div>
-</div>
+        </div> <!-- /wrapper -->
+    </main> <!-- /main-content -->
+</div> <!-- /dashboard-container -->
 
 <script>
-    const token = localStorage.getItem("aura_token");
-    if (!token) window.location.href = "/login";
-
-    async function api(path, method = "GET", body = null) {
-        const options = {
-            method,
-            headers: { 
-                "Authorization": "Bearer " + token,
-                "Content-Type": "application/json"
-            }
-        };
-        if (body) options.body = JSON.stringify(body);
-        const res = await fetch(path, options);
-        return res.json();
+    // ─── SIDEBAR TOGGLE ──────────────────────────
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebarNav");
+        const overlay = document.querySelector(".sidebar-overlay");
+        sidebar.classList.toggle("active");
+        overlay.classList.toggle("active");
     }
 
+    // Update active state in sidebar
     function showPanel(id) {
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + id)?.classList.add('active');
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        if (event) event.target.classList.add('active');
         
+        // Update sidebar active state
+        document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('onclick')?.includes(`showPanel('${id}')`)) {
+                item.classList.add('active');
+            }
+        });
+
+        // Close sidebar on mobile after selection
+        if (window.innerWidth <= 992) {
+            toggleSidebar();
+        }
+
         if (id === 'stats') loadStats();
         if (id === 'requests') loadRequests();
         if (id === 'plans') loadPlans();
