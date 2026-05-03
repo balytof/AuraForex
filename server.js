@@ -911,7 +911,13 @@ app.get("/api/public/settings", async (req, res) => {
         cryptoBotUrl: true
       }
     });
-    res.json({ success: true, settings: settings || {} });
+    res.json({ 
+      success: true, 
+      settings: settings || {
+        cryptoBotEnabled: true,
+        cryptoBotUrl: ""
+      } 
+    });
   } catch (e) {
     res.status(500).json({ success: false, error: "Erro ao buscar configurações públicas." });
   }
@@ -1751,7 +1757,6 @@ server.listen(PORT, () => {
   prisma.$connect()
     .then(() => console.log("[DIAGNOSTIC] ✅ Conexão Prisma OK"))
     .catch(err => console.error("[DIAGNOSTIC] ❌ Erro Prisma:", err.message));
-
   // ── INICIAR MONITOR DE BACKGROUND (Profit Lock) ──
   console.log("[DIAGNOSTIC] 🛡️ Iniciando Monitor de Background (Profit Lock)...");
   setInterval(async () => {
