@@ -47,12 +47,19 @@ INSTRUÇÕES DE RESPOSTA:
  * Helper para chamar a API do Gemini 1.5 Flash
  */
 async function callGeminiAI(userMessage) {
-    // 1. Tentar buscar a chave na base de dados (Configurada no Admin)
+    // 1. Tentar buscar a chave e URL na base de dados (Configurada no Admin)
     let apiKey = process.env.GEMINI_API_KEY;
+    let apiUrl = "https://generativelanguage.googleapis.com";
+
     try {
         const settings = await prisma.systemSettings.findFirst();
-        if (settings && settings.geminiApiKey && !settings.geminiApiKey.includes("COLOQUE_SUA_CHAVE")) {
-            apiKey = settings.geminiApiKey;
+        if (settings) {
+            if (settings.geminiApiKey && !settings.geminiApiKey.includes("COLOQUE_SUA_CHAVE")) {
+                apiKey = settings.geminiApiKey;
+            }
+            if (settings.geminiApiUrl) {
+                apiUrl = settings.geminiApiUrl.replace(/\/$/, ""); // Remove barra final se houver
+            }
         }
     } catch (dbErr) {
         console.warn("[AURA] Erro ao buscar SystemSettings, usando fallback do env.", dbErr);
@@ -65,9 +72,8 @@ async function callGeminiAI(userMessage) {
     }
 
     try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            {
+        const url = `${apiUrl}/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
