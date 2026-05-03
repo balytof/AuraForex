@@ -868,17 +868,17 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl } = req.body;
+    const { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl } = req.body;
     let settings = await prisma.systemSettings.findFirst();
     
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
       });
     } else {
       settings = await prisma.systemSettings.create({
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: { geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
       });
     }
     res.json({ success: true, settings });
