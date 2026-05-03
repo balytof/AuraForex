@@ -81,17 +81,31 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json({
-  verify: (req, res, buf) => {
-    // Limpar caracteres nulos (\0) que o MetaTrader costuma enviar no final do payload
-    if (buf && buf.length > 0) {
-      const content = buf.toString();
-      if (content.includes('\0')) {
-        req.rawBody = content.replace(/\0/g, '');
+// Middleware robusto para limpar dados do MetaTrader (caracteres nulos)
+app.use((req, res, next) => {
+  if (req.url.includes("/ea/")) {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        // Limpar \0 e tentar parsear manualmente
+        const cleanData = data.replace(/\0/g, '').trim();
+        if (cleanData) {
+          req.body = JSON.parse(cleanData);
+        }
+        next();
+      } catch (e) {
+        console.error("[MT5-PARSE-ERROR] Erro ao limpar JSON do EA:", e.message);
+        next();
       }
-    }
+    });
+  } else {
+    next();
   }
-}));
+});
+
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
