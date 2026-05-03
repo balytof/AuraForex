@@ -1211,6 +1211,26 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        async function loadSocialLinks() {
+            try {
+                const res = await fetch("/api/public/settings");
+                const data = await res.json();
+                if (data.success && data.settings) {
+                    const s = data.settings;
+                    if (s.telegramUrl) document.querySelectorAll('.social-telegram').forEach(el => el.href = s.telegramUrl);
+                    if (s.youtubeUrl) document.querySelectorAll('.social-youtube').forEach(el => el.href = s.youtubeUrl);
+                    if (s.facebookUrl) document.querySelectorAll('.social-facebook').forEach(el => el.href = s.facebookUrl);
+                    if (s.instagramUrl) document.querySelectorAll('.social-instagram').forEach(el => el.href = s.instagramUrl);
+                    if (s.whatsappNumber) {
+                        const waLink = `https://wa.me/${s.whatsappNumber.replace(/\D/g, '')}`;
+                        document.querySelectorAll('.social-whatsapp').forEach(el => el.href = waLink);
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar links sociais:", e);
+            }
+        }
+
         // Auto-detect language
         window.onload = () => {
             const savedLang = localStorage.getItem('aura_lang') || 'pt';
@@ -1221,6 +1241,49 @@
             loadPlans();
         };
     </script>
+    <!-- 🌐 FOOTER / REDES SOCIAIS -->
+    <footer class="main-footer" style="background: var(--surface); border-top: 1px solid var(--border); padding: 60px 0 30px; margin-top: 100px; position: relative; z-index: 10;">
+        <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 40px; margin-bottom: 40px;">
+                <!-- Brand -->
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Logo" style="width: 40px; height: 40px;">
+                        <h2 style="font-size: 1.5rem; font-weight: 800;">Aura<span>Trade</span></h2>
+                    </div>
+                    <p style="color: var(--muted); line-height: 1.6; font-size: 0.9rem;">
+                        O ecossistema definitivo para traders institucionais. Tecnologia de ponta, sinais precisos e automação inteligente.
+                    </p>
+                </div>
+                <!-- Links Rápidos -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-weight: 700;">Links Rápidos</h4>
+                    <ul style="list-style: none; color: var(--muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px;">
+                        <li><a href="#about" style="color: inherit; text-decoration: none;">Sobre Nós</a></li>
+                        <li><a href="#plans" style="color: inherit; text-decoration: none;">Planos</a></li>
+                        <li><a href="/login" style="color: inherit; text-decoration: none;">Área de Membros</a></li>
+                        <li><a href="#" style="color: inherit; text-decoration: none;">Termos de Serviço</a></li>
+                    </ul>
+                </div>
+                <!-- Social -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-weight: 700;">Nossas Redes</h4>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <a href="#" class="social-telegram" target="_blank" style="width: 44px; height: 44px; background: rgba(0,212,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-telegram-plane"></i></a>
+                        <a href="#" class="social-whatsapp" target="_blank" style="width: 44px; height: 44px; background: rgba(0,230,118,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--bull); border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" class="social-youtube" target="_blank" style="width: 44px; height: 44px; background: rgba(255,68,68,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ff4444; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="social-facebook" target="_blank" style="width: 44px; height: 44px; background: rgba(24,119,242,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #1877f2; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-instagram" target="_blank" style="width: 44px; height: 44px; background: rgba(225,48,108,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #e1306c; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-instagram"></i></a>
+                    </div>
+                    <p style="margin-top: 20px; color: var(--muted); font-size: 0.8rem;">Siga-nos para atualizações diárias e sinais gratuitos.</p>
+                </div>
+            </div>
+            <div style="text-align: center; border-top: 1px solid var(--border); padding-top: 30px; color: var(--muted); font-size: 0.75rem; font-family: 'Space Mono', monospace;">
+                &copy; 2026 AuraTrade. Todos os direitos reservados.
+            </div>
+        </div>
+    </footer>
+
     <!-- 🤖 AURA AI CHAT WIDGET -->
     <div class="aura-chat-widget">
         <div class="aura-window" id="auraWindow">
