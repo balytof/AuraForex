@@ -23,6 +23,53 @@
     --glow: 0 0 20px rgba(0,212,255,0.3);
   }
 
+  /* Glassmorphism utility */
+  .glass-panel {
+    background: rgba(13, 17, 23, 0.7) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 212, 255, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .position-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr auto;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.2s;
+  }
+  .position-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent);
+  }
+  
+  .pos-info { display: flex; flex-direction: column; gap: 2px; }
+  .pos-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; font-family: 'Space Mono', monospace; }
+  .pos-val { font-size: 0.85rem; font-weight: 700; }
+  .pos-pnl { font-family: 'Space Mono', monospace; font-weight: 800; font-size: 0.95rem; }
+
+  /* Print Styles */
+  @media print {
+    body * { visibility: hidden; }
+    #setupModal, #setupModal * { visibility: visible; }
+    #setupModal { position: absolute; left: 0; top: 0; width: 100%; border: none; background: #fff !important; color: #000 !important; }
+    .modal { width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; color: #000 !important; }
+    .modal-header, .modal-footer { display: none !important; }
+    .setup-step { border: 1px solid #ddd !important; background: #f9f9f9 !important; color: #000 !important; page-break-inside: avoid; }
+    .step-number { background: #000 !important; color: #fff !important; }
+    .code-block { background: #eee !important; color: #000 !important; border: 1px solid #ccc !important; }
+    .download-area, .btn-primary { display: none !important; }
+    .guide-table { color: #000 !important; }
+    .guide-table th { color: #333 !important; border-bottom: 2px solid #000 !important; }
+    .guide-table td { border-bottom: 1px solid #ddd !important; }
+    h2, h3 { color: #000 !important; }
+    .alert-box { border: 1px solid #000 !important; background: #fff !important; color: #000 !important; }
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
@@ -1066,6 +1113,20 @@
 
     <!-- LEFT COLUMN -->
     <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- POSIÇÕES ATIVAS -->
+      <div class="panel glass-panel" id="activePositionsPanel" style="display:none; margin-bottom: 20px;">
+        <div class="panel-header" style="background: rgba(0,212,255,0.05);">
+          <div class="panel-title"><span class="icon">💼</span> Posições em Aberto</div>
+          <div class="status-badge" style="background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2);">
+            <div class="dot active"></div>
+            <span id="activePositionsCount">0 Ativas</span>
+          </div>
+        </div>
+        <div class="active-positions-list" id="activePositionsList" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
 
       <!-- SIGNALS -->
       <div class="panel">
@@ -2375,6 +2436,8 @@ async function updateStats() {
          }
       });
 
+      renderActivePositions(positions);
+
       const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
       document.getElementById("statOpen").textContent = `${positions.length} / ${maxTradesLimit}`;
       document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
@@ -2420,6 +2483,51 @@ async function updateStats() {
       addLog(`⚠️ Erro ao atualizar dados: ${e.message}`, "warn");
     }
   }
+}
+
+function renderActivePositions(positions) {
+  const panel = document.getElementById("activePositionsPanel");
+  const list = document.getElementById("activePositionsList");
+  const countEl = document.getElementById("activePositionsCount");
+
+  if (!positions || positions.length === 0) {
+    panel.style.display = "none";
+    return;
+  }
+
+  panel.style.display = "block";
+  countEl.textContent = `${positions.length} ${positions.length === 1 ? 'Ativa' : 'Ativas'}`;
+  
+  list.innerHTML = positions.map(pos => {
+    const pnlVal = pos.pnl || 0;
+    const pnlClass = pnlVal >= 0 ? 'bull' : 'bear';
+    const direction = (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL';
+    const dirColor = direction === 'BUY' ? 'var(--bull)' : 'var(--bear)';
+    
+    return `
+      <div class="position-item">
+        <div class="pos-info">
+          <span class="pos-label">Ativo / ID</span>
+          <span class="pos-val">${pos.symbol || pos.pair} <span style="font-size:0.6rem; color:var(--muted);">#${pos.id}</span></span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">Direção / Lote</span>
+          <span class="pos-val" style="color:${dirColor}">${direction} · ${pos.lotSize || pos.lots}</span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">Preço Entrada</span>
+          <span class="pos-val">${pos.openPrice ? pos.openPrice.toFixed(brokerInfo.precision || 5) : '--'}</span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">P&L Atual</span>
+          <span class="pos-pnl ${pnlClass}">${(pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency)}</span>
+        </div>
+        <button onclick="closeTradeNow('${pos.id}', '${pos.symbol || pos.pair}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.65rem; border-color: rgba(255,68,68,0.3); color: var(--bear);">
+          FECHAR
+        </button>
+      </div>
+    `;
+  }).join("");
 }
 
 function updateSessionStatus() {
@@ -3083,7 +3191,15 @@ async function loadSystemConfig() {
       
       const customGuide = document.getElementById("customGuideContent");
       if (customGuide && systemConfig.installationGuide) {
-        customGuide.innerHTML = systemConfig.installationGuide.replace(/\n/g, '<br>');
+        // Advanced formatting for the guide
+        let formattedGuide = systemConfig.installationGuide
+          .replace(/\n/g, '<br>')
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/### (.*?)(<br>|$)/g, '<h3 style="color:var(--accent); margin-top:15px; font-size:0.9rem;">$1</h3>')
+          .replace(/## (.*?)(<br>|$)/g, '<h2 style="color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:5px; margin-top:20px; font-size:1.1rem;">$1</h2>')
+          .replace(/`(.*?)`/g, '<code style="background:#000; padding:2px 5px; border-radius:4px; font-family:\'Space Mono\';">$1</code>');
+        
+        customGuide.innerHTML = formattedGuide;
         customGuide.style.display = "block";
       }
     }
