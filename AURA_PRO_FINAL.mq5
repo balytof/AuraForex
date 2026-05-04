@@ -42,7 +42,18 @@ void OnTimer() {
 
 void CheckSignals() {
    string res = SendGet(InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey);
-   if(res == "Error" || StringFind(res, "\"signals\":[]") >= 0) return;
+   
+   if(res == "Error") {
+      Print("❌ Erro de rede ao buscar sinais");
+      return;
+   }
+
+   // Log temporário para ver o que o servidor diz
+   if(StringFind(res, "\"signals\":[]") < 0) {
+      Print("📡 Resposta do Servidor: " + res);
+   }
+
+   if(StringFind(res, "\"signals\":[]") >= 0) return;
 
    int startPos = StringFind(res, "[");
    int endPos = StringFind(res, "]", startPos);
