@@ -781,16 +781,19 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       try {
         console.log(`[ORDER] Calculando SL/TP Dinâmico (ATR) para ${pair}...`);
         const dyn = await computeDynamicSlTp(req.broker || null, pair, direction, entryPrice);
-        sl = dyn.sl;
-        tp = dyn.tp;
+        
+        // Se sl/tp não foram fornecidos ou são deltas, usa os dinâmicos
+        if (!sl || Math.abs(sl) < 1.0) sl = dyn.sl;
+        if (!tp || Math.abs(tp) < 1.0) tp = dyn.tp;
+        
         const pip = getPipValue(pair);
         console.log(`[ORDER] ATR Dinâmico: Pip=${pip}, Dist=${(sl - entryPrice).toFixed(4)}, SL=${sl} TP=${tp}`);
       } catch (e) {
         console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
         const isBuy = direction === "BUY";
-        sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
-        tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
+        if (!sl || Math.abs(sl) < 1.0) sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
+        if (!tp || Math.abs(tp) < 1.0) tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
       }
     }
 
