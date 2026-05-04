@@ -8,8 +8,7 @@
 const { createBroker } = require("../apex_broker");
 const config = require("../config/config");
 const log = require("../utils/logger");
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../db");
 
 let activeBroker = null;
 
