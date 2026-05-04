@@ -5,13 +5,14 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "2.01"
+#property version   "2.02"
 #property strict
 
 #include <Trade\Trade.mqh>
 
+// --- INPUTS COM IP DO VPS ---
 input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; 
-input string   InpServerUrl      = "http://localhost:3005"; 
+input string   InpServerUrl      = "http://139.59.159.48:3005"; // IP DO SEU VPS
 input double   InpRiskPercent    = 1.0;                     
 input double   InpTPRR           = 1.5;                     
 input int      InpMagicNumber    = 888222;                  
@@ -19,10 +20,10 @@ input int      InpTimerSeconds   = 2;
 
 CTrade         trade;
 bool           IsAuthorized = false;
-string         EAVersion = "v2.0.1-DIAG";
+string         EAVersion = "v2.0.2-VPS";
 
 int OnInit() {
-   Print("== SMC APEX EA v2.0.1 - DIAGNÓSTICO ATIVO ==");
+   Print("== SMC APEX EA v2.0.2 - CONECTANDO AO VPS [" + InpServerUrl + "] ==");
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(50);
    EventSetTimer(InpTimerSeconds);
@@ -44,10 +45,10 @@ void ValidateLicense() {
    
    if(StringFind(result, "\"status\":\"OK\"") >= 0) {
       IsAuthorized = true;
-      Print("✅ CONEXÃO ESTABELECIDA! Licença OK.");
+      Print("✅ LIGADO AO VPS COM SUCESSO!");
    } else {
-      Print("❌ ERRO DE CONEXÃO: " + result);
-      Comment("SMC APEX EA: ERRO DE CONEXÃO\nVerifique a URL e a Licença.");
+      Print("❌ ERRO AO LIGAR AO VPS: " + result);
+      Comment("SMC APEX EA: ERRO DE REDE\nVerifique se o VPS [" + InpServerUrl + "] está ativo.");
    }
 }
 
@@ -55,18 +56,10 @@ void CheckForSignals() {
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    string result = SendGet(url);
    
-   // LOG DE DIAGNÓSTICO
-   if(result == "Error") {
-      Print("📡 Erro de Rede: Não foi possível contactar o servidor em " + InpServerUrl);
-      return;
-   }
-   
-   if(StringFind(result, "\"signals\":[]") >= 0) {
-      // Print("🔎 Sem sinais pendentes no momento..."); // Silencioso para não encher o log
-      return;
-   }
+   if(result == "Error") return;
+   if(StringFind(result, "\"signals\":[]") >= 0) return;
 
-   Print("🚀 RESPOSTA DO SERVIDOR: " + result);
+   Print("🚀 SINAL RECEBIDO DO VPS: " + result);
    
    int startPos = StringFind(result, "[");
    int endPos = StringFind(result, "]", startPos);
@@ -87,34 +80,38 @@ void ExecuteSignal(string json) {
    string pair = ExtractJsonValue(json, "pair");
    string direction = ExtractJsonValue(json, "direction");
    string signalId = ExtractJsonValue(json, "id");
+   double entry = StringToDouble(ExtractJsonValue(json, "entry"));
    double sl = StringToDouble(ExtractJsonValue(json, "sl"));
    double tp = StringToDouble(ExtractJsonValue(json, "tp"));
    double lot = StringToDouble(ExtractJsonValue(json, "lot"));
 
-   Print("📥 EXECUTANDO SINAL: " + pair + " " + direction + " ID:" + signalId);
+   Print("📥 EXECUTANDO: " + pair + " " + direction + " SL:" + (string)sl + " TP:" + (string)tp);
    
-   double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
+   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double price = (direction == "BUY") ? ask : bid;
    
    if(price <= 0) {
-      Print("❌ Erro: Par " + pair + " não encontrado no Market Watch!");
+      Print("❌ Par " + pair + " não está no Market Watch!");
       return;
    }
 
-   // Normalização e Sanidade (Código Expert v2.0)
+   // Normalização por TickSize (Expert v2.0)
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
-   
-   sl = NormalizeDouble(MathRound(sl/tickSize)*tickSize, digits);
-   tp = NormalizeDouble(MathRound(tp/tickSize)*tickSize, digits);
-   price = NormalizeDouble(MathRound(price/tickSize)*tickSize, digits);
+   if(tickSize > 0) {
+      sl = NormalizeDouble(MathRound(sl/tickSize)*tickSize, digits);
+      tp = NormalizeDouble(MathRound(tp/tickSize)*tickSize, digits);
+      price = NormalizeDouble(MathRound(price/tickSize)*tickSize, digits);
+   }
 
    bool res = (direction == "BUY") ? trade.Buy(lot, pair, price, sl, tp) : trade.Sell(lot, pair, price, sl, tp);
    
    if(res) {
-      Print("✅ SUCESSO: Ordem aberta para " + pair);
+      Print("✅ ORDEM ABERTA: " + pair + " Ticket: " + (string)trade.ResultOrder());
       ReportSignalStatus(signalId, "EXECUTED", (long)trade.ResultOrder());
    } else {
-      Print("❌ FALHA AO ABRIR: " + trade.ResultRetcodeDescription());
+      Print("❌ ERRO AO ABRIR: " + trade.ResultRetcodeDescription());
    }
 }
 
@@ -123,14 +120,14 @@ string SendPost(string url, string payload) {
    uchar post[], result[]; string headers = "Content-Type: application/json\r\n", res_h;
    StringToCharArray(payload, post);
    ResetLastError();
-   if(WebRequest("POST", url, headers, 5000, post, result, res_h) < 0) return "Error " + (string)GetLastError();
+   if(WebRequest("POST", url, headers, 5000, post, result, res_h) < 0) return "Error";
    return CharArrayToString(result);
 }
 
 string SendGet(string url) {
    uchar result[], dummy[]; string res_h;
    ResetLastError();
-   if(WebRequest("GET", url, "", 5000, dummy, result, res_h) < 0) return "Error " + (string)GetLastError();
+   if(WebRequest("GET", url, "", 5000, dummy, result, res_h) < 0) return "Error";
    return CharArrayToString(result);
 }
 
