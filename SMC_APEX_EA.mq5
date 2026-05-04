@@ -150,21 +150,59 @@ void ExecuteSignal(string json)
 
    Print("🚀 PROCESSANDO SINAL: " + pair + " " + direction + " Lot: " + (string)lot);
    
+   // --- AJUSTE PROFISSIONAL DE SL/TP (RESPEITANDO STOPLEVEL) ---
+   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+   int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDistance = stopLevel * point;
+   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   
+   double price = (direction == "BUY") ? ask : bid;
+   
+   // Detetar se SL/TP so deltas (relativos) ou invlidos
+   // Se SL for negativo ou muito pequeno, recalculamos com base no preo atual
+   if(sl <= 0 || (sl < 10.0 && pair != "XAUUSD" && sl < 0.5)) {
+      double delta = (sl != 0) ? MathAbs(sl) : (100 * point); // Usa o delta se fornecido, ou 10 pips
+      if(direction == "BUY") sl = price - delta;
+      else sl = price + delta;
+   }
+   
+   if(tp <= 0 || (tp < 10.0 && pair != "XAUUSD" && tp < 0.5)) {
+      double delta = (tp != 0) ? MathAbs(tp) : (200 * point); // Usa o delta se fornecido, ou 20 pips
+      if(direction == "BUY") tp = price + delta;
+      else tp = price - delta;
+   }
+
+   // Garantir distncia mnima do StopLevel exigida pela corretora
+   if(direction == "BUY") {
+      if((price - sl) < minDistance) sl = price - minDistance - (10 * point);
+      if((tp - price) < minDistance) tp = price + minDistance + (10 * point);
+   } else {
+      if((sl - price) < minDistance) sl = price + minDistance + (10 * point);
+      if((price - tp) < minDistance) tp = price - minDistance - (10 * point);
+   }
+   
+   // Normalizao Final
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+   price = NormalizeDouble(price, digits);
+
    bool res = false;
    if(direction == "BUY")
-      res = trade.Buy(lot, pair, SymbolInfoDouble(pair, SYMBOL_ASK), sl, tp, "AuraForex Signal");
+      res = trade.Buy(lot, pair, price, sl, tp, "AuraForex Signal");
    else if(direction == "SELL")
-      res = trade.Sell(lot, pair, SymbolInfoDouble(pair, SYMBOL_BID), sl, tp, "AuraForex Signal");
+      res = trade.Sell(lot, pair, price, sl, tp, "AuraForex Signal");
       
    if(res)
    {
       ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM EXECUTADA! Ticket: " + (string)ticket);
+      Print("✅ ORDEM ENVIADA: " + (string)ticket + " sl: " + (string)sl + " tp: " + (string)tp);
       ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
    }
    else
    {
-      Print("❌ FALHA AO EXECUTAR: " + trade.ResultRetcodeDescription());
+      Print("❌ FALHA AO EXECUTAR: " + trade.ResultRetcodeDescription() + " (sl: " + (string)sl + " tp: " + (string)tp + ")");
       ReportSignalStatus(signalId, "FAILED", 0);
    }
 }

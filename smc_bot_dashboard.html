@@ -2077,8 +2077,8 @@ async function getBrokerPositions() {
   return apiFetch("/api/broker/positions");
 }
 
-async function placeBrokerOrder(pair, direction, risk, sl, tp) {
-  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp });
+async function placeBrokerOrder(pair, direction, risk, sl, tp, entry) {
+  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp, entry });
 }
 
 async function getBrokerCandles(pair, timeframe, count) {
@@ -2579,7 +2579,7 @@ async function botLoop(loopId) {
           // Removida restrição de brokerConnected para permitir modo Sinal-EA
           if (true) { 
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
-            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
+            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp, sig.entry);
 
             if (res.success) {
               lastTradeTime[pair] = Date.now();
