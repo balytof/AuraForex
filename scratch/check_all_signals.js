@@ -1,4 +1,4 @@
-const prisma = require('./db');
+const prisma = require('../db');
 
 async function check() {
     const signals = await prisma.signal.findMany();
