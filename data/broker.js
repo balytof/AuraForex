@@ -25,16 +25,20 @@ async function getBroker() {
     if (!apiToken && !metaApiToken) {
       try {
         const settings = await prisma.systemSettings.findFirst();
-        if (settings) {
+        if (settings && settings.metaApiToken) {
           log.info("[BROKER] 📂 Usando chaves da Base de Dados (SystemSettings)");
           metaApiToken = settings.metaApiToken;
           metaApiAccountId = settings.metaApiAccountId;
-          // Se o provider for Oanda mas não houver chaves, forçamos para MetaApi se houver chaves lá
-          if (metaApiToken) provider = "metaapi";
+          provider = "metaapi"; // Forçar MetaApi se as chaves vierem da DB
         }
       } catch (e) {
         log.warn("[BROKER] Erro ao buscar SystemSettings da DB:", e.message);
       }
+    }
+
+    if (!metaApiToken && provider === "metaapi") {
+        log.error("[BROKER] ❌ Nenhuma credencial encontrada. Abortando para evitar BAN.");
+        return { connected: false, error: "NO_KEYS" };
     }
 
     log.info(`Inicializando broker: ${provider}`);
@@ -42,15 +46,38 @@ async function getBroker() {
     const brokerConfig = {
       provider: provider,
       environment: config.bot.demoMode ? "demo" : "live",
-      accountId: accountId,
-      apiToken: apiToken,
+      accountId: accountId || metaApiAccountId,
+      apiToken: apiToken || metaApiToken,
       metaApiToken: metaApiToken,
       metaApiAccountId: metaApiAccountId,
       region: "vint-hill"
     };
     
     activeBroker = createBroker(brokerConfig);
+
+    // Se houver erro de conexão, limpamos o activeBroker para tentar de novo no próximo ciclo
+    const originalConnect = activeBroker.connect;
+    activeBroker.connect = async function() {
+        try {
+            return await originalConnect.apply(this, arguments);
+        } catch (e) {
+            log.error(`[BROKER] Falha na conexão: ${e.message}`);
+            if (e.message.includes("429") || e.message.includes("blocked")) {
+                log.warn("[BROKER] 🛡️ Bloqueio detetado. Aguardando 10 minutos...");
+                global.brokerBlockedUntil = Date.now() + (10 * 60 * 1000);
+            }
+            activeBroker = null; // Força re-inicialização total na próxima vez
+            throw e;
+        }
+    };
   }
+
+  // Verificar se estamos em período de castigo/bloqueio
+  if (global.brokerBlockedUntil && Date.now() < global.brokerBlockedUntil) {
+      const wait = Math.ceil((global.brokerBlockedUntil - Date.now()) / 1000);
+      throw new Error(`MetaApi Temporariamente Bloqueada. Aguarde ${wait}s.`);
+  }
+
   return activeBroker;
 }
 
