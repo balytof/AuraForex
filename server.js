@@ -811,12 +811,12 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     const signal = await prisma.signal.create({
       data: {
         userId: req.user.id,
-        pair: pair,
-        direction: direction,
-        entry: entryPrice,
-        sl: sl,
-        tp: tp,
-        lot: 0.01, // Lote padrão, pode ser ajustado pelo risco no EA
+        pair: String(pair).toUpperCase(),
+        direction: String(direction).toUpperCase(),
+        entry: Number(entryPrice || 0),
+        sl: Number(sl || 0),
+        tp: Number(tp || 0),
+        lotSize: 0.01, // Nome correto do campo no schema: lotSize
         status: "PENDING"
       }
     });

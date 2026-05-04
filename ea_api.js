@@ -36,14 +36,14 @@ router.post("/validate", async (req, res) => {
         data: { mtAccount: mtAccount.toString() }
       });
       console.log(`[EA-AUTH] Licença ${licenseKey} amarrada à conta ${mtAccount}`);
-    } 
+    }
     // Se já tem, verifica se coincide
     else if (license.mtAccount !== mtAccount.toString()) {
       return res.status(403).json({ status: "BLOCKED", error: "Esta licença está vinculada a outra conta MetaTrader." });
     }
 
-    return res.json({ 
-      status: "OK", 
+    return res.json({
+      status: "OK",
       message: "Licença validada com sucesso.",
       user: license.user.email,
       expiresAt: license.expiresAt
