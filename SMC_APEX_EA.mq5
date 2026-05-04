@@ -31,8 +31,9 @@ int OnInit()
 {
    Print("== SMC APEX EA - INICIALIZANDO ==");
    
-   // Configurar Magic Number
+   // Configurar Magic Number e Slippage (50 pontos para evitar off quotes)
    trade.SetExpertMagicNumber(InpMagicNumber);
+   trade.SetDeviationInPoints(50);
    
    // Validar URL (Remover / final se existir)
    string url = InpServerUrl;
