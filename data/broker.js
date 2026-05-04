@@ -136,7 +136,7 @@ module.exports = {
             entry: Number(signal.entry || 0),
             sl: Number(signal.sl || 0),
             tp: Number(signal.tp || 0),
-            lotSize: 0.01, // Nome correto conforme o schema
+            lot: 0.01, // Nome correto conforme o schema
             status: "PENDING"
           }
         });
