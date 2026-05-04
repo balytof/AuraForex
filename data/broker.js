@@ -131,12 +131,12 @@ module.exports = {
         return prisma.signal.create({
           data: {
             userId: license.userId,
-            pair: signal.pair,
-            direction: signal.direction,
-            entry: signal.entry,
-            sl: signal.sl,
-            tp: signal.tp,
-            lot: 0.01, // Lote padrão, o EA pode ajustar conforme o risco local
+            pair: String(signal.pair).toUpperCase(),
+            direction: String(signal.direction).toUpperCase(),
+            entry: Number(signal.entry || 0),
+            sl: Number(signal.sl || 0),
+            tp: Number(signal.tp || 0),
+            lotSize: 0.01, // Nome correto conforme o schema
             status: "PENDING"
           }
         });
