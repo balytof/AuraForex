@@ -673,28 +673,18 @@ function normPrice(price, pair) {
  * Usa o mesmo multiplier do smc_signal_engine (ATR x 4.0 SL, ATR x 12.0 TP = RR 3:1)
  */
 async function computeDynamicSlTp(broker, pair, direction, entry) {
+  if (!entry || entry <= 0) return { sl: 0, tp: 0 };
   try {
     const pip = getPipValue(pair);
-
-    // ESTRATÉGIA SMC PRO: 18 pips para Forex, 60 pips para Gold (Segurança)
-    let slPips = 18;
-    if (pair.includes("XAU") || pair.includes("GOLD")) slPips = 60;
-
+    let slPips = 20;
+    if (pair.includes("XAU") || pair.includes("GOLD")) slPips = 80;
     const slDist = pip * slPips;
     const tpDist = slDist * 1.5;
-
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
-
-    console.log(`[STP-1.5RR-VERIFIED] ${pair} SL=${slPips}pips TP=${slPips * 1.5}pips RR=1:1.5`);
     return { sl, tp };
   } catch (e) {
-    const pip = getPipValue(pair);
-    const slD = pip * 18;
-    const tpD = slD * 1.5; // Ajustado fallback de emergência para 1.5
-    const sl = direction === "BUY" ? normPrice(entry - slD, pair) : normPrice(entry + slD, pair);
-    const tp = direction === "BUY" ? normPrice(entry + tpD, pair) : normPrice(entry - tpD, pair);
-    return { sl, tp };
+    return { sl: 0, tp: 0 };
   }
 }
 
@@ -761,21 +751,16 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
     }
 
-    // 2. Obter preço actual se não fornecido ou se parecer Mock Data (1.0850)
-    let entryPrice = entry;
-    const isMockBase = (entryPrice === 1.0850 || entryPrice === 150.00);
-    const pairNeedsMockBase = (pair.includes("USD") || pair.includes("JPY"));
-
-    if (!entryPrice || (isMockBase && !pairNeedsMockBase)) {
-      console.log(`[ORDER] Preço de entrada ${entryPrice} ignorado (provável Mock Data). Buscando preço real...`);
-      try {
-        if (req.broker) {
+    // 2. Obter preço actual (APENAS SE REAL)
+    let entryPrice = entry || 0;
+    if (entryPrice <= 0 || entryPrice === 1.0850 || entryPrice === 150.00) {
+      entryPrice = 0;
+      if (req.broker) {
+        try {
           const priceData = await req.broker.getPrice(pair);
-          entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
-        } else {
-          entryPrice = 0; // Força o EA a decidir o preço final
-        }
-      } catch (e) { entryPrice = 0; }
+          entryPrice = direction === "BUY" ? (priceData?.ask || 0) : (priceData?.bid || 0);
+        } catch (e) { entryPrice = 0; }
+      }
     }
 
     // 2. Cálculo Dinâmico de SL/TP (EXPERT ATR)

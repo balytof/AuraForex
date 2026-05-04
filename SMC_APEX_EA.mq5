@@ -149,7 +149,7 @@ void ExecuteSignal(string json)
    double tp       = StringToDouble(ExtractJsonValue(json, "tp"));
    double lot      = StringToDouble(ExtractJsonValue(json, "lot"));
 
-   Print("🚀 PROCESSANDO SINAL: " + pair + " " + direction + " Lot: " + (string)lot);
+   Print("📥 SINAL RECEBIDO: " + pair + " " + direction + " SL: " + (string)sl + " TP: " + (string)tp);
    
    // --- AJUSTE PROFISSIONAL DE SL/TP (RESPEITANDO STOPLEVEL) ---
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
@@ -163,31 +163,34 @@ void ExecuteSignal(string json)
    
    // --- VALIDAÇÃO DE MARKET WATCH ---
    if(price <= 0) {
-      Print("❌ ERRO: O par " + pair + " precisa estar na janela 'Market Watch' (Observação de Mercado)!");
-      ReportSignalStatus(signalId, "FAILED_NO_MARKET_WATCH", 0);
+      Print("❌ ERRO: O par " + pair + " não está no Market Watch ou preço indisponível.");
+      ReportSignalStatus(signalId, "FAILED_NO_PRICE", 0);
       return;
    }
    
    // --- VALIDAÇÃO DE SANIDADE (ANTI-MOCK DATA) ---
-   // Se o SL fornecido estiver mais de 2% longe do preço atual, é um valor inválido de outro par.
-   if(sl > 0 && MathAbs(price - sl) > (price * 0.02)) {
-      Print("⚠️ SL " + (string)sl + " descartado por ser incompatível com o preço de " + pair + " (" + (string)price + ")");
-      sl = 0; 
-   }
-   if(tp > 0 && MathAbs(price - tp) > (price * 0.05)) {
-      tp = 0;
+   // Se o SL estiver negativo, for 0, ou estiver absurdamente longe do preço (mais de 2% para forex)
+   bool isInvalid = (sl <= 0);
+   if(!isInvalid && pair != "XAUUSD" && pair != "GOLD") {
+      if(MathAbs(price - sl) > (price * 0.02)) isInvalid = true;
+   } else if(!isInvalid) { // Para Ouro/Metais
+      if(MathAbs(price - sl) > (price * 0.10)) isInvalid = true; 
    }
 
-   // Detetar se SL/TP são deltas (relativos) ou inválidos
-   // Se SL for negativo ou muito pequeno, recalculamos com base no preço atual
-   if(sl <= 0 || (sl < 10.0 && pair != "XAUUSD" && pair != "GOLD" && sl < 0.5)) {
-      double delta = (sl != 0) ? MathAbs(sl) : (150 * point); // Fallback: 15 pips
+   if(isInvalid) {
+      Print("⚠️ SL Inválido detectado. Recalculando Stop Loss real...");
+      double delta = 200 * point; // 20 pips padrão
+      if(pair == "XAUUSD" || pair == "GOLD") delta = 500 * point; // $5.00 para Ouro
+      
       if(direction == "BUY") sl = price - delta;
       else sl = price + delta;
    }
    
-   if(tp <= 0 || (tp < 10.0 && pair != "XAUUSD" && pair != "GOLD" && tp < 0.5)) {
-      double delta = (tp != 0) ? MathAbs(tp) : (300 * point); // Fallback: 30 pips
+   // Validação similar para TP
+   if(tp <= 0 || MathAbs(price - tp) > (price * 0.20)) {
+      double delta = 400 * point; // 40 pips padrão
+      if(pair == "XAUUSD" || pair == "GOLD") delta = 1000 * point; // $10.00 para Ouro
+      
       if(direction == "BUY") tp = price + delta;
       else tp = price - delta;
    }
