@@ -9,7 +9,7 @@
 #include <Trade\Trade.mqh>
 
 input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; 
-input string   InpServerUrl      = "http://139.59.159.48:3005"; 
+input string   InpServerUrl      = "https://www.auratradebots.com/api"; 
 input double   InpRiskPercent    = 1.0;                     
 input int      InpMagicNumber    = 888222;                  
 
