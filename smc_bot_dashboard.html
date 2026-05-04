@@ -2221,53 +2221,52 @@ async function checkBrokerConnection() {
 }
 
 async function updateBrokerUI() {
-  const badge = document.getElementById("brokerBadge");
-  const statusText = document.getElementById("brokerStatusText");
+  const badge = document.getElementById("eaBadge");
+  const dot = document.getElementById("eaDot");
+  const statusText = document.getElementById("eaStatusText");
   const mainBtn = document.getElementById("mainBtn");
-  const ConnectBtn = document.getElementById("ConnectBtn");
+  const setupBtn = document.getElementById("setupEABtn");
 
   if (brokerConnected && brokerInfo) {
-    badge.className = "broker-badge connected";
-    badge.querySelector(".dot").className = "dot active";
+    if (badge) badge.className = "status-badge connected";
+    if (dot) dot.className = "dot active";
 
     const typeBadge = brokerInfo.accountType === "LIVE"
       ? '<span class="account-type-badge live">LIVE</span>'
       : '<span class="account-type-badge demo">DEMO</span>';
 
-    statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
-    // mainBtn.disabled = false; // Removido para controle centralizado por licença
-    ConnectBtn.textContent = "🔌 Desconectar";
-    ConnectBtn.className = "btn btn-danger";
-    ConnectBtn.onclick = doDisconnect;
-
-    // Update balance
-    document.getElementById("statBalance").textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
-    document.getElementById("statBalanceSub").textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
-
-    addLog(`✅ Conectado: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    if (statusText) statusText.innerHTML = `MT5: ${brokerInfo.broker} ${typeBadge}`;
     
-    // Expert Fix: Limpar sinais antigos ao conectar para evitar confusão com simulações
+    // Update balance
+    const balanceEl = document.getElementById("statBalance");
+    const balanceSubEl = document.getElementById("statBalanceSub");
+    if (balanceEl) balanceEl.textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
+    if (balanceSubEl) balanceSubEl.textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
+
+    addLog(`✅ MT5 Conectada: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    
     if (signals.length > 0 || openTrades.length === 0) {
-       addLog("🧹 Limpando ambiente para nova sessão de trading...");
-       signals = [];
-       localStorage.setItem('bot_signals', '[]');
-       document.getElementById("signalsList").innerHTML = `
-        <div class="empty-state">
-          <div class="em-icon">🔍</div>
-          <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
-        </div>`;
+       addLog("🧹 Sincronizando ambiente de trading...");
+       // Mantemos os sinais se houver ordens abertas para não perder o rasto visual
+       if (openTrades.length === 0) {
+         signals = [];
+         localStorage.setItem('bot_signals', '[]');
+         document.getElementById("signalsList").innerHTML = `
+          <div class="empty-state">
+            <div class="em-icon">🔍</div>
+            <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
+          </div>`;
+       }
     }
   } else {
-    badge.className = "broker-badge disconnected";
-    badge.querySelector(".dot").className = "dot danger";
-    statusText.textContent = "Sem MetaTrader 5";
-    // mainBtn.disabled = true; // Removido: O Bot pode rodar em modo Local EA apenas com licença
-    ConnectBtn.textContent = "🔗 ---";
-    ConnectBtn.className = "btn btn-Connect";
-    ConnectBtn.onclick = openSetupModal;
+    if (badge) badge.className = "status-badge offline";
+    if (dot) dot.className = "dot danger";
+    if (statusText) statusText.textContent = "EA: Offline";
 
-    document.getElementById("statBalance").textContent = "—";
-    document.getElementById("statBalanceSub").textContent = "Conecte uma MetaTrader 5";
+    const balanceEl = document.getElementById("statBalance");
+    const balanceSubEl = document.getElementById("statBalanceSub");
+    if (balanceEl) balanceEl.textContent = "—";
+    if (balanceSubEl) balanceSubEl.textContent = "Conecte o EA no MetaTrader 5";
   }
 }
 
