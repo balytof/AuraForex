@@ -246,3 +246,11 @@ process.on("SIGINT",  () => { stop(); process.exit(0); });
 process.on("SIGTERM", () => { stop(); process.exit(0); });
 
 module.exports = { start, stop };
+
+// Auto-start se for executado diretamente
+if (require.main === module) {
+  start().catch(err => {
+    console.error("Erro fatal no arranque do Bot:", err);
+    process.exit(1);
+  });
+}
