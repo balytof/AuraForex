@@ -1697,58 +1697,11 @@ PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
 // ─── BROKER STATE ─────────────────────────────
 let brokerConnected = false;
 let brokerInfo = null;
-let selectedBrokerType = null;
-let selectedBrokerEntry = null;
-let currentModalStep = 1;
-let activeBrokerCategory = "all";
+// ─── BROKER STATE ─────────────────────────────
+let brokerConnected = false;
+let brokerInfo = null;
 
-// ─── BROKER DATABASE ──────────────────────────
-const BROKERS = [
-  // ── API Directa ──
-  { id:"oanda",       name:"OANDA",           adapter:"oanda",   platform:"API",  cat:"api",     icon:"📊", region:"🌎", desc:"API v20 · REST · Token pessoal" },
-  { id:"capital",     name:"Capital.com",     adapter:"capital", platform:"API",  cat:"api",     icon:"💹", region:"🇪🇺", desc:"REST API · API Key + Login" },
-  // ── MetaTrader Popular ──
-  { id:"xm",          name:"XM",              adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟢", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"icmarkets",   name:"IC Markets",      adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔵", region:"🇦🇺", desc:"Raw Spread · MT4/MT5" },
-  { id:"pepperstone", name:"Pepperstone",     adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟠", region:"🇦🇺", desc:"Razor Account · MT4/MT5" },
-  { id:"exness",      name:"Exness",          adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟡", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"fbs",         name:"FBS",             adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟣", region:"🇧🇿", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxtm",        name:"FXTM (ForexTime)",adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔴", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"hotforex",    name:"HFM (HotForex)",  adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"⭐", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"avatrade",    name:"AvaTrade",        adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔷", region:"🇮🇪", desc:"MT4/MT5 via MetaApi" },
-  // ── MetaTrader Outros ──
-  { id:"tickmill",    name:"Tickmill",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"✅", region:"🇬🇧", desc:"Pro Account · MT4/MT5" },
-  { id:"fpmarkets",   name:"FP Markets",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔹", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
-  { id:"roboforex",   name:"RoboForex",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🤖", region:"🇧🇿", desc:"ECN · MT4/MT5" },
-  { id:"admirals",    name:"Admirals",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚓", region:"🇪🇪", desc:"MT4/MT5 via MetaApi" },
-  { id:"vantage",     name:"Vantage",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔶", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
-  { id:"octafx",      name:"OctaFX",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐙", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"alpari",      name:"Alpari",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🅰️", region:"🇰🇳", desc:"ECN · MT4/MT5" },
-  { id:"liteforex",   name:"LiteFinance",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💡", region:"🇲🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"instaforex",  name:"InstaForex",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏆", region:"🇻🇬", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxpro",       name:"FxPro",           adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💎", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"forex_com",   name:"Forex.com",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌐", region:"🇺🇸", desc:"MT4/MT5 via MetaApi" },
-  { id:"thinkmarkets",name:"ThinkMarkets",    adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💭", region:"🇬🇧", desc:"MT4/MT5 via MetaApi" },
-  { id:"axi",         name:"Axi",             adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔺", region:"🇦🇺", desc:"Pro Account · MT4" },
-  { id:"justforex",   name:"JustMarkets",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚡", region:"🇸🇨", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxcm",        name:"FXCM",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏛️", region:"🇬🇧", desc:"MT4 via MetaApi" },
-  { id:"swissquote",  name:"Swissquote",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🇨🇭", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"axitrader",   name:"AxiTrader",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📐", region:"🇦🇺", desc:"MT4 via MetaApi" },
-  { id:"multibank",   name:"MultiBank",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏦", region:"🇦🇪", desc:"MT4/MT5 via MetaApi" },
-  { id:"eightcap",    name:"Eightcap",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"8️⃣", region:"🇦🇺", desc:"Raw Account · MT4/MT5" },
-  { id:"bdswiss",     name:"BDSwiss",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔘", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"xmglobal",    name:"XM Global",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌍", region:"🇧🇿", desc:"Ultra Low · MT4/MT5" },
-  { id:"naga",        name:"NAGA",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐉", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  // ── MetaTrader Genérico ──
-  { id:"mt_generic",  name:"Outro (MT4/MT5)", adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📈", region:"🌐", desc:"Qualquer broker MT4/MT5 via MetaApi" },
-];
-
-const BROKER_CATEGORIES = [
-  { id:"all",     label:"Todas",       icon:"🌐" },
-  { id:"popular", label:"Popular",     icon:"⭐" },
-  { id:"api",     label:"API Directa", icon:"⚡" },
-  { id:"mt",      label:"MetaTrader",  icon:"📈" },
-];
+// ─── INIT UI ─────────────────────────────────
 
 // ─── INIT UI ─────────────────────────────────
 function initPairsGrid() {
