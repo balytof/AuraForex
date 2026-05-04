@@ -5,42 +5,37 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
 
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
 
 //--- INPUT PARAMETERS ---
-input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licena (Dashboard)
+input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
 input string   InpServerUrl      = "http://localhost:3005"; // URL do Servidor API
 input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
-input double   InpTPRR           = 2.0;                     // Take Profit (Risk:Reward)
+input double   InpTPRR           = 1.5;                     // Take Profit (Risk:Reward)
 input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
 
 //--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
-string         EAVersion = "v1.0.0-PRO";
+string         EAVersion = "v2.0.0-FIXED";
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("== SMC APEX EA - INICIALIZANDO ==");
+   Print("== SMC APEX EA v2.0 - INICIALIZANDO ==");
    
    // Configurar Magic Number e Slippage (50 pontos para evitar off quotes)
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(50);
    
-   // Validar URL (Remover / final se existir)
-   string url = InpServerUrl;
-   if(StringSubstr(url, StringLen(url)-1, 1) == "/") 
-      url = StringSubstr(url, 0, StringLen(url)-1);
-   
-   // Primeiro Timer para Validar Licena
+   // Primeiro Timer para Validar Licença
    EventSetTimer(InpTimerSeconds);
    
    return(INIT_SUCCEEDED);
@@ -55,32 +50,22 @@ void OnDeinit(const int reason)
    Print("== SMC APEX EA - DESLIGADO ==");
 }
 
-//+------------------------------------------------------------------+
-//| Expert tick function                                             |
-//+------------------------------------------------------------------+
-void OnTick()
-{
-   // Nada aqui, usamos Timer para no travar em momentos de baixa liquidez
-}
+void OnTick() {}
 
 //+------------------------------------------------------------------+
 //| Timer function                                                   |
 //+------------------------------------------------------------------+
 void OnTimer()
 {
-   if(!IsAuthorized)
-   {
-      ValidateLicense();
-   }
-   else
-   {
+   if(!IsAuthorized) ValidateLicense();
+   else {
       CheckForSignals();
       ReportAccountStatus();
    }
 }
 
 //+------------------------------------------------------------------+
-//| Validar Licena via API                                          |
+//| Validar Licença via API                                          |
 //+------------------------------------------------------------------+
 void ValidateLicense()
 {
@@ -92,13 +77,13 @@ void ValidateLicense()
    if(StringFind(result, "\"status\":\"OK\"") >= 0)
    {
       IsAuthorized = true;
-      Print("✅ LICENA VALIDADA COM SUCESSO! Bem-vindo.");
-      Comment("SMC APEX EA: ATIVO\nLicena: OK\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+      Print("✅ LICENÇA VALIDADA COM SUCESSO! Versão: " + EAVersion);
+      Comment("SMC APEX EA: ATIVO\nVersão: " + EAVersion + "\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    }
    else
    {
-      Print("❌ FALHA NA VALIDAO: " + result);
-      Comment("SMC APEX EA: BLOQUEADO\nErro: Verifique a Licena no Dashboard.");
+      Print("❌ FALHA NA VALIDAÇÃO: " + result);
+      Comment("SMC APEX EA: BLOQUEADO\nErro: Verifique a Licença no Dashboard.");
    }
 }
 
@@ -110,20 +95,13 @@ void CheckForSignals()
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    string result = SendGet(url);
    
-   if(StringFind(result, "\"signals\":[]") >= 0) return; // Sem sinais novos
+   if(StringFind(result, "\"signals\":[]") >= 0) return; 
    
-   // Debug
-   // Print("Sinais Recebidos: " + result);
-   
-   // Parse MANUAL SIMPLES (Para no depender de bibliotecas externas complexas)
-   // Procuramos por blocos de sinais
    int startPos = StringFind(result, "[");
    int endPos = StringFind(result, "]", startPos);
    if(startPos < 0 || endPos < 0) return;
    
    string signalsJson = StringSubstr(result, startPos+1, endPos-startPos-1);
-   
-   // Dividir sinais por objeto {}
    string objects[];
    int count = StringSplit(signalsJson, '}', objects);
    
@@ -131,8 +109,7 @@ void CheckForSignals()
    {
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
-      
-      ExecuteSignal(sigData);
+      ExecuteSignal(sigData + "}");
    }
 }
 
@@ -151,7 +128,6 @@ void ExecuteSignal(string json)
 
    Print("📥 SINAL RECEBIDO: " + pair + " " + direction + " SL: " + (string)sl + " TP: " + (string)tp);
    
-   // --- AJUSTE PROFISSIONAL DE SL/TP (RESPEITANDO STOPLEVEL) ---
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    double point = SymbolInfoDouble(pair, SYMBOL_POINT);
@@ -161,50 +137,41 @@ void ExecuteSignal(string json)
    
    double price = (direction == "BUY") ? ask : bid;
    
-   // --- VALIDAÇÃO DE MARKET WATCH ---
    if(price <= 0) {
-      Print("❌ ERRO: O par " + pair + " não está no Market Watch ou preço indisponível.");
-      ReportSignalStatus(signalId, "FAILED_NO_PRICE", 0);
+      Print("❌ ERRO: O par " + pair + " não está no Market Watch!");
       return;
    }
    
    // --- VALIDAÇÃO DE SANIDADE (ANTI-MOCK DATA) ---
-   // Se o SL estiver negativo, for 0, ou estiver absurdamente longe do preço (mais de 2% para forex)
    bool isInvalid = (sl <= 0);
    if(!isInvalid && pair != "XAUUSD" && pair != "GOLD") {
-      if(MathAbs(price - sl) > (price * 0.02)) isInvalid = true;
-   } else if(!isInvalid) { // Para Ouro/Metais
-      if(MathAbs(price - sl) > (price * 0.10)) isInvalid = true; 
+      if(MathAbs(price - sl) > (price * 0.03)) isInvalid = true;
+   } else if(!isInvalid) {
+      if(MathAbs(price - sl) > (price * 0.15)) isInvalid = true; 
    }
 
    if(isInvalid) {
       Print("⚠️ SL Inválido detectado. Recalculando Stop Loss real...");
-      double delta = 200 * point; // 20 pips padrão
-      if(pair == "XAUUSD" || pair == "GOLD") delta = 500 * point; // $5.00 para Ouro
-      
-      if(direction == "BUY") sl = price - delta;
-      else sl = price + delta;
+      double delta = 200 * point; 
+      if(pair == "XAUUSD" || pair == "GOLD") delta = 600 * point;
+      sl = (direction == "BUY") ? price - delta : price + delta;
    }
    
-   // Validação similar para TP
    if(tp <= 0 || MathAbs(price - tp) > (price * 0.20)) {
-      double delta = 400 * point; // 40 pips padrão
-      if(pair == "XAUUSD" || pair == "GOLD") delta = 1000 * point; // $10.00 para Ouro
-      
-      if(direction == "BUY") tp = price + delta;
-      else tp = price - delta;
+      double delta = MathAbs(price - sl) * InpTPRR;
+      tp = (direction == "BUY") ? price + delta : price - delta;
    }
 
-   // Garantir distncia mnima do StopLevel exigida pela corretora
+   // Garantir distância mínima do StopLevel
    if(direction == "BUY") {
-      if((price - sl) < minDistance) sl = price - minDistance - (10 * point);
-      if((tp - price) < minDistance) tp = price + minDistance + (10 * point);
+      if((price - sl) < minDistance) sl = price - minDistance - (5 * point);
+      if((tp - price) < minDistance) tp = price + minDistance + (5 * point);
    } else {
-      if((sl - price) < minDistance) sl = price + minDistance + (10 * point);
-      if((price - tp) < minDistance) tp = price - minDistance - (10 * point);
+      if((sl - price) < minDistance) sl = price + minDistance + (5 * point);
+      if((price - tp) < minDistance) tp = price - minDistance - (5 * point);
    }
    
-   // Normalização Final baseada no TickSize (Mais preciso para Ouro/Índices)
+   // Normalização por TickSize
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    if(tickSize > 0) {
       sl = MathRound(sl / tickSize) * tickSize;
@@ -216,99 +183,56 @@ void ExecuteSignal(string json)
    tp = NormalizeDouble(tp, digits);
    price = NormalizeDouble(price, digits);
 
-   Print("🛠️ DIAGNÓSTICO: Preço=" + (string)price + " SL=" + (string)sl + " TP=" + (string)tp + " MinDist=" + (string)minDistance);
+   Print("🛠️ DIAGNÓSTICO: Preço=" + (string)price + " SL=" + (string)sl + " TP=" + (string)tp);
 
-   bool res = false;
-   if(direction == "BUY")
-      res = trade.Buy(lot, pair, price, sl, tp, "AuraForex Signal");
-   else if(direction == "SELL")
-      res = trade.Sell(lot, pair, price, sl, tp, "AuraForex Signal");
+   bool res = (direction == "BUY") ? trade.Buy(lot, pair, price, sl, tp) : trade.Sell(lot, pair, price, sl, tp);
       
-   if(res && (trade.ResultRetcode() == TRADE_RETCODE_DONE || trade.ResultRetcode() == TRADE_RETCODE_PLACED))
+   if(res && (trade.ResultRetcode() == 10008 || trade.ResultRetcode() == 10009))
    {
-      ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM EXECUTADA: " + (string)ticket + " sl: " + (string)sl + " tp: " + (string)tp);
-      ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
+      Print("✅ ORDEM EXECUTADA: " + (string)trade.ResultOrder());
+      ReportSignalStatus(signalId, "EXECUTED", (long)trade.ResultOrder());
    }
    else
    {
-      string errDesc = trade.ResultRetcodeDescription();
-      int errCode = (int)trade.ResultRetcode();
-      Print("❌ FALHA: " + errDesc + " (Código: " + (string)errCode + ") SL: " + (string)sl + " TP: " + (string)tp);
+      Print("❌ FALHA: " + trade.ResultRetcodeDescription() + " SL: " + (string)sl + " TP: " + (string)tp);
       ReportSignalStatus(signalId, "FAILED", 0);
    }
 }
 
-//+------------------------------------------------------------------+
-//| Reportar Status da Execução para o Servidor                      |
-//+------------------------------------------------------------------+
-void ReportSignalStatus(string sigId, string status, long ticket)
-{
+//--- AUXILIARES ---
+string ExtractJsonValue(string json, string key) {
+   string searchKey = "\"" + key + "\":";
+   int pos = StringFind(json, searchKey);
+   if(pos < 0) return "";
+   int valStart = pos + StringLen(searchKey);
+   if(StringSubstr(json, valStart, 1) == "\"") valStart++;
+   int valEnd = StringFind(json, ",", valStart);
+   if(valEnd < 0) valEnd = StringFind(json, "}", valStart);
+   string res = StringSubstr(json, valStart, valEnd - valStart);
+   return StringReplace(res, "\"", "");
+}
+
+string SendPost(string url, string payload) {
+   uchar post[], result[]; string headers = "Content-Type: application/json\r\n", res_h;
+   StringToCharArray(payload, post);
+   if(WebRequest("POST", url, headers, 5000, post, result, res_h) < 0) return "Error";
+   return CharArrayToString(result);
+}
+
+string SendGet(string url) {
+   uchar result[], dummy[]; string res_h;
+   if(WebRequest("GET", url, "", 5000, dummy, result, res_h) < 0) return "Error";
+   return CharArrayToString(result);
+}
+
+void ReportSignalStatus(string sigId, string status, long ticket) {
    string url = InpServerUrl + "/ea/report";
    string payload = "{\"signalId\":\"" + sigId + "\",\"status\":\"" + status + "\",\"orderTicket\":\"" + (string)ticket + "\"}";
    SendPost(url, payload);
 }
 
-//+------------------------------------------------------------------+
-//| Reportar Saldo da Conta                                          |
-//+------------------------------------------------------------------+
-void ReportAccountStatus()
-{
+void ReportAccountStatus() {
    string url = InpServerUrl + "/ea/report-balance";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + (string)AccountInfoDouble(ACCOUNT_BALANCE) + ",\"equity\":" + (string)AccountInfoDouble(ACCOUNT_EQUITY) + "}";
+   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + (string)AccountInfoDouble(ACCOUNT_BALANCE) + "}";
    SendPost(url, payload);
-}
-
-//+------------------------------------------------------------------+
-//| FUNÇÕES AUXILIARES DE REDE E PARSING                             |
-//+------------------------------------------------------------------+
-
-string SendPost(string url, string payload)
-{
-   uchar post[], result[];
-   string headers = "Content-Type: application/json\r\n";
-   StringToCharArray(payload, post);
-   string result_headers;
-   int res = WebRequest("POST", url, headers, 5000, post, result, result_headers); 
-   if(res == -1) return "Error";
-   return CharArrayToString(result);
-}
-
-string SendGet(string url)
-{
-   uchar result[], dummy[];
-   string result_headers;
-   int res = WebRequest("GET", url, "", 5000, dummy, result, result_headers);
-   if(res == -1) return "Error";
-   return CharArrayToString(result);
-}
-
-string ExtractJsonValue(string json, string key)
-{
-   string searchKey = "\"" + key + "\":";
-   int pos = StringFind(json, searchKey);
-   if(pos < 0) return "";
-   
-   int valStart = pos + StringLen(searchKey);
-   
-   // Se comear com ", pular
-   bool isString = false;
-   if(StringSubstr(json, valStart, 1) == "\"")
-   {
-      valStart++;
-      isString = true;
-   }
-   
-   int valEnd = -1;
-   if(isString)
-      valEnd = StringFind(json, "\"", valStart);
-   else
-   {
-      valEnd = StringFind(json, ",", valStart);
-      if(valEnd < 0) valEnd = StringFind(json, "}", valStart);
-   }
-   
-   if(valEnd < 0) return "";
-   
-   return StringSubstr(json, valStart, valEnd - valStart);
 }
