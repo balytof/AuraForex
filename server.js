@@ -816,7 +816,7 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
         entry: Number(entryPrice || 0),
         sl: Number(sl || 0),
         tp: Number(tp || 0),
-        lotSize: 0.01, // Nome correto do campo no schema: lotSize
+        lot: 0.01,
         status: "PENDING"
       }
     });
