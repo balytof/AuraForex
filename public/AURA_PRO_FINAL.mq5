@@ -9,7 +9,7 @@
 #include <Trade\Trade.mqh>
 
 input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; 
-input string   InpServerUrl      = "http://139.59.159.48:3005"; 
+input string   InpServerUrl      = "https://www.auratradebots.com/api"; 
 input double   InpRiskPercent    = 1.0;                     
 input int      InpMagicNumber    = 888222;                  
 
@@ -42,7 +42,18 @@ void OnTimer() {
 
 void CheckSignals() {
    string res = SendGet(InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey);
-   if(res == "Error" || StringFind(res, "\"signals\":[]") >= 0) return;
+   
+   if(res == "Error") {
+      Print("❌ Erro de rede ao buscar sinais");
+      return;
+   }
+
+   // Log temporário para ver o que o servidor diz
+   if(StringFind(res, "\"signals\":[]") < 0) {
+      Print("📡 Resposta do Servidor: " + res);
+   }
+
+   if(StringFind(res, "\"signals\":[]") >= 0) return;
 
    int startPos = StringFind(res, "[");
    int endPos = StringFind(res, "]", startPos);
@@ -63,12 +74,32 @@ void CheckSignals() {
       double lot  = StringToDouble(ExtractValue(sig, "lot"));
       string id   = ExtractValue(sig, "id");
 
-      // --- CORREÇÃO DE EXPERT: ANTI-MOCK DATA ---
+      // --- EXPERT FIX: SUFIXO DA CORRETORA ---
+      if(!SymbolSelect(pair, true)) {
+         // Tenta encontrar o símbolo correto (ex: EURUSD.m, EURUSD+)
+         bool found = false;
+         for(int s=0; s<SymbolsTotal(false); s++) {
+            string sym = SymbolName(s, false);
+            if(StringFind(sym, pair) >= 0) {
+               pair = sym;
+               found = true;
+               break;
+            }
+         }
+         if(!found) {
+            Print("❌ Símbolo não encontrado: " + pair);
+            continue;
+         }
+      }
+
       double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
       double bid = SymbolInfoDouble(pair, SYMBOL_BID);
       double price = (dir == "BUY") ? ask : bid;
       
-      if(price <= 0) continue;
+      if(price <= 0) {
+         Print("⚠️ Preço inválido para " + pair + ". Verifique se o par está ativo.");
+         continue;
+      }
 
       // Se o SL for absurdo (negativo ou longe demais), recalcula 300 pips
       double point = SymbolInfoDouble(pair, SYMBOL_POINT);
