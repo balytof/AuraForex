@@ -37,12 +37,12 @@ async function getBroker() {
     }
 
     if (!metaApiToken && provider === "metaapi") {
-        log.error("[BROKER] ❌ Nenhuma credencial encontrada. Abortando para evitar BAN.");
-        return { connected: false, error: "NO_KEYS" };
+      log.error("[BROKER] ❌ Nenhuma credencial encontrada. Abortando para evitar BAN.");
+      return { connected: false, error: "NO_KEYS" };
     }
 
     log.info(`Inicializando broker: ${provider}`);
-    
+
     const brokerConfig = {
       provider: provider,
       environment: config.bot.demoMode ? "demo" : "live",
@@ -52,30 +52,30 @@ async function getBroker() {
       metaApiAccountId: metaApiAccountId,
       region: "vint-hill"
     };
-    
+
     activeBroker = createBroker(brokerConfig);
 
     // Se houver erro de conexão, limpamos o activeBroker para tentar de novo no próximo ciclo
     const originalConnect = activeBroker.connect;
-    activeBroker.connect = async function() {
-        try {
-            return await originalConnect.apply(this, arguments);
-        } catch (e) {
-            log.error(`[BROKER] Falha na conexão: ${e.message}`);
-            if (e.message.includes("429") || e.message.includes("blocked")) {
-                log.warn("[BROKER] 🛡️ Bloqueio detetado. Aguardando 10 minutos...");
-                global.brokerBlockedUntil = Date.now() + (10 * 60 * 1000);
-            }
-            activeBroker = null; // Força re-inicialização total na próxima vez
-            throw e;
+    activeBroker.connect = async function () {
+      try {
+        return await originalConnect.apply(this, arguments);
+      } catch (e) {
+        log.error(`[BROKER] Falha na conexão: ${e.message}`);
+        if (e.message.includes("429") || e.message.includes("blocked")) {
+          log.warn("[BROKER] 🛡️ Bloqueio detetado. Aguardando 10 minutos...");
+          global.brokerBlockedUntil = Date.now() + (10 * 60 * 1000);
         }
+        activeBroker = null; // Força re-inicialização total na próxima vez
+        throw e;
+      }
     };
   }
 
   // Verificar se estamos em período de castigo/bloqueio
   if (global.brokerBlockedUntil && Date.now() < global.brokerBlockedUntil) {
-      const wait = Math.ceil((global.brokerBlockedUntil - Date.now()) / 1000);
-      throw new Error(`MetaApi Temporariamente Bloqueada. Aguarde ${wait}s.`);
+    const wait = Math.ceil((global.brokerBlockedUntil - Date.now()) / 1000);
+    throw new Error(`MetaApi Temporariamente Bloqueada. Aguarde ${wait}s.`);
   }
 
   return activeBroker;
@@ -83,7 +83,7 @@ async function getBroker() {
 
 module.exports = {
   getBrokerName: () => config.credentials.provider.toUpperCase(),
-  
+
   getAccountInfo: async () => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
@@ -91,25 +91,25 @@ module.exports = {
     if (b.type === "metaapi") return await b.getAccountInfo();
     return b.accountInfo;
   },
-  
+
   getMarketData: async (pair) => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
-    
+
     const candles = await b.getCandles(pair, config.timeframes.mtf || "H1", config.bot.candleCount || 250);
     const tick = await b.getPrice(pair);
-    
+
     return {
       candles,
       currentPrice: tick ? tick.ask : 0,
       htfSummary: { pair, candles } // Simplificado para o bot legado
     };
   },
-  
+
   openOrder: async (signal, lotSize) => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
-    
+
     log.info(`[BROADCAST] Gerando sinal para todos os usuários ativos: ${signal.pair} ${signal.direction}`);
 
     try {
@@ -157,13 +157,13 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
-  
+
   closeOrder: async (brokerId, pair) => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
     return await b.closePosition(brokerId);
   },
-  
+
   modifyStopLoss: async (brokerId, newSl) => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
@@ -172,7 +172,7 @@ module.exports = {
     log.warn("modifySL não implementado para este broker.");
     return { success: false };
   },
-  
+
   getOpenPositions: async () => {
     const b = await getBroker();
     if (!b.connected) await b.connect();
