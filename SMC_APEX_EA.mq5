@@ -204,10 +204,19 @@ void ExecuteSignal(string json)
       if((price - tp) < minDistance) tp = price - minDistance - (10 * point);
    }
    
-   // Normalizao Final
+   // Normalização Final baseada no TickSize (Mais preciso para Ouro/Índices)
+   double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
+   if(tickSize > 0) {
+      sl = MathRound(sl / tickSize) * tickSize;
+      tp = MathRound(tp / tickSize) * tickSize;
+      price = MathRound(price / tickSize) * tickSize;
+   }
+   
    sl = NormalizeDouble(sl, digits);
    tp = NormalizeDouble(tp, digits);
    price = NormalizeDouble(price, digits);
+
+   Print("🛠️ DIAGNÓSTICO: Preço=" + (string)price + " SL=" + (string)sl + " TP=" + (string)tp + " MinDist=" + (string)minDistance);
 
    bool res = false;
    if(direction == "BUY")
@@ -215,15 +224,17 @@ void ExecuteSignal(string json)
    else if(direction == "SELL")
       res = trade.Sell(lot, pair, price, sl, tp, "AuraForex Signal");
       
-   if(res)
+   if(res && (trade.ResultRetcode() == TRADE_RETCODE_DONE || trade.ResultRetcode() == TRADE_RETCODE_PLACED))
    {
       ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM ENVIADA: " + (string)ticket + " sl: " + (string)sl + " tp: " + (string)tp);
+      Print("✅ ORDEM EXECUTADA: " + (string)ticket + " sl: " + (string)sl + " tp: " + (string)tp);
       ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
    }
    else
    {
-      Print("❌ FALHA AO EXECUTAR: " + trade.ResultRetcodeDescription() + " (sl: " + (string)sl + " tp: " + (string)tp + ")");
+      string errDesc = trade.ResultRetcodeDescription();
+      int errCode = (int)trade.ResultRetcode();
+      Print("❌ FALHA: " + errDesc + " (Código: " + (string)errCode + ") SL: " + (string)sl + " TP: " + (string)tp);
       ReportSignalStatus(signalId, "FAILED", 0);
    }
 }
