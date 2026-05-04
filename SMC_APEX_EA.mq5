@@ -161,14 +161,20 @@ void ExecuteSignal(string json)
    
    double price = (direction == "BUY") ? ask : bid;
    
+   // --- VALIDAÇÃO DE MARKET WATCH ---
+   if(price <= 0) {
+      Print("❌ ERRO: O par " + pair + " precisa estar na janela 'Market Watch' (Observação de Mercado)!");
+      ReportSignalStatus(signalId, "FAILED_NO_MARKET_WATCH", 0);
+      return;
+   }
+   
    // --- VALIDAÇÃO DE SANIDADE (ANTI-MOCK DATA) ---
-   // Se o SL fornecido estiver mais de 5% longe do preço atual, é um valor inválido/simulado.
-   if(sl > 0 && MathAbs(price - sl) > (price * 0.05)) {
-      Print("⚠️ SL recebido está fora de escala (" + (string)sl + "). Ignorando valor simulado.");
+   // Se o SL fornecido estiver mais de 2% longe do preço atual, é um valor inválido de outro par.
+   if(sl > 0 && MathAbs(price - sl) > (price * 0.02)) {
+      Print("⚠️ SL " + (string)sl + " descartado por ser incompatível com o preço de " + pair + " (" + (string)price + ")");
       sl = 0; 
    }
-   if(tp > 0 && MathAbs(price - tp) > (price * 0.10)) {
-      Print("⚠️ TP recebido está fora de escala (" + (string)tp + "). Ignorando valor simulado.");
+   if(tp > 0 && MathAbs(price - tp) > (price * 0.05)) {
       tp = 0;
    }
 

@@ -761,17 +761,19 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
     }
 
-    // 2. Obter preço actual se não fornecido
+    // 2. Obter preço actual se não fornecido ou se parecer Mock Data (1.0850)
     let entryPrice = entry;
-    if (!entryPrice) {
+    const isMockBase = (entryPrice === 1.0850 || entryPrice === 150.00);
+    const pairNeedsMockBase = (pair.includes("USD") || pair.includes("JPY"));
+
+    if (!entryPrice || (isMockBase && !pairNeedsMockBase)) {
+      console.log(`[ORDER] Preço de entrada ${entryPrice} ignorado (provável Mock Data). Buscando preço real...`);
       try {
         if (req.broker) {
           const priceData = await req.broker.getPrice(pair);
           entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
         } else {
-          // Fallback para preço aproximado se não estiver conectado (para o EA pegar o preço real depois)
-          entryPrice = entry || 0;
-          console.log(`[ORDER] Broker não conectado no Dashboard. Usando preço de entrada fornecido: ${entryPrice}`);
+          entryPrice = 0; // Força o EA a decidir o preço final
         }
       } catch (e) { entryPrice = 0; }
     }
