@@ -102,16 +102,17 @@ router.get("/signals", async (req, res) => {
 
     // Formata os sinais para garantir que o EA receba texto (string) e não IDs numéricos
     const formattedSignals = signals.map(s => ({
-      id: s.id,
-      pair: String(s.pair).toUpperCase(),
-      direction: String(s.direction).toUpperCase(),
-      entry: parseFloat(s.entry || 0),
-      sl: parseFloat(s.sl || 0),
-      tp: parseFloat(s.tp || 0),
-      lot: parseFloat(s.lot || 0.01)
+      id: String(s.id).trim(),
+      pair: String(s.pair).trim().toUpperCase(),
+      direction: String(s.direction).trim().toUpperCase(),
+      entry: Number(s.entry || 0),
+      sl: Number(s.sl || 0),
+      tp: Number(s.tp || 0),
+      lot: Number(s.lot || 0.01)
     }));
 
-    return res.json({ success: true, signals: formattedSignals });
+    console.log(`[EA-SIGNALS] Enviando ${formattedSignals.length} sinais para ${license.userId}`);
+    return res.status(200).json({ success: true, signals: formattedSignals });
 
   } catch (err) {
     console.error("[EA-SIGNALS] Erro ao buscar sinais:", err);

@@ -72,6 +72,7 @@ void CheckForSignals() {
    for(int i=0; i<count; i++) {
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
+      if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
       ExecuteSignal(sigData + "}");
    }
 }
@@ -132,15 +133,30 @@ string SendGet(string url) {
 }
 
 string ExtractJsonValue(string json, string key) {
-   string searchKey = "\"" + key + "\":";
-   int pos = StringFind(json, searchKey);
-   if(pos < 0) return "";
-   int valStart = pos + StringLen(searchKey);
-   if(StringSubstr(json, valStart, 1) == "\"") valStart++;
-   int valEnd = StringFind(json, ",", valStart);
-   if(valEnd < 0) valEnd = StringFind(json, "}", valStart);
-   string res = StringSubstr(json, valStart, valEnd - valStart);
-   return StringReplace(res, "\"", "");
+   string k = "\"" + key + "\":";
+   int p = StringFind(json, k);
+   if(p < 0) return "";
+   
+   int s = p + StringLen(k);
+   
+   // Pular espaços em branco e aspas iniciais
+   while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
+   
+   int e = StringFind(json, "\"", s); // Tenta achar aspas de fechamento
+   if(e < 0) e = StringFind(json, ",", s); 
+   if(e < 0) e = StringFind(json, "}", s); 
+   
+   if(e < 0 || e <= s) return "";
+   
+   string res = StringSubstr(json, s, e - s);
+   
+   // Limpeza final de caracteres residuais (sem usar retorno de StringReplace)
+   StringReplace(res, "\"", "");
+   StringReplace(res, " ", "");
+   StringReplace(res, "}", "");
+   StringReplace(res, "]", "");
+   
+   return res;
 }
 
 void ReportSignalStatus(string sigId, string status, long ticket) {

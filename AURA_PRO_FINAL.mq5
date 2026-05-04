@@ -64,8 +64,10 @@ void CheckSignals() {
    int count = StringSplit(signalsJson, '}', objects);
    
    for(int i=0; i<count; i++) {
-      string sig = objects[i] + "}";
+      string sig = objects[i];
       if(StringFind(sig, "\"id\"") < 0) continue;
+      if(StringSubstr(sig, 0, 1) == ",") sig = StringSubstr(sig, 1);
+      sig = sig + "}";
       
       string pair = ExtractValue(sig, "pair");
       string dir  = ExtractValue(sig, "direction");
@@ -73,6 +75,8 @@ void CheckSignals() {
       double tp   = StringToDouble(ExtractValue(sig, "tp"));
       double lot  = StringToDouble(ExtractValue(sig, "lot"));
       string id   = ExtractValue(sig, "id");
+      
+      if(pair == "" || dir == "") continue;
 
       // --- EXPERT FIX: SUFIXO DA CORRETORA ---
       if(!SymbolSelect(pair, true)) {
@@ -138,10 +142,25 @@ string ExtractValue(string json, string key) {
    string k = "\"" + key + "\":";
    int p = StringFind(json, k);
    if(p < 0) return "";
+   
    int s = p + StringLen(k);
-   if(StringSubstr(json, s, 1) == "\"") s++;
-   int e = StringFind(json, ",", s);
-   if(e < 0) e = StringFind(json, "}", s);
-   string r = StringSubstr(json, s, e - s);
-   return StringReplace(r, "\"", "");
+   
+   // Pular espaços em branco e aspas iniciais
+   while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
+   
+   int e = StringFind(json, "\"", s); // Tenta achar aspas de fechamento (se for string)
+   if(e < 0) e = StringFind(json, ",", s); // Se não, tenta achar vírgula
+   if(e < 0) e = StringFind(json, "}", s); // Se não, tenta achar fecha chave
+   
+   if(e < 0 || e <= s) return "";
+   
+   string res = StringSubstr(json, s, e - s);
+   
+   // Limpeza final de caracteres residuais (sem usar retorno de StringReplace)
+   StringReplace(res, "\"", "");
+   StringReplace(res, " ", "");
+   StringReplace(res, "}", "");
+   StringReplace(res, "]", "");
+   
+   return res;
 }

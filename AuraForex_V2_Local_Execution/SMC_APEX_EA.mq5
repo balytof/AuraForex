@@ -126,12 +126,11 @@ void CheckForSignals()
    string objects[];
    int count = StringSplit(signalsJson, '}', objects);
    
-   for(int i=0; i<count; i++)
-   {
+   for(int i=0; i<count; i++) {
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
-      
-      ExecuteSignal(sigData);
+      if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
+      ExecuteSignal(sigData + "}");
    }
 }
 
@@ -213,32 +212,29 @@ string SendGet(string url)
    return CharArrayToString(result);
 }
 
-string ExtractJsonValue(string json, string key)
-{
-   string searchKey = "\"" + key + "\":";
-   int pos = StringFind(json, searchKey);
-   if(pos < 0) return "";
+string ExtractJsonValue(string json, string key) {
+   string k = "\"" + key + "\":";
+   int p = StringFind(json, k);
+   if(p < 0) return "";
    
-   int valStart = pos + StringLen(searchKey);
+   int s = p + StringLen(k);
    
-   // Se comear com ", pular
-   bool isString = false;
-   if(StringSubstr(json, valStart, 1) == "\"")
-   {
-      valStart++;
-      isString = true;
-   }
+   // Pular espaços em branco e aspas iniciais
+   while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
    
-   int valEnd = -1;
-   if(isString)
-      valEnd = StringFind(json, "\"", valStart);
-   else
-   {
-      valEnd = StringFind(json, ",", valStart);
-      if(valEnd < 0) valEnd = StringFind(json, "}", valStart);
-   }
+   int e = StringFind(json, "\"", s); // Tenta achar aspas de fechamento
+   if(e < 0) e = StringFind(json, ",", s); 
+   if(e < 0) e = StringFind(json, "}", s); 
    
-   if(valEnd < 0) return "";
+   if(e < 0 || e <= s) return "";
    
-   return StringSubstr(json, valStart, valEnd - valStart);
+   string res = StringSubstr(json, s, e - s);
+   
+   // Limpeza final de caracteres residuais (sem usar retorno de StringReplace)
+   StringReplace(res, "\"", "");
+   StringReplace(res, " ", "");
+   StringReplace(res, "}", "");
+   StringReplace(res, "]", "");
+   
+   return res;
 }
