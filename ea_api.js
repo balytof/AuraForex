@@ -97,10 +97,10 @@ router.get("/signals", async (req, res) => {
       id: s.id,
       pair: String(s.pair).toUpperCase(),
       direction: String(s.direction).toUpperCase(),
-      entry: parseFloat(s.entryPrice || 0),
+      entry: parseFloat(s.entry || 0),
       sl: parseFloat(s.sl || 0),
       tp: parseFloat(s.tp || 0),
-      lot: parseFloat(s.lotSize || 0.01)
+      lot: parseFloat(s.lot || 0.01)
     }));
 
     return res.json({ success: true, signals: formattedSignals });
