@@ -160,16 +160,27 @@ void ExecuteSignal(string json)
    
    double price = (direction == "BUY") ? ask : bid;
    
-   // Detetar se SL/TP so deltas (relativos) ou invlidos
-   // Se SL for negativo ou muito pequeno, recalculamos com base no preo atual
-   if(sl <= 0 || (sl < 10.0 && pair != "XAUUSD" && sl < 0.5)) {
-      double delta = (sl != 0) ? MathAbs(sl) : (100 * point); // Usa o delta se fornecido, ou 10 pips
+   // --- VALIDAÇÃO DE SANIDADE (ANTI-MOCK DATA) ---
+   // Se o SL fornecido estiver mais de 5% longe do preço atual, é um valor inválido/simulado.
+   if(sl > 0 && MathAbs(price - sl) > (price * 0.05)) {
+      Print("⚠️ SL recebido está fora de escala (" + (string)sl + "). Ignorando valor simulado.");
+      sl = 0; 
+   }
+   if(tp > 0 && MathAbs(price - tp) > (price * 0.10)) {
+      Print("⚠️ TP recebido está fora de escala (" + (string)tp + "). Ignorando valor simulado.");
+      tp = 0;
+   }
+
+   // Detetar se SL/TP são deltas (relativos) ou inválidos
+   // Se SL for negativo ou muito pequeno, recalculamos com base no preço atual
+   if(sl <= 0 || (sl < 10.0 && pair != "XAUUSD" && pair != "GOLD" && sl < 0.5)) {
+      double delta = (sl != 0) ? MathAbs(sl) : (150 * point); // Fallback: 15 pips
       if(direction == "BUY") sl = price - delta;
       else sl = price + delta;
    }
    
-   if(tp <= 0 || (tp < 10.0 && pair != "XAUUSD" && tp < 0.5)) {
-      double delta = (tp != 0) ? MathAbs(tp) : (200 * point); // Usa o delta se fornecido, ou 20 pips
+   if(tp <= 0 || (tp < 10.0 && pair != "XAUUSD" && pair != "GOLD" && tp < 0.5)) {
+      double delta = (tp != 0) ? MathAbs(tp) : (300 * point); // Fallback: 30 pips
       if(direction == "BUY") tp = price + delta;
       else tp = price - delta;
    }
