@@ -77,6 +77,10 @@ router.get("/signals", async (req, res) => {
       return res.status(403).json({ error: "Licença inválida." });
     }
 
+    // LOG DE DIAGNÓSTICO (Expert Method)
+    const pendingCount = await prisma.signal.count({ where: { status: "PENDING" } });
+    console.log(`[EA-DEBUG] Licença: ${licenseKey} | Dono: ${license.userId} | Sinais Pendentes na DB: ${pendingCount}`);
+
     // Busca sinais PENDENTES para o usuário dono da licença
     const signals = await prisma.signal.findMany({
       where: {
@@ -85,6 +89,10 @@ router.get("/signals", async (req, res) => {
       },
       orderBy: { createdAt: "asc" }
     });
+
+    if (signals.length > 0) {
+      console.log(`[EA-DEBUG] ✅ Enviando ${signals.length} sinais para o robô.`);
+    }
 
     // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
     await prisma.license.update({
