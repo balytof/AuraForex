@@ -61,26 +61,20 @@ function pushSignal(userId, signal) {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.get("/signals", async (req, res) => {
-  const { licenseKey } = req.query;
-  if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
+  console.log("📡 EA pediu sinais");
 
-  try {
-    if (!global.signalsQueue) global.signalsQueue = [];
-
-    // Limpeza rápida antes de enviar
-    const twoMinutesAgo = Date.now() - (120 * 1000);
-    while(signalsQueue.length > 0 && signalsQueue[0].timestamp < twoMinutesAgo) {
-      signalsQueue.shift();
-    }
-
-    console.log(`[EA-API] 📡 Licença ${licenseKey} pediu sinais. Fila atual: ${signalsQueue.length}`);
-    
-    // Retornamos todos os sinais válidos sem apagar (Deduplicação será feita no EA)
-    res.json({ signals: signalsQueue });
-
-  } catch (e) {
-    res.status(500).json({ error: "Erro interno." });
+  if (signalsQueue.length === 0) {
+    return res.json({ signals: [] });
   }
+
+  const data = [...signalsQueue];
+
+  // limpa depois de enviar
+  signalsQueue.length = 0;
+
+  console.log("📤 Enviado:", data);
+
+  res.json({ signals: data });
 });
 
 
