@@ -36,45 +36,83 @@ router.post("/validate", (req, res) => {
 
 
 
-function pushSignal(userId, signal) {
-  const formatted = formatForMT5(signal);
-  
-  // Adiciona timestamp para controle de expiração
-  signalsQueue.push({
-    ...formatted,
-    timestamp: Date.now()
-  });
-  
-  console.log(`[QUEUE] ✅ SINAL GLOBAL GERADO: ${formatted.pair} ${formatted.direction} (Fila: ${signalsQueue.length})`);
-  
-  // Limpeza automática: Mantém apenas sinais dos últimos 2 minutos
-  const twoMinutesAgo = Date.now() - (120 * 1000);
-  while(signalsQueue.length > 0 && signalsQueue[0].timestamp < twoMinutesAgo) {
-    signalsQueue.shift();
+/**
+ * ── FUNÇÃO: PUSHSIGNAL (MULTI-UTILIZADOR) ───────────────────────────
+ * Grava o sinal diretamente no banco de dados para o utilizador específico.
+ * ─────────────────────────────────────────────────────────────────────
+ */
+async function pushSignal(userId, signal) {
+  try {
+    const newSignal = await prisma.signal.create({
+      data: {
+        userId: userId,
+        pair: String(signal.pair).toUpperCase(),
+        direction: String(signal.direction).toUpperCase(),
+        entry: Number(signal.entry || 0),
+        sl: Number(signal.sl || 0),
+        tp: Number(signal.tp || 0),
+        lot: Number(signal.lot || 0.01),
+        status: "PENDING"
+      }
+    });
+
+    console.log(`[DATABASE] ✅ SINAL PERSISTIDO PARA ${userId}: ${newSignal.pair} ${newSignal.direction}`);
+    return newSignal;
+
+  } catch (err) {
+    console.error("[DATABASE] Erro ao persistir sinal:", err);
+    throw err;
   }
 }
 
 
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
- * O EA chama este endpoint periodicamente para buscar novos sinais na fila.
+ * O EA chama este endpoint periodicamente para buscar novos sinais PENDENTES.
+ * Lógica Multi-Utilizador: Filtra pelo userId (licenseKey).
  * ─────────────────────────────────────────────────────────────────────
  */
 router.get("/signals", async (req, res) => {
-  console.log("📡 EA pediu sinais");
+  const { licenseKey } = req.query;
 
-  if (signalsQueue.length === 0) {
-    return res.json({ signals: [] });
+  if (!licenseKey) {
+    return res.status(400).json({ error: "licenseKey é obrigatória." });
   }
 
-  const data = [...signalsQueue];
+  try {
+    // Busca apenas sinais PENDENTES específicos deste utilizador
+    const pendingSignals = await prisma.signal.findMany({
+      where: {
+        userId: licenseKey,
+        status: "PENDING"
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
 
-  // limpa depois de enviar
-  signalsQueue.length = 0;
+    if (pendingSignals.length === 0) {
+      return res.json({ signals: [] });
+    }
 
-  console.log("📤 Enviado:", data);
+    // Formata os sinais para o MT5 (V4 Magic)
+    const formattedSignals = pendingSignals.map(sig => ({
+      id: sig.id,
+      pair: sig.pair,
+      direction: sig.direction,
+      entry: 0, // V4 Magic: Execução local
+      sl: sig.sl,
+      tp: sig.tp,
+      lot: sig.lot
+    }));
 
-  res.json({ signals: data });
+    console.log(`[EA-API] 📤 Enviando ${formattedSignals.length} sinais para a licença ${licenseKey}`);
+    res.json({ signals: formattedSignals });
+
+  } catch (err) {
+    console.error("[EA-API] Erro ao buscar sinais no DB:", err);
+    res.status(500).json({ error: "Erro interno ao buscar sinais." });
+  }
 });
 
 
