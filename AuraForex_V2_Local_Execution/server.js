@@ -1755,8 +1755,36 @@ server.listen(PORT, () => {
     .then(() => console.log("[DIAGNOSTIC] ✅ Conexão Prisma OK"))
     .catch(err => console.error("[DIAGNOSTIC] ❌ Erro Prisma:", err.message));
 
+  // ── NOVO: MOTOR DE GERAÇÃO DE SINAIS AUTOMÁTICO ──
+  console.log("[DIAGNOSTIC] 🛰️ Iniciando Motor de Sinais Automático (Aura Pro V3)... ");
+  const PAIRS_TO_WATCH = ["EURUSD", "GBPUSD", "XAUUSD", "USDJPY", "BTCUSD"];
+  
+  setInterval(async () => {
+    try {
+      const broker = await getGlobalBroker();
+      if (!broker || !broker.connected) return;
+
+      for (const pair of PAIRS_TO_WATCH) {
+        try {
+          const marketCandles = await broker.getCandles(pair, "H1", 250);
+          const { signal } = generateSignal(pair, marketCandles, "NEUTRAL");
+
+          if (signal) {
+            console.log(`[AUTO-BOT] 🎯 Sinal DETETADO para ${pair}. Enviando para o EA...`);
+            eaApi.pushSignal(signal);
+          }
+        } catch (e) {
+          // Silenciar erros de conexão temporários por par
+        }
+      }
+    } catch (e) {
+      console.error("[AUTO-BOT-ERROR]:", e.message);
+    }
+  }, 60000); // Verifica a cada 1 minuto
+
   // ── INICIAR MONITOR DE BACKGROUND (Profit Lock) ──
   console.log("[DIAGNOSTIC] 🛡️ Iniciando Monitor de Background (Profit Lock)...");
+
   setInterval(async () => {
     for (const [userId, broker] of userBrokers.entries()) {
       try {
