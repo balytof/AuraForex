@@ -174,6 +174,12 @@ void ExecuteSignal(string json)
       if(tp > 0 && (tp >= price || (price - tp) < stopLevel)) tp = price - (stopLevel * 2);
    }
    
+   // --- NORMALIZAR PREÇOS ---
+   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+   price = NormalizeDouble(price, digits);
+   
    bool res = false;
    if(direction == "BUY")
       res = trade.Buy(lot, pair, price, sl, tp, "AuraPro Signal");
