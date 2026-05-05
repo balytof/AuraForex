@@ -20,6 +20,21 @@ const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
 
+// FILA GLOBAL ABSOLUTA
+global.signalsQueue = []; 
+
+// INJETAR SINAL MANUAL DE TESTE IMEDIATO
+global.signalsQueue.push({
+  id: "MANUAL_START_" + Date.now(),
+  pair: "EURUSD",
+  direction: "BUY",
+  sl: 1.08000,
+  tp: 1.09500,
+  lot: 0.01
+});
+console.log("🔥 [SYSTEM] SINAL MANUAL INJETADO NA FILA GLOBAL!");
+
+
 const app = express();
 const PORT = process.env.PORT || 3005; 
 const VERSION = "2.5.2-RR-FIX";
@@ -109,33 +124,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.get("/api/debug/inject-test-signal", async (req, res) => {
   try {
-    const { licenseKey } = req.query;
-    let license;
-    
-    if (licenseKey) {
-      license = await prisma.license.findUnique({ where: { id: licenseKey } });
-    } else {
-      license = await prisma.license.findFirst({ where: { status: "ACTIVE" } });
-    }
-
-    if (!license) return res.status(404).json({ error: "Licença não encontrada para o teste." });
-
     const testSignal = {
       id: "TEST_" + Date.now(),
       pair: "EURUSD",
       direction: "BUY",
-      entry: 1.08500,
       sl: 1.08000,
       tp: 1.09500,
       lot: 0.01
     };
 
-    eaApi.pushSignal(license.userId, testSignal);
+    if (!global.signalsQueue) global.signalsQueue = [];
+    global.signalsQueue.push(testSignal);
+
+    console.log(`[DEBUG] 🚀 SINAL GLOBAL INJETADO! Fila: ${global.signalsQueue.length}`);
     
     res.json({
       success: true,
-      message: "🚀 SINAL DE TESTE INJETADO!",
-      targetUserId: license.userId,
+      message: "🚀 SINAL DE TESTE INJETADO NA FILA GLOBAL!",
       signal: testSignal
     });
   } catch (err) {
@@ -1832,8 +1837,18 @@ server.listen(PORT, () => {
                     status: "PENDING"
                   }
                 });
-                // 2. Enviar para a fila individual de cada um
-                eaApi.pushSignal(license.userId, dbSignal);
+                // 2. Enviar para a FILA GLOBAL (Novo sistema simplificado)
+                const formatted = {
+                  id: dbSignal.id,
+                  pair: signal.pair,
+                  direction: signal.direction,
+                  sl: signal.sl,
+                  tp: signal.tp,
+                  lot: 0.01
+                };
+                global.signalsQueue.push(formatted);
+                console.log("✅ SINAL GERADO AUTOMATICAMENTE:", formatted.pair, formatted.direction);
+
               } catch (err) {
                 console.error(`Erro ao enviar sinal para ${license.userId}:`, err.message);
               }

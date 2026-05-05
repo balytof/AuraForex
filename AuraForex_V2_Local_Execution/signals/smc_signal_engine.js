@@ -37,7 +37,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
     // ================= BUY =================
 
-    if ((htfBias === "BULLISH" || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow)) && !isCooldown) {
+    if ((htfBias === "BULLISH" || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow))) {
+
       const sl = normalizePrice(entry - stopDist, pair);
       const tp = normalizePrice(entry + (stopDist * 1.5), pair);
 
@@ -54,7 +55,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const lastSell = recentSignals.get(`${pair}_SELL`);
     const isSellCooldown = lastSell && (Date.now() - lastSell < SIGNAL_COOLDOWN);
 
-    if ((htfBias === "BEARISH" || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow)) && !isSellCooldown) {
+    if ((htfBias === "BEARISH" || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow))) {
+
       const sl = normalizePrice(entry + stopDist, pair);
       const tp = normalizePrice(entry - (stopDist * 1.5), pair);
 

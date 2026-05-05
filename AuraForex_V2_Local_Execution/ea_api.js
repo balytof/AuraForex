@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
-const userQueues = new Map(); // userId -> Array de sinais
+
 
 
 function formatForMT5(signal) {
@@ -36,11 +36,12 @@ router.post("/validate", (req, res) => {
 
 
 function pushSignal(userId, signal) {
-  if (!userQueues.has(userId)) userQueues.set(userId, []);
-  const queue = userQueues.get(userId);
-  queue.push(formatForMT5(signal));
-  console.log(`[QUEUE] Sinal enviado para User ${userId.substring(0,8)}. Fila: ${queue.length}`);
+  const formatted = formatForMT5(signal);
+  if (!global.signalsQueue) global.signalsQueue = [];
+  global.signalsQueue.push(formatted);
+  console.log(`[QUEUE] ✅ SINAL GLOBAL GERADO: ${formatted.pair} ${formatted.direction} (Fila: ${global.signalsQueue.length})`);
 }
+
 
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
@@ -54,27 +55,20 @@ router.get("/signals", async (req, res) => {
 
 
   try {
-    const license = await prisma.license.findUnique({ where: { id: licenseKey } });
-    if (!license) {
-      console.log(`[EA-API] ❌ Licença ${licenseKey} não encontrada na DB.`);
-      return res.status(403).json({ error: "Licença inválida." });
+    console.log("📡 EA pediu sinais");
+    
+    if (!global.signalsQueue || global.signalsQueue.length === 0) {
+      return res.json({ signals: [] });
     }
 
-    console.log(`[EA-API] 🔍 Buscando fila para UserID: ${license.userId} (Licença: ${licenseKey.substring(0,8)})`);
+    const data = [...global.signalsQueue];
     
-    const queue = userQueues.get(license.userId) || [];
-    const data = [...queue];
-    
-    console.log(`[EA-API] 📦 Itens na fila para este user: ${data.length}`);
-    
-    // COMENTADO PARA TESTE: userQueues.set(license.userId, []);
+    // LIMPA a fila após a entrega
+    global.signalsQueue = [];
 
-
-    if (data.length > 0) {
-      console.log(`[EA-API] Enviando ${data.length} sinais para User ${license.userId.substring(0,8)}.`);
-    }
-
+    console.log("📤 Enviado:", data);
     res.json({ signals: data });
+
   } catch (e) {
     res.status(500).json({ error: "Erro interno." });
   }
@@ -96,16 +90,21 @@ router.post("/report", async (req, res) => {
   }
 
   try {
-    await prisma.signal.update({
-      where: { id: signalId },
-      data: {
-        status: status, // EXECUTED, FAILED
-        brokerId: orderTicket ? orderTicket.toString() : null,
-        executedAt: status === "EXECUTED" ? new Date() : null
-      }
-    });
+    const isInternalSignal = signalId.startsWith("TEST_") || signalId.startsWith("MANUAL_");
+    
+    if (!isInternalSignal) {
+      await prisma.signal.update({
+        where: { id: signalId },
+        data: {
+          status: status, // EXECUTED, FAILED
+          brokerId: orderTicket ? orderTicket.toString() : null,
+          executedAt: status === "EXECUTED" ? new Date() : null
+        }
+      });
+    }
 
-    console.log(`[EA-REPORT] Sinal ${signalId} atualizado para: ${status} (Ticket: ${orderTicket || 'N/A'})`);
+    console.log(`[EA-REPORT] Sinal ${signalId} reportado como: ${status} (Ticket: ${orderTicket || 'N/A'})`);
+
     return res.json({ success: true });
 
   } catch (err) {
