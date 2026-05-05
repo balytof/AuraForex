@@ -125,7 +125,10 @@ app.use("/ea", eaApi.router); // Suporte para o Robô (sem prefixo /api)
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
+
+
 const userRisks = new Map(); // Mapa de RiskManager por User ID
+
 
 let globalBroker = null; // Instância mestre para puxar velas para todos os usuários
 
