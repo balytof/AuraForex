@@ -830,7 +830,8 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     });
 
     // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5)
-    eaApi.pushSignal({ pair, direction, sl, tp, entry: entryPrice });
+    eaApi.pushSignal(req.user.id, signal);
+
 
     console.log(`[V2-LOCAL] ✅ Sinal gerado com sucesso para ${pair} ${direction}. ID: ${signal.id}`);
 
