@@ -22,13 +22,14 @@ input int      InpTimerSeconds   = 2;                       // Intervalo de Chec
 //--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
+string         ExtProcessedIds[];         // Memória de sinais já executados (V4)
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA PRO FINAL v3.0 - INICIADO");
+   Print("🚀 AURA PRO FINAL v4.0 MAGIC - INICIADO");
    
    // Configurar Magic Number
    trade.SetExpertMagicNumber(InpMagicNumber);
@@ -126,7 +127,28 @@ void CheckForSignals()
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
       if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
-      ExecuteSignal(sigData + "}");
+      string fullJson = sigData + "}";
+      string id = ExtractJsonValue(fullJson, "id");
+      
+      // --- V4 MEMORY FILTER ---
+      bool alreadyDone = false;
+      for(int j=0; j<ArraySize(ExtProcessedIds); j++) {
+         if(ExtProcessedIds[j] == id) { alreadyDone = true; break; }
+      }
+      if(alreadyDone) continue;
+
+      ExecuteSignal(fullJson);
+      
+      // Guardar na memória
+      int size = ArraySize(ExtProcessedIds);
+      ArrayResize(ExtProcessedIds, size + 1);
+      ExtProcessedIds[size] = id;
+      
+      // Limpeza (manter últimos 50)
+      if(ArraySize(ExtProcessedIds) > 50) {
+         for(int k=0; k<49; k++) ExtProcessedIds[k] = ExtProcessedIds[k+1];
+         ArrayResize(ExtProcessedIds, 50);
+      }
    }
 }
 
