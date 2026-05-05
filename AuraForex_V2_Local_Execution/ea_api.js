@@ -38,8 +38,18 @@ router.post("/validate", (req, res) => {
 function pushSignal(userId, signal) {
   const formatted = formatForMT5(signal);
   if (!global.signalsQueue) global.signalsQueue = [];
-  global.signalsQueue.push(formatted);
+  
+  // Adiciona timestamp para controle de expiração
+  global.signalsQueue.push({
+    ...formatted,
+    timestamp: Date.now()
+  });
+  
   console.log(`[QUEUE] ✅ SINAL GLOBAL GERADO: ${formatted.pair} ${formatted.direction} (Fila: ${global.signalsQueue.length})`);
+  
+  // Limpeza automática: Mantém apenas sinais dos últimos 2 minutos
+  const twoMinutesAgo = Date.now() - (120 * 1000);
+  global.signalsQueue = global.signalsQueue.filter(s => s.timestamp > twoMinutesAgo);
 }
 
 
@@ -50,26 +60,19 @@ function pushSignal(userId, signal) {
  */
 router.get("/signals", async (req, res) => {
   const { licenseKey } = req.query;
-  console.log(`[EA-API] 📡 EA a buscar sinais para licença: ${licenseKey}`);
   if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
 
-
   try {
-    console.log("📡 EA pediu sinais");
-    
-    console.log(`[EA-API] Verificando fila global. Tamanho atual: ${global.signalsQueue ? global.signalsQueue.length : 0}`);
-    
-    if (!global.signalsQueue || global.signalsQueue.length === 0) {
-      return res.json({ signals: [] });
-    }
+    if (!global.signalsQueue) global.signalsQueue = [];
 
-    const data = [...global.signalsQueue];
-    
-    // LIMPA a fila após a entrega
-    global.signalsQueue = [];
+    // Limpeza rápida antes de enviar
+    const twoMinutesAgo = Date.now() - (120 * 1000);
+    global.signalsQueue = global.signalsQueue.filter(s => s.timestamp > twoMinutesAgo);
 
-    console.log("📤 Enviado:", data);
-    res.json({ signals: data });
+    console.log(`[EA-API] 📡 Licença ${licenseKey} pediu sinais. Fila atual: ${global.signalsQueue.length}`);
+    
+    // Retornamos todos os sinais válidos sem apagar (Deduplicação será feita no EA)
+    res.json({ signals: global.signalsQueue });
 
   } catch (e) {
     res.status(500).json({ error: "Erro interno." });
