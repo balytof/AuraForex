@@ -162,33 +162,43 @@ void ExecuteSignal(string json)
 
    double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
    
-   // --- VALIDAR DISTÂNCIA MÍNIMA (CHEF) ---
+   // --- CÁLCULO INSTITUCIONAL DINÂMICO (ATR H1, 14) ---
+   int atrHandle = iATR(pair, PERIOD_H1, 14);
+   double atrBuffer[];
+   ArraySetAsSeries(atrBuffer, true);
+   double atr = 0;
+   
+   if(CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0) {
+      atr = atrBuffer[0];
+   } else {
+      // Fallback se ATR falhar (ex: 300 pontos)
+      atr = 300 * SymbolInfoDouble(pair, SYMBOL_POINT);
+      Print("⚠️ Falha ao ler ATR. Usando fallback fixo.");
+   }
+
+   if(direction == "BUY") {
+      sl = price - (atr * 2);
+      tp = price + (atr * 3);
+   } else if(direction == "SELL") {
+      sl = price + (atr * 2);
+      tp = price - (atr * 3);
+   }
+
+   // --- VALIDAR STOPLEVEL (CHEF) ---
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
    if(stopLevel <= 0) stopLevel = 30 * SymbolInfoDouble(pair, SYMBOL_POINT);
 
-   if(MathAbs(price - sl) < stopLevel || MathAbs(price - tp) < stopLevel)
-   {
-      Print("❌ SL/TP muito próximo! Ordem abortada para evitar erro 10016.");
-      return;
-   }
-   
-   // --- VALIDAR LÓGICA BUY/SELL (CHEF) ---
-   if(direction == "BUY") {
-      if(sl >= price || tp <= price) {
-         Print("❌ Lógica de COMPRA inválida: SL >= Preço ou TP <= Preço. Abortando.");
-         return;
-      }
-   } else if(direction == "SELL") {
-      if(sl <= price || tp >= price) {
-         Print("❌ Lógica de VENDA inválida: SL <= Preço ou TP >= Preço. Abortando.");
-         return;
-      }
-   }
+   if(MathAbs(price - sl) < stopLevel)
+      sl = (direction == "BUY") ? price - (stopLevel * 1.5) : price + (stopLevel * 1.5);
+
+   if(MathAbs(price - tp) < stopLevel)
+      tp = (direction == "BUY") ? price + (stopLevel * 1.5) : price - (stopLevel * 1.5);
 
    // --- NORMALIZAR PREÇOS ---
-   sl = NormalizeDouble(sl, _Digits);
-   tp = NormalizeDouble(tp, _Digits);
-   price = NormalizeDouble(price, _Digits);
+   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+   price = NormalizeDouble(price, digits);
    
    bool res = false;
    if(direction == "BUY")
