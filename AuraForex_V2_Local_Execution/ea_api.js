@@ -156,4 +156,8 @@ router.post("/report-balance", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = {
+  router,
+  pushSignal
+};
+
