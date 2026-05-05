@@ -240,7 +240,24 @@ void ExecuteSignal(string json)
       // --- PASSO 3: CALCULAR PREÇO CORRETO (CHEF) ---
       double currentPrice = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_BID) : SymbolInfoDouble(pair, SYMBOL_ASK);
       
-      // Aqui entrará a lógica do Passo 4 (Modificar Posição)
+      // --- PASSO 4: APLICAR SL/TP COM VALIDAÇÃO (CHEF) ---
+      double stopLvl = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
+      if(stopLvl <= 0) stopLvl = 30 * SymbolInfoDouble(pair, SYMBOL_POINT);
+
+      if(MathAbs(currentPrice - sl) < stopLvl)
+         sl = (direction == "BUY") ? currentPrice - stopLvl : currentPrice + stopLvl;
+
+      if(MathAbs(currentPrice - tp) < stopLvl)
+         tp = (direction == "BUY") ? currentPrice + stopLvl : currentPrice - stopLvl;
+
+      sl = NormalizeDouble(sl, digits);
+      tp = NormalizeDouble(tp, digits);
+
+      if(trade.PositionModify(posTicket, sl, tp)) {
+         Print("🛡️ PROTEÇÃO APLICADA! SL: ", sl, " | TP: ", tp);
+      } else {
+         Print("❌ FALHA AO APLICAR PROTEÇÃO: ", trade.ResultRetcode(), " | ", trade.ResultRetcodeDescription());
+      }
    }
 }
 
