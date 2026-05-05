@@ -162,6 +162,16 @@ void ExecuteSignal(string json)
 
    double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
    
+   // --- FORÇA SL/TP AUTOMÁTICO NO EA (SEGURANÇA CHEF) ---
+   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+   if(direction == "BUY") {
+      sl = price - (300 * point);
+      tp = price + (600 * point);
+   } else {
+      sl = price + (300 * point);
+      tp = price - (600 * point);
+   }
+
    // --- GARANTIR DISTÂNCIA MÍNIMA (CRÍTICO) ---
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
    if(stopLevel <= 0) stopLevel = 30 * SymbolInfoDouble(pair, SYMBOL_POINT); // Fallback de 30 pontos se for zero
