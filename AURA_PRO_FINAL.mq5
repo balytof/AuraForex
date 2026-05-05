@@ -213,10 +213,31 @@ void ExecuteSignal(string json)
    else
    {
       ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM EXECUTADA (LIMPA)! Ticket: " + (string)ticket + ". Aguardando Passo 2...");
-      ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
+      Print("✅ ORDEM ENVIADA! Ticket: " + (string)ticket + ". Aguardando confirmação da posição...");
       
-      // Aqui entrará a lógica do Passo 2 (Modificar Posição)
+      // --- PASSO 2: ESPERAR EXECUÇÃO REAL (CHEF) ---
+      ulong posTicket = 0;
+      bool posFound = false;
+      for(int i=0; i<10; i++)
+      {
+         if(PositionSelect(pair))
+         {
+            posTicket = PositionGetInteger(POSITION_TICKET);
+            posFound = true;
+            break;
+         }
+         Sleep(200); // espera 200ms
+      }
+      
+      if(!posFound) {
+         Print("⚠️ Posição não encontrada após 2s. O Passo 3 será tentado no próximo tick.");
+         return;
+      }
+
+      Print("✅ POSIÇÃO CONFIRMADA! Ticket: " + (string)posTicket + ". Iniciando Passo 3...");
+      ReportSignalStatus(signalId, "EXECUTED", (long)posTicket);
+      
+      // Aqui entrará a lógica do Passo 3 (Modificar Posição)
    }
 }
 
