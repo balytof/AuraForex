@@ -15,7 +15,7 @@ const { encrypt, decrypt } = require("./utils/encryption");
 // APEX SMC Broker Layer
 const { createBroker } = require("./apex_broker");
 
-const { generateSignal } = require("./signals/smc_signal_engine");
+const { generateSignal } = require("./signals/signals");
 const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");

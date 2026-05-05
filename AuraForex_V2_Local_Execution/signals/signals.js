@@ -18,10 +18,7 @@ const cfg = config;
  * Verifica se estamos numa sessão de mercado ativa (UTC)
  */
 function isActiveSession() {
-  const h    = new Date().getUTCHours();
-  const { london, newYork } = cfg.sessions;
-  return (h >= london.open  && h < london.close) ||
-         (h >= newYork.open && h < newYork.close);
+  return true; 
 }
 
 /**
@@ -77,7 +74,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
   // ══════════════════════════════════════════════
   const bullBias = htfBias === "BULLISH" || last.emaFast > last.emaSlow;
 
-  if (bullBias && (smc.nearBullOB.length || smc.nearBullFVG.length)) {
+  if (bullBias) {
     const factors = {
       smcStructure:  smc.bosBull,
       orderBlock:    smc.nearBullOB.length  > 0,
@@ -133,7 +130,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
   // ══════════════════════════════════════════════
   const bearBias = htfBias === "BEARISH" || last.emaFast < last.emaSlow;
 
-  if (bearBias && (smc.nearBearOB.length || smc.nearBearFVG.length)) {
+  if (bearBias) {
     const factors = {
       smcStructure:  smc.bosBear,
       orderBlock:    smc.nearBearOB.length  > 0,
