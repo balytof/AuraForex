@@ -1,15 +1,17 @@
 const prisma = require('../db');
-
-async function main() {
-  const licenses = await prisma.license.findMany({
-    include: { user: true }
-  });
-  console.log('Total licenses:', licenses.length);
-  licenses.forEach(l => {
-    console.log(`- ID: ${l.id} | User: ${l.user.email} | MT: ${l.mtAccount || 'EMPTY'} | Status: ${l.status} | Expires: ${l.expiresAt}`);
-  });
+async function run() {
+  try {
+    const l = await prisma.license.findMany({
+      where: {
+        status: 'ACTIVE',
+        expiresAt: { gt: new Date() }
+      }
+    });
+    console.log(JSON.stringify(l, null, 2));
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
-
-main()
-  .catch(e => console.error(e))
-  .finally(() => prisma.$disconnect());
+run();
