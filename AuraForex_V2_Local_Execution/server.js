@@ -1458,6 +1458,12 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     console.log(`[BOT] Analisando ${pair} (HTF: ${htfBias})...`);
     
     const { signal, reason } = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
+
+    // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5) se houver sinal
+    if (signal) {
+      eaApi.pushSignal(signal);
+    }
+
     const analysis = analyzeAll(marketCandles);
 
     const responseData = {
