@@ -94,6 +94,15 @@ app.get("/SMC_APEX_EA.ex5", (req, res) => {
   }
 });
 
+app.get("/SMC_APEX_EA.mq5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.mq5');
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, 'AuraForex_SMC_Pro_V4.mq5');
+  } else {
+    res.status(404).send("Fonte não encontrada.");
+  }
+});
+
 // ── Security Middlewares ─────────────────────────────────────────
 app.set("trust proxy", 1);
 app.use(helmet({
