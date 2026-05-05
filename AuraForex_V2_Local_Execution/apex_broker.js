@@ -505,15 +505,15 @@ class MetaApiAdapter extends BrokerBase {
     try {
       if (!this.connection) await this.connect();
 
-      const tfMap = {
-        '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'
-      };
-
-      const candles = await this.connection.getCandles(
-        symbol,
-        tfMap[timeframe] || '1m',
-        { limit }
-      );
+      // MetaApi SDK RPC Connection uses getCandles or getHistoricalCandles
+      // Dependendo da versão, se getCandles falhar, tentamos o fallback
+      let candles;
+      try {
+        candles = await this.connection.getCandles(symbol, timeframe, limit);
+      } catch (e) {
+        // Fallback para versões que usam objeto de opções
+        candles = await this.connection.getHistoryCandles(symbol, timeframe, undefined, limit);
+      }
 
       return (candles || []).map(c => ({
         time: c.time,
@@ -521,10 +521,10 @@ class MetaApiAdapter extends BrokerBase {
         high: c.high,
         low: c.low,
         close: c.close,
-        volume: c.tickVolume
+        volume: c.tickVolume || c.volume
       }));
     } catch (e) {
-      console.error(`[EXPERT-MA] Error getCandles: ${e.message}`);
+      console.error(`[EXPERT-MA] Error getCandles for ${symbol}: ${e.message}`);
       return [];
     }
   }
