@@ -196,26 +196,27 @@ void ExecuteSignal(string json)
 
    // --- NORMALIZAR PREÇOS ---
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   sl = NormalizeDouble(sl, digits);
-   tp = NormalizeDouble(tp, digits);
    price = NormalizeDouble(price, digits);
    
+   // --- PASSO 1: ABRIR ORDEM SEM SL/TP (CHEF) ---
    bool res = false;
    if(direction == "BUY")
-      res = trade.Buy(lot, pair, price, sl, tp, "AuraPro Signal");
+      res = trade.Buy(lot, pair, price, 0, 0, "AuraPro Magic Step1");
    else if(direction == "SELL")
-      res = trade.Sell(lot, pair, price, sl, tp, "AuraPro Signal");
+      res = trade.Sell(lot, pair, price, 0, 0, "AuraPro Magic Step1");
       
    if(!res)
    {
-      Print("❌ ERRO ORDEM: ", trade.ResultRetcode(), " | ", trade.ResultRetcodeDescription());
+      Print("❌ ERRO ORDEM PASSO 1: ", trade.ResultRetcode(), " | ", trade.ResultRetcodeDescription());
       ReportSignalStatus(signalId, "FAILED", 0);
    }
    else
    {
       ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM EXECUTADA! Ticket: " + (string)ticket);
+      Print("✅ ORDEM EXECUTADA (LIMPA)! Ticket: " + (string)ticket + ". Aguardando Passo 2...");
       ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
+      
+      // Aqui entrará a lógica do Passo 2 (Modificar Posição)
    }
 }
 
