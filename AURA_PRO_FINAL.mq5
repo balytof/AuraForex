@@ -161,8 +161,20 @@ void ExecuteSignal(string json)
    }
 
    double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
-   bool res = false;
+   
+   // --- GARANTIR DISTÂNCIA MÍNIMA (CRÍTICO) ---
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
+   if(stopLevel <= 0) stopLevel = 30 * SymbolInfoDouble(pair, SYMBOL_POINT); // Fallback de 30 pontos se for zero
 
+   if(direction == "BUY") {
+      if(sl > 0 && (sl >= price || (price - sl) < stopLevel)) sl = price - (stopLevel * 2);
+      if(tp > 0 && (tp <= price || (tp - price) < stopLevel)) tp = price + (stopLevel * 2);
+   } else if(direction == "SELL") {
+      if(sl > 0 && (sl <= price || (sl - price) < stopLevel)) sl = price + (stopLevel * 2);
+      if(tp > 0 && (tp >= price || (price - tp) < stopLevel)) tp = price - (stopLevel * 2);
+   }
+   
+   bool res = false;
    if(direction == "BUY")
       res = trade.Buy(lot, pair, price, sl, tp, "AuraPro Signal");
    else if(direction == "SELL")
