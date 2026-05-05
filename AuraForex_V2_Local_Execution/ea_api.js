@@ -55,13 +55,21 @@ router.get("/signals", async (req, res) => {
 
   try {
     const license = await prisma.license.findUnique({ where: { id: licenseKey } });
-    if (!license) return res.status(403).json({ error: "Licença inválida." });
+    if (!license) {
+      console.log(`[EA-API] ❌ Licença ${licenseKey} não encontrada na DB.`);
+      return res.status(403).json({ error: "Licença inválida." });
+    }
 
+    console.log(`[EA-API] 🔍 Buscando fila para UserID: ${license.userId} (Licença: ${licenseKey.substring(0,8)})`);
+    
     const queue = userQueues.get(license.userId) || [];
     const data = [...queue];
     
+    console.log(`[EA-API] 📦 Itens na fila para este user: ${data.length}`);
+    
     // Limpa a fila do utilizador após a entrega
     userQueues.set(license.userId, []);
+
 
     if (data.length > 0) {
       console.log(`[EA-API] Enviando ${data.length} sinais para User ${license.userId.substring(0,8)}.`);
