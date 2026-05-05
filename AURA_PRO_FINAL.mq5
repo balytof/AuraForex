@@ -237,7 +237,10 @@ void ExecuteSignal(string json)
       Print("✅ POSIÇÃO CONFIRMADA! Ticket: " + (string)posTicket + ". Iniciando Passo 3...");
       ReportSignalStatus(signalId, "EXECUTED", (long)posTicket);
       
-      // Aqui entrará a lógica do Passo 3 (Modificar Posição)
+      // --- PASSO 3: CALCULAR PREÇO CORRETO (CHEF) ---
+      double currentPrice = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_BID) : SymbolInfoDouble(pair, SYMBOL_ASK);
+      
+      // Aqui entrará a lógica do Passo 4 (Modificar Posição)
    }
 }
 
