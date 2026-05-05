@@ -155,6 +155,17 @@ void ExecuteSignal(string json)
 
    Print("🚀 PROCESSANDO SINAL: " + pair + " " + direction + " Lot: " + (string)lot);
    
+   // Garantir que o símbolo está ativo no Market Watch
+   SymbolSelect(pair, true);
+   Sleep(300);
+
+   // Proteção de Lote
+   if(lot <= 0) {
+      lot = SymbolInfoDouble(pair, SYMBOL_VOLUME_MIN);
+      Print("⚠️ Lot corrigido para o mínimo: ", lot);
+   }
+
+   
    bool res = false;
    if(direction == "BUY")
       res = trade.Buy(lot, pair, SymbolInfoDouble(pair, SYMBOL_ASK), sl, tp, "AuraForex Signal");
