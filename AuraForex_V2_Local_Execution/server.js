@@ -133,14 +133,12 @@ app.get("/api/debug/inject-test-signal", async (req, res) => {
       lot: 0.01
     };
 
-    if (!global.signalsQueue) global.signalsQueue = [];
-    global.signalsQueue.push(testSignal);
-
-    console.log(`[DEBUG] 🚀 SINAL GLOBAL INJETADO! Fila: ${global.signalsQueue.length}`);
+    // Usar a função oficial para garantir formatação e logs
+    eaApi.pushSignal("DEBUG_USER", testSignal);
     
     res.json({
       success: true,
-      message: "🚀 SINAL DE TESTE INJETADO NA FILA GLOBAL!",
+      message: "🚀 SINAL DE TESTE INJETADO VIA EA_API!",
       signal: testSignal
     });
   } catch (err) {
