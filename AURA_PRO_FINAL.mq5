@@ -162,28 +162,16 @@ void ExecuteSignal(string json)
 
    double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
    
-   // --- FORÇA SL/TP AUTOMÁTICO NO EA (SEGURANÇA CHEF) ---
-   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
-   if(direction == "BUY") {
-      sl = price - (300 * point);
-      tp = price + (600 * point);
-   } else {
-      sl = price + (300 * point);
-      tp = price - (600 * point);
-   }
-
-   // --- GARANTIR DISTÂNCIA MÍNIMA (CRÍTICO) ---
+   // --- VALIDAR DISTÂNCIA MÍNIMA (CHEF) ---
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
-   if(stopLevel <= 0) stopLevel = 30 * SymbolInfoDouble(pair, SYMBOL_POINT); // Fallback de 30 pontos se for zero
+   if(stopLevel <= 0) stopLevel = 30 * SymbolInfoDouble(pair, SYMBOL_POINT);
 
-   if(direction == "BUY") {
-      if(sl > 0 && (sl >= price || (price - sl) < stopLevel)) sl = price - (stopLevel * 2);
-      if(tp > 0 && (tp <= price || (tp - price) < stopLevel)) tp = price + (stopLevel * 2);
-   } else if(direction == "SELL") {
-      if(sl > 0 && (sl <= price || (sl - price) < stopLevel)) sl = price + (stopLevel * 2);
-      if(tp > 0 && (tp >= price || (price - tp) < stopLevel)) tp = price - (stopLevel * 2);
+   if(MathAbs(price - sl) < stopLevel || MathAbs(price - tp) < stopLevel)
+   {
+      Print("❌ SL/TP muito próximo! Ordem abortada para evitar erro 10016.");
+      return;
    }
-   
+
    // --- NORMALIZAR PREÇOS ---
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    sl = NormalizeDouble(sl, digits);

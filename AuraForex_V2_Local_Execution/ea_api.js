@@ -45,7 +45,7 @@ function pushSignal(userId, signal) {
     timestamp: Date.now()
   });
   
-  console.log(`[QUEUE] ✅ SINAL GLOBAL GERADO: ${formatted.pair} ${formatted.direction} (Fila: ${global.signalsQueue.length})`);
+  console.log(`[QUEUE] ✅ SINAL GLOBAL GERADO: ${formatted.pair} ${formatted.direction} (Fila: ${signalsQueue.length})`);
   
   // Limpeza automática: Mantém apenas sinais dos últimos 2 minutos
   const twoMinutesAgo = Date.now() - (120 * 1000);
