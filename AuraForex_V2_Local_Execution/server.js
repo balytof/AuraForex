@@ -109,8 +109,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.get("/api/debug/inject-test-signal", async (req, res) => {
   try {
-    const license = await prisma.license.findFirst({ where: { status: "ACTIVE" } });
-    if (!license) return res.status(404).json({ error: "Nenhuma licença ativa encontrada na DB para o teste." });
+    const { licenseKey } = req.query;
+    let license;
+    
+    if (licenseKey) {
+      license = await prisma.license.findUnique({ where: { id: licenseKey } });
+    } else {
+      license = await prisma.license.findFirst({ where: { status: "ACTIVE" } });
+    }
+
+    if (!license) return res.status(404).json({ error: "Licença não encontrada para o teste." });
 
     const testSignal = {
       id: "TEST_" + Date.now(),
