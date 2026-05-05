@@ -166,23 +166,26 @@ void ExecuteSignal(string json)
    }
 
    
+   double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
    bool res = false;
+
    if(direction == "BUY")
-      res = trade.Buy(lot, pair, SymbolInfoDouble(pair, SYMBOL_ASK), sl, tp, "AuraForex Signal");
+      res = trade.Buy(lot, pair, price, sl, tp, "AuraForex Signal");
    else if(direction == "SELL")
-      res = trade.Sell(lot, pair, SymbolInfoDouble(pair, SYMBOL_BID), sl, tp, "AuraForex Signal");
+      res = trade.Sell(lot, pair, price, sl, tp, "AuraForex Signal");
       
-   if(res)
+   if(!res)
+   {
+      Print("❌ ERRO ORDEM: ", trade.ResultRetcode(), " | ", trade.ResultRetcodeDescription());
+      ReportSignalStatus(signalId, "FAILED", 0);
+   }
+   else
    {
       ulong ticket = trade.ResultOrder();
       Print("✅ ORDEM EXECUTADA! Ticket: " + (string)ticket);
       ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
    }
-   else
-   {
-      Print("❌ FALHA AO EXECUTAR: " + trade.ResultRetcodeDescription());
-      ReportSignalStatus(signalId, "FAILED", 0);
-   }
+
 }
 
 //+------------------------------------------------------------------+
