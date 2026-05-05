@@ -24,15 +24,14 @@ function formatForMT5(signal) {
  * O EA chama este endpoint ao iniciar para verificar se a licença é válida
  * e se está amarrada ao número da conta MetaTrader correto.
  * ─────────────────────────────────────────────────────────────────────
- */
-/**
- * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
  * O EA chama este endpoint ao iniciar para verificar se a licença é válida.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.post("/validate", (req, res) => {
-  return res.json({ status: "OK" });
+router.get("/validate", (req, res) => {
+  console.log(`[EA-API] 🛡️ Pedido de validação recebido: ${req.query.licenseKey || 'SEM CHAVE'}`);
+  res.json({ status: "OK" });
 });
+
 
 
 function pushSignal(userId, signal) {
@@ -49,7 +48,9 @@ function pushSignal(userId, signal) {
  */
 router.get("/signals", async (req, res) => {
   const { licenseKey } = req.query;
+  console.log(`[EA-API] 📡 EA a buscar sinais para licença: ${licenseKey}`);
   if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
+
 
   try {
     const license = await prisma.license.findUnique({ where: { id: licenseKey } });
