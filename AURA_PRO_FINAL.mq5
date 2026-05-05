@@ -13,7 +13,7 @@
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   InpServerUrl      = "http://127.0.0.1:3005"; // URL do Servidor Local
+input string   InpServerUrl      = "http://139.59.159.48:3005"; // URL do Servidor VPS
 input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
 
 input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
