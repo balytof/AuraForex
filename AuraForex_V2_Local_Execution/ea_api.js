@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
+const signalsQueue = []; 
 
 
 
@@ -37,10 +38,9 @@ router.post("/validate", (req, res) => {
 
 function pushSignal(userId, signal) {
   const formatted = formatForMT5(signal);
-  if (!global.signalsQueue) global.signalsQueue = [];
   
   // Adiciona timestamp para controle de expiração
-  global.signalsQueue.push({
+  signalsQueue.push({
     ...formatted,
     timestamp: Date.now()
   });
@@ -49,7 +49,9 @@ function pushSignal(userId, signal) {
   
   // Limpeza automática: Mantém apenas sinais dos últimos 2 minutos
   const twoMinutesAgo = Date.now() - (120 * 1000);
-  global.signalsQueue = global.signalsQueue.filter(s => s.timestamp > twoMinutesAgo);
+  while(signalsQueue.length > 0 && signalsQueue[0].timestamp < twoMinutesAgo) {
+    signalsQueue.shift();
+  }
 }
 
 
@@ -67,12 +69,14 @@ router.get("/signals", async (req, res) => {
 
     // Limpeza rápida antes de enviar
     const twoMinutesAgo = Date.now() - (120 * 1000);
-    global.signalsQueue = global.signalsQueue.filter(s => s.timestamp > twoMinutesAgo);
+    while(signalsQueue.length > 0 && signalsQueue[0].timestamp < twoMinutesAgo) {
+      signalsQueue.shift();
+    }
 
-    console.log(`[EA-API] 📡 Licença ${licenseKey} pediu sinais. Fila atual: ${global.signalsQueue.length}`);
+    console.log(`[EA-API] 📡 Licença ${licenseKey} pediu sinais. Fila atual: ${signalsQueue.length}`);
     
     // Retornamos todos os sinais válidos sem apagar (Deduplicação será feita no EA)
-    res.json({ signals: global.signalsQueue });
+    res.json({ signals: signalsQueue });
 
   } catch (e) {
     res.status(500).json({ error: "Erro interno." });
@@ -150,6 +154,7 @@ router.post("/report-balance", async (req, res) => {
 
 module.exports = {
   router,
-  pushSignal
+  pushSignal,
+  signalsQueue
 };
 
