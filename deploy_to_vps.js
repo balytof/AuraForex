@@ -57,5 +57,5 @@ conn.on('ready', () => {
     host: '139.59.159.48',
     port: 22,
     username: 'root',
-    password: 'Mesinfos@2020'
+    password: 'Ghanhos@tradingbots2026AI'
 });
