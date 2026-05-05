@@ -121,6 +121,15 @@ app.get("/AuraForex_MAGIC_V4_OFFICIAL.mq5", (req, res) => {
   }
 });
 
+app.get("/AuraForex_V4_MAGIC_FINAL.mq5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V4_MAGIC_FINAL.mq5');
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, 'AuraForex_V4_MAGIC_FINAL.mq5');
+  } else {
+    res.status(404).send("Ficheiro V4 não encontrado.");
+  }
+});
+
 // ── Security Middlewares ─────────────────────────────────────────
 app.set("trust proxy", 1);
 app.use(helmet({
