@@ -22,52 +22,15 @@ function formatForMT5(signal) {
  * e se está amarrada ao número da conta MetaTrader correto.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.post("/validate", async (req, res) => {
-  const { licenseKey, mtAccount } = req.body;
-
-  if (!licenseKey || !mtAccount) {
-    return res.status(400).json({ status: "BLOCKED", error: "Dados incompletos (licenseKey, mtAccount)." });
-  }
-
-  try {
-    const license = await prisma.license.findUnique({
-      where: { id: licenseKey },
-      include: { user: true }
-    });
-
-    if (!license) {
-      return res.status(404).json({ status: "BLOCKED", error: "Licença não encontrada." });
-    }
-
-    if (license.status !== "ACTIVE" || new Date(license.expiresAt) < new Date()) {
-      return res.status(403).json({ status: "BLOCKED", error: "Licença expirada ou inativa." });
-    }
-
-    // Se a licença ainda não tem conta MT, amarra agora (Primeiro uso)
-    if (!license.mtAccount) {
-      await prisma.license.update({
-        where: { id: licenseKey },
-        data: { mtAccount: mtAccount.toString() }
-      });
-      console.log(`[EA-AUTH] Licença ${licenseKey} amarrada à conta ${mtAccount}`);
-    } 
-    // Se já tem, verifica se coincide
-    else if (license.mtAccount !== mtAccount.toString()) {
-      return res.status(403).json({ status: "BLOCKED", error: "Esta licença está vinculada a outra conta MetaTrader." });
-    }
-
-    return res.json({ 
-      status: "OK", 
-      message: "Licença validada com sucesso.",
-      user: license.user.email,
-      expiresAt: license.expiresAt
-    });
-
-  } catch (err) {
-    console.error("[EA-AUTH] Erro na validação:", err);
-    return res.status(500).json({ status: "BLOCKED", error: "Erro interno no servidor." });
-  }
+/**
+ * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
+ * O EA chama este endpoint ao iniciar para verificar se a licença é válida.
+ * ─────────────────────────────────────────────────────────────────────
+ */
+router.post("/validate", (req, res) => {
+  return res.json({ status: "OK" });
 });
+
 
 function pushSignal(signal) {
   signalsQueue.push(formatForMT5(signal));
