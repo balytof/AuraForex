@@ -27,8 +27,9 @@ function formatForMT5(signal) {
  * O EA chama este endpoint ao iniciar para verificar se a licença é válida.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.get("/validate", (req, res) => {
-  console.log(`[EA-API] 🛡️ Pedido de validação recebido: ${req.query.licenseKey || 'SEM CHAVE'}`);
+router.post("/validate", (req, res) => {
+  const { licenseKey, mtAccount } = req.body;
+  console.log(`[EA-API] 🛡️ Validando MT5: Conta ${mtAccount} | Licença ${licenseKey}`);
   res.json({ status: "OK" });
 });
 
