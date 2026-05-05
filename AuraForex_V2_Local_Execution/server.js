@@ -120,7 +120,8 @@ const apiLimiter = rateLimit({
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
-app.use("/api/ea", eaApi);
+app.use("/api/ea", eaApi.router);
+app.use("/ea", eaApi.router); // Suporte para o Robô (sem prefixo /api)
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
