@@ -21,6 +21,18 @@ function isActiveSession() {
   return true; 
 }
 
+function getPrecision(pair) {
+  const p = String(pair).toUpperCase();
+  if (p.includes("JPY")) return 3;
+  if (p.includes("XAU") || p.includes("GOLD")) return 2;
+  return 5;
+}
+
+function normalize(price, pair) {
+  const p = getPrecision(pair);
+  return Number(Number(price).toFixed(p));
+}
+
 /**
  * Calcula o score de confluência (0–100)
  * @param {Object} factors - mapa de factor → boolean
@@ -99,8 +111,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
         orderType = "LIMIT";
       }
 
-      const sl = parseFloat((entryPrice - last.atr * atrCfg.slMultiplier).toFixed(5));
-      const tp = parseFloat((entryPrice + last.atr * atrCfg.tpMultiplier).toFixed(5));
+      const sl = normalize(entryPrice - last.atr * atrCfg.slMultiplier, pair);
+      const tp = normalize(entryPrice + last.atr * atrCfg.tpMultiplier, pair);
       const rr = ((tp - entryPrice) / (entryPrice - sl));
 
       if (rr < cfg.risk.minRR) {
@@ -155,8 +167,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
         orderType = "LIMIT";
       }
 
-      const sl = parseFloat((entryPrice + last.atr * atrCfg.slMultiplier).toFixed(5));
-      const tp = parseFloat((entryPrice - last.atr * atrCfg.tpMultiplier).toFixed(5));
+      const sl = normalize(entryPrice + last.atr * atrCfg.slMultiplier, pair);
+      const tp = normalize(entryPrice - last.atr * atrCfg.tpMultiplier, pair);
       const rr = ((entryPrice - tp) / (sl - entryPrice));
 
       if (rr < cfg.risk.minRR) {
