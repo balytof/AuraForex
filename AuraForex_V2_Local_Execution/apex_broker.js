@@ -505,42 +505,26 @@ class MetaApiAdapter extends BrokerBase {
     try {
       if (!this.connection) await this.connect();
 
-      // Mapeamento de Timeframe para a API REST
-      const tfMap = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' };
-      const tf = tfMap[timeframe] || '1h';
+      const tfMap = {
+        '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'
+      };
 
-      try {
-        // Tentar via SDK primeiro
-        const candles = await this.connection.getCandles(symbol, tf, limit);
-        if (candles && candles.length > 0) {
-           return candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.tickVolume || c.volume }));
-        }
-      } catch (e) {
-        console.warn(`[EXPERT-MA] SDK getCandles falhou para ${symbol}, tentando via REST API...`);
-      }
+      const candles = await this.connection.getCandles(
+        symbol,
+        tfMap[timeframe] || '1m',
+        { limit }
+      );
 
-      // FALLBACK: Requisição REST Direta (Muito mais estável)
-      const baseUrl = `https://mt-client-api-v1.${this.account.region}.agiliumtrade.ai`;
-      const url = `${baseUrl}/users/current/accounts/${this.accountId}/historic-market-data/symbols/${encodeURIComponent(symbol)}/timeframes/${tf}/candles?limit=${limit}`;
-      
-      const response = await fetch(url, {
-        headers: { 'auth-token': this.api.token || this.config.metaApiToken || this.config.apiToken }
-      });
-
-      if (!response.ok) throw new Error(`REST API Error: ${response.status}`);
-      
-      const candles = await response.json();
       return (candles || []).map(c => ({
         time: c.time,
         open: c.open,
         high: c.high,
         low: c.low,
         close: c.close,
-        volume: c.tickVolume || c.volume || 0
+        volume: c.tickVolume
       }));
-
     } catch (e) {
-      console.error(`[EXPERT-MA] Falha total ao obter velas para ${symbol}: ${e.message}`);
+      console.error(`[EXPERT-MA] Error getCandles: ${e.message}`);
       return [];
     }
   }
