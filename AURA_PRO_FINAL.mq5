@@ -171,12 +171,24 @@ void ExecuteSignal(string json)
       Print("❌ SL/TP muito próximo! Ordem abortada para evitar erro 10016.");
       return;
    }
+   
+   // --- VALIDAR LÓGICA BUY/SELL (CHEF) ---
+   if(direction == "BUY") {
+      if(sl >= price || tp <= price) {
+         Print("❌ Lógica de COMPRA inválida: SL >= Preço ou TP <= Preço. Abortando.");
+         return;
+      }
+   } else if(direction == "SELL") {
+      if(sl <= price || tp >= price) {
+         Print("❌ Lógica de VENDA inválida: SL <= Preço ou TP >= Preço. Abortando.");
+         return;
+      }
+   }
 
    // --- NORMALIZAR PREÇOS ---
-   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   sl = NormalizeDouble(sl, digits);
-   tp = NormalizeDouble(tp, digits);
-   price = NormalizeDouble(price, digits);
+   sl = NormalizeDouble(sl, _Digits);
+   tp = NormalizeDouble(tp, _Digits);
+   price = NormalizeDouble(price, _Digits);
    
    bool res = false;
    if(direction == "BUY")
