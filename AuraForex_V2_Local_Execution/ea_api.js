@@ -35,34 +35,7 @@ router.post("/validate", (req, res) => {
 
 
 
-/**
- * ── FUNÇÃO: PUSHSIGNAL (MULTI-UTILIZADOR) ───────────────────────────
- * Grava o sinal diretamente no banco de dados para o utilizador específico.
- * ─────────────────────────────────────────────────────────────────────
- */
-async function pushSignal(userId, signal) {
-  try {
-    const newSignal = await prisma.signal.create({
-      data: {
-        userId: userId,
-        pair: String(signal.pair).toUpperCase(),
-        direction: String(signal.direction).toUpperCase(),
-        entry: Number(signal.entry || 0),
-        sl: Number(signal.sl || 0),
-        tp: Number(signal.tp || 0),
-        lot: Number(signal.lot || 0.01),
-        status: "PENDING"
-      }
-    });
 
-    console.log(`[DATABASE] ✅ SINAL PERSISTIDO PARA ${userId}: ${newSignal.pair} ${newSignal.direction}`);
-    return newSignal;
-
-  } catch (err) {
-    console.error("[DATABASE] Erro ao persistir sinal:", err);
-    throw err;
-  }
-}
 
 
 /**
@@ -184,7 +157,6 @@ router.post("/report-balance", async (req, res) => {
 });
 
 module.exports = {
-  router,
-  pushSignal
+  router
 };
 

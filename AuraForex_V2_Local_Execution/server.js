@@ -148,8 +148,7 @@ app.get("/api/debug/inject-test-signal", async (req, res) => {
       lot: 0.01
     };
 
-    // Usar a função oficial para garantir formatação e logs
-    eaApi.pushSignal("DEBUG_USER", testSignal);
+    console.log("[DEBUG] ✅ Sinal de teste gerado no banco de dados.");
     
     res.json({
       success: true,
@@ -887,8 +886,7 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       }
     });
 
-    // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5)
-    eaApi.pushSignal(req.user.id, signal);
+    // O EA buscará este sinal via polling no banco de dados (Multi-Utilizador)
 
 
     console.log(`[V2-LOCAL] ✅ Sinal gerado com sucesso para ${pair} ${direction}. ID: ${signal.id}`);
@@ -1519,10 +1517,6 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     const { signal, reason } = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
 
     // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5) se houver sinal
-    if (signal) {
-      eaApi.pushSignal(req.user.id, signal);
-    }
-
 
     const analysis = analyzeAll(marketCandles);
 
