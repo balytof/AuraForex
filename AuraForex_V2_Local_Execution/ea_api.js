@@ -67,8 +67,7 @@ router.get("/signals", async (req, res) => {
     
     console.log(`[EA-API] 📦 Itens na fila para este user: ${data.length}`);
     
-    // Limpa a fila do utilizador após a entrega
-    userQueues.set(license.userId, []);
+    // COMENTADO PARA TESTE: userQueues.set(license.userId, []);
 
 
     if (data.length > 0) {
