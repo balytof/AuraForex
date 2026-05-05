@@ -1461,8 +1461,9 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
 
     // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5) se houver sinal
     if (signal) {
-      eaApi.pushSignal(signal);
+      eaApi.pushSignal(req.user.id, signal);
     }
+
 
     const analysis = analyzeAll(marketCandles);
 
@@ -1770,8 +1771,33 @@ server.listen(PORT, () => {
           const { signal } = generateSignal(pair, marketCandles, "NEUTRAL");
 
           if (signal) {
-            console.log(`[AUTO-BOT] 🎯 Sinal DETETADO para ${pair}. Enviando para o EA...`);
-            eaApi.pushSignal(signal);
+            console.log(`[AUTO-BOT] 🎯 Sinal DETETADO para ${pair}. Distribuindo...`);
+            
+            // 1. Buscar todos os utilizadores com licença ativa
+            const activeLicenses = await prisma.license.findMany({
+              where: { status: "ACTIVE", expiresAt: { gt: new Date() } }
+            });
+
+            for (const license of activeLicenses) {
+              try {
+                const dbSignal = await prisma.signal.create({
+                  data: {
+                    userId: license.userId,
+                    pair: signal.pair,
+                    direction: signal.direction,
+                    entry: signal.entry,
+                    sl: signal.sl,
+                    tp: signal.tp,
+                    lot: 0.01,
+                    status: "PENDING"
+                  }
+                });
+                // 2. Enviar para a fila individual de cada um
+                eaApi.pushSignal(license.userId, dbSignal);
+              } catch (err) {
+                console.error(`Erro ao enviar sinal para ${license.userId}:`, err.message);
+              }
+            }
           }
         } catch (e) {
           // Silenciar erros de conexão temporários por par
@@ -1781,6 +1807,7 @@ server.listen(PORT, () => {
       console.error("[AUTO-BOT-ERROR]:", e.message);
     }
   }, 60000); // Verifica a cada 1 minuto
+
 
   // ── INICIAR MONITOR DE BACKGROUND (Profit Lock) ──
   console.log("[DIAGNOSTIC] 🛡️ Iniciando Monitor de Background (Profit Lock)...");
