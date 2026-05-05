@@ -86,7 +86,10 @@ void ValidateLicense()
    string url = InpServerUrl + "/ea/validate";
    string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    
+   Print("🔐 VALIDANDO LICENÇA...");
    string result = SendPost(url, payload);
+   Print("🔐 RESPOSTA LICENSE: ", result);
+
    
    if(StringFind(result, "\"status\":\"OK\"") >= 0)
    {
@@ -107,7 +110,10 @@ void ValidateLicense()
 void CheckForSignals()
 {
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
+   Print("📡 BUSCANDO SINAIS...");
    string result = SendGet(url);
+   Print("📡 RESPOSTA: ", result);
+
    
    if(StringFind(result, "\"signals\":[]") >= 0) return; // Sem sinais novos
    
