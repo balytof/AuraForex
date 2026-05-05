@@ -745,11 +745,11 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   let finalTp = tp;
 
   if (direction === "BUY") {
-    if (entry - finalSl < minDist) finalSl = normPrice(entry - minDist, pair);
-    if (finalTp - entry < minDist) finalTp = normPrice(entry + minDist, pair);
+    if (entry - finalSl < minDist) finalSl = normPrice(entry - (minDist * 1.5), pair);
+    if (finalTp - entry < minDist) finalTp = normPrice(entry + (minDist * 1.5), pair);
   } else {
-    if (finalSl - entry < minDist) finalSl = normPrice(entry + minDist, pair);
-    if (entry - finalTp < minDist) finalTp = normPrice(entry - minDist, pair);
+    if (finalSl - entry < minDist) finalSl = normPrice(entry + (minDist * 1.5), pair);
+    if (entry - finalTp < minDist) finalTp = normPrice(entry - (minDist * 1.5), pair);
   }
 
   // ⚠️ SANITY CHECK: Se a distância for maior que 50% do preço, há erro de escala
