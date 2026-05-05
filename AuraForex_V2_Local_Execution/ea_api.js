@@ -57,6 +57,8 @@ router.get("/signals", async (req, res) => {
   try {
     console.log("📡 EA pediu sinais");
     
+    console.log(`[EA-API] Verificando fila global. Tamanho atual: ${global.signalsQueue ? global.signalsQueue.length : 0}`);
+    
     if (!global.signalsQueue || global.signalsQueue.length === 0) {
       return res.json({ signals: [] });
     }
