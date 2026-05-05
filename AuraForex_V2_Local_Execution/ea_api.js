@@ -1,18 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
-const signalsQueue = [];
+const userQueues = new Map(); // userId -> Array de sinais
+
 
 function formatForMT5(signal) {
   return {
-    id: Date.now().toString(),
-    pair: signal.pair,
-    direction: signal.direction,
-    sl: signal.sl,
-    tp: signal.tp,
-    lot: 0.01
+    id: String(signal.id || Date.now().toString()),
+    pair: String(signal.pair).toUpperCase(),
+    direction: String(signal.direction).toUpperCase(),
+    entry: Number(signal.entry || 0),
+    sl: Number(signal.sl || 0),
+    tp: Number(signal.tp || 0),
+    lot: Number(signal.lot || 0.01)
   };
 }
+
 
 
 
@@ -32,29 +35,42 @@ router.post("/validate", (req, res) => {
 });
 
 
-function pushSignal(signal) {
-  signalsQueue.push(formatForMT5(signal));
-  console.log(`[QUEUE] Novo sinal adicionado. Fila atual: ${signalsQueue.length}`);
+function pushSignal(userId, signal) {
+  if (!userQueues.has(userId)) userQueues.set(userId, []);
+  const queue = userQueues.get(userId);
+  queue.push(formatForMT5(signal));
+  console.log(`[QUEUE] Sinal enviado para User ${userId.substring(0,8)}. Fila: ${queue.length}`);
 }
 
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
  * O EA chama este endpoint periodicamente para buscar novos sinais na fila.
- * A fila é limpa imediatamente após o envio.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.get("/signals", (req, res) => {
-  const data = [...signalsQueue];
-  
-  // Limpa depois de enviar (Padrão sugerido para execução única)
-  signalsQueue.length = 0;
+router.get("/signals", async (req, res) => {
+  const { licenseKey } = req.query;
+  if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
 
-  if (data.length > 0) {
-    console.log(`[EA-API] Enviando ${data.length} sinais e limpando fila.`);
+  try {
+    const license = await prisma.license.findUnique({ where: { id: licenseKey } });
+    if (!license) return res.status(403).json({ error: "Licença inválida." });
+
+    const queue = userQueues.get(license.userId) || [];
+    const data = [...queue];
+    
+    // Limpa a fila do utilizador após a entrega
+    userQueues.set(license.userId, []);
+
+    if (data.length > 0) {
+      console.log(`[EA-API] Enviando ${data.length} sinais para User ${license.userId.substring(0,8)}.`);
+    }
+
+    res.json({ signals: data });
+  } catch (e) {
+    res.status(500).json({ error: "Erro interno." });
   }
-
-  res.json({ signals: data });
 });
+
 
 
 /**
