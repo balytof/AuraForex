@@ -1,166 +1,226 @@
 //+------------------------------------------------------------------+
 //|                                              AURA_PRO_FINAL.mq5  |
 //|                                  Copyright 2026, AuraForex Corp  |
+//|                                             https://auraforex.pt |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
+#property link      "https://auraforex.pt"
 #property version   "3.00"
 #property strict
 
+//--- INCLUDES ---
 #include <Trade\Trade.mqh>
 
-input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; 
-input string   InpServerUrl      = "https://www.auratradebots.com/api"; 
-input double   InpRiskPercent    = 1.0;                     
-input int      InpMagicNumber    = 888222;                  
+//--- INPUT PARAMETERS ---
+input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
+input string   InpServerUrl      = "http://localhost:3005"; // URL do Servidor Local
+input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
+input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
+input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
 
+//--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
 
-int OnInit() {
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
    Print("🚀 AURA PRO FINAL v3.0 - INICIADO");
+   
+   // Configurar Magic Number
    trade.SetExpertMagicNumber(InpMagicNumber);
-   EventSetTimer(2);
+   
+   // Primeiro Timer
+   EventSetTimer(InpTimerSeconds);
+   
    return(INIT_SUCCEEDED);
 }
 
-void OnDeinit(const int reason) { EventKillTimer(); }
-void OnTick() {}
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   EventKillTimer();
+   Print("== AURA PRO FINAL - DESLIGADO ==");
+}
 
-void OnTimer() {
-   if(!IsAuthorized) {
-      string url = InpServerUrl + "/ea/validate";
-      string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
-      string res = SendPost(url, payload);
-      if(StringFind(res, "\"status\":\"OK\"") >= 0) {
-         IsAuthorized = true;
-         Print("✅ AUTORIZADO PELO VPS");
-      }
-   } else {
-      CheckSignals();
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   // Nada aqui, usamos Timer
+}
+
+//+------------------------------------------------------------------+
+//| Timer function                                                   |
+//+------------------------------------------------------------------+
+void OnTimer()
+{
+   if(!IsAuthorized)
+   {
+      ValidateLicense();
+   }
+   else
+   {
+      CheckForSignals();
    }
 }
 
-void CheckSignals() {
-   string res = SendGet(InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey);
+//+------------------------------------------------------------------+
+//| Validar Licença via API                                          |
+//+------------------------------------------------------------------+
+void ValidateLicense()
+{
+   string url = InpServerUrl + "/ea/validate";
+   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    
-   if(res == "Error") {
-      Print("❌ Erro de rede ao buscar sinais");
-      return;
+   Print("🔐 VALIDANDO LICENÇA...");
+   string result = SendPost(url, payload);
+   Print("🔐 RESPOSTA LICENSE: ", result);
+   
+   if(StringFind(result, "\"status\":\"OK\"") >= 0)
+   {
+      IsAuthorized = true;
+      Print("✅ LICENÇA VALIDADA COM SUCESSO!");
+      Comment("AURA PRO FINAL: ATIVO\nLicença: OK\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    }
-
-   // Log temporário para ver o que o servidor diz
-   if(StringFind(res, "\"signals\":[]") < 0) {
-      Print("📡 Resposta do Servidor: " + res);
+   else
+   {
+      Print("❌ FALHA NA VALIDAÇÃO: " + result);
+      Comment("AURA PRO FINAL: BLOQUEADO\nVerifique a Licença.");
    }
+}
 
-   if(StringFind(res, "\"signals\":[]") >= 0) return;
-
-   int startPos = StringFind(res, "[");
-   int endPos = StringFind(res, "]", startPos);
+//+------------------------------------------------------------------+
+//| Buscar Sinais Pendentes no Servidor                              |
+//+------------------------------------------------------------------+
+void CheckForSignals()
+{
+   string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
+   
+   Print("📡 BUSCANDO SINAIS...");
+   string result = SendGet(url);
+   Print("📡 RESPOSTA: ", result);
+   
+   if(result == "Error" || StringFind(result, "\"signals\":[]") >= 0) return; 
+   
+   // Parse blocos de sinais
+   int startPos = StringFind(result, "[");
+   int endPos = StringFind(result, "]", startPos);
    if(startPos < 0 || endPos < 0) return;
    
-   string signalsJson = StringSubstr(res, startPos+1, endPos-startPos-1);
+   string signalsJson = StringSubstr(result, startPos+1, endPos-startPos-1);
    string objects[];
    int count = StringSplit(signalsJson, '}', objects);
    
    for(int i=0; i<count; i++) {
-      string sig = objects[i];
-      if(StringFind(sig, "\"id\"") < 0) continue;
-      if(StringSubstr(sig, 0, 1) == ",") sig = StringSubstr(sig, 1);
-      sig = sig + "}";
-      
-      string pair = ExtractValue(sig, "pair");
-      string dir  = ExtractValue(sig, "direction");
-      double sl   = StringToDouble(ExtractValue(sig, "sl"));
-      double tp   = StringToDouble(ExtractValue(sig, "tp"));
-      double lot  = StringToDouble(ExtractValue(sig, "lot"));
-      string id   = ExtractValue(sig, "id");
-      
-      if(pair == "" || dir == "") continue;
-
-      // --- EXPERT FIX: SUFIXO DA CORRETORA ---
-      if(!SymbolSelect(pair, true)) {
-         // Tenta encontrar o símbolo correto (ex: EURUSD.m, EURUSD+)
-         bool found = false;
-         for(int s=0; s<SymbolsTotal(false); s++) {
-            string sym = SymbolName(s, false);
-            if(StringFind(sym, pair) >= 0) {
-               pair = sym;
-               found = true;
-               break;
-            }
-         }
-         if(!found) {
-            Print("❌ Símbolo não encontrado: " + pair);
-            continue;
-         }
-      }
-
-      double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-      double bid = SymbolInfoDouble(pair, SYMBOL_BID);
-      double price = (dir == "BUY") ? ask : bid;
-      
-      if(price <= 0) {
-         Print("⚠️ Preço inválido para " + pair + ". Verifique se o par está ativo.");
-         continue;
-      }
-
-      // Se o SL for absurdo (negativo ou longe demais), recalcula 300 pips
-      double point = SymbolInfoDouble(pair, SYMBOL_POINT);
-      if(sl <= 0 || MathAbs(price - sl) > (price * 0.1)) {
-         Print("⚠️ SL Inválido (" + (string)sl + "). Corrigindo para 300 pips.");
-         sl = (dir == "BUY") ? price - (300 * point) : price + (300 * point);
-         tp = (dir == "BUY") ? price + (450 * point) : price - (450 * point);
-      }
-
-      int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-      sl = NormalizeDouble(sl, digits);
-      tp = NormalizeDouble(tp, digits);
-      price = NormalizeDouble(price, digits);
-
-      Print("📥 EXECUTANDO " + pair + " " + dir + " SL:" + (string)sl);
-      if((dir == "BUY" && trade.Buy(lot, pair, price, sl, tp)) || (dir == "SELL" && trade.Sell(lot, pair, price, sl, tp))) {
-         SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + id + "\",\"status\":\"EXECUTED\"}");
-      }
+      string sigData = objects[i];
+      if(StringFind(sigData, "\"id\"") < 0) continue;
+      if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
+      ExecuteSignal(sigData + "}");
    }
 }
 
+//+------------------------------------------------------------------+
+//| Executar Ordem baseada no JSON do sinal                          |
+//+------------------------------------------------------------------+
+void ExecuteSignal(string json)
+{
+   string signalId = ExtractJsonValue(json, "id");
+   string pair     = ExtractJsonValue(json, "pair");
+   string direction = ExtractJsonValue(json, "direction");
+   double sl       = StringToDouble(ExtractJsonValue(json, "sl"));
+   double tp       = StringToDouble(ExtractJsonValue(json, "tp"));
+   double lot      = StringToDouble(ExtractJsonValue(json, "lot"));
+
+   Print("🚀 PROCESSANDO SINAL: " + pair + " " + direction + " Lot: " + (string)lot);
+   
+   // Garantir que o símbolo está ativo e resolver sufixos
+   if(!SymbolSelect(pair, true)) {
+      for(int s=0; s<SymbolsTotal(false); s++) {
+         string sym = SymbolName(s, false);
+         if(StringFind(sym, pair) >= 0) { pair = sym; break; }
+      }
+   }
+   SymbolSelect(pair, true);
+   Sleep(300);
+
+   // Proteção de Lote
+   if(lot <= 0) {
+      lot = SymbolInfoDouble(pair, SYMBOL_VOLUME_MIN);
+      Print("⚠️ Lot corrigido para o mínimo: ", lot);
+   }
+
+   double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
+   bool res = false;
+
+   if(direction == "BUY")
+      res = trade.Buy(lot, pair, price, sl, tp, "AuraPro Signal");
+   else if(direction == "SELL")
+      res = trade.Sell(lot, pair, price, sl, tp, "AuraPro Signal");
+      
+   if(!res)
+   {
+      Print("❌ ERRO ORDEM: ", trade.ResultRetcode(), " | ", trade.ResultRetcodeDescription());
+      ReportSignalStatus(signalId, "FAILED", 0);
+   }
+   else
+   {
+      ulong ticket = trade.ResultOrder();
+      Print("✅ ORDEM EXECUTADA! Ticket: " + (string)ticket);
+      ReportSignalStatus(signalId, "EXECUTED", (long)ticket);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Reportar Status da Execução para o Servidor                      |
+//+------------------------------------------------------------------+
+void ReportSignalStatus(string sigId, string status, long ticket)
+{
+   string url = InpServerUrl + "/ea/report";
+   string payload = "{\"signalId\":\"" + sigId + "\",\"status\":\"" + status + "\",\"orderTicket\":\"" + (string)ticket + "\"}";
+   SendPost(url, payload);
+}
+
+//+------------------------------------------------------------------+
+//| FUNÇÕES DE REDE E PARSING                                        |
+//+------------------------------------------------------------------+
+
 string SendPost(string url, string p) {
-   uchar post[], res[]; string h = "Content-Type: application/json\r\n", rh;
+   uchar post[], res[];
+   string h = "Content-Type: application/json\r\n", rh;
    StringToCharArray(p, post);
-   if(WebRequest("POST", url, h, 5000, post, res, rh) < 0) return "Error";
+   int code = WebRequest("POST", url, h, 5000, post, res, rh);
+   if(code < 0) { Print("❌ POST ERROR: ", GetLastError()); return "Error"; }
    return CharArrayToString(res);
 }
 
 string SendGet(string url) {
-   uchar res[], d[]; string rh;
-   if(WebRequest("GET", url, "", 5000, d, res, rh) < 0) return "Error";
+   uchar res[], d[];
+   string rh;
+   int code = WebRequest("GET", url, "", 5000, d, res, rh);
+   if(code < 0) { Print("❌ GET ERROR: ", GetLastError()); return "Error"; }
    return CharArrayToString(res);
 }
 
-string ExtractValue(string json, string key) {
+string ExtractJsonValue(string json, string key) {
    string k = "\"" + key + "\":";
    int p = StringFind(json, k);
    if(p < 0) return "";
-   
    int s = p + StringLen(k);
-   
-   // Pular espaços em branco e aspas iniciais
    while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
-   
-   int e = StringFind(json, "\"", s); // Tenta achar aspas de fechamento (se for string)
-   if(e < 0) e = StringFind(json, ",", s); // Se não, tenta achar vírgula
-   if(e < 0) e = StringFind(json, "}", s); // Se não, tenta achar fecha chave
-   
+   int e = StringFind(json, "\"", s); 
+   if(e < 0) e = StringFind(json, ",", s); 
+   if(e < 0) e = StringFind(json, "}", s); 
    if(e < 0 || e <= s) return "";
-   
    string res = StringSubstr(json, s, e - s);
-   
-   // Limpeza final de caracteres residuais (sem usar retorno de StringReplace)
    StringReplace(res, "\"", "");
    StringReplace(res, " ", "");
    StringReplace(res, "}", "");
    StringReplace(res, "]", "");
-   
    return res;
 }
