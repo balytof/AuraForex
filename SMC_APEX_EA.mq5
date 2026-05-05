@@ -5,62 +5,83 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "2.02"
+#property version   "4.00"
 #property strict
 
+//--- INCLUDES ---
 #include <Trade\Trade.mqh>
 
-// --- INPUTS COM IP DO VPS ---
-input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; 
-input string   InpServerUrl      = "http://139.59.159.48:3005"; // IP DO SEU VPS
-input double   InpRiskPercent    = 1.0;                     
-input double   InpTPRR           = 1.5;                     
-input int      InpMagicNumber    = 888222;                  
-input int      InpTimerSeconds   = 2;                       
+//--- INPUT PARAMETERS ---
+input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
+input string   InpServerUrl      = "https://www.auratradebots.com/api"; // URL do seu VPS
+input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
+input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
+input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
 
+//--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
-string         EAVersion = "v2.0.2-VPS";
+string         ExtProcessedIds[];         // Memória de sinais já executados (V4)
 
-int OnInit() {
-   Print("== SMC APEX EA v2.0.2 - CONECTANDO AO VPS [" + InpServerUrl + "] ==");
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   Print("🚀 SMC APEX EA v4.0 MAGIC - INICIADO");
    trade.SetExpertMagicNumber(InpMagicNumber);
-   trade.SetDeviationInPoints(50);
+   
+   // Tentar primeira validação imediata
+   ValidateLicense();
+   
+   // Iniciar Timer para check contínuo
    EventSetTimer(InpTimerSeconds);
+   
    return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason) { EventKillTimer(); }
 void OnTick() {}
 
-void OnTimer() {
+void OnTimer()
+{
    if(!IsAuthorized) ValidateLicense();
    else CheckForSignals();
 }
 
-void ValidateLicense() {
+//+------------------------------------------------------------------+
+//| Validar Licença via API                                          |
+//+------------------------------------------------------------------+
+void ValidateLicense()
+{
    string url = InpServerUrl + "/ea/validate";
    string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
+   
+   Print("🔐 VALIDANDO LICENÇA...");
    string result = SendPost(url, payload);
    
-   if(StringFind(result, "\"status\":\"OK\"") >= 0) {
+   if(StringFind(result, "\"status\":\"OK\"") >= 0)
+   {
       IsAuthorized = true;
-      Print("✅ LIGADO AO VPS COM SUCESSO!");
-   } else {
-      Print("❌ ERRO AO LIGAR AO VPS: " + result);
-      Comment("SMC APEX EA: ERRO DE REDE\nVerifique se o VPS [" + InpServerUrl + "] está ativo.");
+      Print("✅ LICENÇA VALIDADA COM SUCESSO!");
+      Comment("SMC APEX V4 MAGIC: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+   }
+   else
+   {
+      Comment("SMC APEX V4: AGUARDANDO VALIDAÇÃO...");
    }
 }
 
-void CheckForSignals() {
+//+------------------------------------------------------------------+
+//| Buscar Sinais e Executar (LÓGICA V4 MAGIC MULTI-USER)            |
+//+------------------------------------------------------------------+
+void CheckForSignals()
+{
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    string result = SendGet(url);
    
-   if(result == "Error") return;
-   if(StringFind(result, "\"signals\":[]") >= 0) return;
+   if(result == "Error" || StringFind(result, "\"signals\":[]") >= 0) return; 
 
-   Print("🚀 SINAL RECEBIDO DO VPS: " + result);
-   
    int startPos = StringFind(result, "[");
    int endPos = StringFind(result, "]", startPos);
    if(startPos < 0 || endPos < 0) return;
@@ -73,94 +94,113 @@ void CheckForSignals() {
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
       if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
-      ExecuteSignal(sigData + "}");
+      
+      string fullJson = sigData + "}";
+      string id = ExtractJsonValue(fullJson, "id");
+      string pair = ExtractJsonValue(fullJson, "pair");
+
+      // 1. Verificar se o sinal é para este par (Filtro de Gráfico)
+      if(StringFind(_Symbol, pair) < 0 && StringFind(pair, _Symbol) < 0) continue;
+
+      // 2. Filtro de Memória (V4)
+      bool alreadyDone = false;
+      for(int j=0; j<ArraySize(ExtProcessedIds); j++) {
+         if(ExtProcessedIds[j] == id) { alreadyDone = true; break; }
+      }
+      if(alreadyDone) continue;
+
+      // Executar e guardar ID
+      ExecuteSignal(fullJson);
+      
+      int size = ArraySize(ExtProcessedIds);
+      ArrayResize(ExtProcessedIds, size + 1);
+      ExtProcessedIds[size] = id;
    }
 }
 
-void ExecuteSignal(string json) {
-   string pair = ExtractJsonValue(json, "pair");
-   string direction = ExtractJsonValue(json, "direction");
+void ExecuteSignal(string json)
+{
    string signalId = ExtractJsonValue(json, "id");
-   double entry = StringToDouble(ExtractJsonValue(json, "entry"));
-   double sl = StringToDouble(ExtractJsonValue(json, "sl"));
-   double tp = StringToDouble(ExtractJsonValue(json, "tp"));
-   double lot = StringToDouble(ExtractJsonValue(json, "lot"));
+   string pair     = ExtractJsonValue(json, "pair");
+   string direction = ExtractJsonValue(json, "direction");
+   double sl       = StringToDouble(ExtractJsonValue(json, "sl"));
+   double tp       = StringToDouble(ExtractJsonValue(json, "tp"));
+   double lot      = StringToDouble(ExtractJsonValue(json, "lot"));
 
-   Print("📥 EXECUTANDO: " + pair + " " + direction + " SL:" + (string)sl + " TP:" + (string)tp);
+   Print("🚀 PROCESSANDO SINAL V4: " + pair + " " + direction);
    
+   // Garantir sufixos
+   if(!SymbolSelect(pair, true)) {
+      for(int s=0; s<SymbolsTotal(false); s++) {
+         string sym = SymbolName(s, false);
+         if(StringFind(sym, pair) >= 0) { pair = sym; break; }
+      }
+   }
+   SymbolSelect(pair, true);
+
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    double price = (direction == "BUY") ? ask : bid;
-   
-   if(price <= 0) {
-      Print("❌ Par " + pair + " não está no Market Watch!");
-      return;
-   }
-
-   // Normalização por TickSize (Expert v2.0)
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
-   if(tickSize > 0) {
-      sl = NormalizeDouble(MathRound(sl/tickSize)*tickSize, digits);
-      tp = NormalizeDouble(MathRound(tp/tickSize)*tickSize, digits);
-      price = NormalizeDouble(MathRound(price/tickSize)*tickSize, digits);
-   }
+   price = NormalizeDouble(price, digits);
 
-   bool res = (direction == "BUY") ? trade.Buy(lot, pair, price, sl, tp) : trade.Sell(lot, pair, price, sl, tp);
-   
-   if(res) {
-      Print("✅ ORDEM ABERTA: " + pair + " Ticket: " + (string)trade.ResultOrder());
-      ReportSignalStatus(signalId, "EXECUTED", (long)trade.ResultOrder());
-   } else {
-      Print("❌ ERRO AO ABRIR: " + trade.ResultRetcodeDescription());
+   // --- PASSO 1: ABRIR ORDEM LIMPA (INSTITUCIONAL V4) ---
+   bool res = false;
+   if(direction == "BUY")
+      res = trade.Buy(lot, pair, price, 0, 0, "SMC Magic Step1");
+   else if(direction == "SELL")
+      res = trade.Sell(lot, pair, price, 0, 0, "SMC Magic Step1");
+      
+   if(res)
+   {
+      ulong ticket = trade.ResultOrder();
+      Print("✅ ORDEM ABERTA! Ticket: ", ticket, ". Aguardando posição para aplicar proteção...");
+      
+      // --- PASSO 2: ESPERAR EXECUÇÃO E MODIFICAR ---
+      for(int i=0; i<10; i++)
+      {
+         if(PositionSelect(pair))
+         {
+            ulong posTicket = PositionGetInteger(POSITION_TICKET);
+            sl = NormalizeDouble(sl, digits);
+            tp = NormalizeDouble(tp, digits);
+            
+            if(trade.PositionModify(posTicket, sl, tp)) {
+               Print("🛡️ PROTEÇÃO V4 APLICADA COM SUCESSO!");
+               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + signalId + "\",\"status\":\"EXECUTED\",\"orderTicket\":\"" + (string)posTicket + "\"}");
+               break;
+            }
+         }
+         Sleep(200);
+      }
    }
 }
 
-//--- WEB UTILS ---
-string SendPost(string url, string payload) {
-   uchar post[], result[]; string headers = "Content-Type: application/json\r\n", res_h;
-   StringToCharArray(payload, post);
-   ResetLastError();
-   if(WebRequest("POST", url, headers, 5000, post, result, res_h) < 0) return "Error";
-   return CharArrayToString(result);
+string SendPost(string url, string p) {
+   uchar post[], res[]; string h = "Content-Type: application/json\r\n", rh;
+   StringToCharArray(p, post);
+   int code = WebRequest("POST", url, h, 5000, post, res, rh);
+   if(code < 0) return "Error";
+   return CharArrayToString(res);
 }
 
 string SendGet(string url) {
-   uchar result[], dummy[]; string res_h;
-   ResetLastError();
-   if(WebRequest("GET", url, "", 5000, dummy, result, res_h) < 0) return "Error";
-   return CharArrayToString(result);
+   uchar res[], d[]; string rh;
+   int code = WebRequest("GET", url, "", 5000, d, res, rh);
+   if(code < 0) return "Error";
+   return CharArrayToString(res);
 }
 
 string ExtractJsonValue(string json, string key) {
    string k = "\"" + key + "\":";
    int p = StringFind(json, k);
    if(p < 0) return "";
-   
    int s = p + StringLen(k);
-   
-   // Pular espaços em branco e aspas iniciais
    while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
-   
-   int e = StringFind(json, "\"", s); // Tenta achar aspas de fechamento
+   int e = StringFind(json, "\"", s); 
    if(e < 0) e = StringFind(json, ",", s); 
    if(e < 0) e = StringFind(json, "}", s); 
-   
-   if(e < 0 || e <= s) return "";
-   
    string res = StringSubstr(json, s, e - s);
-   
-   // Limpeza final de caracteres residuais (sem usar retorno de StringReplace)
-   StringReplace(res, "\"", "");
-   StringReplace(res, " ", "");
-   StringReplace(res, "}", "");
-   StringReplace(res, "]", "");
-   
+   StringReplace(res, "\"", ""); StringReplace(res, " ", ""); StringReplace(res, "}", "");
    return res;
-}
-
-void ReportSignalStatus(string sigId, string status, long ticket) {
-   string url = InpServerUrl + "/ea/report";
-   string payload = "{\"signalId\":\"" + sigId + "\",\"status\":\"" + status + "\",\"orderTicket\":\"" + (string)ticket + "\"}";
-   SendPost(url, payload);
 }
