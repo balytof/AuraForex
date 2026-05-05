@@ -33,6 +33,20 @@ function normalize(price, pair) {
   return Number(Number(price).toFixed(p));
 }
 
+function validatePriceRange(pair, price) {
+  const p = String(pair).toUpperCase();
+  if (p.includes("XAU") || p.includes("GOLD")) {
+    return price > 500; // Ouro não pode custar $1.09
+  }
+  if (p.includes("JPY")) {
+    return price > 50 && price < 300; // Iene não custa $1.09
+  }
+  if (p.includes("EUR") || p.includes("GBP") || p.includes("USD") || p.includes("AUD")) {
+    return price > 0.3 && price < 3.0; // Forex maioritário
+  }
+  return true; // Outros pares
+}
+
 /**
  * Calcula o score de confluência (0–100)
  * @param {Object} factors - mapa de factor → boolean
@@ -71,6 +85,12 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
   if (!last.atr || !last.emaFast || !last.emaSlow) {
     log.debug(`${pair}: indicadores ainda a inicializar`);
+    return null;
+  }
+
+  // ── TRAVA DE SANIDADE (CHEF)
+  if (!validatePriceRange(pair, last.close)) {
+    console.error(`❌ CRITICAL: Dados corrompidos para ${pair}. Preço recebido: ${last.close}. Sinal abortado.`);
     return null;
   }
 
