@@ -22,7 +22,6 @@ input int      InpTimerSeconds   = 2;                       // Intervalo de Chec
 //--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
-string         ExtProcessedIds[];         // Memória de sinais já executados
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -108,7 +107,9 @@ void CheckForSignals()
 {
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    
+   Print("📡 BUSCANDO SINAIS...");
    string result = SendGet(url);
+   Print("📡 RESPOSTA: ", result);
    
    if(result == "Error" || StringFind(result, "\"signals\":[]") >= 0) return; 
    
@@ -125,34 +126,7 @@ void CheckForSignals()
       string sigData = objects[i];
       if(StringFind(sigData, "\"id\"") < 0) continue;
       if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
-      
-      string fullJson = sigData + "}";
-      string id = ExtractJsonValue(fullJson, "id");
-      string pair = ExtractJsonValue(fullJson, "pair");
-      
-      // --- EXPERT FILTERING ---
-      // 1. Verificar se o sinal é para este par (Evita ordens duplicadas em múltiplos gráficos)
-      if(StringFind(_Symbol, pair) < 0 && StringFind(pair, _Symbol) < 0) continue;
-      
-      // 2. Verificar se já processamos este ID
-      bool alreadyDone = false;
-      for(int j=0; j<ArraySize(ExtProcessedIds); j++) {
-         if(ExtProcessedIds[j] == id) { alreadyDone = true; break; }
-      }
-      if(alreadyDone) continue;
-
-      // Executar e guardar ID
-      ExecuteSignal(fullJson);
-      
-      int size = ArraySize(ExtProcessedIds);
-      ArrayResize(ExtProcessedIds, size + 1);
-      ExtProcessedIds[size] = id;
-      
-      // Limpeza de memória (mantém apenas os últimos 50 IDs)
-      if(ArraySize(ExtProcessedIds) > 50) {
-         for(int k=0; k<49; k++) ExtProcessedIds[k] = ExtProcessedIds[k+1];
-         ArrayResize(ExtProcessedIds, 50);
-      }
+      ExecuteSignal(sigData + "}");
    }
 }
 
