@@ -32,8 +32,12 @@ int OnInit()
    // Configurar Magic Number
    trade.SetExpertMagicNumber(InpMagicNumber);
    
-   // Primeiro Timer
+   // Tentar primeira validação imediata
+   ValidateLicense();
+   
+   // Iniciar Timer para check contínuo
    EventSetTimer(InpTimerSeconds);
+
    
    return(INIT_SUCCEEDED);
 }
