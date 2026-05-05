@@ -20,11 +20,8 @@ const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
 
-// FILA GLOBAL ABSOLUTA
-global.signalsQueue = []; 
-
 // INJETAR SINAL MANUAL DE TESTE IMEDIATO
-global.signalsQueue.push({
+eaApi.pushSignal("SYSTEM", {
   id: "MANUAL_START_" + Date.now(),
   pair: "EURUSD",
   direction: "BUY",
@@ -32,7 +29,7 @@ global.signalsQueue.push({
   tp: 1.09500,
   lot: 0.01
 });
-console.log("🔥 [SYSTEM] SINAL MANUAL INJETADO NA FILA GLOBAL!");
+console.log("🔥 [SYSTEM] SINAL MANUAL INJETADO NA FILA!");
 
 
 const app = express();
@@ -139,7 +136,8 @@ app.get("/api/debug/inject-test-signal", async (req, res) => {
     res.json({
       success: true,
       message: "🚀 SINAL DE TESTE INJETADO VIA EA_API!",
-      signal: testSignal
+      signal: testSignal,
+      queueSize: eaApi.signalsQueue.length
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1835,17 +1833,9 @@ server.listen(PORT, () => {
                     status: "PENDING"
                   }
                 });
-                // 2. Enviar para a FILA GLOBAL (Novo sistema simplificado)
-                const formatted = {
-                  id: dbSignal.id,
-                  pair: signal.pair,
-                  direction: signal.direction,
-                  sl: signal.sl,
-                  tp: signal.tp,
-                  lot: 0.01
-                };
-                global.signalsQueue.push(formatted);
-                console.log("✅ SINAL GERADO AUTOMATICAMENTE:", formatted.pair, formatted.direction);
+                // 2. Enviar para a FILA (Centralizado via eaApi)
+                eaApi.pushSignal(license.userId, dbSignal);
+                console.log("✅ SINAL GERADO AUTOMATICAMENTE:", dbSignal.pair, dbSignal.direction);
 
               } catch (err) {
                 console.error(`Erro ao enviar sinal para ${license.userId}:`, err.message);
