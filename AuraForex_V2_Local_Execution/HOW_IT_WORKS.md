@@ -55,10 +55,11 @@ A ordem é enviada via Bridge para o MetaTrader 4/5 ou Oanda. O bot utiliza mét
 
 ---
 
-### Passo 8: Monitorização e Trailing Stop
-Uma vez o trade aberto, o bot não para. Ele monitoriza o preço em tempo real:
-- **Trailing Stop**: Se o preço avançar a favor (ex: 1.5x o ATR), o Stop Loss é movido para o Break Even ou lucro para proteger a operação.
-- **Gestão de Saída**: O trade fecha automaticamente ao atingir o Take Profit (TP) ou Stop Loss (SL).
+### Passo 8: Monitorização e Profit Lock (Trava de Lucro)
+Uma vez o trade aberto, o bot monitoriza o preço em tempo real:
+- **Profit Lock**: Ativado quando o lucro atinge **$3**. O sistema passa a vigiar o pico de lucro. Se o lucro recuar **30%** em relação ao pico máximo (ex: de $10 para $7), a ordem fecha instantaneamente para preservar o ganho.
+- **Gestão Institucional**: O Stop Loss e Take Profit são dinâmicos (ATR) e o Robô garante que respeitam sempre os limites da corretora.
+- **Saída**: O trade fecha ao bater no TP, SL ou ser encerrado pelo Profit Lock.
 
 ---
 
