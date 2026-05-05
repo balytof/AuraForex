@@ -107,6 +107,34 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
+app.get("/api/debug/inject-test-signal", async (req, res) => {
+  try {
+    const license = await prisma.license.findFirst({ where: { status: "ACTIVE" } });
+    if (!license) return res.status(404).json({ error: "Nenhuma licença ativa encontrada na DB para o teste." });
+
+    const testSignal = {
+      id: "TEST_" + Date.now(),
+      pair: "EURUSD",
+      direction: "BUY",
+      entry: 1.08500,
+      sl: 1.08000,
+      tp: 1.09500,
+      lot: 0.01
+    };
+
+    eaApi.pushSignal(license.userId, testSignal);
+    
+    res.json({
+      success: true,
+      message: "🚀 SINAL DE TESTE INJETADO!",
+      targetUserId: license.userId,
+      signal: testSignal
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/debug/log", (req, res) => {
   const { msg, level } = req.body;
   console.log(`[BROWSER-${level || 'INFO'}] ${msg}`);
