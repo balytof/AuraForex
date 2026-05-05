@@ -130,9 +130,14 @@ void CheckForSignals()
       string id = ExtractJsonValue(fullJson, "id");
       string pair = ExtractJsonValue(fullJson, "pair");
       
-      // --- EXPERT FILTERING ---
-      // 1. Verificar se o sinal é para este par (Evita ordens duplicadas em múltiplos gráficos)
-      if(StringFind(_Symbol, pair) < 0 && StringFind(pair, _Symbol) < 0) continue;
+      // --- EXPERT FILTERING (STRICT) ---
+      string currentSym = _Symbol;
+      StringToUpper(currentSym);
+      string signalSym = pair;
+      StringToUpper(signalSym);
+      
+      // Só processa se o par do sinal estiver contido no par do gráfico (ex: EURUSD em EURUSD.m)
+      if(StringFind(currentSym, signalSym) < 0 && StringFind(signalSym, currentSym) < 0) continue;
       
       // 2. Verificar se já processamos este ID
       bool alreadyDone = false;
@@ -187,6 +192,14 @@ void ExecuteSignal(string json)
    }
 
    double price = (direction == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
+   
+   // --- SANITY CHECK (PREÇOS ABSURDOS) ---
+   if(sl > 0 && Math.abs(price - sl) > (price * 0.2)) {
+      Print("🚨 SINAL IGNORADO: SL (" + (string)sl + ") fora de escala para o preço atual (" + (string)price + ")");
+      ReportSignalStatus(signalId, "REJECTED_PRICE_SCALE", 0);
+      return;
+   }
+
    bool res = false;
 
    if(direction == "BUY")
