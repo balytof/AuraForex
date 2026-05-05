@@ -69,61 +69,30 @@ router.post("/validate", async (req, res) => {
   }
 });
 
+function pushSignal(signal) {
+  signalsQueue.push(formatForMT5(signal));
+  console.log(`[QUEUE] Novo sinal adicionado. Fila atual: ${signalsQueue.length}`);
+}
+
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
- * O EA chama este endpoint periodicamente (ex: a cada 1s) para buscar
- * novas ordens pendentes geradas pelas estratégias no servidor.
+ * O EA chama este endpoint periodicamente para buscar novos sinais na fila.
+ * A fila é limpa imediatamente após o envio.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.get("/signals", async (req, res) => {
-  const { licenseKey } = req.query;
+router.get("/signals", (req, res) => {
+  const data = [...signalsQueue];
+  
+  // Limpa depois de enviar (Padrão sugerido para execução única)
+  signalsQueue.length = 0;
 
-  if (!licenseKey) {
-    return res.status(400).json({ error: "licenseKey obrigatória." });
+  if (data.length > 0) {
+    console.log(`[EA-API] Enviando ${data.length} sinais e limpando fila.`);
   }
 
-  try {
-    const license = await prisma.license.findUnique({
-      where: { id: licenseKey }
-    });
-
-    if (!license || license.status !== "ACTIVE") {
-      return res.status(403).json({ error: "Licença inválida." });
-    }
-
-    // Busca sinais PENDENTES para o usuário dono da licença
-    const signals = await prisma.signal.findMany({
-      where: {
-        userId: license.userId,
-        status: "PENDING"
-      },
-      orderBy: { createdAt: "asc" }
-    });
-
-    // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
-    await prisma.license.update({
-      where: { id: licenseKey },
-      data: { updatedAt: new Date() }
-    });
-
-    const formattedSignals = signals.map(s => ({
-      id: String(s.id).trim(),
-      pair: String(s.pair).trim().toUpperCase(),
-      direction: String(s.direction).trim().toUpperCase(),
-      entry: Number(s.entry || 0),
-      sl: Number(s.sl || 0),
-      tp: Number(s.tp || 0),
-      lot: Number(s.lot || 0.01)
-    }));
-
-    console.log(`[EA-SIGNALS] Enviando ${formattedSignals.length} sinais para ${license.userId}`);
-    return res.status(200).json({ success: true, signals: formattedSignals });
-
-  } catch (err) {
-    console.error("[EA-SIGNALS] Erro ao buscar sinais:", err);
-    return res.status(500).json({ error: "Erro interno no servidor." });
-  }
+  res.json({ signals: data });
 });
+
 
 /**
  * ── ENDPOINT: REPORT ────────────────────────────────────────────────
