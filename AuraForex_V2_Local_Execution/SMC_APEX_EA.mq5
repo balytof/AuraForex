@@ -192,25 +192,38 @@ void ReportAccountStatus()
 //| FUNÇÕES AUXILIARES DE REDE E PARSING                             |
 //+------------------------------------------------------------------+
 
-string SendPost(string url, string payload)
-{
-   uchar post[], result[];
-   string headers = "Content-Type: application/json\r\n";
-   StringToCharArray(payload, post);
-   string result_headers;
-   int res = WebRequest("POST", url, headers, 5000, post, result, result_headers); 
-   if(res == -1) return "Error";
-   return CharArrayToString(result);
+string SendPost(string url, string p) {
+   uchar post[], res[];
+   string h = "Content-Type: application/json\r\n", rh;
+
+   StringToCharArray(p, post);
+
+   int code = WebRequest("POST", url, h, 5000, post, res, rh);
+
+   if(code < 0) {
+      Print("❌ POST ERROR: ", GetLastError());
+      return "Error";
+   }
+
+   Print("🌐 POST CODE: ", code);
+   return CharArrayToString(res);
 }
 
-string SendGet(string url)
-{
-   uchar result[], dummy[];
-   string result_headers;
-   int res = WebRequest("GET", url, "", 5000, dummy, result, result_headers);
-   if(res == -1) return "Error";
-   return CharArrayToString(result);
+string SendGet(string url) {
+   uchar res[], d[];
+   string rh;
+
+   int code = WebRequest("GET", url, "", 5000, d, res, rh);
+
+   if(code < 0) {
+      Print("❌ GET ERROR: ", GetLastError());
+      return "Error";
+   }
+
+   Print("🌐 GET CODE: ", code);
+   return CharArrayToString(res);
 }
+
 
 string ExtractJsonValue(string json, string key) {
    string k = "\"" + key + "\":";
