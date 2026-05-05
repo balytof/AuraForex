@@ -72,7 +72,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "BUY", entry, sl, tp, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "BUY", entry: 0, sl, tp, magic: true, timestamp: Date.now() },
         reason: "Sinal COMPRA MAGIC"
       };
     }
@@ -96,7 +96,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "SELL", entry, sl, tp, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "SELL", entry: 0, sl, tp, magic: true, timestamp: Date.now() },
         reason: "Sinal VENDA MAGIC"
       };
     }

@@ -140,7 +140,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
       } else {
         return {
           pair, direction: "BUY", score, orderType,
-          entry:    entryPrice,
+          entry:    0,
           sl, tp,
           rr:       parseFloat(rr.toFixed(2)),
           atr:      last.atr,
@@ -196,7 +196,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
       } else {
         return {
           pair, direction: "SELL", score, orderType,
-          entry:    entryPrice,
+          entry:    0,
           sl, tp,
           rr:       parseFloat(rr.toFixed(2)),
           atr:      last.atr,
