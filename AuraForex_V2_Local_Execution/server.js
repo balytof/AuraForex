@@ -1809,38 +1809,19 @@ server.listen(PORT, () => {
       for (const pair of PAIRS_TO_WATCH) {
         try {
           const marketCandles = await broker.getCandles(pair, "H1", 250);
-          const { signal } = generateSignal(pair, marketCandles, "NEUTRAL");
+          const { signal: sig } = generateSignal(pair, marketCandles, "NEUTRAL");
+          if (sig) {
+            const formatted = {
+              id: Date.now().toString(),
+              pair: sig.pair,
+              direction: sig.direction,
+              sl: sig.sl,
+              tp: sig.tp,
+              lot: 0.01
+            };
 
-          if (signal) {
-            console.log(`[AUTO-BOT] 🎯 Sinal DETETADO para ${pair}. Distribuindo...`);
-            
-            // 1. Buscar todos os utilizadores com licença ativa
-            const activeLicenses = await prisma.license.findMany({
-              where: { status: "ACTIVE", expiresAt: { gt: new Date() } }
-            });
-
-            for (const license of activeLicenses) {
-              try {
-                const dbSignal = await prisma.signal.create({
-                  data: {
-                    userId: license.userId,
-                    pair: signal.pair,
-                    direction: signal.direction,
-                    entry: signal.entry,
-                    sl: signal.sl,
-                    tp: signal.tp,
-                    lot: 0.01,
-                    status: "PENDING"
-                  }
-                });
-                // 2. Enviar para a FILA (Centralizado via eaApi)
-                eaApi.pushSignal(license.userId, dbSignal);
-                console.log("✅ SINAL GERADO AUTOMATICAMENTE:", dbSignal.pair, dbSignal.direction);
-
-              } catch (err) {
-                console.error(`Erro ao enviar sinal para ${license.userId}:`, err.message);
-              }
-            }
+            eaApi.signalsQueue.push(formatted);
+            console.log("✅ SINAL GERADO:", formatted);
           }
         } catch (e) {
           // Silenciar erros de conexão temporários por par
