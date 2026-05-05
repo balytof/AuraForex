@@ -20,16 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
 
-// INJETAR SINAL MANUAL DE TESTE IMEDIATO
-eaApi.pushSignal("SYSTEM", {
-  id: "MANUAL_START_" + Date.now(),
-  pair: "EURUSD",
-  direction: "BUY",
-  sl: 1.08000,
-  tp: 1.09500,
-  lot: 0.01
-});
-console.log("🔥 [SYSTEM] SINAL MANUAL INJETADO NA FILA!");
+// INICIALIZAÇÃO DO SERVIDOR
 
 
 const app = express();
