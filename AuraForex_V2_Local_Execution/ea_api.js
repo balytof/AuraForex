@@ -3,6 +3,18 @@ const router = express.Router();
 const prisma = require("./db");
 const signalsQueue = [];
 
+function formatForMT5(signal) {
+  return {
+    id: Date.now().toString(),
+    pair: signal.pair,
+    direction: signal.direction,
+    sl: signal.sl,
+    tp: signal.tp,
+    lot: 0.01
+  };
+}
+
+
 
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
