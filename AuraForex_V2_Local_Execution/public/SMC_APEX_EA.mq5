@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                              SMC_APEX_EA.mq5     |
+//|                                              AuraForex_V5_MASTER |
 //|                                  Copyright 2026, AuraForex Corp  |
 //|                                             https://auraforex.pt |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "4.00"
+#property version   "5.00"
 #property strict
 
 //--- INCLUDES ---
@@ -21,14 +21,14 @@ input int      InpTimerSeconds   = 2;                       // Intervalo de Chec
 //--- GLOBAL VARIABLES ---
 CTrade         trade;
 bool           IsAuthorized = false;
-string         ExtProcessedIds[];         // Memória de sinais já executados (V4)
+string         ProcessedIds[];            // Memória de sinais já executados (V5)
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 SMC APEX EA v4.0 MAGIC - INICIADO");
+   Print("🚀 AURA V5 INSTITUCIONAL - INICIADO");
    trade.SetExpertMagicNumber(InpMagicNumber);
    
    // Tentar primeira validação imediata
@@ -46,7 +46,7 @@ void OnTick() {}
 void OnTimer()
 {
    if(!IsAuthorized) ValidateLicense();
-   else CheckForSignals();
+   else CheckSignals();
 }
 
 //+------------------------------------------------------------------+
@@ -64,18 +64,18 @@ void ValidateLicense()
    {
       IsAuthorized = true;
       Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("SMC APEX V4 MAGIC: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+      Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    }
    else
    {
-      Comment("SMC APEX V4: AGUARDANDO VALIDAÇÃO...");
+      Comment("AURA V5: AGUARDANDO VALIDAÇÃO...");
    }
 }
 
 //+------------------------------------------------------------------+
-//| Buscar Sinais e Executar (LÓGICA V4 MAGIC MULTI-USER)            |
+//| Buscar Sinais e Executar (LÓGICA V5 INSTITUCIONAL)               |
 //+------------------------------------------------------------------+
-void CheckForSignals()
+void CheckSignals()
 {
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    string result = SendGet(url);
@@ -91,45 +91,48 @@ void CheckForSignals()
    int count = StringSplit(signalsJson, '}', objects);
    
    for(int i=0; i<count; i++) {
-      string sigData = objects[i];
-      if(StringFind(sigData, "\"id\"") < 0) continue;
-      if(StringSubstr(sigData, 0, 1) == ",") sigData = StringSubstr(sigData, 1);
+      string data = objects[i] + "}";
+      string id = ExtractValue(data, "id");
+      if(id == "") continue;
+
+      // 1. Filtro de Memória (V5)
+      if(IsProcessed(id)) continue;
+
+      // 2. Executar Sinal
+      ExecuteSignal(data);
       
-      string fullJson = sigData + "}";
-      string id = ExtractJsonValue(fullJson, "id");
-      string pair = ExtractJsonValue(fullJson, "pair");
-
-      // 1. Verificar se o sinal é para este par (Filtro de Gráfico)
-      if(StringFind(_Symbol, pair) < 0 && StringFind(pair, _Symbol) < 0) continue;
-
-      // 2. Filtro de Memória (V4)
-      bool alreadyDone = false;
-      for(int j=0; j<ArraySize(ExtProcessedIds); j++) {
-         if(ExtProcessedIds[j] == id) { alreadyDone = true; break; }
-      }
-      if(alreadyDone) continue;
-
-      // Executar e guardar ID
-      ExecuteSignal(fullJson);
-      
-      int size = ArraySize(ExtProcessedIds);
-      ArrayResize(ExtProcessedIds, size + 1);
-      ExtProcessedIds[size] = id;
+      // 3. Marcar como Processado
+      AddProcessed(id);
    }
+}
+
+bool IsProcessed(string id)
+{
+   for(int i=0; i<ArraySize(ProcessedIds); i++)
+      if(ProcessedIds[i] == id) return true;
+   return false;
+}
+
+void AddProcessed(string id)
+{
+   int s = ArraySize(ProcessedIds);
+   ArrayResize(ProcessedIds, s + 1);
+   ProcessedIds[s] = id;
 }
 
 void ExecuteSignal(string json)
 {
-   string signalId = ExtractJsonValue(json, "id");
-   string pair     = ExtractJsonValue(json, "pair");
-   string direction = ExtractJsonValue(json, "direction");
-   double sl       = StringToDouble(ExtractJsonValue(json, "sl"));
-   double tp       = StringToDouble(ExtractJsonValue(json, "tp"));
-   double lot      = StringToDouble(ExtractJsonValue(json, "lot"));
+   string pair = ExtractValue(json, "pair");
+   string dir  = ExtractValue(json, "direction");
+   double lot  = StringToDouble(ExtractValue(json, "lot"));
+   double atr  = StringToDouble(ExtractValue(json, "atr")); // 🔥 Agora usamos ATR do servidor
 
-   Print("🚀 PROCESSANDO SINAL V4: " + pair + " " + direction);
-   
-   // Garantir sufixos
+   if(atr <= 0) {
+      Print("⚠️ Sinal ignorado: ATR inválido para " + pair);
+      return;
+   }
+
+   // Garantir símbolo correto
    if(!SymbolSelect(pair, true)) {
       for(int s=0; s<SymbolsTotal(false); s++) {
          string sym = SymbolName(s, false);
@@ -138,69 +141,97 @@ void ExecuteSignal(string json)
    }
    SymbolSelect(pair, true);
 
-   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
-   double price = (direction == "BUY") ? ask : bid;
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   price = NormalizeDouble(price, digits);
 
-   // --- PASSO 1: ABRIR ORDEM LIMPA (INSTITUCIONAL V4) ---
-   bool res = false;
-   if(direction == "BUY")
-      res = trade.Buy(lot, pair, price, 0, 0, "SMC Magic Step1");
-   else if(direction == "SELL")
-      res = trade.Sell(lot, pair, price, 0, 0, "SMC Magic Step1");
-      
-   if(res)
-   {
-      ulong ticket = trade.ResultOrder();
-      Print("✅ ORDEM ABERTA! Ticket: ", ticket, ". Aguardando posição para aplicar proteção...");
-      
-      // --- PASSO 2: ESPERAR EXECUÇÃO E MODIFICAR ---
-      for(int i=0; i<10; i++)
-      {
-         if(PositionSelect(pair))
-         {
-            ulong posTicket = PositionGetInteger(POSITION_TICKET);
-            sl = NormalizeDouble(sl, digits);
-            tp = NormalizeDouble(tp, digits);
-            
-            if(trade.PositionModify(posTicket, sl, tp)) {
-               Print("🛡️ PROTEÇÃO V4 APLICADA COM SUCESSO!");
-               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + signalId + "\",\"status\":\"EXECUTED\",\"orderTicket\":\"" + (string)posTicket + "\"}");
-               break;
-            }
-         }
-         Sleep(200);
+   // --- PASSO 1: ENTRADA LIMPA ---
+   bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
+
+   if(!opened) {
+      Print("❌ Falha ao abrir ordem institucional para " + pair);
+      return;
+   }
+
+   Print("✅ Ordem aberta. Aplicando proteção local (V5 ATR)...");
+
+   // --- PASSO 2: AGUARDAR POSIÇÃO ---
+   ulong ticket = 0;
+   for(int i=0; i<10; i++) {
+      if(PositionSelect(pair)) {
+         ticket = PositionGetInteger(POSITION_TICKET);
+         break;
       }
+      Sleep(200);
+   }
+
+   if(ticket == 0) {
+      Print("❌ Não encontrou posição ativa para " + pair);
+      return;
+   }
+
+   // --- PASSO 3: CALCULAR SL/TP LOCAL COM ATR ---
+   double price = PositionGetDouble(POSITION_PRICE_OPEN);
+   double slDist = atr * 2.0;
+   double tpDist = atr * 3.0;
+   double sl, tp;
+
+   if(dir == "BUY") {
+      sl = price - slDist;
+      tp = price + tpDist;
+   } else {
+      sl = price + slDist;
+      tp = price - tpDist;
+   }
+
+   // --- PASSO 4: VALIDAR STOPLEVEL ---
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+   if(MathAbs(price - sl) < stopLevel)
+      sl = (dir == "BUY") ? price - stopLevel : price + stopLevel;
+   if(MathAbs(price - tp) < stopLevel)
+      tp = (dir == "BUY") ? price + stopLevel : price - stopLevel;
+
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+
+   // --- PASSO 5: APLICAR COM RETRY ---
+   bool modified = false;
+   for(int t=0; t<3; t++) {
+      if(trade.PositionModify(ticket, sl, tp)) {
+         modified = true;
+         break;
+      }
+      Sleep(300);
+   }
+
+   if(modified) {
+      Print("🛡️ SL/TP V5 aplicado com sucesso para " + pair);
+      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
+   } else {
+      Print("❌ Falha crítica ao aplicar SL/TP para " + pair);
    }
 }
 
-string SendPost(string url, string p) {
-   uchar post[], res[]; string h = "Content-Type: application/json\r\n", rh;
-   StringToCharArray(p, post);
-   int code = WebRequest("POST", url, h, 5000, post, res, rh);
-   if(code < 0) return "Error";
+string SendPost(string url, string payload) {
+   uchar post[], res[]; string headers = "Content-Type: application/json\r\n", rh;
+   StringToCharArray(payload, post);
+   if(WebRequest("POST", url, headers, 5000, post, res, rh) < 0) return "Error";
    return CharArrayToString(res);
 }
 
 string SendGet(string url) {
-   uchar res[], d[]; string rh;
-   int code = WebRequest("GET", url, "", 5000, d, res, rh);
-   if(code < 0) return "Error";
+   uchar res[], data[]; string rh;
+   if(WebRequest("GET", url, "", 5000, data, res, rh) < 0) return "Error";
    return CharArrayToString(res);
 }
 
-string ExtractJsonValue(string json, string key) {
+string ExtractValue(string json, string key) {
    string k = "\"" + key + "\":";
    int p = StringFind(json, k);
    if(p < 0) return "";
    int s = p + StringLen(k);
-   while(s < StringLen(json) && (StringSubstr(json, s, 1) == " " || StringSubstr(json, s, 1) == "\"")) s++;
-   int e = StringFind(json, "\"", s); 
-   if(e < 0) e = StringFind(json, ",", s); 
-   if(e < 0) e = StringFind(json, "}", s); 
-   string res = StringSubstr(json, s, e - s);
-   StringReplace(res, "\"", ""); StringReplace(res, " ", ""); StringReplace(res, "}", "");
-   return res;
+   if(StringSubstr(json, s, 1) == "\"") s++;
+   int e = StringFind(json, "\"", s);
+   if(e < 0) e = StringFind(json, ",", s);
+   if(e < 0) e = StringFind(json, "}", s);
+   string r = StringSubstr(json, s, e - s);
+   StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
 }
