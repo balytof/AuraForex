@@ -73,6 +73,7 @@ model Signal {
   sl          Float
   tp          Float
   lot         Float
+  atr         Float    @default(0)
   status      String   @default("PENDING") // PENDING, EXECUTED, FAILED
   brokerId    String?  // ID da Ordem no MetaTrader (Ticket)
   executedAt  DateTime?
