@@ -120,7 +120,7 @@ void AddProcessed(string id)
    ProcessedIds[s] = id;
 }
 
-// 🔥 MELHORIA #2: BUSCAR ESTRUTURA (SWING LOW)
+// 🥇 1. SL BASEADO EM ESTRUTURA (HIGH/LOW)
 double GetLastSwingLow(string symbol, int barsBack = 20)
 {
    double lows[];
@@ -135,7 +135,6 @@ double GetLastSwingLow(string symbol, int barsBack = 20)
    return 0;
 }
 
-// 🔥 MELHORIA #2: BUSCAR ESTRUTURA (SWING HIGH)
 double GetLastSwingHigh(string symbol, int barsBack = 20)
 {
    double highs[];
