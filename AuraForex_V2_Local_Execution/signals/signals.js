@@ -54,13 +54,10 @@ function validatePriceRange(pair, price) {
  */
 function calcScore(factors) {
   const weights = {
-    smcStructure:  25,
-    orderBlock:    20,
-    fvg:           15,
-    emaAlignment:  15,
-    macdConfirm:   10,
-    rsiConfirm:    10,
-    sessionActive:  5,
+    smcStructure:  40, // BOS/ChoCh
+    orderBlock:    30, // Mitigation of OB
+    liquidity:     20, // Sweep of Liquidity
+    trend:         10, // EMA Alignment (Trend)
   };
   return Object.entries(factors)
     .reduce((sum, [k, v]) => sum + (v && weights[k] ? weights[k] : 0), 0);
