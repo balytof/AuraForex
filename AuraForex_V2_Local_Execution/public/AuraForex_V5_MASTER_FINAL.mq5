@@ -443,6 +443,13 @@ void ExecuteSignal(string json)
       if(structuralSL <= 0) structuralSL = currentPrice + (atr * 3.0);
       
       sl = structuralSL + safetyBuffer;
+      
+      double slDistPoints = (sl - currentPrice) / tickSize;
+      if(slDistPoints > 300) {
+         Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+         return;
+      }
+      
       if(sl - currentPrice > atr * 5.0) sl = currentPrice + (atr * 3.5);
       if(sl - currentPrice < atr * 2.0) sl = currentPrice + (atr * 2.0);
       
