@@ -17,6 +17,8 @@ input string   InpServerUrl      = "https://www.auratradebots.com/api"; // URL d
 input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
+input int      InpMaxSLForex     = 700;                     // Limite SL Forex (Pontos)
+input int      InpMaxSLJPY       = 2000;                    // Limite SL JPY/Ouro (Pontos)
 
 //--- GLOBAL VARIABLES ---
 CTrade         trade;
@@ -409,8 +411,8 @@ void ExecuteSignal(string json)
    double sl = 0, tp = 0;
    double safetyBuffer = atr * 0.5;
    
-   // LIMITE DE SL DINÂMICO (SEGURANÇA MÁXIMA)
-   double maxSL = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 500 : 250;
+   // LIMITE DE SL DINÂMICO (VIA INPUTS)
+   double maxSL = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex;
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
