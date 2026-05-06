@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "5.00"
+#property version   "5.01"
 #property strict
 
 //--- INCLUDES ---
@@ -32,15 +32,15 @@ int OnInit()
 {
    Print("🚀 AURA V5 INSTITUCIONAL - INICIADO");
    trade.SetExpertMagicNumber(InpMagicNumber);
+   
+   // Primeira tentativa de validação
    ValidateLicense();
+   
    EventSetTimer(InpTimerSeconds);
    return(INIT_SUCCEEDED);
 }
 
-void OnDeinit(const int reason) 
-{ 
-   EventKillTimer(); 
-}
+void OnDeinit(const int reason) { EventKillTimer(); }
 
 void OnTick()
 {
@@ -62,26 +62,24 @@ void ValidateLicense()
    string url = InpServerUrl + "/ea/validate";
    string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    
-   uchar post[], res[]; string headers = "Content-Type: application/json\r\n", rh;
-   StringToCharArray(payload, post);
-   if(WebRequest("POST", url, headers, 5000, post, res, rh) >= 0)
-   {
-      string result = CharArrayToString(res);
-      if(StringFind(result, "\"status\":\"OK\"") >= 0) {
-         IsAuthorized = true;
-         Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
-      }
+   Print("🔐 VALIDANDO LICENÇA...");
+   string result = SendPost(url, payload);
+   
+   if(StringFind(result, "\"status\":\"OK\"") >= 0) {
+      IsAuthorized = true;
+      Print("✅ LICENÇA VALIDADA COM SUCESSO!");
+      Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+   } else if(result != "") {
+      Print("❌ FALHA NA LICENÇA: " + result);
    }
 }
 
 void CheckSignals()
 {
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
-   uchar res[], data[]; string rh;
-   if(WebRequest("GET", url, "", 5000, data, res, rh) < 0) return;
+   string result = SendGet(url);
    
-   string result = CharArrayToString(res);
-   if(StringFind(result, "\"signals\":[]") >= 0) return; 
+   if(result == "" || StringFind(result, "\"signals\":[]") >= 0) return; 
 
    int startPos = StringFind(result, "[");
    int endPos = StringFind(result, "]", startPos);
@@ -124,7 +122,10 @@ void ExecuteSignal(string json)
    }
 
    double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 0.8 : 0.0020;
-   if(atr > volLimit) return;
+   if(atr > volLimit) {
+      Print("⚠️ Volatilidade alta em " + pair + ". Sinal ignorado.");
+      return;
+   }
 
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
@@ -139,19 +140,57 @@ void ExecuteSignal(string json)
       double low = GetLastLow(pair, 20);
       sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
       double dist = (currentPrice - sl) / tickSize;
-      if(dist > maxSL) return;
+      if(dist > maxSL) {
+         Print("⚠️ SL muito grande (" + (string)dist + " pts) em " + pair);
+         return;
+      }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
-      if(lot > 0) trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice + (atr * 6.0), digits));
+      if(lot > 0) {
+         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice + (atr * 6.0), digits)))
+            Print("🚀 COMPRA EXECUTADA: " + pair + " Lote: " + DoubleToString(lot, 2));
+      }
    } else {
       double high = GetLastHigh(pair, 20);
       sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
       double dist = (sl - currentPrice) / tickSize;
-      if(dist > maxSL) return;
+      if(dist > maxSL) {
+         Print("⚠️ SL muito grande (" + (string)dist + " pts) em " + pair);
+         return;
+      }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
-      if(lot > 0) trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice - (atr * 6.0), digits));
+      if(lot > 0) {
+         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice - (atr * 6.0), digits)))
+            Print("🚀 VENDA EXECUTADA: " + pair + " Lote: " + DoubleToString(lot, 2));
+      }
    }
+}
+
+// --- COMMUNICATION HELPERS ---
+
+string SendPost(string url, string payload) {
+   uchar post[], res[]; string headers = "Content-Type: application/json\r\n", rh;
+   StringToCharArray(payload, post);
+   ResetLastError();
+   int resCode = WebRequest("POST", url, headers, 5000, post, res, rh);
+   if(resCode < 0) {
+      Print("🌐 Erro WebRequest (POST): " + (string)GetLastError());
+      return "";
+   }
+   return CharArrayToString(res);
+}
+
+string SendGet(string url) {
+   uchar res[], data[]; string rh;
+   ResetLastError();
+   int resCode = WebRequest("GET", url, "", 5000, data, res, rh);
+   if(resCode < 0) {
+      if(GetLastError() != 4014) // Ignorar erro de URL não listada se já logado
+         Print("🌐 Erro WebRequest (GET): " + (string)GetLastError());
+      return "";
+   }
+   return CharArrayToString(res);
 }
 
 // --- UTILS ---
@@ -174,11 +213,13 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    lot = MathMax(minL, MathMin(maxL, MathFloor(lot/step)*step));
    if(lot < minL) lot = minL;
 
-   // Margem Check
    double margin = 0;
    double p = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(sym, SYMBOL_ASK) : SymbolInfoDouble(sym, SYMBOL_BID);
    if(OrderCalcMargin(type, sym, lot, p, margin)) {
-      if(margin > AccountInfoDouble(ACCOUNT_FREEMARGIN)) return 0;
+      if(margin > AccountInfoDouble(ACCOUNT_FREEMARGIN)) {
+         Print("⚠️ Margem insuficiente para " + sym + ". Necessário: " + DoubleToString(margin, 2));
+         return 0;
+      }
    }
    return NormalizeDouble(lot, 2);
 }
