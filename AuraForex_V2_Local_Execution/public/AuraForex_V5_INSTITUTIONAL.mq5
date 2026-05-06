@@ -102,9 +102,73 @@ void ManagePositions()
    }
 }
 
+// 5. BREAK EVEN AUTOMÁTICO
+void ApplyBreakEven(double triggerRR = 1.0)
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+         
+         double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+         double sl    = PositionGetDouble(POSITION_SL);
+         double tp    = PositionGetDouble(POSITION_TP);
+         double price = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+         double risk = MathAbs(entry - sl);
+         if(risk <= 0) continue;
+         
+         double profit = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? (price - entry) : (entry - price);
+
+         if(profit >= risk * triggerRR)
+         {
+            // Só move se ainda não estiver no BE
+            if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && sl < entry) || 
+               (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL && (sl > entry || sl == 0)))
+            {
+               trade.PositionModify(ticket, entry, tp);
+               Print("🛡️ ApplyBreakEven executado para " + _Symbol);
+            }
+         }
+      }
+   }
+}
+
+// 6. TRAILING STOP (PRO)
+void ApplyTrailingStop(double trailPoints = 100)
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+         
+         double price = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+         double sl    = PositionGetDouble(POSITION_SL);
+         double tp    = PositionGetDouble(POSITION_TP);
+         double trail = trailPoints * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+
+         if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+         {
+            double newSL = price - trail;
+            if(newSL > sl) trade.PositionModify(ticket, NormalizeDouble(newSL, _Digits), tp);
+         }
+         else
+         {
+            double newSL = price + trail;
+            if(newSL < sl || sl == 0) trade.PositionModify(ticket, NormalizeDouble(newSL, _Digits), tp);
+         }
+      }
+   }
+}
+
 void OnTick()
 {
-   ManagePositions(); // Monitorização constante
+   ApplyBreakEven(1.0);
+   ApplyTrailingStop(100);
    
    if(!IsNewBar()) return;
    if(!IsAuthorized) ValidateLicense();
