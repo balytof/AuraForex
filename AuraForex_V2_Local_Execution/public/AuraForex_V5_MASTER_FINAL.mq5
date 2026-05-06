@@ -149,6 +149,35 @@ double GetLastSwingHigh(string symbol, int barsBack = 20)
    return 0;
 }
 
+// 🥉 3. TP BASEADO EM LIQUIDEZ (SIMPLES)
+double GetLiquidityTargetBuy(string symbol, int barsBack = 30)
+{
+   double highs[];
+   ArraySetAsSeries(highs, true);
+   if(CopyHigh(symbol, _Period, 1, barsBack, highs) > 0)
+   {
+      double maxHigh = highs[0];
+      for(int i=1; i<ArraySize(highs); i++)
+         if(highs[i] > maxHigh) maxHigh = highs[i];
+      return maxHigh;
+   }
+   return 0;
+}
+
+double GetLiquidityTargetSell(string symbol, int barsBack = 30)
+{
+   double lows[];
+   ArraySetAsSeries(lows, true);
+   if(CopyLow(symbol, _Period, 1, barsBack, lows) > 0)
+   {
+      double minLow = lows[0];
+      for(int i=1; i<ArraySize(lows); i++)
+         if(lows[i] < minLow) minLow = lows[i];
+      return minLow;
+   }
+   return 0;
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
