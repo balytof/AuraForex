@@ -7,7 +7,7 @@ async function testV4Signal() {
     // 1. Criar um sinal de teste com parâmetros V4
     const testSignal = await prisma.signal.create({
       data: {
-        userId: "DEBUG_USER_V4",
+        userId: "f613cfd9-0b39-48cf-9c5f-851cef93d4ec",
         pair: "EURUSD",
         direction: "BUY",
         entry: 0, // V4: Entrada a mercado local
@@ -25,7 +25,7 @@ async function testV4Signal() {
 
     // 2. Verificar se o EA conseguiria ler
     const check = await prisma.signal.findFirst({
-      where: { userId: "DEBUG_USER_V4", status: "PENDING" }
+      where: { userId: "f613cfd9-0b39-48cf-9c5f-851cef93d4ec", status: "PENDING" }
     });
 
     if (check) {
