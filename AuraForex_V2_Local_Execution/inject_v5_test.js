@@ -6,7 +6,7 @@ async function injectTestSignal() {
   try {
     const signal = await prisma.signal.create({
       data: {
-        userId: "d94dfa53-5d68-4452-8732-4487c2bd5204",
+        userId: "d75bb50b-90e9-482f-854c-4392d22e20d4",
         pair: "EURUSD",
         direction: "BUY",
         entry: 0,
