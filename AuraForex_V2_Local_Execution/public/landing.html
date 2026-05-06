@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraTrade | Institutional AI Trading Ecosystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #03050a;
+            --surface: rgba(13, 17, 23, 0.7);
+            --accent: #00d4ff;
+            --accent-purple: #9d50bb;
+            --text: #ffffff;
+            --text-muted: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            position: relative;
+        }
+
+        h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
+
+        /* Background Effects */
+        .bg-main {
+            position: fixed; inset: 0;
+            background: url('/aura_bot.png') no-repeat center center;
+            background-size: cover;
+            filter: brightness(0.4) saturate(1.2);
+            z-index: -2;
+            animation: breatheBot 12s ease-in-out infinite;
+        }
+
+        @keyframes breatheBot {
+            0%, 100% { transform: scale(1.0); }
+            50% { transform: scale(1.05); }
+        }
+
+        .bg-overlay {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle at 50% 50%, transparent 30%, var(--bg) 110%);
+            z-index: -1;
+        }
+
+        .glow-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(0, 212, 255, 0.05) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(157, 80, 187, 0.05) 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0; width: 100%;
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(3, 5, 10, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, var(--accent), var(--accent-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a:hover { color: var(--accent); }
+
+        .lang-switcher {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .btn-access {
+            background: linear-gradient(45deg, var(--accent), var(--accent-purple));
+            color: white;
+            padding: 10px 25px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .btn-access:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        /* Mobile Menu Toggle */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        .menu-toggle span {
+            width: 30px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 160px 5% 80px 5%;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: clamp(1.8rem, 4.2vw, 3.6rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 25px;
+            max-width: 1100px;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            color: var(--text-muted);
+            max-width: 800px;
+            margin-bottom: 40px;
+        }
+
+        .highlight {
+            background: linear-gradient(to right, var(--accent), var(--accent-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Animação de Fundo (Ticker) */
+        .ticker-container {
+            position: absolute;
+            top: 15%;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: -1;
+            user-select: none;
+        }
+
+        .moving-text {
+            white-space: nowrap;
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.02);
+            display: inline-block;
+            text-transform: uppercase;
+            font-family: 'Syne', sans-serif;
+            animation: moveText 60s linear infinite;
+        }
+
+        @keyframes moveText {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
+        }
+
+        .curiosity-box {
+            position: absolute;
+            bottom: 10%;
+            left: 5%;
+            max-width: 300px;
+            color: rgba(0, 212, 255, 0.4);
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 0;
+            pointer-events: none;
+            transition: 1s;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            background: var(--glass);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            width: 80%;
+            max-width: 900px;
+            margin-top: 50px;
+        }
+
+        .stat-item h3 { font-size: 2rem; color: var(--accent); }
+        .stat-item p { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+
+        /* Services Section */
+        .section {
+            padding: clamp(60px, 10vw, 120px) 5%;
+            text-align: center;
+            background: transparent;
+        }
+
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 3rem);
+            margin-bottom: clamp(30px, 8vw, 60px);
+        }
+
+        .services-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .service-card {
+            flex: 1;
+            min-width: 280px;
+            max-width: 400px;
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .service-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .service-card h3 { margin-bottom: 15px; font-size: 1.4rem; }
+        .service-card p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Features Section */
+        .features {
+            display: flex;
+            align-items: center;
+            gap: 50px;
+            padding: 100px 10%;
+        }
+
+        .feature-img {
+            flex: 1;
+            background: var(--glass);
+            border-radius: 30px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-img::after {
+            content: '';
+            position: absolute;
+            width: 200px; height: 200px;
+            background: var(--accent);
+            filter: blur(100px);
+            opacity: 0.2;
+        }
+
+        .feature-content h2 { font-size: 3rem; margin-bottom: 20px; }
+        .feature-content p { margin-bottom: 30px; color: var(--text-muted); }
+
+        .step-card {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+        }
+        .step-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            background: rgba(0, 212, 255, 0.03);
+        }
+
+        /* Responsive Containers & Boxes */
+        .content-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .glass-box {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: clamp(20px, 5vw, 40px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 50px;
+        }
+
+        .accent-border {
+            border: 1px solid var(--accent);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .about-list {
+            list-style: none;
+            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .about-list li {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid var(--accent);
+        }
+
+        /* Footer */
+        .copyright { color: var(--text-muted); font-size: 0.8rem; }
+
+        /* Responsividade Master */
+        @media (max-width: 1024px) {
+            .services-grid { grid-template-columns: repeat(2, 1fr); }
+            .hero { padding-top: 140px; }
+        }
+
+        @media (max-width: 768px) {
+            header { padding: 15px 5%; }
+            .logo { font-size: 1.2rem; }
+            .logo img { height: 45px !important; }
+
+            .menu-toggle { display: flex; }
+            
+            .nav-links {
+                position: fixed;
+                top: 0; right: -100%;
+                width: 80%; height: 100vh;
+                background: rgba(3, 5, 10, 0.98);
+                flex-direction: column;
+                justify-content: center;
+                gap: 40px;
+                transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                backdrop-filter: blur(20px);
+                border-left: 1px solid var(--glass-border);
+            }
+
+            .nav-links.active { right: 0; }
+
+            .nav-links a { font-size: 1.2rem; }
+
+            .stats-bar { width: 100%; flex-direction: column; gap: 40px; padding: 40px 20px; }
+
+            .services-grid { grid-template-columns: 1fr; }
+            .section { padding: 80px 5%; }
+
+            .moving-text { font-size: 4rem; top: 10%; }
+            
+            .curiosity-box { display: none; }
+
+            .features { flex-direction: column; text-align: center; gap: 40px; }
+            .feature-img { width: 100%; height: 300px; }
+
+            footer { flex-direction: column; gap: 30px; text-align: center; }
+
+            /* Ajuste do Chat Aura no Mobile */
+            .aura-window { width: calc(100vw - 40px); height: 70vh; bottom: 80px; right: 20px; }
+            .aura-chat-widget { bottom: 20px; right: 20px; }
+        }
+
+        @media (max-width: 480px) {
+            .hero { padding-top: 120px; }
+            .btn-access { width: 100%; text-align: center; }
+            .step-card { padding: 20px; }
+        }
+
+        /* 🤖 AURA AI CHAT WIDGET */
+        .aura-chat-widget {
+            position: fixed; bottom: 30px; right: 30px; z-index: 9999;
+            display: flex; flex-direction: column; align-items: flex-end;
+        }
+        .aura-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0072ff);
+            box-shadow: 0 10px 30px rgba(0,212,255,0.4);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid rgba(255,255,255,0.1); color: white; font-size: 1.5rem;
+        }
+        .aura-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 15px 40px rgba(0,212,255,0.6); }
+        .aura-btn .aura-status {
+            position: absolute; top: 2px; right: 2px; width: 14px; height: 14px;
+            background: #00e676; border-radius: 50%; border: 2px solid #03050a;
+            animation: auraPulse 2s infinite;
+        }
+        @keyframes auraPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); }
+            70% { transform: scale(1.2); box-shadow: 0 0 0 10px rgba(0, 230, 118, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        }
+
+        .aura-window {
+            width: 380px; height: 500px; background: rgba(13, 17, 23, 0.95);
+            border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            display: none; flex-direction: column; overflow: hidden;
+            margin-bottom: 20px; backdrop-filter: blur(15px);
+            transition: all 0.3s ease; transform: translateY(20px); opacity: 0;
+        }
+        .aura-window.active { display: flex; transform: translateY(0); opacity: 1; }
+        
+        .aura-header {
+            padding: 18px 24px; background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1); display: flex;
+            align-items: center; gap: 12px;
+        }
+        .aura-header .aura-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: #00d4ff; display: flex; align-items: center;
+            justify-content: center; font-size: 1.1rem; color: white;
+            box-shadow: 0 0 15px rgba(0,212,255,0.3);
+        }
+        .aura-header .aura-info h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: white; }
+        .aura-header .aura-info span { font-size: 0.72rem; color: #00e676; font-weight: 600; }
+        .aura-close { margin-left: auto; cursor: pointer; color: #94a3b8; transition: 0.2s; }
+        .aura-close:hover { color: white; }
+
+        .aura-messages {
+            flex: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 15px;
+            scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .msg { max-width: 85%; padding: 12px 16px; border-radius: 15px; font-size: 0.85rem; line-height: 1.5; }
+        .msg.bot {
+            background: rgba(255,255,255,0.05); color: white;
+            align-self: flex-start; border-bottom-left-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .msg.user {
+            background: #00d4ff; color: white;
+            align-self: flex-end; border-bottom-right-radius: 4px;
+        }
+        .aura-typing {
+            align-self: flex-start; padding: 10px 16px; background: rgba(255,255,255,0.05);
+            border-radius: 15px; border-bottom-left-radius: 4px; display: none;
+        }
+        .dot { height: 6px; width: 6px; background: #94a3b8; border-radius: 50%; display: inline-block; animation: dotPulse 1.5s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        .aura-input-area {
+            padding: 15px 20px; background: rgba(255,255,255,0.05);
+            border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px;
+        }
+        .aura-input {
+            flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 10px 14px; color: white;
+            font-size: 0.85rem; outline: none;
+        }
+        .aura-input:focus { border-color: #00d4ff; }
+        .aura-send {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: #00d4ff; color: white; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-main"></div>
+    <div class="bg-overlay"></div>
+    <div class="glow-bg"></div>
+
+    <div class="ticker-container">
+        <div class="moving-text" data-i18n="ticker_text">AURATRADE · FOREX · DEFI · INSTITUTIONAL · BLOCKCHAIN · SMART MONEY</div>
+    </div>
+    <div class="curiosity-box" id="curiosityBox">Sabia que o mercado Forex movimenta mais de $6.6 triliões por dia?</div>
+
+    <header>
+        <div class="logo">
+            <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Logo" style="height: 65px; margin-right: 15px;">
+            AuraTrade
+        </div>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="#services" data-i18n="nav_services" onclick="toggleMenu()">Bots</a>
+            <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
+            <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
+            <a href="#access" style="color: var(--accent); font-weight: 700;" onclick="toggleMenu()">Acesso</a>
+            <select class="lang-switcher" onchange="changeLanguage(this.value)">
+                <option value="pt">PT</option>
+                <option value="en">EN</option>
+                <option value="fr">FR</option>
+                <option value="es">ES</option>
+            </select>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1 data-i18n="hero_title">Ecossistema de Trading <span class="highlight">Institucional</span> com IA</h1>
+        <p data-i18n="hero_subtitle">Domine o mercado com tecnologia de Smart Money Concepts e Inteligência Artificial Google Gemini. Simples, Seguro e Global.</p>
+    </section>
+
+    <section class="section" id="services">
+        <h2 class="section-title" data-i18n="services_title">Nossos Bots</h2>
+        <div class="services-grid" id="servicesList">
+            <!-- BOT SMC CRIPTO Card -->
+            <div style="text-decoration: none; color: inherit;">
+                <div id="cryptoBotCard" class="service-card" style="opacity: 0.7; display: flex !important;">
+                    <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Bot" style="height: 60px; margin-bottom: 20px; filter: grayscale(1);">
+                    <h3 data-i18n="srv_ai_title">BOT SMC CRIPTO</h3>
+                    <p data-i18n="srv_ai_desc">Alta performance em mercados de Criptomoedas com algoritmos adaptativos. (Brevemente)</p>
+                    <div id="cryptoBotStatus" style="margin-top: 15px; color: var(--text-muted); font-weight: 600; font-size: 0.8rem;" data-i18n="dev_status">Em Desenvolvimento...</div>
+                </div>
+            </div>
+
+            <!-- BOT SMC PRO FOREX Card -->
+            <div style="text-decoration: none; color: inherit;">
+                <div class="service-card">
+                    <div style="margin-bottom: 20px;"><img src="/bot-human.png" alt="Bot" style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 1px solid var(--accent);"></div>
+                    <h3 data-i18n="srv_bot_title">BOT SMC PRO FOREX</h3>
+                    <p data-i18n="srv_bot_desc">Execução local via MetaTrader 5 com lógica de Smart Money Concepts e proteção de capital integrada.</p>
+                    <div style="margin-top: auto; padding-top: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <a href="/login" class="btn-access" style="font-size: 0.85rem; padding: 10px 20px; white-space: nowrap;">Aceder agora</a>
+                        <a href="/smc-forex" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.85rem; border: 1px solid var(--accent); padding: 9px 20px; border-radius: 30px; transition: 0.3s; white-space: nowrap;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'">Saber mais</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECÇÃO DE PLANOS -->
+    <section class="section" id="plans">
+        <div class="container">
+            <h2 class="section-title" data-i18n="plans_title">Planos de Licença</h2>
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 50px;" data-i18n="plans_subtitle">Escolha a modalidade que melhor se adapta ao seu capital e objetivos.</p>
+            <div id="plansGrid" class="services-grid">
+                <!-- Carregado via JS -->
+                <div style="color: var(--accent);" data-i18n="loading_plans">A carregar planos...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="how_title">Como Funciona o Acesso</h2>
+            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center;">
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">1</div>
+                    <h4 class="syne" data-i18n="step1_title">Escolha seu Plano</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="step1_desc">Selecione a duração da licença que deseja ativar.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">2</div>
+                    <h4 class="syne" data-i18n="step2_title">Pagamento Seguro</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="step2_desc">Realize o pagamento via USDT (TRC20) ou outro método disponível.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">3</div>
+                    <h4 class="syne" data-i18n="step3_title">Submeta a Hash</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="step3_desc">No dashboard, cole a hash da transação para validação.</p>
+                </div>
+                <div class="step-card">
+                    <div style="font-size: 2rem; color: var(--accent); margin-bottom: 15px;">4</div>
+                    <h4 class="syne" data-i18n="step4_title">Aprovação & Setup</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="step4_desc">Após a aprovação (max. 24h), descarregue o bot e comece a operar.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMO TER ACESSO & PLANO DE REDE -->
+    <section class="section" id="access">
+        <div class="content-container">
+            <h2 class="section-title" data-i18n="access_title">Como ter acesso aos Bots?</h2>
+            
+            <div class="glass-box accent-border">
+                <p style="font-size: 1.1rem; margin-bottom: 20px;" data-i18n="access_desc">A AuraTrade cresce de forma orgânica e exclusiva. Para garantir o melhor suporte, seguimos este fluxo:</p>
+                <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+                    <div style="display: flex; gap: 15px; align-items: flex-start;">
+                        <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">1</span>
+                        <p data-i18n="access_step1">Contacte a pessoa que lhe convidou para este ecossistema. Ela será o seu patrocinador e guia inicial.</p>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: flex-start;">
+                        <span style="background: var(--accent); color: var(--bg); width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; flex-shrink: 0;">2</span>
+                        <div>
+                            <p data-i18n="access_step2">Caso não tenha um patrocinador direto, utilize o código de indicação oficial no registo:</p>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap;">
+                                <strong id="refCode" style="color: var(--accent); font-family: 'Space Mono', monospace; font-size: 1.6rem; letter-spacing: 2px;">1630FBED</strong>
+                                <button onclick="copyRefCode()" style="background: var(--glass); border: 1px solid var(--accent); color: var(--accent); padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: 0.3s;" onmouseover="this.style.background='var(--accent)'; this.style.color='var(--bg)'" onmouseout="this.style.background='var(--glass)'; this.style.color='var(--accent)'">
+                                    <i class="far fa-copy"></i> <span id="copyText" data-i18n="btn_copy">Copiar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="section-title" data-i18n="partner_title">Porquê ser um Parceiro AuraTrade?</h2>
+            <div class="info-grid">
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p1_title">📈 Plano de Rede</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p1_desc">Partilhe a tecnologia e ganhe comissões recorrentes sobre as licenças ativadas na sua rede.</p>
+                </div>
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p2_title">🏆 Liderança Global</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p2_desc">Acesso a mentorias exclusivas e ferramentas de marketing para expandir o seu negócio digital.</p>
+                </div>
+                <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p3_title">💎 Tecnologia Non-Custodial</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p3_desc">Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.</p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 50px;">
+                <a href="/login" class="btn-access" style="padding: 15px 40px;" data-i18n="btn_register">Registar-se Agora</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="about" style="text-align: left; background: transparent;">
+        <div class="content-container">
+            <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">🌐 O que é a AURATRADE</h2>
+            
+            <div class="about-content">
+                <p style="font-size: 1.1rem; margin-bottom: 30px;" data-i18n="about_intro">A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:</p>
+                <ul class="about-list">
+                    <li data-i18n="about_card1">👉 Não guarda o dinheiro do utilizador</li>
+                    <li data-i18n="about_card2">👉 Não controla os fundos</li>
+                    <li data-i18n="about_card3">👉 Não interfere na posse dos ativos</li>
+                </ul>
+
+                <h3 class="syne" style="color: var(--accent); margin-bottom: 20px;" data-i18n="about_phil_title">🔐 Filosofia Non-Custodial</h3>
+                <p style="color: var(--text-muted); margin-bottom: 30px;" data-i18n="about_phil_desc">Inspirada pela tecnologia Blockchain: <strong>“Not your keys, not your money.”</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.</p>
+
+                <div class="info-grid" style="margin-top: 50px;">
+                    <div class="glass-box" style="margin-bottom: 0;">
+                        <h3 class="syne" data-i18n="about_inst_title">🤖 Inteligência Institucional</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_inst_desc">Sistemas inspirados em fundos hedge e bancos de investimento, baseados em análise quantitativa e machine learning para redução de erro humano.</p>
+                    </div>
+                    <div class="glass-box" style="margin-bottom: 0;">
+                        <h3 class="syne" data-i18n="about_defi_title">🔗 Conexão Forex & DeFi</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_defi_desc">Um ecossistema híbrido que une a liquidez do Forex tradicional com a inovação dos Smart Contracts e staking do mundo DeFi.</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 60px; background: rgba(0, 212, 255, 0.03); backdrop-filter: blur(10px); padding: 40px; border-radius: 24px; border: 1px solid var(--glass-border);">
+                    <h3 class="syne" style="margin-bottom: 20px;" data-i18n="about_model_title">🚀 Modelo de funcionamento</h3>
+                    <ol style="color: var(--text-muted); padding-left: 20px;">
+                        <li style="margin-bottom: 10px;" data-i18n="about_model_step1">Utilizador conecta sua conta (MT5 ou Carteira Cripto)</li>
+                        <li style="margin-bottom: 10px;" data-i18n="about_model_step2">Escolhe a estratégia ou bot desejado</li>
+                        <li style="margin-bottom: 10px;" data-i18n="about_model_step3">Autoriza a execução via API/Contrato</li>
+                        <li style="margin-bottom: 10px;" data-i18n="about_model_step4">Bot opera automaticamente com resultados diretos na conta do utilizador</li>
+                    </ol>
+                    <p style="margin-top: 20px; font-weight: 700; color: var(--accent);" data-i18n="about_model_note">👉 Sem intermediários. Sem retenção de fundos.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="logo" style="font-size: 1.2rem; margin-bottom: 20px;">AuraTrade</div>
+        
+        <!-- Contactos Dinâmicos -->
+        <div id="socialBox" style="display: flex; justify-content: center; gap: 25px; margin-bottom: 25px;">
+            <a id="linkTelegram" href="#" target="_blank" style="display:none; color: #0088cc; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-telegram"></i></a>
+            <a id="linkWhatsApp" href="#" target="_blank" style="display:none; color: #25d366; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-whatsapp"></i></a>
+            <a id="linkFacebook" href="#" target="_blank" style="display:none; color: #1877f2; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-facebook"></i></a>
+            <a id="linkInstagram" href="#" target="_blank" style="display:none; color: #e4405f; font-size: 1.8rem; transition: 0.3s;"><i class="fab fa-instagram"></i></a>
+        </div>
+
+        <div class="copyright">© 2026 AuraTrade Ecosystem. All rights reserved.</div>
+    </footer>
+
+    <script>
+        const translations = {
+            pt: {
+                nav_services: "Bots",
+                nav_about: "Sobre",
+                nav_plans: "Planos",
+                btn_access: "Aceder à Plataforma",
+                btn_start: "Começar Agora",
+                btn_register: "Registar-se Agora",
+                hero_title: "Ecossistema de Trading <span class='highlight'>Institucional</span> com IA",
+                hero_subtitle: "Domine o mercado com tecnologia de Smart Money Concepts e Inteligência Artificial Google Gemini. Simples, Seguro e Global.",
+                stat_trades: "Trades Executados",
+                stat_accuracy: "Precisão IA",
+                stat_pnl: "Lucro Gerado",
+                services_title: "Nossos Bots",
+                srv_bot_title: "Bot SMC Pro Forex",
+                srv_bot_desc: "Execução local via MetaTrader 5 com lógica de Smart Money Concepts e proteção de capital integrada.",
+                srv_ai_title: "BOT SMC CRIPTO",
+                srv_ai_desc: "Alta performance em mercados de Criptomoedas com algoritmos adaptativos. (Brevemente)",
+                plans_title: "Planos de Licença",
+                plans_subtitle: "Escolha a modalidade que melhor se adapta ao seu capital e objetivos.",
+                how_title: "Como Funciona o Acesso",
+                step1_title: "Escolha seu Plano",
+                step1_desc: "Selecione a duração da licença que deseja ativar.",
+                step2_title: "Pagamento Seguro",
+                step2_desc: "Realize o pagamento via USDT (TRC20) ou outro método disponível.",
+                step3_title: "Submeta a Hash",
+                step3_desc: "No dashboard, cole a hash da transação para validação.",
+                step4_title: "Aprovação & Setup",
+                step4_desc: "Após a aprovação (max. 24h), descarregue o bot e comece a operar.",
+                access_title: "Como ter acesso aos Bots?",
+                partner_title: "Porquê ser um Parceiro AuraTrade?",
+                p1_title: "📈 Plano de Rede",
+                p1_desc: "Partilhe a tecnologia e ganhe comissões recorrentes sobre as licenças ativadas na sua rede.",
+                p2_title: "🏆 Liderança Global",
+                p2_desc: "Acesso a mentorias exclusivas e ferramentas de marketing para expandir o seu negócio digital.",
+                p3_title: "💎 Tecnologia Non-Custodial",
+                p3_desc: "Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.",
+                feat_title: "🌐 O que é a AURATRADE",
+                about_intro: "A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:",
+                plan_validity: "Validade",
+                plan_days: "dias",
+                plan_support: "Suporte Prioritário",
+                plan_guide: "Guia de Instalação",
+                plan_buy: "Comprar Agora",
+                dev_status: "Em Desenvolvimento...",
+                loading_plans: "A carregar planos...",
+                access_desc: "A AuraTrade cresce de forma orgânica e exclusiva. Para garantir o melhor suporte, seguimos este fluxo:",
+                access_step1: "Contacte a pessoa que lhe convidou para este ecossistema. Ela será o seu patrocinador e guia inicial.",
+                access_step2: "Caso não tenha um patrocinador direto, utilize o código de indicação oficial no registo:",
+                btn_copy: "Copiar",
+                curiosities: [
+                    "Sabia que o mercado Forex movimenta mais de $7.5 triliões por dia?",
+                    "DeFi: O valor total bloqueado em finanças descentralizadas já ultrapassou os $100 mil milhões.",
+                    "O mercado Forex nunca dorme: funciona 24 horas por dia, 5 dias por semana.",
+                    "Smart Money Concepts: 90% dos traders perdem porque tentam lutar contra as instituições.",
+                    "Blockchain: A tecnologia que permite a transparência total sem custódia central.",
+                    "Gemini AI: A inteligência que processa triliões de pontos de dados em milissegundos."
+                ],
+                about_card1: "👉 Não guarda o dinheiro do utilizador",
+                about_card2: "👉 Não controla os fundos",
+                about_card3: "👉 Não interfere na posse dos ativos",
+                about_phil_title: "🔐 Filosofia Non-Custodial",
+                about_phil_desc: "Inspirada pela tecnologia Blockchain: <strong>“Not your keys, not your money.”</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.",
+                about_inst_title: "🤖 Inteligência Institucional",
+                about_inst_desc: "Sistemas inspirados em fundos hedge e bancos de investimento, baseados em análise quantitativa e machine learning para redução de erro humano.",
+                about_defi_title: "🔗 Conexão Forex & DeFi",
+                about_defi_desc: "Um ecossistema híbrido que une a liquidez do Forex tradicional com a inovação dos Smart Contracts e staking do mundo DeFi.",
+                about_model_title: "🚀 Modelo de funcionamento",
+                about_model_step1: "Utilizador conecta sua conta (MT5 ou Carteira Cripto)",
+                about_model_step2: "Escolhe a estratégia ou bot desejado",
+                about_model_step3: "Autoriza a execução via API/Contrato",
+                about_model_step4: "Bot opera automaticamente com resultados diretos na conta do utilizador",
+                about_model_note: "👉 Sem intermediários. Sem retenção de fundos.",
+                ticker_text: "AURATRADE · FOREX · DEFI · INSTITUCIONAL · BLOCKCHAIN · SMART MONEY",
+                footer_desc: "O ecossistema definitivo para traders institucionais. Tecnologia de ponta, sinais precisos e automação inteligente.",
+                footer_links_title: "Links Rápidos",
+                footer_social_title: "Nossas Redes",
+                footer_social_desc: "Siga-nos para atualizações diárias e sinais gratuitos.",
+                footer_rights: "&copy; 2026 AuraTrade. Todos os direitos reservados.",
+                nav_members: "Área de Membros",
+                nav_terms: "Termos de Serviço"
+            },
+            en: {
+                nav_services: "Bots",
+                nav_about: "About",
+                nav_plans: "Plans",
+                btn_access: "Access Platform",
+                btn_start: "Get Started",
+                btn_register: "Register Now",
+                hero_title: "Institutional <span class='highlight'>Trading</span> AI Ecosystem",
+                hero_subtitle: "Master the market with Smart Money Concepts and Google Gemini AI. Simple, Secure and Global.",
+                stat_trades: "Executed Trades",
+                stat_accuracy: "AI Accuracy",
+                stat_pnl: "Profit Generated",
+                services_title: "Our Bots",
+                srv_bot_title: "SMC Pro Forex Bot",
+                srv_bot_desc: "Local execution via MetaTrader 5 with Smart Money Concepts logic and integrated capital protection.",
+                srv_ai_title: "SMC CRYPTO BOT",
+                srv_ai_desc: "High performance in Crypto markets with adaptive algorithms. (Coming soon)",
+                plans_title: "License Plans",
+                plans_subtitle: "Choose the plan that best fits your capital and goals.",
+                how_title: "How Access Works",
+                step1_title: "Choose your Plan",
+                step1_desc: "Select the license duration you want to activate.",
+                step2_title: "Secure Payment",
+                step2_desc: "Make payment via USDT (TRC20) or other available methods.",
+                step3_title: "Submit Hash",
+                step3_desc: "In the dashboard, paste the transaction hash for validation.",
+                step4_title: "Approval & Setup",
+                step4_desc: "After approval (max. 24h), download the bot and start trading.",
+                access_title: "How to get access to the Bots?",
+                partner_title: "Why become an AuraTrade Partner?",
+                p1_title: "📈 Network Plan",
+                p1_desc: "Share the technology and earn recurring commissions on activated licenses in your network.",
+                p2_title: "🏆 Global Leadership",
+                p2_desc: "Access exclusive mentoring and marketing tools to expand your digital business.",
+                p3_title: "💎 Non-Custodial Tech",
+                p3_desc: "Recommend with security: your guests' funds always remain under their control.",
+                feat_title: "🌐 What is AURATRADE",
+                about_intro: "AURATRADE positions itself as a <strong>non-custodial</strong> company, meaning:",
+                plan_validity: "Validity",
+                plan_days: "days",
+                plan_support: "Priority Support",
+                plan_guide: "Installation Guide",
+                plan_buy: "Buy Now",
+                dev_status: "Under Development...",
+                loading_plans: "Loading plans...",
+                access_desc: "AuraTrade grows organically and exclusively. To ensure the best support, we follow this flow:",
+                access_step1: "Contact the person who invited you to this ecosystem. They will be your sponsor and initial guide.",
+                access_step2: "If you don't have a direct sponsor, use the official referral code during registration:",
+                btn_copy: "Copy",
+                curiosities: [
+                    "Did you know the Forex market moves over $7.5 trillion per day?",
+                    "DeFi: Total value locked in decentralized finance has surpassed $100 billion.",
+                    "The Forex market never sleeps: it works 24 hours a day, 5 days a week.",
+                    "Smart Money Concepts: 90% of traders lose because they try to fight against institutions.",
+                    "Blockchain: The technology that allows total transparency without central custody.",
+                    "Gemini AI: Intelligence that processes trillions of data points in milliseconds."
+                ],
+                about_card1: "👉 Does not hold user money",
+                about_card2: "👉 Does not control funds",
+                about_card3: "👉 Does not interfere with asset ownership",
+                about_phil_title: "🔐 Non-Custodial Philosophy",
+                about_phil_desc: "Inspired by Blockchain technology: <strong>“Not your keys, not your money.”</strong> The user maintains full control via their own wallet or trading account (MT5). AURATRADE only executes authorized strategies.",
+                about_inst_title: "🤖 Institutional Intelligence",
+                about_inst_desc: "Systems inspired by hedge funds and investment banks, based on quantitative analysis and machine learning to reduce human error.",
+                about_defi_title: "🔗 Forex & DeFi Connection",
+                about_defi_desc: "A hybrid ecosystem that unites traditional Forex liquidity with the innovation of Smart Contracts and DeFi world staking.",
+                about_model_title: "🚀 Operating Model",
+                about_model_step1: "User connects their account (MT5 or Crypto Wallet)",
+                about_model_step2: "Chooses the desired strategy or bot",
+                about_model_step3: "Authorizes execution via API/Contract",
+                about_model_step4: "Bot operates automatically with direct results in the user's account",
+                about_model_note: "👉 No intermediaries. No funds retention.",
+                ticker_text: "AURATRADE · FOREX · DEFI · INSTITUTIONAL · BLOCKCHAIN · SMART MONEY",
+                footer_desc: "The ultimate ecosystem for institutional traders. Cutting-edge technology, precise signals, and intelligent automation.",
+                footer_links_title: "Quick Links",
+                footer_social_title: "Our Networks",
+                footer_social_desc: "Follow us for daily updates and free signals.",
+                footer_rights: "&copy; 2026 AuraTrade. All rights reserved.",
+                nav_members: "Members Area",
+                nav_terms: "Terms of Service"
+            },
+            fr: {
+                nav_services: "Bots",
+                nav_about: "À propos",
+                nav_plans: "Tarifs",
+                btn_access: "Accéder à la Plateforme",
+                btn_start: "Commencer",
+                btn_register: "S'inscrire Maintenant",
+                hero_title: "Écosystème de Trading <span class='highlight'>Institutionnel</span> avec IA",
+                hero_subtitle: "Maîtrisez le marché avec les Smart Money Concepts et l'IA Google Gemini. Simple, Sûr et Global.",
+                stat_trades: "Trades Exécutés",
+                stat_accuracy: "Précision IA",
+                stat_pnl: "Profit Généré",
+                services_title: "Nos Bots",
+                srv_bot_title: "Bot SMC Pro Forex",
+                srv_bot_desc: "Exécution locale via MetaTrader 5 avec logique SMC et protection du capital intégrée.",
+                srv_ai_title: "BOT SMC CRIPTO",
+                srv_ai_desc: "Haute performance sur les marchés Crypto avec des algorithmes adaptatifs. (Bientôt)",
+                plans_title: "Plans de Licence",
+                plans_subtitle: "Choisissez le plan qui correspond le mieux à votre capital et vos objectifs.",
+                how_title: "Comment fonctionne l'accès",
+                step1_title: "Choisissez votre Plan",
+                step1_desc: "Sélectionnez la durée de la licence que vous souhaitez activer.",
+                step2_title: "Paiement Sécurisé",
+                step2_desc: "Effectuez le paiement via USDT (TRC20) ou d'autres méthodes disponibles.",
+                step3_title: "Soumettez le Hash",
+                step3_desc: "Dans le tableau de bord, collez le hash de la transaction para validação.",
+                step4_title: "Approbation & Setup",
+                step4_desc: "Après approbation (max. 24h), téléchargez le bot et commencez à trader.",
+                access_title: "Comment acessar aos Bots?",
+                partner_title: "Pourquoi devenir partenaire AuraTrade?",
+                p1_title: "📈 Plan de Réseau",
+                p1_desc: "Partagez la technologie et gagnez des commissions récurrentes sur les licences activées dans votre réseau.",
+                p2_title: "🏆 Leadership Mondial",
+                p2_desc: "Accès à des mentorats exclusifs et des outils marketing pour desenvolver votre activité numérique.",
+                p3_title: "💎 Technologie Non-Custodial",
+                p3_desc: "Recommandez en toute sécurité: les fonds de vos invités restent toujours sous leur contrôle.",
+                feat_title: "🌐 Qu'est-ce que l'AURATRADE",
+                about_intro: "AURATRADE se positionne comme une société <strong>non-custodial</strong>, c'est-à-dire:",
+                plan_validity: "Validité",
+                plan_days: "jours",
+                plan_support: "Support Prioritaire",
+                plan_guide: "Guide d'Installation",
+                plan_buy: "Acheter Maintenant",
+                dev_status: "En Développement...",
+                loading_plans: "Chargement des plans...",
+                access_desc: "AuraTrade se développe de manière organique et exclusive. Pour assurer le meilleur support, nous suivons ce flux :",
+                access_step1: "Contactez la personne qui vous a invité dans cet écosystème. Elle sera votre parrain et votre guide initial.",
+                access_step2: "Si vous n'avez pas de parrain direct, utilisez le code de parrainage officiel lors de l'inscription :",
+                btn_copy: "Copier",
+                curiosities: [
+                    "Saviez-vous que le marché Forex brasse plus de 7,5 billions de dollars par jour ?",
+                    "DeFi : La valeur totale verrouillée dans la finance décentralisée a dépassé les 100 milliards de dollars.",
+                    "Le marché Forex ne dort jamais : il fonctionne 24h/24, 5j/7.",
+                    "Smart Money Concepts : 90 % des traders perdent car ils tentent de lutter contre les institutions.",
+                    "Blockchain : La technologie qui permet une transparence totale sans garde centrale.",
+                    "Gemini AI : L'intelligence qui traite des billions de points de données en quelques millisecondes."
+                ],
+                about_card1: "👉 Ne garde pas l'argent de l'utilisateur",
+                about_card2: "👉 Ne contrôle pas les fonds",
+                about_card3: "👉 N'interfère pas avec la possession des actifs",
+                about_phil_title: "🔐 Philosophie Non-Custodial",
+                about_phil_desc: "Inspirée par la technologie Blockchain : <strong>“Not your keys, not your money.”</strong> L'utilisateur conserve le contrôle total via son propre portefeuille ou compte de trading (MT5). AURATRADE exécute uniquement les stratégies autorisées.",
+                about_inst_title: "🤖 Intelligence Institutionnelle",
+                about_inst_desc: "Systèmes inspirés des fonds spéculatifs et des banques d'investissement, basés sur l'analyse quantitative et le machine learning pour réduire l'erreur humaine.",
+                about_defi_title: "🔗 Connexion Forex & DeFi",
+                about_defi_desc: "Un écosystème hybride qui unit la liquidité du Forex traditionnel avec l'innovation des Smart Contracts et du staking du monde DeFi.",
+                about_model_title: "🚀 Modèle de fonctionnement",
+                about_model_step1: "L'utilisateur connecte seu conta (MT5 ou Carteira Cripto)",
+                about_model_step2: "Choisit la stratégie ou le bot souhaité",
+                about_model_step3: "Autorise l'exécution via API/Contrat",
+                about_model_step4: "Le bot opère automatiquement avec des résultats directs sur le compte de l'utilisateur",
+                about_model_note: "👉 Sans intermédiaires. Sans rétention de fonds.",
+                ticker_text: "AURATRADE · FOREX · DEFI · INSTITUTIONNEL · BLOCKCHAIN · SMART MONEY",
+                footer_desc: "L'écosystème ultime pour les traders institutionnels. Technologie de pointe, signaux précis et automatisation intelligente.",
+                footer_links_title: "Liens Rapides",
+                footer_social_title: "Nos Réseaux",
+                footer_social_desc: "Suivez-nous pour des mises à jour quotidiennes et des signaux gratuits.",
+                footer_rights: "&copy; 2026 AuraTrade. Tous droits réservés.",
+                nav_members: "Espace Membres",
+                nav_terms: "Conditions d'utilisation"
+            },
+            es: {
+                nav_services: "Bots",
+                nav_about: "Sobre",
+                nav_plans: "Planes",
+                btn_access: "Acceder a la Plataforma",
+                btn_start: "Empezar Ahora",
+                btn_register: "Registrarse Ahora",
+                hero_title: "Ecosistema de Trading <span class='highlight'>Institucional</span> con IA",
+                hero_subtitle: "Domine el mercado con tecnología de Smart Money Concepts e Inteligencia Artificial Google Gemini.",
+                stat_trades: "Trades Ejecutados",
+                stat_accuracy: "Precisión IA",
+                stat_pnl: "Lucro Generado",
+                services_title: "Nuestros Bots",
+                srv_bot_title: "Bot SMC Pro Forex",
+                srv_bot_desc: "Ejecución local vía MetaTrader 5 con lógica SMC e proteção de capital integrada.",
+                srv_ai_title: "BOT SMC CRIPTO",
+                srv_ai_desc: "Alto rendimiento en mercados de Criptomonedas con algoritmos adaptativos. (Próximamente)",
+                plans_title: "Planes de Licencia",
+                plans_subtitle: "Elija la modalidad que mejor se adapte a su capital y objetivos.",
+                how_title: "Cómo funciona el acesso",
+                step1_title: "Elija su Plan",
+                step1_desc: "Seleccione la duración de la licencia que deseja activar.",
+                step2_title: "Pago Seguro",
+                step2_desc: "Realice el pago vía USDT (TRC20) u otro método disponible.",
+                step3_title: "Envíe el Hash",
+                step3_desc: "En el dashboard, pegue el hash de la transacción para validación.",
+                step4_title: "Aprovação & Setup",
+                step4_desc: "Después de la aprobación (max. 24h), descargue el bot y comience a operar.",
+                access_title: "¿Cómo tener acceso a los Bots?",
+                partner_title: "¿Por qué ser un Socio de AuraTrade?",
+                p1_title: "📈 Plan de Red",
+                p1_desc: "Comparta la tecnología y gane comisiones recurrentes sobre las licenças activadas en su red.",
+                p2_title: "🏆 Liderazgo Global",
+                p2_desc: "Acceso a mentorías exclusivas y ferramentas de marketing para expandir seu negócio digital.",
+                p3_title: "💎 Tecnologia Non-Custodial",
+                p3_desc: "Recomiende con seguridad: los fondos de sus invitados permanecen sempre bajo su control.",
+                feat_title: "🌐 Qué é AURATRADE",
+                about_intro: "AURATRADE se posiciona como una empresa <strong>non-custodial</strong>, es decir:",
+                plan_validity: "Validez",
+                plan_days: "días",
+                plan_support: "Soporte Prioritario",
+                plan_guide: "Guía de Instalación",
+                plan_buy: "Comprar Ahora",
+                dev_status: "En Desarrollo...",
+                loading_plans: "Cargando planes...",
+                access_desc: "AuraTrade crece de forma orgánica y exclusiva. Para garantizar el mejor soporte, seguimos este flujo:",
+                access_step1: "Contacte a la persona que le invitó a este ecosistema. Ella será su patrocinador y guía inicial.",
+                access_step2: "Si no tiene un patrocinador directo, utilice el código de invitación oficial al registrarse:",
+                btn_copy: "Copiar",
+                curiosities: [
+                    "¿Sabías que el mercado Forex mueve más de $7.5 billones al día?",
+                    "DeFi: El valor total bloqueado en finanzas descentralizadas ha superado los $100 mil millones.",
+                    "El mercado Forex nunca duerme: funciona las 24 horas del día, 5 días a la semana.",
+                    "Smart Money Concepts: el 90% de los traders pierden porque intentan luchar contra las instituciones.",
+                    "Blockchain: La tecnología que permite la transparencia total sin custodia central.",
+                    "Gemini AI: La inteligencia que processa triliões de pontos de dados em milissegundos."
+                ],
+                about_card1: "👉 No guarda el dinero del usuario",
+                about_card2: "👉 No controla los fondos",
+                about_card3: "👉 No interfiere en la posesión de los activos",
+                about_phil_title: "🔐 Filosofía Non-Custodial",
+                about_phil_desc: "Inspirada en la tecnología Blockchain: <strong>“Not your keys, not your money.”</strong> El usuario mantiene el control total vía cartera propia o cuenta de trading (MT5). AURATRADE solo ejecuta estrategias autorizadas.",
+                about_inst_title: "🤖 Inteligencia Institucional",
+                about_inst_desc: "Sistemas inspirados en fondos de cobertura y bancos de inversión, basados en el análisis cuantitativo y el machine learning para reducir el error humano.",
+                about_defi_title: "🔗 Conexión Forex & DeFi",
+                about_defi_desc: "Un ecosistema híbrido que une la liquidez del Forex tradicional con la innovación de los Smart Contracts y el staking del mundo DeFi.",
+                about_model_title: "🚀 Modelo de funcionamiento",
+                about_model_step1: "El usuario conecta su cuenta (MT5 o Cartera Cripto)",
+                about_model_step2: "Elige la estrategia o bot deseado",
+                about_model_step3: "Autoriza la ejecución vía API/Contrato",
+                about_model_step4: "El bot opera automáticamente con resultados directos en la cuenta del usuario",
+                about_model_note: "👉 Sin intermediarios. Sin retención de fondos.",
+                ticker_text: "AURATRADE · FOREX · DEFI · INSTITUCIONAL · BLOCKCHAIN · SMART MONEY",
+                footer_desc: "El ecosistema definitivo para traders institucionales. Tecnología de punta, señales precisas y automatización inteligente.",
+                footer_links_title: "Enlaces Rápidos",
+                footer_social_title: "Nuestras Redes",
+                footer_social_desc: "Síguenos para actualizaciones diarias y señales gratuitas.",
+                footer_rights: "&copy; 2026 AuraTrade. Todos los derechos reservados.",
+                nav_members: "Área de Miembros",
+                nav_terms: "Términos de Servicio"
+            },
+        };
+
+        function changeLanguage(lang) {
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            localStorage.setItem('aura_lang', lang);
+        }
+
+        async function loadPlans() {
+            try {
+                const res = await fetch("/api/public/plans");
+                const data = await res.json();
+                if (data.success) {
+                    const grid = document.getElementById("plansGrid");
+                    grid.innerHTML = data.plans.map(p => `
+                        <div class="service-card" style="border: 1px solid ${p.name.toLowerCase().includes('vip') ? 'var(--accent-purple)' : 'var(--glass-border)'};">
+                            <h3 class="syne" style="font-size: 1.2rem;">${p.name}</h3>
+                            <div style="font-size: 2.5rem; font-weight: 800; margin: 20px 0; color: var(--accent);">$${p.price}</div>
+                            <ul style="list-style: none; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;">
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_validity">Validade</span>: ${p.durationDays} <span data-i18n="plan_days">dias</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="srv_bot_title">Bot SMC Pro Forex</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_support">Suporte Prioritário</span></li>
+                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_guide">Guia de Instalação</span></li>
+                            </ul>
+                            <a href="/login" class="btn-access" style="text-align:center; padding: 12px;" data-i18n="plan_buy">Comprar Agora</a>
+                        </div>
+                    `).join('');
+                    
+                    // Re-aplicar traduções para os novos elementos injetados
+                    const currentLang = localStorage.getItem('aura_lang') || 'pt';
+                    changeLanguage(currentLang);
+                }
+            } catch (e) { console.error("Erro ao carregar planos", e); }
+        }
+
+        function copyRefCode() {
+            const code = document.getElementById("refCode").innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btnText = document.getElementById("copyText");
+                const originalText = btnText.innerText;
+                btnText.innerText = "Copiado!";
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            });
+        }
+
+        const curiosities = [
+            "Sabia que o mercado Forex movimenta mais de $7.5 triliões por dia?",
+            "DeFi: O valor total bloqueado em finanças descentralizadas já ultrapassou os $100 mil milhões.",
+            "O mercado Forex nunca dorme: funciona 24 horas por dia, 5 dias por semana.",
+            "Smart Money Concepts: 90% dos traders perdem porque tentam lutar contra as instituições.",
+            "Blockchain: A tecnologia que permite a transparência total sem custódia central.",
+            "Gemini AI: A inteligência que processa triliões de pontos de dados em milissegundos."
+        ];
+
+        let curIndex = 0;
+        function rotateCuriosities() {
+            const lang = localStorage.getItem('aura_lang') || 'pt';
+            const list = translations[lang].curiosities;
+            const box = document.getElementById("curiosityBox");
+            if (!box) return;
+            box.style.opacity = 0;
+            setTimeout(() => {
+                curIndex = (curIndex + 1) % list.length;
+                box.innerText = list[curIndex];
+                box.style.opacity = 1;
+            }, 1000);
+        }
+        setInterval(rotateCuriosities, 8000);
+
+        async function loadSocialLinks() {
+            try {
+                const res = await fetch("/api/public/settings?t=" + Date.now());
+                const data = await res.json();
+                if (data.success && data.settings) {
+                    const s = data.settings;
+                    
+                    // Social Links (Footer)
+                    if (s.telegramUrl) document.querySelectorAll('.social-telegram').forEach(el => el.href = s.telegramUrl);
+                    if (s.youtubeUrl) document.querySelectorAll('.social-youtube').forEach(el => el.href = s.youtubeUrl);
+                    if (s.facebookUrl) document.querySelectorAll('.social-facebook').forEach(el => el.href = s.facebookUrl);
+                    if (s.instagramUrl) document.querySelectorAll('.social-instagram').forEach(el => el.href = s.instagramUrl);
+                    if (s.whatsappNumber) {
+                        const waLink = `https://wa.me/${s.whatsappNumber.replace(/\D/g, '')}`;
+                        document.querySelectorAll('.social-whatsapp').forEach(el => el.href = waLink);
+                    }
+
+                    // Crypto Bot Card Logic
+                    const cryptoCard = document.getElementById("cryptoBotCard");
+                    if (cryptoCard) {
+                        // Agora respeitamos a decisão do Admin (Ativar/Desativar)
+                        if (s.cryptoBotEnabled !== false) {
+                            cryptoCard.style.display = "flex"; 
+                            
+                            // Se houver um URL, o card ganha vida
+                            if (s.cryptoBotUrl && s.cryptoBotUrl.trim() !== "") {
+                                cryptoCard.style.opacity = "1";
+                                cryptoCard.style.cursor = "pointer";
+                                cryptoCard.onclick = () => window.open(s.cryptoBotUrl, "_blank");
+                                const statusEl = document.getElementById("cryptoBotStatus");
+                                if (statusEl) {
+                                    statusEl.innerText = "Aceder agora";
+                                    statusEl.style.color = "var(--accent)";
+                                }
+                                const img = cryptoCard.querySelector('img');
+                                if (img) img.style.filter = "none";
+                            } else {
+                                // Se não houver URL, fica em modo "Brevemente"
+                                cryptoCard.style.opacity = "0.7";
+                                cryptoCard.style.cursor = "not-allowed";
+                                cryptoCard.onclick = null;
+                                const statusEl = document.getElementById("cryptoBotStatus");
+                                if (statusEl) {
+                                    statusEl.innerText = "Em Desenvolvimento...";
+                                    statusEl.style.color = "var(--text-muted)";
+                                }
+                                const img = cryptoCard.querySelector('img');
+                                if (img) img.style.filter = "grayscale(1)";
+                            }
+                        } else {
+                            // Se desativado no admin, desaparece por completo
+                            cryptoCard.style.display = "none";
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar configurações:", e);
+            }
+        }
+
+        function toggleMenu() {
+            const nav = document.getElementById("navLinks");
+            const toggle = document.querySelector(".menu-toggle");
+            nav.classList.toggle("active");
+            
+            // Animação básica do hambúrguer
+            const spans = toggle.querySelectorAll("span");
+            if(nav.classList.contains("active")) {
+                spans[0].style.transform = "rotate(45deg) translate(6px, 6px)";
+                spans[1].style.opacity = "0";
+                spans[2].style.transform = "rotate(-45deg) translate(6px, -7px)";
+            } else {
+                spans[0].style.transform = "none";
+                spans[1].style.opacity = "1";
+                spans[2].style.transform = "none";
+            }
+        }
+
+        // 🤖 AURA AI CHAT LOGIC
+        function toggleAura() {
+            const win = document.getElementById("auraWindow");
+            win.classList.toggle("active");
+            if (win.classList.contains("active")) {
+                document.getElementById("auraInput").focus();
+            }
+        }
+
+        function handleAuraKey(e) {
+            if (e.key === "Enter") sendAuraMessage();
+        }
+
+        async function sendAuraMessage() {
+            const input = document.getElementById("auraInput");
+            const text = input.value.trim();
+            if (!text) return;
+
+            addChatMessage(text, 'user');
+            input.value = "";
+
+            const typing = document.getElementById("auraTyping");
+            typing.style.display = "block";
+            const messagesDiv = document.getElementById("auraMessages");
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                // Na Landing Page, não temos token, então enviamos como "Público"
+                const res = await fetch("/api/support/chat/public", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                
+                typing.style.display = "none";
+                if (data.reply) {
+                    addChatMessage(data.reply, 'bot');
+                } else {
+                    addChatMessage("Desculpe, tive um problema ao processar sua pergunta.", 'bot');
+                }
+            } catch (e) {
+                typing.style.display = "none";
+                addChatMessage("Erro de conexão com a Aura.", 'bot');
+            }
+        }
+
+        function addChatMessage(text, side) {
+            const messagesDiv = document.getElementById("auraMessages");
+            const msg = document.createElement("div");
+            msg.className = `msg ${side}`;
+            msg.innerHTML = text.replace(/\n/g, '<br>');
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Auto-detect language
+        window.onload = () => {
+            const savedLang = localStorage.getItem('aura_lang') || 'pt';
+            const switcher = document.querySelector('.lang-switcher');
+            if (switcher) switcher.value = savedLang;
+            changeLanguage(savedLang);
+            loadSocialLinks();
+            loadPlans();
+        };
+    </script>
+    <!-- 🌐 FOOTER / REDES SOCIAIS -->
+    <footer class="main-footer" style="background: var(--surface); border-top: 1px solid var(--border); padding: 60px 0 30px; margin-top: 100px; position: relative; z-index: 10;">
+        <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 40px; margin-bottom: 40px;">
+                <!-- Brand -->
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="Logo" style="width: 40px; height: 40px;">
+                        <h2 style="font-size: 1.5rem; font-weight: 800;">Aura<span>Trade</span></h2>
+                    </div>
+                    <p style="color: var(--muted); line-height: 1.6; font-size: 0.9rem;" data-i18n="footer_desc">
+                        O ecossistema definitivo para traders institucionais. Tecnologia de ponta, sinais precisos e automação inteligente.
+                    </p>
+                </div>
+                <!-- Links Rápidos -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-weight: 700;" data-i18n="footer_links_title">Links Rápidos</h4>
+                    <ul style="list-style: none; color: var(--muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px;">
+                        <li><a href="#about" style="color: inherit; text-decoration: none;" data-i18n="nav_about">Sobre Nós</a></li>
+                        <li><a href="#plans" style="color: inherit; text-decoration: none;" data-i18n="nav_plans">Planos</a></li>
+                        <li><a href="/login" style="color: inherit; text-decoration: none;" data-i18n="nav_members">Área de Membros</a></li>
+                        <li><a href="#" style="color: inherit; text-decoration: none;" data-i18n="nav_terms">Termos de Serviço</a></li>
+                    </ul>
+                </div>
+                <!-- Social -->
+                <div>
+                    <h4 style="margin-bottom: 20px; font-weight: 700;" data-i18n="footer_social_title">Nossas Redes</h4>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <a href="#" class="social-telegram" target="_blank" style="width: 44px; height: 44px; background: rgba(0,212,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-telegram-plane"></i></a>
+                        <a href="#" class="social-whatsapp" target="_blank" style="width: 44px; height: 44px; background: rgba(0,230,118,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--bull); border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" class="social-youtube" target="_blank" style="width: 44px; height: 44px; background: rgba(255,68,68,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ff4444; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="social-facebook" target="_blank" style="width: 44px; height: 44px; background: rgba(24,119,242,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #1877f2; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-instagram" target="_blank" style="width: 44px; height: 44px; background: rgba(225,48,108,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #e1306c; border: 1px solid var(--border); transition: 0.3s;"><i class="fab fa-instagram"></i></a>
+                    </div>
+                    <p style="margin-top: 20px; color: var(--muted); font-size: 0.8rem;" data-i18n="footer_social_desc">Siga-nos para atualizações diárias e sinais gratuitos.</p>
+                </div>
+            </div>
+            <div style="text-align: center; border-top: 1px solid var(--border); padding-top: 30px; color: var(--muted); font-size: 0.75rem; font-family: 'Space Mono', monospace;" data-i18n="footer_rights">
+                &copy; 2026 AuraTrade. Todos os direitos reservados.
+            </div>
+        </div>
+    </footer>
+
+    <!-- 🤖 AURA AI CHAT WIDGET -->
+    <div class="aura-chat-widget">
+        <div class="aura-window" id="auraWindow">
+            <div class="aura-header">
+                <div class="aura-avatar">🤖</div>
+                <div class="aura-info">
+                    <h4>Aura AI</h4>
+                    <span>Online • Suporte Inteligente</span>
+                </div>
+                <div class="aura-close" onclick="toggleAura()">✕</div>
+            </div>
+            <div class="aura-messages" id="auraMessages">
+                <div class="msg bot">Olá! Eu sou a <b>Aura</b>. Estou aqui para te ajudar com tudo sobre a AuraTrade. Como posso ajudar hoje?</div>
+            </div>
+            <div class="aura-typing" id="auraTyping">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+            <div class="aura-input-area">
+                <input type="text" class="aura-input" id="auraInput" placeholder="Pergunte-me qualquer coisa..." onkeypress="handleAuraKey(event)">
+                <div class="aura-send" onclick="sendAuraMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </div>
+            </div>
+        </div>
+        <div class="aura-btn" onclick="toggleAura()">
+            <span class="aura-status"></span>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+    </div>
+
+</body>
+</html>
