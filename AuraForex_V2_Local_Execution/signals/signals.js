@@ -141,8 +141,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
           factors,
           htfBias,
           smcZones: {
-            obs:       smc.nearBullOB,
-            fvgs:      smc.nearBullFVG,
+            obs:       smc.obs.filter(o => o.type === "BULLISH_OB"),
+            fvgs:      smc.fvgs.filter(f => f.type === "BULLISH_FVG"),
             structure: smc.structure.filter(s => s.type.includes("BULL")),
           },
           timestamp: new Date().toISOString(),
@@ -158,13 +158,10 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
   if (bearBias) {
     const factors = {
-      smcStructure:  smc.bosBear,
-      orderBlock:    smc.nearBearOB.length  > 0,
-      fvg:           smc.nearBearFVG.length > 0,
-      emaAlignment:  last.emaFast < last.emaSlow,
-      macdConfirm:   last.macdHist !== null && last.macdHist < 0 && last.macdHist < (last.macdHistP ?? Infinity),
-      rsiConfirm:    last.rsi !== null && last.rsi < 65 && last.rsi > rsiCfg.oversold,
-      sessionActive: session,
+      smcStructure:  smc.structure.some(s => s.type === "BOS_BEARISH" || s.type === "CHOCH_BEARISH"),
+      orderBlock:    smc.obs.some(o => o.type === "BEARISH_OB" && Math.abs(last.close - o.mid) < last.atr),
+      liquidity:     smc.sweeps.bearishSweep,
+      trend:         last.emaFast < last.emaSlow,
     };
 
     const score = calcScore(factors);
@@ -174,7 +171,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
       let entryPrice = last.close;
       let orderType = "MARKET";
       
-      const zone = smc.nearBearOB[0] || smc.nearBearFVG[0];
+      const zone = smc.obs.filter(o => o.type === "BEARISH_OB")[0] || smc.fvgs.filter(f => f.type === "BEARISH_FVG")[0];
       const idealEntry = zone ? (zone.low || zone.bottom) : null;
       if (idealEntry && last.close < idealEntry - (last.atr * 0.1)) {
         entryPrice = idealEntry;
@@ -197,8 +194,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
           factors,
           htfBias,
           smcZones: {
-            obs:       smc.nearBearOB,
-            fvgs:      smc.nearBearFVG,
+            obs:       smc.obs.filter(o => o.type === "BEARISH_OB"),
+            fvgs:      smc.fvgs.filter(f => f.type === "BEARISH_FVG"),
             structure: smc.structure.filter(s => s.type.includes("BEAR")),
           },
           timestamp: new Date().toISOString(),
