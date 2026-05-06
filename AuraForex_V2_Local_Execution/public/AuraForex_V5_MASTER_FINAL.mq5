@@ -246,21 +246,20 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: CALCULAR SL/TP ESTRUTURAL (V5 MASTER)
+   // --- PASSO 3: HIERARQUIA PROFISSIONAL (V5 MASTER FINAL) ---
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
    double sl, tp;
-   double structuralSL = (dir == "BUY") ? GetLastSwingLow(pair, 20) : GetLastSwingHigh(pair, 20);
-   double safetyBuffer = atr * 0.5; // Folga institucional
+   double safetyBuffer = atr * 0.5; // 🥈 2. ATR (AJUSTE FINO)
    
    if(dir == "BUY") {
+      // 🥇 1. SL BASEADO EM ESTRUTURA
+      double structuralSL = GetLastSwingLow(pair, 20); 
       sl = structuralSL - safetyBuffer;
-      // Garantir que o SL não é maior que 3x ATR (Proteção de Capital)
-      if(price - sl > atr * 3.0) sl = price - (atr * 2.0);
-      // Garantir que o SL não é colado ao preço (Mínimo 1.5x ATR)
+      
+      // Sanidade: Evitar stops absurdos
+      if(price - sl > atr * 3.5) sl = price - (atr * 2.5);
       if(price - sl < atr * 1.5) sl = price - (atr * 1.5);
       
-      double finalSlDist = price - sl;
-      tp = price + (finalSlDist * 3.0); // R:R 1:3 Baseado na Estrutura
    } else {
       sl = structuralSL + safetyBuffer;
       if(sl - price > atr * 3.0) sl = price + (atr * 2.0);
