@@ -248,7 +248,7 @@ void ExecuteSignal(string json)
 
    // --- PASSO 3: HIERARQUIA PROFISSIONAL (V5 MASTER FINAL) ---
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   double sl, tp;
+   double sl = 0, tp = 0;
    double safetyBuffer = atr * 0.5; // 🥈 2. ATR (AJUSTE FINO)
    
    if(dir == "BUY") {
@@ -256,17 +256,31 @@ void ExecuteSignal(string json)
       double structuralSL = GetLastSwingLow(pair, 20); 
       sl = structuralSL - safetyBuffer;
       
-      // Sanidade: Evitar stops absurdos
+      // Sanidade: Evitar stops absurdos ou colados
       if(price - sl > atr * 3.5) sl = price - (atr * 2.5);
       if(price - sl < atr * 1.5) sl = price - (atr * 1.5);
       
+      // 🥉 3. TP BASEADO EM LIQUIDEZ
+      tp = GetLiquidityTargetBuy(pair, 30);
+      
+      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
+      double slDist = price - sl;
+      if((tp - price) < (slDist * 2.0)) tp = price + (slDist * 2.5);
    } else {
+      // 🥇 1. SL BASEADO EM ESTRUTURA
+      double structuralSL = GetLastSwingHigh(pair, 20);
       sl = structuralSL + safetyBuffer;
-      if(sl - price > atr * 3.0) sl = price + (atr * 2.0);
+      
+      // Sanidade
+      if(sl - price > atr * 3.5) sl = price + (atr * 2.5);
       if(sl - price < atr * 1.5) sl = price + (atr * 1.5);
       
-      double finalSlDist = sl - price;
-      tp = price - (finalSlDist * 3.0); // R:R 1:3 Baseado na Estrutura
+      // 🥉 3. TP BASEADO EM LIQUIDEZ
+      tp = GetLiquidityTargetSell(pair, 30);
+      
+      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
+      double slDist = sl - price;
+      if((price - tp) < (slDist * 2.0)) tp = price - (slDist * 2.5);
    }
 
    // --- PASSO 4: VALIDAR STOPLEVEL ---
