@@ -455,10 +455,12 @@ void ExecuteSignal(string json)
       sl = structuralSL + safetyBuffer;
       
       double slDistPoints = (sl - currentPrice) / tickSize;
-      if(slDistPoints > 300) {
+      if(slDistPoints > 400) { // Limite aumentado para permitir o risco de 0.3%
          Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
          return;
       }
+      
+      double dynamicRisk = GetDynamicRisk(slDistPoints);
       
       if(sl - currentPrice > atr * 5.0) sl = currentPrice + (atr * 3.5);
       if(sl - currentPrice < atr * 2.0) sl = currentPrice + (atr * 2.0);
@@ -469,7 +471,7 @@ void ExecuteSignal(string json)
       double slDist = sl - currentPrice;
       if((currentPrice - tp) < (slDist * 1.5)) tp = currentPrice - (slDist * 2.0);
       
-      lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
+      lot = CalculateLotSmart(pair, dynamicRisk, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_SELL, lot);
       
       Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
