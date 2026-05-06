@@ -415,11 +415,18 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
-      if(structuralSL <= 0) structuralSL = currentPrice - (atr * 3.0); // Aumentado para reduzir lote inicial
+      if(structuralSL <= 0) structuralSL = currentPrice - (atr * 3.0); 
       
       sl = structuralSL - safetyBuffer;
-      if(currentPrice - sl > atr * 5.0) sl = currentPrice - (atr * 3.5); // Mais largo para salvar margem
-      if(currentPrice - sl < atr * 2.0) sl = currentPrice - (atr * 2.0); // Mínimo aumentado
+      
+      double slDistPoints = (currentPrice - sl) / tickSize;
+      if(slDistPoints > 300) {
+         Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+         return;
+      }
+      
+      if(currentPrice - sl > atr * 5.0) sl = currentPrice - (atr * 3.5); 
+      if(currentPrice - sl < atr * 2.0) sl = currentPrice - (atr * 2.0); 
       
       tp = GetLiquidityTargetBuy(pair, 30);
       if(tp <= 0) tp = currentPrice + (atr * 6.0);
