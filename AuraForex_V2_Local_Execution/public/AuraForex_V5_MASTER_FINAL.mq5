@@ -319,6 +319,14 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
    return 0;
 }
 
+// 🛡️ 2. RISCO DINÂMICO POR DISTÂNCIA DE SL
+double GetDynamicRisk(double slPoints)
+{
+   if(slPoints > 300) return 0.3; // Risco mínimo para volatilidade extrema
+   if(slPoints > 200) return 0.5; // Risco médio
+   return 1.0;                   // Risco padrão
+}
+
 // 🧠 7. CÁLCULO DE LOTE SMART (PROFISSIONAL)
 double CalculateLotSmart(string symbol, double riskPercent, double slDist)
 {
@@ -420,10 +428,12 @@ void ExecuteSignal(string json)
       sl = structuralSL - safetyBuffer;
       
       double slDistPoints = (currentPrice - sl) / tickSize;
-      if(slDistPoints > 300) {
+      if(slDistPoints > 400) { // Limite aumentado para permitir o risco de 0.3%
          Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
          return;
       }
+      
+      double dynamicRisk = GetDynamicRisk(slDistPoints);
       
       if(currentPrice - sl > atr * 5.0) sl = currentPrice - (atr * 3.5); 
       if(currentPrice - sl < atr * 2.0) sl = currentPrice - (atr * 2.0); 
@@ -434,7 +444,7 @@ void ExecuteSignal(string json)
       double slDist = currentPrice - sl;
       if((tp - currentPrice) < (slDist * 1.5)) tp = currentPrice + (slDist * 2.0);
       
-      lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
+      lot = CalculateLotSmart(pair, dynamicRisk, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_BUY, lot);
       
       Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
