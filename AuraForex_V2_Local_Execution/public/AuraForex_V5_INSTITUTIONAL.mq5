@@ -120,6 +120,64 @@ void AddProcessed(string id)
    ProcessedIds[s] = id;
 }
 
+// 🥇 1. SL BASEADO EM ESTRUTURA (HIGH/LOW)
+double GetLastSwingLow(string symbol, int barsBack = 20)
+{
+   double lows[];
+   ArraySetAsSeries(lows, true);
+   if(CopyLow(symbol, _Period, 1, barsBack, lows) > 0)
+   {
+      double minLow = lows[0];
+      for(int i=1; i<ArraySize(lows); i++)
+         if(lows[i] < minLow) minLow = lows[i];
+      return minLow;
+   }
+   return 0;
+}
+
+double GetLastSwingHigh(string symbol, int barsBack = 20)
+{
+   double highs[];
+   ArraySetAsSeries(highs, true);
+   if(CopyHigh(symbol, _Period, 1, barsBack, highs) > 0)
+   {
+      double maxHigh = highs[0];
+      for(int i=1; i<ArraySize(highs); i++)
+         if(highs[i] > maxHigh) maxHigh = highs[i];
+      return maxHigh;
+   }
+   return 0;
+}
+
+// 🥉 3. TP BASEADO EM LIQUIDEZ (SIMPLES)
+double GetLiquidityTargetBuy(string symbol, int barsBack = 30)
+{
+   double highs[];
+   ArraySetAsSeries(highs, true);
+   if(CopyHigh(symbol, _Period, 1, barsBack, highs) > 0)
+   {
+      double maxHigh = highs[0];
+      for(int i=1; i<ArraySize(highs); i++)
+         if(highs[i] > maxHigh) maxHigh = highs[i];
+      return maxHigh;
+   }
+   return 0;
+}
+
+double GetLiquidityTargetSell(string symbol, int barsBack = 30)
+{
+   double lows[];
+   ArraySetAsSeries(lows, true);
+   if(CopyLow(symbol, _Period, 1, barsBack, lows) > 0)
+   {
+      double minLow = lows[0];
+      for(int i=1; i<ArraySize(lows); i++)
+         if(lows[i] < minLow) minLow = lows[i];
+      return minLow;
+   }
+   return 0;
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -188,18 +246,41 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: CALCULAR SL/TP COM ATR LOCAL (R:R 1:3 PADRONIZADO)
+   // --- PASSO 3: HIERARQUIA PROFISSIONAL (V5 MASTER FINAL) ---
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   double slDist = atr * 2.0; // Stop Loss institucional (espaço para respirar)
-   double tpDist = atr * 6.0; // Take Profit 1:3 (Recompensa Profissional)
-   double sl, tp;
-
+   double sl = 0, tp = 0;
+   double safetyBuffer = atr * 0.5; // 🥈 2. ATR (AJUSTE FINO)
+   
    if(dir == "BUY") {
-      sl = price - slDist;
-      tp = price + tpDist;
+      // 🥇 1. SL BASEADO EM ESTRUTURA
+      double structuralSL = GetLastSwingLow(pair, 20); 
+      sl = structuralSL - safetyBuffer;
+      
+      // Sanidade: Evitar stops absurdos ou colados
+      if(price - sl > atr * 3.5) sl = price - (atr * 2.5);
+      if(price - sl < atr * 1.5) sl = price - (atr * 1.5);
+      
+      // 🥉 3. TP BASEADO EM LIQUIDEZ
+      tp = GetLiquidityTargetBuy(pair, 30);
+      
+      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
+      double slDist = price - sl;
+      if((tp - price) < (slDist * 2.0)) tp = price + (slDist * 2.5);
    } else {
-      sl = price + slDist;
-      tp = price - tpDist;
+      // 🥇 1. SL BASEADO EM ESTRUTURA
+      double structuralSL = GetLastSwingHigh(pair, 20);
+      sl = structuralSL + safetyBuffer;
+      
+      // Sanidade
+      if(sl - price > atr * 3.5) sl = price + (atr * 2.5);
+      if(sl - price < atr * 1.5) sl = price + (atr * 1.5);
+      
+      // 🥉 3. TP BASEADO EM LIQUIDEZ
+      tp = GetLiquidityTargetSell(pair, 30);
+      
+      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
+      double slDist = sl - price;
+      if((price - tp) < (slDist * 2.0)) tp = price - (slDist * 2.5);
    }
 
    // --- PASSO 4: VALIDAR STOPLEVEL ---
