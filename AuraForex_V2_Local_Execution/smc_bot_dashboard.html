@@ -2245,7 +2245,8 @@ async function botLoop(loopId) {
         const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
         if (sig && openTrades.length < maxTradesLimit) {
           // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
-          if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
+          const mappedBias = sig.direction === "BUY" ? "BULLISH" : "BEARISH";
+          if (aiResult.bias !== "NEUTRAL" && aiResult.bias !== mappedBias) {
              addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
              continue;
           }
