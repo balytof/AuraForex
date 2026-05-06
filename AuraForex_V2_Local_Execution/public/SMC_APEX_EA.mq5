@@ -319,6 +319,20 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
    return 0;
 }
 
+// 🥇 1. VALIDAR LOTE ANTES DE ENVIAR ORDEM (MARGEM)
+double GetMaxLotAllowed(string symbol)
+{
+   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+   double lotStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+   double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+
+   // Ajuste base solicitado pelo Chef: Margem / 1000
+   double lot = NormalizeDouble(freeMargin / 1000.0, 2); 
+   if(lot > maxLot) lot = maxLot;
+
+   return lot;
+}
+
 // 🧠 7. CÁLCULO DE LOTE POR RISCO (%)
 double CalculateLot(string symbol, double riskPercent, double slDist)
 {
@@ -331,6 +345,10 @@ double CalculateLot(string symbol, double riskPercent, double slDist)
    if(slDist <= 0 || tickSize <= 0 || tickValue <= 0) return 0.01;
    
    double lot = riskMoney / (slDist / tickSize * tickValue);
+   
+   // --- NOVO FILTRO DE MARGEM PROFISSIONAL ---
+   double maxAllowed = GetMaxLotAllowed(symbol);
+   if(lot > maxAllowed) lot = maxAllowed;
    
    double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
    double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
@@ -394,24 +412,36 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
+      if(structuralSL <= 0) structuralSL = currentPrice - (atr * 2.0); // Fallback se falhar leitura
+      
       sl = structuralSL - safetyBuffer;
       if(currentPrice - sl > atr * 3.5) sl = currentPrice - (atr * 2.5);
       if(currentPrice - sl < atr * 1.5) sl = currentPrice - (atr * 1.5);
+      
       tp = GetLiquidityTargetBuy(pair, 30);
+      if(tp <= 0) tp = currentPrice + (atr * 4.0);
+      
       double slDist = currentPrice - sl;
       if((tp - currentPrice) < (slDist * 2.0)) tp = currentPrice + (slDist * 2.5);
       
       lot = CalculateLot(pair, InpRiskPercent, slDist);
+      Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
    } else {
       double structuralSL = GetLastSwingHigh(pair, 20);
+      if(structuralSL <= 0) structuralSL = currentPrice + (atr * 2.0);
+      
       sl = structuralSL + safetyBuffer;
       if(sl - currentPrice > atr * 3.5) sl = currentPrice + (atr * 2.5);
       if(sl - currentPrice < atr * 1.5) sl = currentPrice + (atr * 1.5);
+      
       tp = GetLiquidityTargetSell(pair, 30);
+      if(tp <= 0) tp = currentPrice - (atr * 4.0);
+      
       double slDist = sl - currentPrice;
       if((currentPrice - tp) < (slDist * 2.0)) tp = currentPrice - (slDist * 2.5);
       
       lot = CalculateLot(pair, InpRiskPercent, slDist);
+      Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
    }
 
    // --- PASSO 2: ENTRADA COM LOTE CALCULADO ---
