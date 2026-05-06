@@ -21,43 +21,60 @@ function formatForMT5(signal) {
 
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
- * O EA chama este endpoint ao iniciar para verificar se a licença é válida
- * e se está amarrada ao número da conta MetaTrader correto.
- * ─────────────────────────────────────────────────────────────────────
- * O EA chama este endpoint ao iniciar para verificar se a licença é válida.
- * ─────────────────────────────────────────────────────────────────────
  */
-router.post("/validate", (req, res) => {
+router.post("/validate", async (req, res) => {
   const { licenseKey, mtAccount } = req.body;
-  console.log(`[EA-API] 🛡️ Validando MT5: Conta ${mtAccount} | Licença ${licenseKey}`);
-  res.json({ status: "OK" });
+  console.log(`[EA-API] 🛡️ Tentativa de Validação: Conta ${mtAccount} | Licença ${licenseKey}`);
+
+  try {
+    const license = await prisma.license.findUnique({
+      where: { id: licenseKey },
+      include: { user: true }
+    });
+
+    if (!license || license.status !== "ACTIVE") {
+      return res.status(401).json({ status: "ERROR", message: "Licença inválida ou expirada." });
+    }
+
+    // Amarrar a conta MT5 se estiver vazia ou atualizar
+    await prisma.license.update({
+      where: { id: licenseKey },
+      data: { mtAccount: String(mtAccount) }
+    });
+
+    console.log(`[EA-API] ✅ Licença validada para User: ${license.user.email}`);
+    res.json({ status: "OK" });
+
+  } catch (err) {
+    console.error("[EA-API] ❌ Erro ao validar:", err.message);
+    res.status(500).json({ status: "ERROR" });
+  }
 });
-
-
-
-
-
 
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
- * O EA chama este endpoint periodicamente para buscar novos sinais PENDENTES.
- * Lógica Multi-Utilizador: Filtra pelo userId (licenseKey).
- * ─────────────────────────────────────────────────────────────────────
  */
 router.get("/signals", async (req, res) => {
   const { licenseKey } = req.query;
 
-  if (!licenseKey) {
-    return res.status(400).json({ error: "licenseKey é obrigatória." });
-  }
+  if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
 
   try {
-    // Busca apenas sinais PENDENTES específicos deste utilizador
+    // 1. Encontrar o dono da licença
+    const license = await prisma.license.findUnique({
+      where: { id: licenseKey }
+    });
+
+    if (!license) return res.json({ signals: [] });
+
+    // 2. Buscar sinais para o userId dono da licença
     const pendingSignals = await prisma.signal.findMany({
       where: {
-        userId: licenseKey,
+        userId: license.userId,
         status: "PENDING"
       },
+      take: 10
+    });
       orderBy: {
         createdAt: 'asc'
       }
