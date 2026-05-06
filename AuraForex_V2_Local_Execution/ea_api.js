@@ -36,18 +36,20 @@ router.post("/validate", async (req, res) => {
       return res.status(401).json({ status: "ERROR", message: "Licença inválida ou expirada." });
     }
 
-    // Amarrar a conta MT5 se estiver vazia ou atualizar
+    // Amarrar a conta MT5
     await prisma.license.update({
       where: { id: licenseKey },
       data: { mtAccount: String(mtAccount) }
     });
 
-    console.log(`[EA-API] ✅ Licença validada para User: ${license.user.email}`);
-    res.json({ status: "OK" });
+    console.log(`[EA-API] ✅ OK: ${license.user.email}`);
+    res.type('application/json');
+    res.send('{"status":"OK"}');
 
   } catch (err) {
-    console.error("[EA-API] ❌ Erro ao validar:", err.message);
-    res.status(500).json({ status: "ERROR" });
+    console.error("[EA-API] ❌ Erro:", err.message);
+    res.type('application/json');
+    res.send('{"status":"ERROR"}');
   }
 });
 
