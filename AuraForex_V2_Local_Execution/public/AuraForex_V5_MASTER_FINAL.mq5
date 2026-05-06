@@ -319,47 +319,38 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
    return 0;
 }
 
-// 🥇 1. VALIDAR LOTE ANTES DE ENVIAR ORDEM (MARGEM)
-double GetMaxLotAllowed(string symbol)
-{
-   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
-   double lotStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
-   double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
-
-   // Ajuste base solicitado pelo Chef: Margem / 1000
-   double lot = NormalizeDouble(freeMargin / 1000.0, 2); 
-   if(lot > maxLot) lot = maxLot;
-
-   return lot;
-}
-
-// 🧠 7. CÁLCULO DE LOTE POR RISCO (%)
-double CalculateLot(string symbol, double riskPercent, double slDist)
+// 🧠 7. CÁLCULO DE LOTE POR RISCO (VERSÃO SAFE DO CHEF)
+double CalculateLotSafe(string symbol, double riskPercent, double slDist)
 {
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double riskMoney = balance * (riskPercent / 100.0);
-   
-   double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+
+   double risk = balance * (riskPercent / 100.0);
+
    double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
-   
+   double tickSize  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+
    if(slDist <= 0 || tickSize <= 0 || tickValue <= 0) return 0.01;
-   
-   double lot = riskMoney / (slDist / tickSize * tickValue);
-   
-   // --- NOVO FILTRO DE MARGEM PROFISSIONAL ---
-   double maxAllowed = GetMaxLotAllowed(symbol);
-   if(lot > maxAllowed) lot = maxAllowed;
-   
+
+   // Cálculo baseado no valor do tick por ponto
+   double lot = risk / (slDist * (tickValue / tickSize));
+
    double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
    double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
-   double lotStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
-   
-   lot = MathFloor(lot / lotStep) * lotStep;
-   
+   double step   = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+
+   lot = MathMax(minLot, MathMin(maxLot, lot));
+   lot = MathFloor(lot / step) * step; // Arredondar para o step do broker
+   lot = NormalizeDouble(lot, 2);
+
+   // 🔥 VALIDAÇÃO FINAL DE MARGEM
+   if(lot * 1000 > freeMargin) {
+      lot = NormalizeDouble(freeMargin / 1000.0, 2);
+   }
+
    if(lot < minLot) lot = minLot;
-   if(lot > maxLot) lot = maxLot;
-   
-   return NormalizeDouble(lot, 2);
+
+   return lot;
 }
 
 void ExecuteSignal(string json)
@@ -424,7 +415,7 @@ void ExecuteSignal(string json)
       double slDist = currentPrice - sl;
       if((tp - currentPrice) < (slDist * 2.0)) tp = currentPrice + (slDist * 2.5);
       
-      lot = CalculateLot(pair, InpRiskPercent, slDist);
+      lot = CalculateLotSafe(pair, InpRiskPercent, slDist);
       Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
    } else {
       double structuralSL = GetLastSwingHigh(pair, 20);
@@ -440,7 +431,7 @@ void ExecuteSignal(string json)
       double slDist = sl - currentPrice;
       if((currentPrice - tp) < (slDist * 2.0)) tp = currentPrice - (slDist * 2.5);
       
-      lot = CalculateLot(pair, InpRiskPercent, slDist);
+      lot = CalculateLotSafe(pair, InpRiskPercent, slDist);
       Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
    }
 
