@@ -394,14 +394,23 @@ void ExecuteSignal(string json)
       else atr = 0.0010;
    }
    
-   if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
+   // 🛡️ FILTRO DE VOLATILIDADE (OPINIÃO EXPERT)
+   double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 0.8 : 0.0020;
+   if(atr > volLimit) {
+      Print("⚠️ Mercado muito volátil para " + pair + " (ATR: " + DoubleToString(atr, 5) + "). Trade abortado.");
+      return;
+   }
 
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    double currentPrice = (dir == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
 
+   // --- PASSO 1: CALCULAR SL/TP ESTRUTURAL ---
    double sl = 0, tp = 0;
    double safetyBuffer = atr * 0.5;
+   
+   // LIMITE DE SL DINÂMICO
+   double maxSL = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 500 : 250;
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
@@ -409,8 +418,8 @@ void ExecuteSignal(string json)
       sl = structuralSL - safetyBuffer;
       
       double slDistPoints = (currentPrice - sl) / tickSize;
-      if(slDistPoints > 400) {
-         Print("⚠️ Trade ignorado: SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+      if(slDistPoints > maxSL) {
+         Print("⚠️ Trade ignorado (" + pair + "): SL " + DoubleToString(slDistPoints, 0) + " pts > Limite " + DoubleToString(maxSL, 0));
          return;
       }
       
@@ -434,8 +443,8 @@ void ExecuteSignal(string json)
       sl = structuralSL + safetyBuffer;
       
       double slDistPoints = (sl - currentPrice) / tickSize;
-      if(slDistPoints > 400) {
-         Print("⚠️ Trade ignorado: SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+      if(slDistPoints > maxSL) {
+         Print("⚠️ Trade ignorado (" + pair + "): SL " + DoubleToString(slDistPoints, 0) + " pts > Limite " + DoubleToString(maxSL, 0));
          return;
       }
       
