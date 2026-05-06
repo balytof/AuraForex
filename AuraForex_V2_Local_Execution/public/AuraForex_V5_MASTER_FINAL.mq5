@@ -41,7 +41,75 @@ int OnInit()
 }
 
 void OnDeinit(const int reason) { EventKillTimer(); }
-void OnTick() {}
+
+// 🔥 GESTÃO INSTITUCIONAL: BREAK EVEN & TRAILING STOP
+void ManagePositions()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         string symbol = PositionGetString(POSITION_SYMBOL);
+         if(symbol != _Symbol) continue;
+
+         double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+         double sl    = PositionGetDouble(POSITION_SL);
+         double tp    = PositionGetDouble(POSITION_TP);
+         double price = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_BID) : SymbolInfoDouble(symbol, SYMBOL_ASK);
+         
+         double risk = MathAbs(entry - sl);
+         if(risk <= 0) continue;
+
+         double profit = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? (price - entry) : (entry - price);
+         double currentRR = profit / risk;
+
+         // 🥇 1. BREAK EVEN (Gatilho 1.5x RR)
+         if(currentRR >= 1.5)
+         {
+            double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? entry + (SymbolInfoDouble(symbol, SYMBOL_POINT) * 10) : entry - (SymbolInfoDouble(symbol, SYMBOL_POINT) * 10);
+            
+            // Só move se for para proteger mais
+            if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && sl < entry) || 
+               (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL && (sl > entry || sl == 0)))
+            {
+               if(trade.PositionModify(ticket, NormalizeDouble(newSL, (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS)), tp))
+                  Print("🛡️ Break Even aplicado para " + symbol);
+            }
+         }
+
+         // 🥈 2. TRAILING STOP (Gatilho 2.2x RR)
+         if(currentRR >= 2.2)
+         {
+            int atrHandle = iATR(symbol, PERIOD_H1, 14);
+            double atrBuffer[];
+            ArraySetAsSeries(atrBuffer, true);
+            if(CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0)
+            {
+               double atr = atrBuffer[0];
+               double trailDist = atr * 1.5; // Trailing apertado para garantir lucro
+               double trailingSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? price - trailDist : price + trailDist;
+               
+               if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && trailingSL > sl) || 
+                  (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL && (trailingSL < sl || sl == 0)))
+               {
+                  trade.PositionModify(ticket, NormalizeDouble(trailingSL, (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS)), tp);
+               }
+            }
+            IndicatorRelease(atrHandle);
+         }
+      }
+   }
+}
+
+void OnTick()
+{
+   ManagePositions(); // Monitorização constante
+   
+   if(!IsNewBar()) return;
+   if(!IsAuthorized) ValidateLicense();
+   else CheckSignals();
+}
 
 void OnTimer()
 {
