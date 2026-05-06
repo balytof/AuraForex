@@ -42,6 +42,15 @@ int OnInit()
 
 void OnDeinit(const int reason) { EventKillTimer(); }
 
+// --- HELPER FUNCTIONS ---
+bool IsNewBar()
+{
+   static datetime lastBar;
+   datetime currentBar = (datetime)SeriesInfoInteger(_Symbol, _Period, SERIES_LASTBAR_DATE);
+   if(currentBar != lastBar) { lastBar = currentBar; return true; }
+   return false;
+}
+
 // 🔥 GESTÃO INSTITUCIONAL: BREAK EVEN & TRAILING STOP
 void ManagePositions()
 {
