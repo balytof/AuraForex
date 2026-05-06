@@ -105,13 +105,10 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
   if (bullBias) {
     const factors = {
-      smcStructure:  smc.bosBull,
-      orderBlock:    smc.nearBullOB.length  > 0,
-      fvg:           smc.nearBullFVG.length > 0,
-      emaAlignment:  last.emaFast > last.emaSlow,
-      macdConfirm:   last.macdHist !== null && last.macdHist > 0 && last.macdHist > (last.macdHistP ?? -Infinity),
-      rsiConfirm:    last.rsi !== null && last.rsi > 35 && last.rsi < rsiCfg.overbought,
-      sessionActive: session,
+      smcStructure:  smc.structure.some(s => s.type === "BOS_BULLISH" || s.type === "CHOCH_BULLISH"),
+      orderBlock:    smc.obs.some(o => o.type === "BULLISH_OB" && Math.abs(last.close - o.mid) < last.atr),
+      liquidity:     smc.sweeps.bullishSweep,
+      trend:         last.emaFast > last.emaSlow,
     };
 
     const score = calcScore(factors);
@@ -121,7 +118,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
       let entryPrice = last.close;
       let orderType = "MARKET";
       
-      const zone = smc.nearBullOB[0] || smc.nearBullFVG[0];
+      const zone = smc.obs.filter(o => o.type === "BULLISH_OB")[0] || smc.fvgs.filter(f => f.type === "BULLISH_FVG")[0];
       const idealEntry = zone ? (zone.high || zone.top) : null;
       if (idealEntry && last.close > idealEntry + (last.atr * 0.1)) {
         entryPrice = idealEntry;
