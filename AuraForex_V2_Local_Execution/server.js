@@ -144,6 +144,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve ativos da raiz (CSS, JS, Imagens)
 
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
 app.get("/api/debug/inject-test-signal", async (req, res) => {
