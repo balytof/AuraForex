@@ -120,6 +120,36 @@ void AddProcessed(string id)
    ProcessedIds[s] = id;
 }
 
+// 🔥 MELHORIA #2: BUSCAR ESTRUTURA (SWING LOW)
+double GetLastSwingLow(string symbol, int barsBack = 20)
+{
+   double lows[];
+   ArraySetAsSeries(lows, true);
+   if(CopyLow(symbol, _Period, 1, barsBack, lows) > 0)
+   {
+      double minLow = lows[0];
+      for(int i=1; i<ArraySize(lows); i++)
+         if(lows[i] < minLow) minLow = lows[i];
+      return minLow;
+   }
+   return 0;
+}
+
+// 🔥 MELHORIA #2: BUSCAR ESTRUTURA (SWING HIGH)
+double GetLastSwingHigh(string symbol, int barsBack = 20)
+{
+   double highs[];
+   ArraySetAsSeries(highs, true);
+   if(CopyHigh(symbol, _Period, 1, barsBack, highs) > 0)
+   {
+      double maxHigh = highs[0];
+      for(int i=1; i<ArraySize(highs); i++)
+         if(highs[i] > maxHigh) maxHigh = highs[i];
+      return maxHigh;
+   }
+   return 0;
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -188,18 +218,28 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: CALCULAR SL/TP COM ATR LOCAL (R:R 1:3 PADRONIZADO)
+   // --- PASSO 3: CALCULAR SL/TP ESTRUTURAL (V5 MASTER)
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   double slDist = atr * 2.0; // Stop Loss institucional (espaço para respirar)
-   double tpDist = atr * 6.0; // Take Profit 1:3 (Recompensa Profissional)
    double sl, tp;
-
+   double structuralSL = (dir == "BUY") ? GetLastSwingLow(pair, 20) : GetLastSwingHigh(pair, 20);
+   double safetyBuffer = atr * 0.5; // Folga institucional
+   
    if(dir == "BUY") {
-      sl = price - slDist;
-      tp = price + tpDist;
+      sl = structuralSL - safetyBuffer;
+      // Garantir que o SL não é maior que 3x ATR (Proteção de Capital)
+      if(price - sl > atr * 3.0) sl = price - (atr * 2.0);
+      // Garantir que o SL não é colado ao preço (Mínimo 1.5x ATR)
+      if(price - sl < atr * 1.5) sl = price - (atr * 1.5);
+      
+      double finalSlDist = price - sl;
+      tp = price + (finalSlDist * 3.0); // R:R 1:3 Baseado na Estrutura
    } else {
-      sl = price + slDist;
-      tp = price - tpDist;
+      sl = structuralSL + safetyBuffer;
+      if(sl - price > atr * 3.0) sl = price + (atr * 2.0);
+      if(sl - price < atr * 1.5) sl = price + (atr * 1.5);
+      
+      double finalSlDist = sl - price;
+      tp = price - (finalSlDist * 3.0); // R:R 1:3 Baseado na Estrutura
    }
 
    // --- PASSO 4: VALIDAR STOPLEVEL ---
