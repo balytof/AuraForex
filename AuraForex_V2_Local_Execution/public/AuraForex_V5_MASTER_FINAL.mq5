@@ -415,17 +415,17 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
-      if(structuralSL <= 0) structuralSL = currentPrice - (atr * 2.0); // Fallback se falhar leitura
+      if(structuralSL <= 0) structuralSL = currentPrice - (atr * 3.0); // Aumentado para reduzir lote inicial
       
       sl = structuralSL - safetyBuffer;
-      if(currentPrice - sl > atr * 3.5) sl = currentPrice - (atr * 2.5);
-      if(currentPrice - sl < atr * 1.5) sl = currentPrice - (atr * 1.5);
+      if(currentPrice - sl > atr * 5.0) sl = currentPrice - (atr * 3.5); // Mais largo para salvar margem
+      if(currentPrice - sl < atr * 2.0) sl = currentPrice - (atr * 2.0); // Mínimo aumentado
       
       tp = GetLiquidityTargetBuy(pair, 30);
-      if(tp <= 0) tp = currentPrice + (atr * 4.0);
+      if(tp <= 0) tp = currentPrice + (atr * 6.0);
       
       double slDist = currentPrice - sl;
-      if((tp - currentPrice) < (slDist * 2.0)) tp = currentPrice + (slDist * 2.5);
+      if((tp - currentPrice) < (slDist * 1.5)) tp = currentPrice + (slDist * 2.0);
       
       lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_BUY, lot);
@@ -433,17 +433,17 @@ void ExecuteSignal(string json)
       Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
    } else {
       double structuralSL = GetLastSwingHigh(pair, 20);
-      if(structuralSL <= 0) structuralSL = currentPrice + (atr * 2.0);
+      if(structuralSL <= 0) structuralSL = currentPrice + (atr * 3.0);
       
       sl = structuralSL + safetyBuffer;
-      if(sl - currentPrice > atr * 3.5) sl = currentPrice + (atr * 2.5);
-      if(sl - currentPrice < atr * 1.5) sl = currentPrice + (atr * 1.5);
+      if(sl - currentPrice > atr * 5.0) sl = currentPrice + (atr * 3.5);
+      if(sl - currentPrice < atr * 2.0) sl = currentPrice + (atr * 2.0);
       
       tp = GetLiquidityTargetSell(pair, 30);
-      if(tp <= 0) tp = currentPrice - (atr * 4.0);
+      if(tp <= 0) tp = currentPrice - (atr * 6.0);
       
       double slDist = sl - currentPrice;
-      if((currentPrice - tp) < (slDist * 2.0)) tp = currentPrice - (slDist * 2.5);
+      if((currentPrice - tp) < (slDist * 1.5)) tp = currentPrice - (slDist * 2.0);
       
       lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_SELL, lot);
