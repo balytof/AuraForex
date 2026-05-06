@@ -409,7 +409,7 @@ void ExecuteSignal(string json)
    double sl = 0, tp = 0;
    double safetyBuffer = atr * 0.5;
    
-   // LIMITE DE SL DINÂMICO
+   // LIMITE DE SL DINÂMICO (SEGURANÇA MÁXIMA)
    double maxSL = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 500 : 250;
    
    if(dir == "BUY") {
