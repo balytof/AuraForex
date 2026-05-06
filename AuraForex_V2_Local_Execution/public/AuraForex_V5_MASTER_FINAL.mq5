@@ -78,7 +78,6 @@ void ManagePositions()
          {
             double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? entry + (SymbolInfoDouble(symbol, SYMBOL_POINT) * 10) : entry - (SymbolInfoDouble(symbol, SYMBOL_POINT) * 10);
             
-            // Só move se for para proteger mais
             if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && sl < entry) || 
                (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL && (sl > entry || sl == 0)))
             {
@@ -96,7 +95,7 @@ void ManagePositions()
             if(CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0)
             {
                double atr = atrBuffer[0];
-               double trailDist = atr * 1.5; // Trailing apertado para garantir lucro
+               double trailDist = atr * 1.5; 
                double trailingSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? price - trailDist : price + trailDist;
                
                if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && trailingSL > sl) || 
@@ -111,7 +110,6 @@ void ManagePositions()
    }
 }
 
-// 5. BREAK EVEN AUTOMÁTICO
 void ApplyBreakEven(double triggerRR = 1.0)
 {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -133,7 +131,6 @@ void ApplyBreakEven(double triggerRR = 1.0)
 
          if(profit >= risk * triggerRR)
          {
-            // Só move se ainda não estiver no BE
             if((PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY && sl < entry) || 
                (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL && (sl > entry || sl == 0)))
             {
@@ -145,7 +142,6 @@ void ApplyBreakEven(double triggerRR = 1.0)
    }
 }
 
-// 6. TRAILING STOP (PRO)
 void ApplyTrailingStop(double trailPoints = 100)
 {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -236,13 +232,8 @@ void CheckSignals()
       string id = ExtractValue(data, "id");
       if(id == "") continue;
 
-      // 1. Filtro de Memória (V5)
       if(IsProcessed(id)) continue;
-
-      // 2. Executar Sinal
       ExecuteSignal(data);
-      
-      // 3. Marcar como Processado
       AddProcessed(id);
    }
 }
@@ -322,9 +313,9 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
 // 🛡️ 2. RISCO DINÂMICO POR DISTÂNCIA DE SL
 double GetDynamicRisk(double slPoints)
 {
-   if(slPoints > 300) return 0.3; // Risco mínimo para volatilidade extrema
-   if(slPoints > 200) return 0.5; // Risco médio
-   return 1.0;                   // Risco padrão
+   if(slPoints > 300) return 0.3; 
+   if(slPoints > 200) return 0.5; 
+   return 1.0;                   
 }
 
 // 🧠 7. CÁLCULO DE LOTE SMART (PROFISSIONAL)
@@ -348,7 +339,7 @@ double CalculateLotSmart(string symbol, double riskPercent, double slDist)
    lot = MathMax(minLot, MathMin(maxLot, lot));
    lot = MathFloor(lot / step) * step;
    
-   if(lot < minLot) lot = minLot; // Garantia de Lote Mínimo
+   if(lot < minLot) lot = minLot; 
    
    return NormalizeDouble(lot, 2);
 }
@@ -368,7 +359,7 @@ double AdjustLotToMargin(string symbol, ENUM_ORDER_TYPE type, double lot)
       {
          if(marginRequired <= freeMargin) return lot;
       }
-      lot -= step; // Reduz lote gradualmente até caber na margem
+      lot -= step; 
       lot = NormalizeDouble(lot, 2);
    }
 
@@ -381,7 +372,6 @@ void ExecuteSignal(string json)
    string dir  = ExtractValue(json, "direction");
    double lot  = StringToDouble(ExtractValue(json, "lot"));
 
-   // Garantir símbolo correto
    if(!SymbolSelect(pair, true)) {
       for(int s=0; s<SymbolsTotal(false); s++) {
          string sym = SymbolName(s, false);
@@ -390,53 +380,41 @@ void ExecuteSignal(string json)
    }
    SymbolSelect(pair, true);
 
-   // 🔥 SOLUÇÃO 3: ATR CALCULADO LOCALMENTE (INSTITUCIONAL)
    int atrHandle = iATR(pair, PERIOD_H1, 14);
    double atrBuffer[];
    ArraySetAsSeries(atrBuffer, true);
    double atr = 0;
    
    if(atrHandle != INVALID_HANDLE && CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0)
-   {
       atr = atrBuffer[0];
-      Print("📊 ATR calculado localmente para " + pair + ": " + DoubleToString(atr, 5));
-   }
    
-   // 🛡️ SOLUÇÃO 2: FALLBACK DEFENSIVO
-   if(atr <= 0)
-   {
-      Print("⚠️ ATR indisponível. Usando fallback para " + pair);
-      if(StringFind(pair, "JPY") >= 0)
-         atr = 0.05;
-      else if(StringFind(pair, "XAU") >= 0)
-         atr = 5.0;
-      else
-         atr = 0.0010;
+   if(atr <= 0) {
+      if(StringFind(pair, "JPY") >= 0) atr = 0.05;
+      else if(StringFind(pair, "XAU") >= 0) atr = 5.0;
+      else atr = 0.0010;
    }
    
    if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
 
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    double currentPrice = (dir == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
 
-   // --- PASSO 1: CALCULAR SL/TP ESTRUTURAL (ANTES DA ENTRADA) ---
    double sl = 0, tp = 0;
    double safetyBuffer = atr * 0.5;
    
    if(dir == "BUY") {
       double structuralSL = GetLastSwingLow(pair, 20); 
       if(structuralSL <= 0) structuralSL = currentPrice - (atr * 3.0); 
-      
       sl = structuralSL - safetyBuffer;
       
       double slDistPoints = (currentPrice - sl) / tickSize;
-      if(slDistPoints > 400) { // Limite aumentado para permitir o risco de 0.3%
-         Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+      if(slDistPoints > 400) {
+         Print("⚠️ Trade ignorado: SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
          return;
       }
       
       double dynamicRisk = GetDynamicRisk(slDistPoints);
-      
       if(currentPrice - sl > atr * 5.0) sl = currentPrice - (atr * 3.5); 
       if(currentPrice - sl < atr * 2.0) sl = currentPrice - (atr * 2.0); 
       
@@ -449,21 +427,19 @@ void ExecuteSignal(string json)
       lot = CalculateLotSmart(pair, dynamicRisk, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_BUY, lot);
       
-      Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
+      Print("🛡️ BUY " + pair + " | SL: " + DoubleToString(sl, digits) + " | Lote: " + DoubleToString(lot, 2));
    } else {
       double structuralSL = GetLastSwingHigh(pair, 20);
       if(structuralSL <= 0) structuralSL = currentPrice + (atr * 3.0);
-      
       sl = structuralSL + safetyBuffer;
       
       double slDistPoints = (sl - currentPrice) / tickSize;
-      if(slDistPoints > 400) { // Limite aumentado para permitir o risco de 0.3%
-         Print("⚠️ Trade ignorado para " + pair + ": SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
+      if(slDistPoints > 400) {
+         Print("⚠️ Trade ignorado: SL muito grande (" + DoubleToString(slDistPoints, 0) + " pts)");
          return;
       }
       
       double dynamicRisk = GetDynamicRisk(slDistPoints);
-      
       if(sl - currentPrice > atr * 5.0) sl = currentPrice + (atr * 3.5);
       if(sl - currentPrice < atr * 2.0) sl = currentPrice + (atr * 2.0);
       
@@ -476,65 +452,40 @@ void ExecuteSignal(string json)
       lot = CalculateLotSmart(pair, dynamicRisk, slDist);
       lot = AdjustLotToMargin(pair, ORDER_TYPE_SELL, lot);
       
-      Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
+      Print("🛡️ SELL " + pair + " | SL: " + DoubleToString(sl, digits) + " | Lote: " + DoubleToString(lot, 2));
    }
 
-   // --- PASSO 2: ENTRADA COM LOTE CALCULADO ---
    if(lot <= 0) {
-      Print("❌ Trade ignorado para " + pair + ": Margem insuficiente mesmo com redução.");
+      Print("❌ Trade ignorado: Margem insuficiente.");
       return;
    }
 
    bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
 
-   if(!opened) {
-      Print("❌ Falha ao abrir ordem para " + pair + " | Erro: " + (string)GetLastError());
-      return;
-   }
+   if(!opened) return;
 
-   Print("✅ Ordem aberta: Lote=" + DoubleToString(lot, 2) + " para " + pair);
-
-   // --- PASSO 3: AGUARDAR POSIÇÃO E APLICAR PROTEÇÃO ---
    ulong ticket = 0;
    for(int i=0; i<10; i++) {
-      if(PositionSelect(pair)) {
-         ticket = PositionGetInteger(POSITION_TICKET);
-         break;
-      }
+      if(PositionSelect(pair)) { ticket = PositionGetInteger(POSITION_TICKET); break; }
       Sleep(200);
    }
 
-   if(ticket == 0) {
-      Print("❌ Não encontrou posição ativa para " + pair);
-      return;
-   }
+   if(ticket == 0) return;
 
-   // --- PASSO 4: VALIDAR STOPLEVEL ---
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   if(MathAbs(price - sl) < stopLevel)
-      sl = (dir == "BUY") ? price - stopLevel : price + stopLevel;
-   if(MathAbs(price - tp) < stopLevel)
-      tp = (dir == "BUY") ? price + stopLevel : price - stopLevel;
+   if(MathAbs(price - sl) < stopLevel) sl = (dir == "BUY") ? price - stopLevel : price + stopLevel;
+   if(MathAbs(price - tp) < stopLevel) tp = (dir == "BUY") ? price + stopLevel : price - stopLevel;
 
    sl = NormalizeDouble(sl, digits);
    tp = NormalizeDouble(tp, digits);
 
-   // --- PASSO 5: APLICAR COM RETRY ---
-   bool modified = false;
    for(int t=0; t<3; t++) {
       if(trade.PositionModify(ticket, sl, tp)) {
-         modified = true;
+         SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
          break;
       }
       Sleep(300);
-   }
-
-   if(modified) {
-      Print("🛡️ SL/TP aplicado: SL=" + DoubleToString(sl, digits) + " TP=" + DoubleToString(tp, digits));
-      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
-   } else {
-      Print("❌ Falha ao aplicar SL/TP para " + pair + " | Erro: " + (string)GetLastError());
    }
 }
 
