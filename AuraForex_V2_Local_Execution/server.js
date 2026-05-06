@@ -891,7 +891,8 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
         entry: entryPrice,
         sl: sl,
         tp: tp,
-        lot: 0.01, // Lote padrão, pode ser ajustado pelo risco no EA
+        lot: 0.01, 
+        atr: 0.00120, // V5: ATR dinâmico de segurança
         status: "PENDING"
       }
     });
