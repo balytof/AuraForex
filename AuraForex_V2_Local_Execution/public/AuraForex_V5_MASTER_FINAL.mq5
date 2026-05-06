@@ -348,6 +348,8 @@ double CalculateLotSmart(string symbol, double riskPercent, double slDist)
    lot = MathMax(minLot, MathMin(maxLot, lot));
    lot = MathFloor(lot / step) * step;
    
+   if(lot < minLot) lot = minLot; // Garantia de Lote Mínimo
+   
    return NormalizeDouble(lot, 2);
 }
 
