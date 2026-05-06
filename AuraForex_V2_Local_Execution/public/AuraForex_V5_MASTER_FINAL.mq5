@@ -246,6 +246,31 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
    return 0;
 }
 
+// 🧠 7. CÁLCULO DE LOTE POR RISCO (%)
+double CalculateLot(string symbol, double riskPercent, double slDist)
+{
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskMoney = balance * (riskPercent / 100.0);
+   
+   double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+   double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+   
+   if(slDist <= 0 || tickSize <= 0 || tickValue <= 0) return 0.01;
+   
+   double lot = riskMoney / (slDist / tickSize * tickValue);
+   
+   double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+   double lotStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+   
+   lot = MathFloor(lot / lotStep) * lotStep;
+   
+   if(lot < minLot) lot = minLot;
+   if(lot > maxLot) lot = maxLot;
+   
+   return NormalizeDouble(lot, 2);
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -288,8 +313,35 @@ void ExecuteSignal(string json)
    if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
 
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double currentPrice = (dir == "BUY") ? SymbolInfoDouble(pair, SYMBOL_ASK) : SymbolInfoDouble(pair, SYMBOL_BID);
 
-   // --- PASSO 1: ENTRADA LIMPA ---
+   // --- PASSO 1: CALCULAR SL/TP ESTRUTURAL (ANTES DA ENTRADA) ---
+   double sl = 0, tp = 0;
+   double safetyBuffer = atr * 0.5;
+   
+   if(dir == "BUY") {
+      double structuralSL = GetLastSwingLow(pair, 20); 
+      sl = structuralSL - safetyBuffer;
+      if(currentPrice - sl > atr * 3.5) sl = currentPrice - (atr * 2.5);
+      if(currentPrice - sl < atr * 1.5) sl = currentPrice - (atr * 1.5);
+      tp = GetLiquidityTargetBuy(pair, 30);
+      double slDist = currentPrice - sl;
+      if((tp - currentPrice) < (slDist * 2.0)) tp = currentPrice + (slDist * 2.5);
+      
+      lot = CalculateLot(pair, InpRiskPercent, slDist);
+   } else {
+      double structuralSL = GetLastSwingHigh(pair, 20);
+      sl = structuralSL + safetyBuffer;
+      if(sl - currentPrice > atr * 3.5) sl = currentPrice + (atr * 2.5);
+      if(sl - currentPrice < atr * 1.5) sl = currentPrice + (atr * 1.5);
+      tp = GetLiquidityTargetSell(pair, 30);
+      double slDist = sl - currentPrice;
+      if((currentPrice - tp) < (slDist * 2.0)) tp = currentPrice - (slDist * 2.5);
+      
+      lot = CalculateLot(pair, InpRiskPercent, slDist);
+   }
+
+   // --- PASSO 2: ENTRADA COM LOTE CALCULADO ---
    bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
 
    if(!opened) {
@@ -297,9 +349,9 @@ void ExecuteSignal(string json)
       return;
    }
 
-   Print("✅ Ordem aberta para " + pair + ". Aplicando SL/TP com ATR=" + DoubleToString(atr, 5));
+   Print("✅ Ordem aberta: Lote=" + DoubleToString(lot, 2) + " para " + pair);
 
-   // --- PASSO 2: AGUARDAR POSIÇÃO ---
+   // --- PASSO 3: AGUARDAR POSIÇÃO E APLICAR PROTEÇÃO ---
    ulong ticket = 0;
    for(int i=0; i<10; i++) {
       if(PositionSelect(pair)) {
@@ -314,45 +366,9 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: HIERARQUIA PROFISSIONAL (V5 MASTER FINAL) ---
-   double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   double sl = 0, tp = 0;
-   double safetyBuffer = atr * 0.5; // 🥈 2. ATR (AJUSTE FINO)
-   
-   if(dir == "BUY") {
-      // 🥇 1. SL BASEADO EM ESTRUTURA
-      double structuralSL = GetLastSwingLow(pair, 20); 
-      sl = structuralSL - safetyBuffer;
-      
-      // Sanidade: Evitar stops absurdos ou colados
-      if(price - sl > atr * 3.5) sl = price - (atr * 2.5);
-      if(price - sl < atr * 1.5) sl = price - (atr * 1.5);
-      
-      // 🥉 3. TP BASEADO EM LIQUIDEZ
-      tp = GetLiquidityTargetBuy(pair, 30);
-      
-      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
-      double slDist = price - sl;
-      if((tp - price) < (slDist * 2.0)) tp = price + (slDist * 2.5);
-   } else {
-      // 🥇 1. SL BASEADO EM ESTRUTURA
-      double structuralSL = GetLastSwingHigh(pair, 20);
-      sl = structuralSL + safetyBuffer;
-      
-      // Sanidade
-      if(sl - price > atr * 3.5) sl = price + (atr * 2.5);
-      if(sl - price < atr * 1.5) sl = price + (atr * 1.5);
-      
-      // 🥉 3. TP BASEADO EM LIQUIDEZ
-      tp = GetLiquidityTargetSell(pair, 30);
-      
-      // ⚖️ VALIDAÇÃO R:R MÍNIMO 1:2
-      double slDist = sl - price;
-      if((price - tp) < (slDist * 2.0)) tp = price - (slDist * 2.5);
-   }
-
    // --- PASSO 4: VALIDAR STOPLEVEL ---
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+   double price = PositionGetDouble(POSITION_PRICE_OPEN);
    if(MathAbs(price - sl) < stopLevel)
       sl = (dir == "BUY") ? price - stopLevel : price + stopLevel;
    if(MathAbs(price - tp) < stopLevel)
