@@ -188,10 +188,10 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: CALCULAR SL/TP COM ATR LOCAL ---
+   // --- PASSO 3: CALCULAR SL/TP COM ATR LOCAL (R:R 1:3 PADRONIZADO)
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
-   double slDist = atr * 2.0;
-   double tpDist = atr * 3.0;
+   double slDist = atr * 2.0; // Stop Loss institucional (espaço para respirar)
+   double tpDist = atr * 6.0; // Take Profit 1:3 (Recompensa Profissional)
    double sl, tp;
 
    if(dir == "BUY") {
