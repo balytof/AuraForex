@@ -353,6 +353,26 @@ double CalculateLotSafe(string symbol, double riskPercent, double slDist)
    return lot;
 }
 
+// 🛡️ 3. PROTEÇÃO ANTES DA ORDEM (CRÍTICO)
+bool CanOpenTrade(string symbol, ENUM_ORDER_TYPE type, double lot)
+{
+   double marginRequired = 0;
+   double price = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_ASK) : SymbolInfoDouble(symbol, SYMBOL_BID);
+
+   if(!OrderCalcMargin(type, symbol, lot, price, marginRequired))
+      return false;
+
+   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+
+   if(marginRequired > freeMargin)
+   {
+      Print("❌ Sem margem suficiente para " + symbol + ". Necessário: " + DoubleToString(marginRequired, 2) + " | Livre: " + DoubleToString(freeMargin, 2));
+      return false;
+   }
+
+   return true;
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -436,6 +456,10 @@ void ExecuteSignal(string json)
    }
 
    // --- PASSO 2: ENTRADA COM LOTE CALCULADO ---
+   ENUM_ORDER_TYPE orderType = (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+   
+   if(!CanOpenTrade(pair, orderType, lot)) return;
+
    bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
 
    if(!opened) {
