@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "5.02"
+#property version   "5.03"
 #property strict
 
 //--- INCLUDES ---
@@ -16,7 +16,7 @@ input string   InpLicenseKey     = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença
 input string   InpServerUrl      = "https://www.auratradebots.com/api"; // URL do seu VPS
 input double   InpRiskPercent    = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber    = 888222;                  // Magic Number das Ordens
-input int      InpTimerSeconds   = 2;                       // Intervalo de Checagem (Segundos)
+input int      InpTimerSeconds   = 1;                       // Intervalo de Checagem (Segundos)
 input int      InpMaxSLForex     = 700;                     // Limite SL Forex (Pontos)
 input int      InpMaxSLJPY       = 2000;                    // Limite SL JPY/Ouro (Pontos)
 
@@ -24,13 +24,14 @@ input int      InpMaxSLJPY       = 2000;                    // Limite SL JPY/Our
 CTrade         trade;
 bool           IsAuthorized = false;
 string         ProcessedIds[];
+datetime       lastCheckTime = 0;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V5 INSTITUCIONAL - INICIADO (BASE c6cc58a)");
+   Print("🚀 AURA V5 INSTITUCIONAL - INICIADO (DEBUG MODE)");
    trade.SetExpertMagicNumber(InpMagicNumber);
    ValidateLicense();
    EventSetTimer(InpTimerSeconds);
@@ -41,9 +42,8 @@ void OnDeinit(const int reason) { EventKillTimer(); }
 
 void OnTick()
 {
-   if(!IsNewBar()) return;
-   if(!IsAuthorized) ValidateLicense();
-   else CheckSignals();
+   // Verificar sinais em cada tick para máxima velocidade
+   if(IsAuthorized) CheckSignals();
 }
 
 void OnTimer()
@@ -52,7 +52,7 @@ void OnTimer()
    else CheckSignals();
 }
 
-// --- CORE FUNCTIONS (RESTORED FROM c6cc58a) ---
+// --- CORE FUNCTIONS ---
 
 void ValidateLicense()
 {
@@ -66,15 +66,25 @@ void ValidateLicense()
       IsAuthorized = true;
       Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+   } else if(result != "") {
+      Print("❌ RESPOSTA LICENÇA: " + result);
    }
 }
 
 void CheckSignals()
 {
+   // Evitar flood de logs, mas manter a verificação rápida
+   if(TimeCurrent() - lastCheckTime < 1) return;
+   lastCheckTime = TimeCurrent();
+
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
    string result = SendGet(url);
    
-   if(result == "" || StringFind(result, "\"signals\":[]") >= 0) return; 
+   // Log de silêncio (opcional, mas bom para debug agora)
+   if(result == "") return; 
+   if(StringFind(result, "\"signals\":[]") >= 0) return;
+
+   Print("📩 SINAIS RECEBIDOS: " + result);
 
    int startPos = StringFind(result, "[");
    int endPos = StringFind(result, "]", startPos);
@@ -85,9 +95,13 @@ void CheckSignals()
    int count = StringSplit(signalsJson, '}', objects);
    
    for(int i=0; i<count; i++) {
-      string obj = objects[i] + "}";
+      string obj = objects[i];
+      if(StringFind(obj, "{") < 0) obj = "{" + obj;
+      if(StringFind(obj, "}") < 0) obj = obj + "}";
+      
       string id = ExtractValue(obj, "id");
       if(id != "" && !IsProcessed(id)) { 
+         Print("🎯 PROCESSANDO SINAL ID: " + id);
          ExecuteSignal(obj); 
          AddProcessed(id); 
       }
@@ -105,9 +119,8 @@ void ExecuteSignal(string json)
          if(StringFind(sym, pair) >= 0) { pair = sym; break; }
       }
    }
-   if(!SymbolSelect(pair, true)) return;
+   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
 
-   // 📊 ATR LOCAL
    int atrHandle = iATR(pair, PERIOD_H1, 14);
    double atrBuffer[];
    ArraySetAsSeries(atrBuffer, true);
@@ -117,16 +130,14 @@ void ExecuteSignal(string json)
       IndicatorRelease(atrHandle);
    }
 
-   // 🛡️ FILTRO VOLATILIDADE
    double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 0.8 : 0.0020;
-   if(atr > volLimit) return;
+   if(atr > volLimit) { Print("⚠️ Volatilidade alta em " + pair); return; }
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    
-   // --- PASSO 1: CALCULAR SL/TP (ELITE) ---
    double sl = 0, tp = 0, currentPrice = (dir == "BUY") ? ask : bid;
    double maxSL = (double)((StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex);
    
@@ -134,46 +145,38 @@ void ExecuteSignal(string json)
       double low = GetLastLow(pair, 20);
       sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
       double dist = (currentPrice - sl) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL ignora (" + (string)dist + " pts)"); return; }
+      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
-         if(trade.Buy(lot, pair, 0, 0, 0)) { // PASSO 2 (c6cc58a): ORDEM PRIMEIRO
-            Print("🚀 Ordem Aberta. Aplicando Proteção...");
-            ApplyProtection(pair, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice + (atr * 6.0), digits), json);
-         }
+         if(trade.Buy(lot, pair, 0, 0, 0)) ApplyProtection(pair, sl, currentPrice + (atr * 6.0), digits, json);
       }
    } else {
       double high = GetLastHigh(pair, 20);
       sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
       double dist = (sl - currentPrice) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL ignora (" + (string)dist + " pts)"); return; }
+      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
-         if(trade.Sell(lot, pair, 0, 0, 0)) { // PASSO 2 (c6cc58a)
-            Print("🚀 Ordem Aberta. Aplicando Proteção...");
-            ApplyProtection(pair, NormalizeDouble(sl, digits), NormalizeDouble(currentPrice - (atr * 6.0), digits), json);
-         }
+         if(trade.Sell(lot, pair, 0, 0, 0)) ApplyProtection(pair, sl, currentPrice - (atr * 6.0), digits, json);
       }
    }
 }
 
-void ApplyProtection(string pair, double sl, double tp, string json) {
+void ApplyProtection(string pair, double sl, double tp, int digits, string json) {
    ulong ticket = 0;
-   for(int i=0; i<10; i++) {
+   for(int i=0; i<15; i++) {
       if(PositionSelect(pair)) { ticket = PositionGetInteger(POSITION_TICKET); break; }
       Sleep(200);
    }
    if(ticket > 0) {
-      if(trade.PositionModify(ticket, sl, tp)) {
-         Print("🛡️ Proteção Aplicada!");
+      if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         Print("🛡️ Proteção Aplicada Ticket: " + (string)ticket);
          SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
       }
    }
 }
-
-// --- COMMUNICATION HELPERS (BASE c6cc58a) ---
 
 string SendPost(string url, string payload) {
    uchar post[], res[]; string headers = "Content-Type: application/json\r\n", rh;
@@ -184,11 +187,9 @@ string SendPost(string url, string payload) {
 
 string SendGet(string url) {
    uchar res[], data[]; string rh;
-   if(WebRequest("GET", url, "", 5000, data, res, rh) < 0) return "";
+   if(WebRequest("GET", url, NULL, 5000, data, res, rh) < 0) return "";
    return CharArrayToString(res);
 }
-
-// --- UTILS ---
 
 double GetDynamicRisk(double pts) {
    if(pts > 300) return 0.3; if(pts > 200) return 0.5; return 1.0;
@@ -205,7 +206,7 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    lot = MathMax(minL, MathFloor(lot/SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP))*SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP));
    double margin = 0;
    if(OrderCalcMargin(type, sym, lot, SymbolInfoDouble(sym, SYMBOL_ASK), margin)) {
-      if(margin > AccountInfoDouble(ACCOUNT_FREEMARGIN)) return 0;
+      if(margin > AccountInfoDouble(ACCOUNT_FREEMARGIN)) { Print("⚠️ Sem margem para " + sym); return 0; }
    }
    return NormalizeDouble(lot, 2);
 }
@@ -222,11 +223,6 @@ double GetLastHigh(string sym, int bars) {
    if(CopyHigh(sym, _Period, 1, bars, highs) > 0) {
       double m = highs[0]; for(int i=1; i<ArraySize(highs); i++) if(highs[i] > m) m = highs[i]; return m;
    } return 0;
-}
-
-bool IsNewBar() {
-   static datetime last; datetime curr = (datetime)SeriesInfoInteger(_Symbol, _Period, SERIES_LASTBAR_DATE);
-   if(curr != last) { last = curr; return true; } return false;
 }
 
 bool IsProcessed(string id) {
