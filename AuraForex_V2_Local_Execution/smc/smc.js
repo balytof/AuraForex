@@ -74,6 +74,27 @@ class SMCDetector {
     }
     return { equalHighs, equalLows };
   }
+
+  static detectLiquiditySweep(candles, swingHighs, swingLows) {
+    const last = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+    
+    // Sweep de Liquidez Bullish (Preço limpa fundo e sobe)
+    let bullishSweep = false;
+    const lastSwingLow = swingLows[swingLows.length - 1]?.price || 0;
+    if (lastSwingLow > 0 && prev.low < lastSwingLow && last.close > lastSwingLow) {
+      bullishSweep = true;
+    }
+
+    // Sweep de Liquidez Bearish (Preço limpa topo e desce)
+    let bearishSweep = false;
+    const lastSwingHigh = swingHighs[swingHighs.length - 1]?.price || 0;
+    if (lastSwingHigh > 0 && prev.high > lastSwingHigh && last.close < lastSwingHigh) {
+      bearishSweep = true;
+    }
+
+    return { bullishSweep, bearishSweep };
+  }
 }
 
 function analyzeAll(candles) {
@@ -81,6 +102,7 @@ function analyzeAll(candles) {
   const fvgs = SMCDetector.detectFairValueGaps(candles);
   const structureData = SMCDetector.detectStructure(candles);
   const liquidity = SMCDetector.detectLiquidity(candles);
+  const sweeps = SMCDetector.detectLiquiditySweep(candles, structureData.swingHighs, structureData.swingLows);
 
   return {
     obs,
@@ -88,7 +110,8 @@ function analyzeAll(candles) {
     structure: structureData.structure,
     swingHighs: structureData.swingHighs,
     swingLows: structureData.swingLows,
-    liquidity
+    liquidity,
+    sweeps
   };
 }
 
