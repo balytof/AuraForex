@@ -70,13 +70,7 @@ router.get("/signals", async (req, res) => {
     if (!license) return res.json({ signals: [] });
 
     // 2. Buscar sinais para o userId dono da licença
-    const pendingSignals = await prisma.signal.findMany({
-      where: {
-        userId: license.userId,
-        status: "PENDING"
-      },
-      take: 10
-    });
+      take: 10,
       orderBy: {
         createdAt: 'asc'
       }
