@@ -72,10 +72,11 @@ router.get("/signals", async (req, res) => {
       id: sig.id,
       pair: sig.pair,
       direction: sig.direction,
-      entry: 0, // V4 Magic: Execução local
+      entry: 0, // V5: Execução local
       sl: sig.sl,
       tp: sig.tp,
-      lot: sig.lot
+      lot: sig.lot,
+      atr: sig.atr
     }));
 
     console.log(`[EA-API] 📤 Enviando ${formattedSignals.length} sinais para a licença ${licenseKey}`);
