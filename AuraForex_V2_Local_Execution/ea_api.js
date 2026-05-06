@@ -98,6 +98,14 @@ router.get("/signals", async (req, res) => {
     }));
 
     console.log(`[EA-API] 📤 Enviando ${formattedSignals.length} sinais para a licença ${licenseKey}`);
+    
+    // 3. Marcar sinais como PROCESSING para não repetir
+    const signalIds = pendingSignals.map(s => s.id);
+    await prisma.signal.updateMany({
+      where: { id: { in: signalIds } },
+      data: { status: "PROCESSING" }
+    });
+
     res.json({ signals: formattedSignals });
 
   } catch (err) {
