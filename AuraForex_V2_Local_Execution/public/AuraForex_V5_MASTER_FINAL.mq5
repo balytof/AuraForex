@@ -351,7 +351,15 @@ double AdjustLotToMargin(string symbol, ENUM_ORDER_TYPE type, double lot)
 {
    double marginRequired = 0;
    double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
-   double price = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_ASK) : SymbolInfoDouble(symbol, SYMBOL_BID);
+   
+   double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
+   double price = (type == ORDER_TYPE_BUY) ? ask : bid;
+   
+   // Fallback de preço para evitar erro de cálculo
+   if(price <= 0) price = SymbolInfoDouble(symbol, SYMBOL_LAST);
+   if(price <= 0) price = (type == ORDER_TYPE_BUY) ? Ask : Bid;
+
    double step = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
    double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
 
@@ -360,6 +368,11 @@ double AdjustLotToMargin(string symbol, ENUM_ORDER_TYPE type, double lot)
       if(OrderCalcMargin(type, symbol, lot, price, marginRequired))
       {
          if(marginRequired <= freeMargin) return lot;
+         
+         // Log de depuração se o lote mínimo falhar
+         if(lot <= minLot) {
+            Print("⚠️ Margem insuficiente para Lote Mínimo (" + DoubleToString(minLot, 2) + "). Necessário: " + DoubleToString(marginRequired, 2) + " | Livre: " + DoubleToString(freeMargin, 2));
+         }
       }
       lot -= step; 
       lot = NormalizeDouble(lot, 2);
