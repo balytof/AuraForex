@@ -125,12 +125,6 @@ void ExecuteSignal(string json)
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
    double lot  = StringToDouble(ExtractValue(json, "lot"));
-   double atr  = StringToDouble(ExtractValue(json, "atr")); // 🔥 Agora usamos ATR do servidor
-
-   if(atr <= 0) {
-      Print("⚠️ Sinal ignorado: ATR inválido para " + pair);
-      return;
-   }
 
    // Garantir símbolo correto
    if(!SymbolSelect(pair, true)) {
@@ -141,17 +135,43 @@ void ExecuteSignal(string json)
    }
    SymbolSelect(pair, true);
 
+   // 🔥 SOLUÇÃO 3: ATR CALCULADO LOCALMENTE (INSTITUCIONAL)
+   int atrHandle = iATR(pair, PERIOD_H1, 14);
+   double atrBuffer[];
+   ArraySetAsSeries(atrBuffer, true);
+   double atr = 0;
+   
+   if(atrHandle != INVALID_HANDLE && CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0)
+   {
+      atr = atrBuffer[0];
+      Print("📊 ATR calculado localmente para " + pair + ": " + DoubleToString(atr, 5));
+   }
+   
+   // 🛡️ SOLUÇÃO 2: FALLBACK DEFENSIVO
+   if(atr <= 0)
+   {
+      Print("⚠️ ATR indisponível. Usando fallback para " + pair);
+      if(StringFind(pair, "JPY") >= 0)
+         atr = 0.05;
+      else if(StringFind(pair, "XAU") >= 0)
+         atr = 5.0;
+      else
+         atr = 0.0010;
+   }
+   
+   if(atrHandle != INVALID_HANDLE) IndicatorRelease(atrHandle);
+
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
 
    // --- PASSO 1: ENTRADA LIMPA ---
    bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
 
    if(!opened) {
-      Print("❌ Falha ao abrir ordem institucional para " + pair);
+      Print("❌ Falha ao abrir ordem para " + pair + " | Erro: " + (string)GetLastError());
       return;
    }
 
-   Print("✅ Ordem aberta. Aplicando proteção local (V5 ATR)...");
+   Print("✅ Ordem aberta para " + pair + ". Aplicando SL/TP com ATR=" + DoubleToString(atr, 5));
 
    // --- PASSO 2: AGUARDAR POSIÇÃO ---
    ulong ticket = 0;
@@ -168,7 +188,7 @@ void ExecuteSignal(string json)
       return;
    }
 
-   // --- PASSO 3: CALCULAR SL/TP LOCAL COM ATR ---
+   // --- PASSO 3: CALCULAR SL/TP COM ATR LOCAL ---
    double price = PositionGetDouble(POSITION_PRICE_OPEN);
    double slDist = atr * 2.0;
    double tpDist = atr * 3.0;
@@ -203,10 +223,10 @@ void ExecuteSignal(string json)
    }
 
    if(modified) {
-      Print("🛡️ SL/TP V5 aplicado com sucesso para " + pair);
+      Print("🛡️ SL/TP aplicado: SL=" + DoubleToString(sl, digits) + " TP=" + DoubleToString(tp, digits));
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
    } else {
-      Print("❌ Falha crítica ao aplicar SL/TP para " + pair);
+      Print("❌ Falha ao aplicar SL/TP para " + pair + " | Erro: " + (string)GetLastError());
    }
 }
 
