@@ -319,12 +319,10 @@ double GetLiquidityTargetSell(string symbol, int barsBack = 30)
    return 0;
 }
 
-// 🧠 7. CÁLCULO DE LOTE POR RISCO (VERSÃO SAFE DO CHEF)
-double CalculateLotSafe(string symbol, double riskPercent, double slDist)
+// 🧠 7. CÁLCULO DE LOTE SMART (PROFISSIONAL)
+double CalculateLotSmart(string symbol, double riskPercent, double slDist)
 {
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
-
    double risk = balance * (riskPercent / 100.0);
 
    double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -332,45 +330,39 @@ double CalculateLotSafe(string symbol, double riskPercent, double slDist)
 
    if(slDist <= 0 || tickSize <= 0 || tickValue <= 0) return 0.01;
 
-   // Cálculo baseado no valor do tick por ponto
-   double lot = risk / (slDist * (tickValue / tickSize));
+   double costPerLot = (slDist / tickSize) * tickValue;
+   double lot = risk / costPerLot;
 
    double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
    double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
    double step   = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
 
    lot = MathMax(minLot, MathMin(maxLot, lot));
-   lot = MathFloor(lot / step) * step; // Arredondar para o step do broker
-   lot = NormalizeDouble(lot, 2);
-
-   // 🔥 VALIDAÇÃO FINAL DE MARGEM
-   if(lot * 1000 > freeMargin) {
-      lot = NormalizeDouble(freeMargin / 1000.0, 2);
-   }
-
-   if(lot < minLot) lot = minLot;
-
-   return lot;
+   lot = MathFloor(lot / step) * step;
+   
+   return NormalizeDouble(lot, 2);
 }
 
-// 🛡️ 3. PROTEÇÃO ANTES DA ORDEM (CRÍTICO)
-bool CanOpenTrade(string symbol, ENUM_ORDER_TYPE type, double lot)
+// 🥈 FILTRO DE MARGEM REAL (REDUÇÃO DINÂMICA)
+double AdjustLotToMargin(string symbol, ENUM_ORDER_TYPE type, double lot)
 {
    double marginRequired = 0;
-   double price = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_ASK) : SymbolInfoDouble(symbol, SYMBOL_BID);
-
-   if(!OrderCalcMargin(type, symbol, lot, price, marginRequired))
-      return false;
-
    double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+   double price = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_ASK) : SymbolInfoDouble(symbol, SYMBOL_BID);
+   double step = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+   double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
 
-   if(marginRequired > freeMargin)
+   while(lot >= minLot)
    {
-      Print("❌ Sem margem suficiente para " + symbol + ". Necessário: " + DoubleToString(marginRequired, 2) + " | Livre: " + DoubleToString(freeMargin, 2));
-      return false;
+      if(OrderCalcMargin(type, symbol, lot, price, marginRequired))
+      {
+         if(marginRequired <= freeMargin) return lot;
+      }
+      lot -= step; // Reduz lote gradualmente até caber na margem
+      lot = NormalizeDouble(lot, 2);
    }
 
-   return true;
+   return 0;
 }
 
 void ExecuteSignal(string json)
