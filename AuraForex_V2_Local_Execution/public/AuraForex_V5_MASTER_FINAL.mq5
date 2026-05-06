@@ -427,8 +427,10 @@ void ExecuteSignal(string json)
       double slDist = currentPrice - sl;
       if((tp - currentPrice) < (slDist * 2.0)) tp = currentPrice + (slDist * 2.5);
       
-      lot = CalculateLotSafe(pair, InpRiskPercent, slDist);
-      Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
+      lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
+      lot = AdjustLotToMargin(pair, ORDER_TYPE_BUY, lot);
+      
+      Print("🛡️ BUY " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
    } else {
       double structuralSL = GetLastSwingHigh(pair, 20);
       if(structuralSL <= 0) structuralSL = currentPrice + (atr * 2.0);
@@ -443,14 +445,17 @@ void ExecuteSignal(string json)
       double slDist = sl - currentPrice;
       if((currentPrice - tp) < (slDist * 2.0)) tp = currentPrice - (slDist * 2.5);
       
-      lot = CalculateLotSafe(pair, InpRiskPercent, slDist);
-      Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote: " + DoubleToString(lot, 2));
+      lot = CalculateLotSmart(pair, InpRiskPercent, slDist);
+      lot = AdjustLotToMargin(pair, ORDER_TYPE_SELL, lot);
+      
+      Print("🛡️ SELL " + pair + " | Preço: " + DoubleToString(currentPrice, digits) + " | SL: " + DoubleToString(sl, digits) + " | TP: " + DoubleToString(tp, digits) + " | Lote Final: " + DoubleToString(lot, 2));
    }
 
    // --- PASSO 2: ENTRADA COM LOTE CALCULADO ---
-   ENUM_ORDER_TYPE orderType = (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
-   
-   if(!CanOpenTrade(pair, orderType, lot)) return;
+   if(lot <= 0) {
+      Print("❌ Trade ignorado para " + pair + ": Margem insuficiente mesmo com redução.");
+      return;
+   }
 
    bool opened = (dir == "BUY") ? trade.Buy(lot, pair, 0, 0, 0) : trade.Sell(lot, pair, 0, 0, 0);
 
