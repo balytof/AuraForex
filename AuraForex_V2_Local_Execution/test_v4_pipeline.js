@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("./db");
 
 async function testV4Signal() {
   console.log("🧪 INICIANDO TESTE DE SINAL V4 MAGIC...");
