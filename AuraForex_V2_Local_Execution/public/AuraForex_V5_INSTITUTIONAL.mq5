@@ -171,9 +171,24 @@ void ApplyProtection(string pair, double sl, double tp, int digits, string json)
       Sleep(200);
    }
    if(ticket > 0) {
+      // ✅ Verificar stop mínimo do broker
+      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
+      double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+      
+      // Ajustar SL/TP se muito perto do preço atual (evita erro 10014)
+      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+         if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
+         if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
+      } else {
+         if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
+         if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
+      }
+      
       if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
          Print("🛡️ Proteção Aplicada Ticket: " + (string)ticket);
          SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
+      } else {
+         Print("⚠️ Falha ao aplicar SL/TP no ticket: " + (string)ticket + " | Erro: " + (string)GetLastError());
       }
    }
 }
