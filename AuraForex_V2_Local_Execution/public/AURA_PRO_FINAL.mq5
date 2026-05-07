@@ -130,7 +130,7 @@ void ExecuteSignal(string json)
       IndicatorRelease(atrHandle);
    }
 
-   double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 0.8 : 0.0020;
+   double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 1.5 : 0.0050;
    if(atr > volLimit) { Print("⚠️ Volatilidade alta em " + pair); return; }
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
@@ -192,21 +192,44 @@ string SendGet(string url) {
 }
 
 double GetDynamicRisk(double pts) {
-   if(pts > 300) return 0.3; if(pts > 200) return 0.5; return 1.0;
+   // Fix 1: Usar sempre o risco definido pelo utilizador
+   return InpRiskPercent;
 }
 
 double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TYPE type) {
-   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double riskVal = balance * (riskPercent / 100.0);
-   double tVal = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
-   double tSize = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskVal  = balance * (riskPercent / 100.0);
+   double tVal     = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+   double tSize    = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
    if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
-   double lot = riskVal / ((slDist / tSize) * tVal);
+   
+   double lot  = riskVal / ((slDist / tSize) * tVal);
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-   lot = MathMax(minL, MathFloor(lot/SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP))*SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP));
+   double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
+   lot = MathMax(minL, MathFloor(lot / step) * step);
+   
    double margin = 0;
-   if(OrderCalcMargin(type, sym, lot, SymbolInfoDouble(sym, SYMBOL_ASK), margin)) {
-      if(margin > AccountInfoDouble(ACCOUNT_FREEMARGIN)) { Print("⚠️ Sem margem para " + sym); return 0; }
+   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   double p = (type == ORDER_TYPE_BUY) ? ask : bid;
+
+   if(OrderCalcMargin(type, sym, lot, p, margin)) {
+      double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+      // ✅ Fix 2: Permite usar até 80% da margem livre
+      if(margin > freeMargin * 0.80) {
+         // Tentar com lote mínimo
+         double minMargin = 0;
+         if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
+            if(minMargin > freeMargin * 0.80) {
+               Print("⚠️ Sem margem para " + sym + 
+                     " | Necessário: " + DoubleToString(minMargin,2) + 
+                     " | Livre: " + DoubleToString(freeMargin,2));
+               return 0;
+            }
+            Print("ℹ️ Margem apertada. Usando lote mínimo (0.01) para " + sym);
+            return minL; // usa lote mínimo
+         }
+      }
    }
    return NormalizeDouble(lot, 2);
 }
