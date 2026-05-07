@@ -166,10 +166,21 @@ void ExecuteSignal(string json)
 
 void ApplyProtection(string pair, double sl, double tp, int digits, string json) {
    ulong ticket = 0;
+   
+   // ✅ Fix Hedge: procurar posição pelo Magic Number + par + mais recente
    for(int i=0; i<15; i++) {
-      if(PositionSelect(pair)) { ticket = PositionGetInteger(POSITION_TICKET); break; }
+      for(int j=PositionsTotal()-1; j>=0; j--) {
+         if(PositionGetTicket(j) > 0 && 
+            PositionGetString(POSITION_SYMBOL) == pair && 
+            PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+            ticket = PositionGetInteger(POSITION_TICKET);
+            break;
+         }
+      }
+      if(ticket > 0) break;
       Sleep(200);
    }
+   
    if(ticket > 0) {
       // ✅ Verificar stop mínimo do broker
       double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
@@ -190,6 +201,8 @@ void ApplyProtection(string pair, double sl, double tp, int digits, string json)
       } else {
          Print("⚠️ Falha ao aplicar SL/TP no ticket: " + (string)ticket + " | Erro: " + (string)GetLastError());
       }
+   } else {
+      Print("⚠️ Posição não encontrada para: " + pair);
    }
 }
 
