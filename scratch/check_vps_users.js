@@ -1,7 +1,7 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    const cmd = "cat /root/AuraForex/server.js | sed -n '970,1050p'";
+    const cmd = "cat /root/AuraForex/server.js | head -n 300";
     conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('data', data => {
