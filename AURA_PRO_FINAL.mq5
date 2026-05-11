@@ -13,7 +13,7 @@
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   InpServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS
+input string   InpServerUrl         = "http://139.59.159.48:3005/api"; // URL do seu VPS
 input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds      = 1;                       // Intervalo de Checagem (Segundos)
