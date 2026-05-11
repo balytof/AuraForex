@@ -413,22 +413,31 @@ void ExecuteSignal(string json)
       IndicatorRelease(atrHandle);
    }
 
-   double volLimit;
-   if(StringFind(pair, "XAU") >= 0)
-      volLimit = 25.0;
-   else if(StringFind(pair, "JPY") >= 0)
-      volLimit = 1.5;
-   else
-      volLimit = 0.0050;
+   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double currentPrice = (dir == "BUY") ? ask : bid;
+   double atrPercent = (atr / currentPrice) * 100.0;
 
-   if(atr > volLimit) { Print("⚠️ Volatilidade alta em " + pair); return; }
+   if(StringFind(pair, "XAU") >= 0)
+   {
+      if(atrPercent > 1.2) { 
+         Print("⚠️ XAU volatilidade extrema (", DoubleToString(atrPercent, 2), "%) | ATR: ", DoubleToString(atr, 2)); 
+         return; 
+      }
+   }
+   else if(StringFind(pair, "JPY") >= 0)
+   {
+      if(atr > 1.5) { Print("⚠️ JPY volatilidade alta | ATR: ", DoubleToString(atr, 3)); return; }
+   }
+   else 
+   {
+      if(atr > 0.0050) { Print("⚠️ FX volatilidade alta | ATR: ", DoubleToString(atr, 5)); return; }
+   }
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    
-   double sl = 0, tp = 0, currentPrice = (dir == "BUY") ? ask : bid;
+   double sl = 0, tp = 0;
    double maxSL = (double)((StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex);
    
    if(dir == "BUY") {
