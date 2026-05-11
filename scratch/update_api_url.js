@@ -1,12 +1,28 @@
-const prisma = require('../db');
+const prisma = require('./db');
 
-async function update() {
-    const updated = await prisma.systemSettings.updateMany({
-        data: {
-            apiUrl: 'http://localhost:3005'
-        }
-    });
-    console.log('Updated settings:', updated.count);
+async function main() {
+  const newUrl = "http://139.59.159.48:3005/api";
+  console.log('🚀 Updating System Settings to:', newUrl);
+  
+  try {
+    const settings = await prisma.systemSettings.findFirst();
+    if (settings) {
+      const updated = await prisma.systemSettings.update({
+        where: { id: settings.id },
+        data: { apiUrl: newUrl }
+      });
+      console.log('✅ Updated Settings:', updated);
+    } else {
+      const created = await prisma.systemSettings.create({
+        data: { apiUrl: newUrl }
+      });
+      console.log('✅ Created Settings:', created);
+    }
+  } catch (err) {
+    console.error('❌ Error updating settings:', err);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-update().catch(console.error).finally(() => prisma.$disconnect());
+main();
