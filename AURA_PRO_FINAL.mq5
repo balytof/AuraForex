@@ -410,7 +410,14 @@ void ExecuteSignal(string json)
       IndicatorRelease(atrHandle);
    }
 
-   double volLimit = (StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? 1.5 : 0.0050;
+   double volLimit;
+   if(StringFind(pair, "XAU") >= 0)
+      volLimit = 25.0;
+   else if(StringFind(pair, "JPY") >= 0)
+      volLimit = 1.5;
+   else
+      volLimit = 0.0050;
+
    if(atr > volLimit) { Print("⚠️ Volatilidade alta em " + pair); return; }
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
@@ -449,11 +456,13 @@ void ApplyProtection(string pair, double sl, double tp, int digits, string json)
    
    for(int i=0; i<15; i++) {
       for(int j=PositionsTotal()-1; j>=0; j--) {
-         if(PositionGetTicket(j) > 0 && 
-            PositionGetString(POSITION_SYMBOL) == pair && 
-            PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
-            ticket = PositionGetInteger(POSITION_TICKET);
-            break;
+         ulong t = PositionGetTicket(j);
+         if(t > 0 && PositionSelectByTicket(t)) {
+            if(PositionGetString(POSITION_SYMBOL) == pair && 
+               PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+               ticket = t;
+               break;
+            }
          }
       }
       if(ticket > 0) break;
@@ -538,14 +547,14 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
 
 double GetLastLow(string sym, int bars) {
    double lows[]; ArraySetAsSeries(lows, true);
-   if(CopyLow(sym, _Period, 1, bars, lows) > 0) {
+   if(CopyLow(sym, PERIOD_H1, 1, bars, lows) > 0) {
       double m = lows[0]; for(int i=1; i<ArraySize(lows); i++) if(lows[i] < m) m = lows[i]; return m;
    } return 0;
 }
 
 double GetLastHigh(string sym, int bars) {
    double highs[]; ArraySetAsSeries(highs, true);
-   if(CopyHigh(sym, _Period, 1, bars, highs) > 0) {
+   if(CopyHigh(sym, PERIOD_H1, 1, bars, highs) > 0) {
       double m = highs[0]; for(int i=1; i<ArraySize(highs); i++) if(highs[i] > m) m = highs[i]; return m;
    } return 0;
 }
