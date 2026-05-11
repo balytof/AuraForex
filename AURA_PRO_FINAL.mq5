@@ -85,7 +85,8 @@ void MonitorProfitLock()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket == 0) continue;
+      if(ticket <= 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
       if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
@@ -219,7 +220,8 @@ void MonitorTrailingStop()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket == 0) continue;
+      if(ticket <= 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
       if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
 
       string sym       = PositionGetString(POSITION_SYMBOL);
