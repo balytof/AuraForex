@@ -458,6 +458,15 @@ void ExecuteSignal(string json)
 
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+   double spread = (ask - bid) / point;
+
+   if(StringFind(pair, "XAU") >= 0) {
+      if(spread > 80) { Print("⚠️ Spread alto no Ouro (", DoubleToString(spread, 0), " pts) | Entrada Cancelada"); return; }
+   } else {
+      if(spread > 25) { Print("⚠️ Spread alto no Forex (", DoubleToString(spread, 0), " pts) | Entrada Cancelada"); return; }
+   }
+
    double currentPrice = (dir == "BUY") ? ask : bid;
    double atrPercent = (atr / currentPrice) * 100.0;
 
