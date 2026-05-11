@@ -1,7 +1,8 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    const cmd = "ls -l /root/AuraForex/public/";
+    console.log('🚀 Verificando link de download no HTML do dashboard...');
+    const cmd = "grep 'window.location.href' /root/AuraForex/smc_bot_dashboard.html | grep 'EA'";
     conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('data', data => {
