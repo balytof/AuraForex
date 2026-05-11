@@ -2563,9 +2563,10 @@ function openSetupModal() {
   
   // Atualizar dados dinâmicos no modal
   document.getElementById("eaLicenseKey").textContent = userLicense.id || "CHAVE-NÃO-ENCONTRADA";
-  const currentUrl = window.location.origin;
-  document.getElementById("apiUrlDisplay").textContent = currentUrl;
-  document.getElementById("eaApiUrl").textContent = currentUrl;
+  // Forçar IP fixo para evitar detecção dinâmica de domínio
+  const fixedUrl = "http://139.59.159.48:3005/api";
+  document.getElementById("apiUrlDisplay").textContent = fixedUrl;
+  document.getElementById("eaApiUrl").textContent = fixedUrl;
   
   console.log("%c[UI] Abrindo Modal de Setup...", "color: #00d4ff; font-weight: bold;");
   const modal = document.getElementById("setupModal");
@@ -2828,7 +2829,7 @@ setInterval(() => {
     if (brokerConnected) updateStats();
 }, 5000);
 
-let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
+let systemConfig = { apiUrl: "http://139.59.159.48:3005/api", installationGuide: "" };
 
 async function loadSystemConfig() {
   try {
