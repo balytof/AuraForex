@@ -1,13 +1,11 @@
-const prisma = require('../db');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-async function check() {
-    console.log("--- USER SETTINGS ---");
-    const settings = await prisma.userSettings.findMany();
-    console.log(JSON.stringify(settings, null, 2));
-    
-    console.log("--- SYSTEM SETTINGS ---");
-    const sys = await prisma.systemSettings.findMany();
-    console.log(JSON.stringify(sys, null, 2));
+async function main() {
+  const settings = await prisma.systemSettings.findFirst();
+  console.log('Current System Settings:', JSON.stringify(settings, null, 2));
 }
 
-check().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch(e => console.error(e))
+  .finally(async () => await prisma.$disconnect());
