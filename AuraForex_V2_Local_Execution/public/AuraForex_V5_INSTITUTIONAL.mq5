@@ -527,7 +527,7 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    double p = (type == ORDER_TYPE_BUY) ? ask : bid;
 
    if(OrderCalcMargin(type, sym, lot, p, margin)) {
-      double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+      double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
       if(margin > freeMargin * 0.80) {
          double minMargin = 0;
          if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
