@@ -1483,6 +1483,7 @@ async function saveConfig() {
     risk: document.getElementById("riskSlider").value,
     score: document.getElementById("scoreSlider").value,
     interval: document.getElementById("interval").value,
+    orderLimit: document.getElementById("limitSlider").value,
     activePairs: Array.from(activePairs).join(","),
     geminiKey: localStorage.getItem("aura_gemini_key")
   };
@@ -1510,6 +1511,10 @@ async function loadConfig() {
       document.getElementById("scoreSlider").value = s.score;
       document.getElementById("scoreVal").textContent = s.score;
       document.getElementById("interval").value = s.interval;
+      if (s.orderLimit) {
+        document.getElementById("limitSlider").value = s.orderLimit;
+        updateLimitUI(s.orderLimit);
+      }
       if (s.activePairs) activePairs = new Set(s.activePairs.split(","));
       
       if (s.geminiKey) {
@@ -1535,6 +1540,10 @@ async function loadConfig() {
       document.getElementById("scoreSlider").value = config.score;
       document.getElementById("scoreVal").textContent = config.score;
       document.getElementById("interval").value = config.interval;
+      if (config.orderLimit) {
+        document.getElementById("limitSlider").value = config.orderLimit;
+        updateLimitUI(config.orderLimit);
+      }
       if (config.activePairs) activePairs = new Set(Array.isArray(config.activePairs) ? config.activePairs : config.activePairs.split(","));
       initPairsGrid();
       addLog("⚙️ Configurações locais carregadas.");
