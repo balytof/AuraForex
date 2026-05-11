@@ -1,10 +1,12 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    const cmd = "npx pm2 logs aura-v2-elite --lines 30 --nostream";
+    console.log('🚀 Verificando server.js no VPS...');
+    const cmd = "grep -n '/api/admin/plans' /root/AuraForex/server.js";
     conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('data', data => {
+            console.log('ENCONTRADO NO VPS:');
             console.log(data.toString());
         });
         stream.on('close', () => {
