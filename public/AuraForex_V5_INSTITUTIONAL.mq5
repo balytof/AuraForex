@@ -501,7 +501,7 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
          if(trade.Buy(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultPosition();
+            ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
          }
       }
@@ -514,7 +514,7 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
          if(trade.Sell(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultPosition();
+            ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
          }
       }
