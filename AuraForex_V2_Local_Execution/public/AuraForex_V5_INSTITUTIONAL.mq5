@@ -49,7 +49,7 @@ ProfitLockData    ProfitLocks[];   // Array de monitoramento
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V6.0.2 - HEDGE READY (Gold Fixed)");
+   Print("🚀 AURA V6.0.1 - BLINDADA (Persistent Memory)");
    trade.SetExpertMagicNumber(InpMagicNumber);
    ValidateLicense();
    EventSetTimer(InpTimerSeconds);
@@ -63,7 +63,7 @@ void OnTick()
    if(IsAuthorized) {
       CheckSignals();
       MonitorProfitLock();
-      MonitorTrailingStop(); 
+      MonitorTrailingStop(); // ← Trailing Stop em cada tick
    }
 }
 
@@ -94,56 +94,87 @@ void MonitorProfitLock()
       double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
       long   posType   = PositionGetInteger(POSITION_TYPE);
 
+      // Ignorar posições no negativo
       if(profit <= 0) continue;
 
+      // CONFLITO 1 RESOLVIDO: Se Trailing já moveu o SL para zona de lucro,
+      // o ProfitLock não fecha — deixa o SL físico do Trailing fazer o trabalho.
+      // Isto evita fechar cedo demais quando o Trailing já está a proteger.
       bool slInProfit = false;
       if(posType == POSITION_TYPE_BUY  && currentSL > openPrice) slInProfit = true;
       if(posType == POSITION_TYPE_SELL && currentSL < openPrice && currentSL > 0) slInProfit = true;
 
+      // Procurar ou criar entrada no array ProfitLocks
       int idx = FindProfitLockIndex(ticket);
       if(idx < 0) idx = CreateProfitLockEntry(ticket);
       if(idx < 0) continue;
 
+      // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
          if(profit >= InpProfitLockMin)
          {
             ProfitLocks[idx].active     = true;
             ProfitLocks[idx].peakProfit = profit;
-            Print("🔒 ProfitLock ACTIVADO | ", sym, " | Ticket: ", ticket, " | Lucro: $", DoubleToString(profit, 2));
+            Print("🔒 ProfitLock ACTIVADO | ", sym,
+                  " | Ticket: ", ticket,
+                  " | Lucro: $", DoubleToString(profit, 2));
          }
          continue;
       }
 
+      // FASE 2: Actualizar pico máximo
       if(profit > ProfitLocks[idx].peakProfit)
       {
          ProfitLocks[idx].peakProfit = profit;
-         Print("📈 Novo pico | ", sym, " | Ticket: ", ticket, " | Pico: $", DoubleToString(profit, 2));
+         Print("📈 Novo pico | ", sym,
+               " | Ticket: ", ticket,
+               " | Pico: $", DoubleToString(profit, 2));
       }
 
+      // FASE 3: Verificar queda do pico
       double peak    = ProfitLocks[idx].peakProfit;
       double dropPct = ((peak - profit) / peak) * 100.0;
 
       if(dropPct >= InpProfitLockDrop)
       {
+         // CONFLITO 1: Se SL do Trailing já está em lucro, não fechar pelo ProfitLock
+         // O SL físico irá proteger o lucro por conta própria
          if(slInProfit)
          {
-            Print("ℹ️ ProfitLock pausado (Trailing SL em lucro) | ", sym, " | Ticket: ", ticket);
+            Print("ℹ️ ProfitLock pausado (Trailing SL em lucro) | ", sym,
+                  " | Ticket: ", ticket,
+                  " | SL já protege lucro");
             continue;
          }
 
-         Print("🛑 ProfitLock DISPARADO | ", sym, " | Ticket: ", ticket, " | Pico: $", DoubleToString(peak, 2), " | Queda: ", DoubleToString(dropPct, 1), "%");
+         Print("🛑 ProfitLock DISPARADO | ", sym,
+               " | Ticket: ", ticket,
+               " | Pico: $",   DoubleToString(peak, 2),
+               " | Actual: $", DoubleToString(profit, 2),
+               " | Queda: ",   DoubleToString(dropPct, 1), "%");
 
          if(trade.PositionClose(ticket))
          {
-            Print("✅ Ordem fechada com lucro preservado | ", sym, " | Ticket: ", ticket);
+            Print("✅ Ordem fechada com lucro preservado | ", sym,
+                  " | Ticket: ", ticket,
+                  " | Lucro final: $", DoubleToString(profit, 2));
             RemoveProfitLockEntry(idx);
+         }
+         else
+         {
+            Print("⚠️ Falha ao fechar | ", sym, " | Erro: ", GetLastError());
          }
       }
    }
+
+   // Limpar entradas de tickets já fechados
    CleanClosedPositions();
 }
 
+//+------------------------------------------------------------------+
+//| PROFIT LOCK - Funções auxiliares                                 |
+//+------------------------------------------------------------------+
 int FindProfitLockIndex(ulong ticket)
 {
    for(int i = 0; i < ArraySize(ProfitLocks); i++)
@@ -178,6 +209,9 @@ void CleanClosedPositions()
    }
 }
 
+//+------------------------------------------------------------------+
+//| TRAILING STOP - Monitor principal                                |
+//+------------------------------------------------------------------+
 void MonitorTrailingStop()
 {
    if(!InpTrailingEnabled) return;
@@ -195,7 +229,7 @@ void MonitorTrailingStop()
       double bid       = SymbolInfoDouble(sym, SYMBOL_BID);
       double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
       double currentSL = PositionGetDouble(POSITION_SL);
-      double currentTP = PositionGetDouble(POSITION_TP);
+      double currentTP = PositionGetDouble(POSITION_TP); // CONFLITO 3: preservar TP original
 
       double trailStart = InpTrailingStart    * point;
       double trailStep  = InpTrailingStep     * point;
@@ -204,13 +238,15 @@ void MonitorTrailingStop()
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
 
+      // CONFLITO 2 RESOLVIDO: Se ProfitLock está prestes a fechar esta posição
+      // (queda >= 90% do limiar), Trailing não interfere para não gerar ordens duplas
       int plIdx = FindProfitLockIndex(ticket);
       if(plIdx >= 0 && ProfitLocks[plIdx].active)
       {
          double profit  = PositionGetDouble(POSITION_PROFIT);
          double peak    = ProfitLocks[plIdx].peakProfit;
          double dropPct = (peak > 0) ? ((peak - profit) / peak) * 100.0 : 0;
-         if(dropPct >= InpProfitLockDrop * 0.9)
+         if(dropPct >= InpProfitLockDrop * 0.9) // 90% do limiar = iminente
          {
             Print("ℹ️ Trailing pausado (ProfitLock iminente) | ", sym, " | Ticket: ", ticket);
             continue;
@@ -220,25 +256,39 @@ void MonitorTrailingStop()
       if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
       {
          if(bid - openPrice < trailStart) continue;
+
          double newSL = NormalizeDouble(bid - trailDist, digits);
+
          if(newSL > currentSL + trailStep)
          {
+            // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
             if(trade.PositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing BUY | ", sym, " | Ticket: ", ticket, " | SL: ", DoubleToString(newSL, digits));
+               Print("📊 Trailing BUY | ", sym,
+                     " | Ticket: ", ticket,
+                     " | SL: ", DoubleToString(currentSL, digits),
+                     " → ",     DoubleToString(newSL, digits));
          }
       }
-      else
+      else // SELL
       {
          if(openPrice - ask < trailStart) continue;
+
          double newSL = NormalizeDouble(ask + trailDist, digits);
+
          if(newSL < currentSL - trailStep || currentSL == 0)
          {
+            // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
             if(trade.PositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", DoubleToString(newSL, digits));
+               Print("📊 Trailing SELL | ", sym,
+                     " | Ticket: ", ticket,
+                     " | SL: ", DoubleToString(currentSL, digits),
+                     " → ",     DoubleToString(newSL, digits));
          }
       }
    }
 }
+
+// --- CORE FUNCTIONS ---
 
 void ValidateLicense()
 {
@@ -251,7 +301,7 @@ void ValidateLicense()
    if(StringFind(result, "\"status\":\"OK\"") >= 0) {
       IsAuthorized = true;
       Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("AURA V6 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+      Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    } else if(result != "") {
       Print("❌ RESPOSTA LICENÇA: " + result);
    }
@@ -259,6 +309,7 @@ void ValidateLicense()
 
 void CheckSignals()
 {
+   // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
    lastCheckTime = TimeCurrent();
 
@@ -268,22 +319,35 @@ void CheckSignals()
    if(result == "") return; 
    if(StringFind(result, "\"signals\":[]") >= 0) return;
 
+   // VERIFICAÇÃO DE LIMITE DE ORDENS
    int openCount = 0;
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
-      ulong t = PositionGetTicket(i);
-      if(t > 0 && PositionSelectByTicket(t))
+      if(PositionSelectByTicket(PositionGetTicket(i)))
       {
          if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
             openCount++;
       }
    }
 
-   if(openCount >= InpMaxOrders) return;
+   if(openCount >= InpMaxOrders)
+   {
+      // Apenas avisa uma vez para não inundar o log
+      static datetime lastLimitMsg = 0;
+      if(TimeCurrent() - lastLimitMsg > 60)
+      {
+         Print("⚠️ Limite de ordens atingido (", openCount, "/", InpMaxOrders, "). Ignorando novos sinais.");
+         lastLimitMsg = TimeCurrent();
+      }
+      return;
+   }
+
+   Print("📩 NOVO JSON RECEBIDO [V6.0.1]");
 
    int pos = 0;
    while(true)
    {
+      // Procura o próximo ID no JSON
       int idPos = StringFind(result, "\"id\":\"", pos);
       if(idPos < 0) break;
 
@@ -293,20 +357,33 @@ void CheckSignals()
 
       string signalId = StringSubstr(result, start, end - start);
 
+      // Verificação persistente (Anti-duplicação via GlobalVariable)
       if(IsProcessed(signalId))
       {
          pos = end;
          continue;
       }
 
-      int objStart = StringFind(result, "{", idPos - 10);
+      Print("🎯 NOVO SINAL DETECTADO: ", signalId);
+
+      // Extrair o bloco JSON completo deste sinal { ... }
+      int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
       int objEnd   = StringFind(result, "}", objStart);
       
-      if(objStart < 0 || objEnd < 0) { pos = end; continue; }
+      if(objStart < 0 || objEnd < 0)
+      {
+         pos = end;
+         continue;
+      }
 
       string signalJson = StringSubstr(result, objStart, objEnd - objStart + 1);
+      
+      // Execução
       ExecuteSignal(signalJson);
+      
+      // Marcar como processado de forma persistente
       AddProcessed(signalId);
+      
       pos = objEnd;
    }
 }
@@ -322,7 +399,7 @@ void ExecuteSignal(string json)
          if(StringFind(sym, pair) >= 0) { pair = sym; break; }
       }
    }
-   if(!SymbolSelect(pair, true)) return;
+   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
 
    int atrHandle = iATR(pair, PERIOD_H1, 14);
    double atrBuffer[];
@@ -334,9 +411,12 @@ void ExecuteSignal(string json)
    }
 
    double volLimit;
-   if(StringFind(pair, "XAU") >= 0) volLimit = 25.0;
-   else if(StringFind(pair, "JPY") >= 0) volLimit = 1.5;
-   else volLimit = 0.0050;
+   if(StringFind(pair, "XAU") >= 0)
+      volLimit = 25.0;
+   else if(StringFind(pair, "JPY") >= 0)
+      volLimit = 1.5;
+   else
+      volLimit = 0.0050;
 
    if(atr > volLimit) { Print("⚠️ Volatilidade alta em " + pair); return; }
 
@@ -352,7 +432,7 @@ void ExecuteSignal(string json)
       double low = GetLastLow(pair, 20);
       sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
       double dist = (currentPrice - sl) / tickSize;
-      if(dist > maxSL) return;
+      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
@@ -362,7 +442,7 @@ void ExecuteSignal(string json)
       double high = GetLastHigh(pair, 20);
       sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
       double dist = (sl - currentPrice) / tickSize;
-      if(dist > maxSL) return;
+      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
@@ -373,21 +453,26 @@ void ExecuteSignal(string json)
 
 void ApplyProtection(string pair, double sl, double tp, int digits, string json) {
    ulong ticket = 0;
+   
    for(int i=0; i<15; i++) {
       for(int j=PositionsTotal()-1; j>=0; j--) {
          ulong t = PositionGetTicket(j);
          if(t > 0 && PositionSelectByTicket(t)) {
-            if(PositionGetString(POSITION_SYMBOL) == pair && PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
-               ticket = t; break;
+            if(PositionGetString(POSITION_SYMBOL) == pair && 
+               PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+               ticket = t;
+               break;
             }
          }
       }
       if(ticket > 0) break;
       Sleep(200);
    }
+   
    if(ticket > 0) {
       double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
       double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+      
       if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
          if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
          if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
@@ -395,9 +480,15 @@ void ApplyProtection(string pair, double sl, double tp, int digits, string json)
          if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
          if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
       }
+      
       if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         Print("🛡️ Proteção Aplicada Ticket: " + (string)ticket);
          SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
+      } else {
+         Print("⚠️ Falha ao aplicar SL/TP no ticket: " + (string)ticket + " | Erro: " + (string)GetLastError());
       }
+   } else {
+      Print("⚠️ Posição não encontrada para: " + pair);
    }
 }
 
@@ -414,18 +505,43 @@ string SendGet(string url) {
    return CharArrayToString(res);
 }
 
-double GetDynamicRisk(double pts) { return InpRiskPercent; }
+double GetDynamicRisk(double pts) {
+   return InpRiskPercent;
+}
 
 double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TYPE type) {
-   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double riskVal = balance * (riskPercent / 100.0);
-   double tVal = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
-   double tSize = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskVal  = balance * (riskPercent / 100.0);
+   double tVal     = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+   double tSize    = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
    if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
-   double lot = riskVal / ((slDist / tSize) * tVal);
+   
+   double lot  = riskVal / ((slDist / tSize) * tVal);
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
    lot = MathMax(minL, MathFloor(lot / step) * step);
+   
+   double margin = 0;
+   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   double p = (type == ORDER_TYPE_BUY) ? ask : bid;
+
+   if(OrderCalcMargin(type, sym, lot, p, margin)) {
+      double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+      if(margin > freeMargin * 0.80) {
+         double minMargin = 0;
+         if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
+            if(minMargin > freeMargin * 0.80) {
+               Print("⚠️ Sem margem para " + sym + 
+                     " | Necessário: " + DoubleToString(minMargin,2) + 
+                     " | Livre: " + DoubleToString(freeMargin,2));
+               return 0;
+            }
+            Print("ℹ️ Margem apertada. Usando lote mínimo (0.01) para " + sym);
+            return minL;
+         }
+      }
+   }
    return NormalizeDouble(lot, 2);
 }
 
@@ -443,12 +559,15 @@ double GetLastHigh(string sym, int bars) {
    } return 0;
 }
 
-bool IsProcessed(string id) {
+bool IsProcessed(string id) 
+{
+   // Encurtar o prefixo para evitar limites de caracteres do MT5 (máx 63)
    string key = "A_" + id;
    return GlobalVariableCheck(key);
 }
 
-void AddProcessed(string id) {
+void AddProcessed(string id) 
+{
    string key = "A_" + id;
    GlobalVariableSet(key, (double)TimeCurrent());
 }
