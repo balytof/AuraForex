@@ -44,6 +44,16 @@ bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
 ProfitLockData    ProfitLocks[];   // Array de monitoramento
 
+//--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
+struct PendingProtectionData {
+   string   pair;
+   double   sl;
+   double   tp;
+   string   signalId;
+   datetime timestamp;
+};
+PendingProtectionData PendingQueue[]; // Fila de espera para proteção
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -63,6 +73,7 @@ void OnTick()
    if(IsAuthorized) {
       MonitorProfitLock();
       MonitorTrailingStop(); 
+      ProcessPendingProtections(); // Processar proteções assíncronas
    }
 }
 
@@ -73,6 +84,7 @@ void OnTimer()
       CheckSignals();
       MonitorProfitLock();
       MonitorTrailingStop();
+      ProcessPendingProtections();
    }
 }
 
@@ -447,7 +459,7 @@ void ExecuteSignal(string json)
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
-         if(trade.Buy(lot, pair, 0, 0, 0)) ApplyProtection(pair, sl, currentPrice + (atr * 6.0), digits, json);
+         if(trade.Buy(lot, pair, 0, 0, 0)) AddToPendingQueue(pair, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
       }
    } else {
       double high = GetLastHigh(pair, 20);
@@ -457,49 +469,71 @@ void ExecuteSignal(string json)
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
-         if(trade.Sell(lot, pair, 0, 0, 0)) ApplyProtection(pair, sl, currentPrice - (atr * 6.0), digits, json);
+         if(trade.Sell(lot, pair, 0, 0, 0)) AddToPendingQueue(pair, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
       }
    }
 }
 
-void ApplyProtection(string pair, double sl, double tp, int digits, string json) {
-   ulong ticket = 0;
-   
-   for(int i=0; i<15; i++) {
-      for(int j=PositionsTotal()-1; j>=0; j--) {
+void AddToPendingQueue(string pair, double sl, double tp, string signalId) {
+   int s = ArraySize(PendingQueue);
+   ArrayResize(PendingQueue, s + 1);
+   PendingQueue[s].pair = pair;
+   PendingQueue[s].sl = sl;
+   PendingQueue[s].tp = tp;
+   PendingQueue[s].signalId = signalId;
+   PendingQueue[s].timestamp = TimeCurrent();
+   Print("📥 Adicionado à fila de proteção: ", pair, " | ID: ", signalId);
+}
+
+void ProcessPendingProtections() {
+   for(int i = ArraySize(PendingQueue) - 1; i >= 0; i--) {
+      // Timeout de 60 segundos para evitar lixo na fila
+      if(TimeCurrent() - PendingQueue[i].timestamp > 60) {
+         ArrayRemove(PendingQueue, i, 1);
+         continue;
+      }
+
+      ulong ticket = 0;
+      for(int j = PositionsTotal() - 1; j >= 0; j--) {
          ulong t = PositionGetTicket(j);
          if(t > 0 && PositionSelectByTicket(t)) {
-            if(PositionGetString(POSITION_SYMBOL) == pair && 
-               PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+            if(PositionGetString(POSITION_SYMBOL) == PendingQueue[i].pair && 
+               PositionGetInteger(POSITION_MAGIC) == InpMagicNumber &&
+               PositionGetDouble(POSITION_SL) == 0) { // Só aplica se ainda não tiver SL
                ticket = t;
                break;
             }
          }
       }
-      if(ticket > 0) break;
-      Sleep(200);
+
+      if(ticket > 0) {
+         ApplyAsyncProtection(ticket, PendingQueue[i]);
+         ArrayRemove(PendingQueue, i, 1);
+      }
+   }
+}
+
+void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
+   if(!PositionSelectByTicket(ticket)) return;
+   
+   string pair = data.pair;
+   double sl = data.sl;
+   double tp = data.tp;
+   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
+   double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+   
+   if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+      if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
+      if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
+   } else {
+      if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
+      if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
    }
    
-   if(ticket > 0) {
-      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
-      double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
-      
-      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-         if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
-         if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
-      } else {
-         if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
-         if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
-      }
-      
-      if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-         Print("🛡️ Proteção Aplicada Ticket: " + (string)ticket);
-         SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
-      } else {
-         Print("⚠️ Falha ao aplicar SL/TP no ticket: " + (string)ticket + " | Erro: " + (string)GetLastError());
-      }
-   } else {
-      Print("⚠️ Posição não encontrada para: " + pair);
+   if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+      Print("🛡️ Proteção Assíncrona Aplicada | Ticket: ", ticket, " | ID: ", data.signalId);
+      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
    }
 }
 
