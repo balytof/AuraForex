@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                              AuraForex_V5_MASTER |
+//|                                              AuraForex_V6_MASTER |
 //|                                  Copyright 2026, AuraForex Corp  |
 //|                                             https://auraforex.pt |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "5.04"
+#property version   "6"
 #property strict
  
 //--- INCLUDES ---
