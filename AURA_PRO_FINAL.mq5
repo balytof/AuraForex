@@ -48,7 +48,7 @@ ProfitLockData    ProfitLocks[];   // Array de monitoramento
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V6 SMC - INICIADO V6.0 (Anti-Conflito)");
+   Print("🚀 AURA V6.0.1 - BLINDADA (Persistent Memory)");
    trade.SetExpertMagicNumber(InpMagicNumber);
    ValidateLicense();
    EventSetTimer(InpTimerSeconds);
@@ -318,7 +318,7 @@ void CheckSignals()
    if(result == "") return; 
    if(StringFind(result, "\"signals\":[]") >= 0) return;
 
-   Print("📩 NOVO JSON RECEBIDO");
+   Print("📩 NOVO JSON RECEBIDO [V6.0.1]");
 
    int pos = 0;
    while(true)
@@ -528,15 +528,14 @@ double GetLastHigh(string sym, int bars) {
 
 bool IsProcessed(string id) 
 {
-   string key = "AURA_SIGNAL_" + id;
-   // GlobalVariableCheck verifica se a variável existe no MT5 (Persistente)
+   // Encurtar o prefixo para evitar limites de caracteres do MT5 (máx 63)
+   string key = "A_" + id;
    return GlobalVariableCheck(key);
 }
 
 void AddProcessed(string id) 
 {
-   string key = "AURA_SIGNAL_" + id;
-   // Salva a variável global com o timestamp atual
+   string key = "A_" + id;
    GlobalVariableSet(key, (double)TimeCurrent());
 }
 
