@@ -1,9 +1,12 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-async function main() {
-    const users = await prisma.user.findMany({ select: { email: true } });
-    console.log('USUÁRIOS NO VPS:', JSON.stringify(users));
-}
-
-main().finally(() => prisma.$disconnect());
+const { Client } = require('ssh2');
+const conn = new Client();
+conn.on('ready', () => {
+    const cmd = "npx pm2 logs aura-v2-elite --lines 20 --nostream";
+    conn.exec(cmd, (err, stream) => {
+        if (err) throw err;
+        stream.on('data', data => console.log(data.toString()));
+        stream.on('close', () => conn.end());
+    });
+}).connect({
+    host: '139.59.159.48', port: 22, username: 'root', password: '@Infomoi2023'
+});
