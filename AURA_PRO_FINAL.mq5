@@ -54,6 +54,13 @@ struct PendingProtectionData {
 };
 PendingProtectionData PendingQueue[]; // Fila de espera para proteção
 
+//--- ESTRUTURA FILA DE SINAIS ---
+struct SignalQueueData {
+   string   json;
+   datetime timestamp;
+};
+SignalQueueData SignalQueue[]; // Fila de espera para execução
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -82,6 +89,7 @@ void OnTimer()
    if(!IsAuthorized) ValidateLicense();
    else {
       CheckSignals();
+      ProcessSignalQueue(); // Processar um sinal por vez
       MonitorProfitLock();
       MonitorTrailingStop();
       ProcessPendingProtections();
@@ -395,14 +403,35 @@ void CheckSignals()
 
       string signalJson = StringSubstr(result, objStart, objEnd - objStart + 1);
       
-      // Execução
-      ExecuteSignal(signalJson);
+      // Adicionar à fila de execução em vez de executar direto
+      AddToSignalQueue(signalJson);
       
-      // Marcar como processado de forma persistente
+      // Marcar como processado para não entrar na fila novamente
       AddProcessed(signalId);
       
       pos = objEnd;
    }
+}
+
+void AddToSignalQueue(string json) {
+   int s = ArraySize(SignalQueue);
+   ArrayResize(SignalQueue, s + 1);
+   SignalQueue[s].json = json;
+   SignalQueue[s].timestamp = TimeCurrent();
+   Print("📥 Sinal adicionado à fila de execução. Total na fila: ", s + 1);
+}
+
+void ProcessSignalQueue() {
+   if(ArraySize(SignalQueue) == 0) return;
+
+   // Processar apenas o sinal mais antigo (Index 0)
+   string json = SignalQueue[0].json;
+   
+   Print("🚀 Executando sinal da fila... (Restantes: ", ArraySize(SignalQueue) - 1, ")");
+   ExecuteSignal(json);
+
+   // Remover o sinal processado da fila
+   ArrayRemove(SignalQueue, 0, 1);
 }
 
 void ExecuteSignal(string json)
