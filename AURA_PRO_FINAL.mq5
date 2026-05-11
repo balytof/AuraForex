@@ -144,11 +144,14 @@ void MonitorProfitLock()
                " | Pico: $", DoubleToString(profit, 2));
       }
 
-      // FASE 3: Verificar queda do pico
+      // FASE 3: Verificar queda do pico com Lógica Adaptativa
       double peak    = ProfitLocks[idx].peakProfit;
       double dropPct = ((peak - profit) / peak) * 100.0;
+      
+      // Quanto maior o lucro, mais apertamos o cerco (Mínimo 15% de queda)
+      double dynamicDrop = MathMax(15.0, InpProfitLockDrop - (profit / 10.0));
 
-      if(dropPct >= InpProfitLockDrop)
+      if(dropPct >= dynamicDrop)
       {
          // CONFLITO 1: Se SL do Trailing já está em lucro, não fechar pelo ProfitLock
          // O SL físico irá proteger o lucro por conta própria
@@ -164,7 +167,7 @@ void MonitorProfitLock()
                " | Ticket: ", ticket,
                " | Pico: $",   DoubleToString(peak, 2),
                " | Actual: $", DoubleToString(profit, 2),
-               " | Queda: ",   DoubleToString(dropPct, 1), "%");
+               " | Queda: ",   DoubleToString(dropPct, 1), "% (Limite: ", DoubleToString(dynamicDrop, 1), "%)");
 
          if(trade.PositionClose(ticket))
          {
