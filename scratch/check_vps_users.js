@@ -1,8 +1,7 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    console.log('🚀 Verificando rotas de EA no VPS...');
-    const cmd = "grep -n 'validate' /root/AuraForex/ea_api.js /root/AuraForex/server.js";
+    const cmd = "cat /root/AuraForex/ea_api.js";
     conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('data', data => {
