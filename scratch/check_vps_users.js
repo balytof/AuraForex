@@ -1,7 +1,8 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    const cmd = "npx pm2 logs aura-v2-elite --lines 20 --nostream";
+    console.log('🚀 Verificando licenças no VPS...');
+    const cmd = `sudo -u postgres psql -d auraforex -c 'SELECT id, "userId", status FROM "License";'`;
     conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('data', data => console.log(data.toString()));
