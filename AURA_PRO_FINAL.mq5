@@ -40,7 +40,6 @@ struct ProfitLockData {
 //--- GLOBAL VARIABLES ---
 CTrade            trade;
 bool              IsAuthorized = false;
-string            ProcessedIds[];
 datetime          lastCheckTime = 0;
 ProfitLockData    ProfitLocks[];   // Array de monitoramento
 
@@ -309,7 +308,8 @@ void ValidateLicense()
 
 void CheckSignals()
 {
-   if(TimeCurrent() - lastCheckTime < 1) return;
+   // Anti-flood: Evita sobrecarregar a API
+   if(TimeCurrent() - lastCheckTime < 5) return;
    lastCheckTime = TimeCurrent();
 
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
@@ -318,27 +318,49 @@ void CheckSignals()
    if(result == "") return; 
    if(StringFind(result, "\"signals\":[]") >= 0) return;
 
-   Print("📩 SINAIS RECEBIDOS: " + result);
+   Print("📩 NOVO JSON RECEBIDO");
 
-   int startPos = StringFind(result, "[");
-   int endPos = StringFind(result, "]", startPos);
-   if(startPos < 0 || endPos < 0) return;
-   
-   string signalsJson = StringSubstr(result, startPos+1, endPos-startPos-1);
-   string objects[];
-   int count = StringSplit(signalsJson, '}', objects);
-   
-   for(int i=0; i<count; i++) {
-      string obj = objects[i];
-      if(StringFind(obj, "{") < 0) obj = "{" + obj;
-      if(StringFind(obj, "}") < 0) obj = obj + "}";
-      
-      string id = ExtractValue(obj, "id");
-      if(id != "" && !IsProcessed(id)) { 
-         Print("🎯 PROCESSANDO SINAL ID: " + id);
-         ExecuteSignal(obj); 
-         AddProcessed(id); 
+   int pos = 0;
+   while(true)
+   {
+      // Procura o próximo ID no JSON
+      int idPos = StringFind(result, "\"id\":\"", pos);
+      if(idPos < 0) break;
+
+      int start = idPos + 6;
+      int end   = StringFind(result, "\"", start);
+      if(end < 0) break;
+
+      string signalId = StringSubstr(result, start, end - start);
+
+      // Verificação persistente (Anti-duplicação via GlobalVariable)
+      if(IsProcessed(signalId))
+      {
+         pos = end;
+         continue;
       }
+
+      Print("🎯 NOVO SINAL DETECTADO: ", signalId);
+
+      // Extrair o bloco JSON completo deste sinal { ... }
+      int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
+      int objEnd   = StringFind(result, "}", objStart);
+      
+      if(objStart < 0 || objEnd < 0)
+      {
+         pos = end;
+         continue;
+      }
+
+      string signalJson = StringSubstr(result, objStart, objEnd - objStart + 1);
+      
+      // Execução
+      ExecuteSignal(signalJson);
+      
+      // Marcar como processado de forma persistente
+      AddProcessed(signalId);
+      
+      pos = objEnd;
    }
 }
 
@@ -504,12 +526,18 @@ double GetLastHigh(string sym, int bars) {
    } return 0;
 }
 
-bool IsProcessed(string id) {
-   for(int i=0; i<ArraySize(ProcessedIds); i++) if(ProcessedIds[i] == id) return true; return false;
+bool IsProcessed(string id) 
+{
+   string key = "AURA_SIGNAL_" + id;
+   // GlobalVariableCheck verifica se a variável existe no MT5 (Persistente)
+   return GlobalVariableCheck(key);
 }
 
-void AddProcessed(string id) {
-   int s = ArraySize(ProcessedIds); ArrayResize(ProcessedIds, s+1); ProcessedIds[s] = id;
+void AddProcessed(string id) 
+{
+   string key = "AURA_SIGNAL_" + id;
+   // Salva a variável global com o timestamp atual
+   GlobalVariableSet(key, (double)TimeCurrent());
 }
 
 string ExtractValue(string json, string key) {
