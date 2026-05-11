@@ -323,7 +323,8 @@ void CheckSignals()
    int openCount = 0;
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
-      if(PositionSelectByTicket(PositionGetTicket(i)))
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t))
       {
          if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
             openCount++;
