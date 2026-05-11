@@ -19,6 +19,7 @@ input int      InpMagicNumber       = 888222;                  // Magic Number d
 input int      InpTimerSeconds      = 1;                       // Intervalo de Checagem (Segundos)
 input int      InpMaxSLForex        = 700;                     // Limite SL Forex (Pontos)
 input int      InpMaxSLJPY          = 2000;                    // Limite SL JPY/Ouro (Pontos)
+input int      InpMaxOrders         = 4;                       // Limite de Ordens Simultâneas
 
 // --- PROFIT LOCK PARAMETERS ---
 input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -317,6 +318,29 @@ void CheckSignals()
    
    if(result == "") return; 
    if(StringFind(result, "\"signals\":[]") >= 0) return;
+
+   // VERIFICAÇÃO DE LIMITE DE ORDENS
+   int openCount = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      if(PositionSelectByTicket(PositionGetTicket(i)))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
+            openCount++;
+      }
+   }
+
+   if(openCount >= InpMaxOrders)
+   {
+      // Apenas avisa uma vez para não inundar o log
+      static datetime lastLimitMsg = 0;
+      if(TimeCurrent() - lastLimitMsg > 60)
+      {
+         Print("⚠️ Limite de ordens atingido (", openCount, "/", InpMaxOrders, "). Ignorando novos sinais.");
+         lastLimitMsg = TimeCurrent();
+      }
+      return;
+   }
 
    Print("📩 NOVO JSON RECEBIDO [V6.0.1]");
 
