@@ -61,9 +61,8 @@ void OnDeinit(const int reason) { EventKillTimer(); }
 void OnTick()
 {
    if(IsAuthorized) {
-      CheckSignals();
       MonitorProfitLock();
-      MonitorTrailingStop(); // ← Trailing Stop em cada tick
+      MonitorTrailingStop(); 
    }
 }
 
