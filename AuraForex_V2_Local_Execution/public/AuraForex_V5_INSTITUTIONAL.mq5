@@ -373,7 +373,7 @@ void CheckSignals()
       return;
    }
 
-   Print("📩 NOVO JSON RECEBIDO [V6.0.1]");
+   // Silent Polling - Apenas logamos se houver acção real
 
    int pos = 0;
    while(true)
