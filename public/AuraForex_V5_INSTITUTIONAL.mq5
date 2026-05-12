@@ -649,6 +649,7 @@ void ExecuteSignal(string json)
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Buy(lot, pair, 0, 0, 0)) {
+            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
             SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
@@ -664,6 +665,7 @@ void ExecuteSignal(string json)
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Sell(lot, pair, 0, 0, 0)) {
+            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
             SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
@@ -735,7 +737,10 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
       Print("🛡️ Proteção Assíncrona Aplicada | Ticket: ", ticket, " | ID: ", data.signalId);
+      Print("ℹ️ Result: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+   } else {
+      Print("⚠️ Falha na Proteção Assíncrona | Ticket: ", ticket, " | Erro: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
    }
 }
 
