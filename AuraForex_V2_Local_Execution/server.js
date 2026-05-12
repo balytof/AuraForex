@@ -184,6 +184,9 @@ const apiLimiter = rateLimit({
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
+console.log("[DEBUG] eaApi type:", typeof eaApi);
+console.log("[DEBUG] eaApi keys:", Object.keys(eaApi));
+console.log("[DEBUG] eaApi.router type:", typeof eaApi.router);
 app.use("/api/ea", eaApi.router);
 app.use("/ea", eaApi.router); // Suporte para o Robô (sem prefixo /api)
 
