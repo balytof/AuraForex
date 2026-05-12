@@ -69,6 +69,7 @@ int OnInit()
 {
    Print("🚀 AURA V6.0.1 - BLINDADA (Persistent Memory)");
    trade.SetExpertMagicNumber(InpMagicNumber);
+   trade.SetDeviationInPoints(30); // Desvio padrão inicial
    ValidateLicense();
    EventSetTimer(InpTimerSeconds);
    return(INIT_SUCCEEDED);
@@ -463,6 +464,22 @@ void RemovePendingQueueIndex(int idx)
    ArrayResize(PendingQueue, s - 1);
 }
 
+int GetDynamicDeviation(string sym)
+{
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   if(point <= 0) return 30;
+
+   double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / point;
+
+   if(StringFind(sym, "XAU") >= 0)
+      return (int)MathMin(150, spread * 1.5);
+
+   if(StringFind(sym, "JPY") >= 0)
+      return (int)MathMin(50, spread * 1.3);
+
+   return (int)MathMin(30, spread * 1.2);
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -538,6 +555,7 @@ void ExecuteSignal(string json)
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Buy(lot, pair, 0, 0, 0)) {
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
@@ -551,6 +569,7 @@ void ExecuteSignal(string json)
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Sell(lot, pair, 0, 0, 0)) {
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
