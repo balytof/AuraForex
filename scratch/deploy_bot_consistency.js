@@ -6,7 +6,8 @@ const filesToSync = [
     { local: 'AuraForex_V2_Local_Execution/prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' },
     { local: 'AuraForex_V2_Local_Execution/server.js', remote: '/root/AuraForex/server.js' },
     { local: 'AuraForex_V2_Local_Execution/smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' },
-    { local: 'AuraForex_V2_Local_Execution/prisma.config.js', remote: '/root/AuraForex/prisma.config.js' }
+    { local: 'AuraForex_V2_Local_Execution/prisma.config.js', remote: '/root/AuraForex/prisma.config.js' },
+    { local: 'AuraForex_V2_Local_Execution/ea_api.js', remote: '/root/AuraForex/ea_api.js' }
 ];
 
 conn.on('ready', () => {
@@ -37,12 +38,19 @@ conn.on('ready', () => {
             if (err) throw err;
             stream.on('close', (code) => {
                 console.log(`✅ DB Push concluído (Código: ${code})`);
-                console.log('🔄 Reiniciando Servidor no VPS...');
-                conn.exec('pm2 restart all', (err, s2) => {
-                    if (err) console.error(err);
-                    s2.on('close', () => {
-                        console.log('🚀 SISTEMA ONLINE E SINCRONIZADO!');
-                        conn.end();
+                console.log('📦 Gerando Prisma Client...');
+                conn.exec('cd /root/AuraForex && npx prisma generate', (err, gStream) => {
+                    if (err) throw err;
+                    gStream.on('close', (gCode) => {
+                        console.log(`✅ Prisma Generate concluído (Código: ${gCode})`);
+                        console.log('🔄 Reiniciando Servidor no VPS...');
+                        conn.exec('pm2 restart all', (err, s2) => {
+                            if (err) console.error(err);
+                            s2.on('close', () => {
+                                console.log('🚀 SISTEMA ONLINE E SINCRONIZADO!');
+                                conn.end();
+                            });
+                        });
                     });
                 });
             }).on('data', (data) => console.log('STDOUT: ' + data))
