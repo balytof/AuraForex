@@ -395,7 +395,7 @@ void CheckSignals()
          continue;
       }
 
-      Print("🎯 NOVO SINAL DETECTADO: ", signalId);
+      // Print("🎯 NOVO SINAL DETECTADO: ", signalId); // Removido para silêncio institucional
 
       // Extrair o bloco JSON completo deste sinal { ... }
       int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
@@ -424,8 +424,6 @@ void AddToSignalQueue(string json) {
    
    string signalId = ExtractValue(json, "id");
    GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
-   
-   Print("📥 Sinal adicionado à fila e persistido. Total: ", s + 1);
 }
 
 void ProcessSignalQueue() {
@@ -436,11 +434,8 @@ void ProcessSignalQueue() {
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
-   
-   Print("🚀 Executando sinal da fila... (Restantes: ", ArraySize(SignalQueue) - 1, ")");
    ExecuteSignal(json);
 
-   // Remover o sinal processado da fila
    // Remover o sinal processado da fila via shift manual
    string signalId = ExtractValue(json, "id");
    GlobalVariableDel("SQ_" + signalId); // Remover do estado de fila
@@ -648,12 +643,10 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Buy(lot, pair, 0, 0, 0)) {
-            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
-            SetSymbolCooldown(pair); // Ativar Cooldown
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
-         }
+            if(ticket > 0) {
+               Print("🚀 Executando: ", pair, " (", dir, ")");
+               AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
+            }
       }
    } else {
       double high = GetLastHigh(pair, 20);
@@ -664,30 +657,17 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Sell(lot, pair, 0, 0, 0)) {
-            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
-            SetSymbolCooldown(pair); // Ativar Cooldown
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
-         }
+            if(ticket > 0) {
+               Print("🚀 Executando: ", pair, " (", dir, ")");
+               AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
+            }
       }
    }
 }
 
-void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
-   int s = ArraySize(PendingQueue);
-   ArrayResize(PendingQueue, s + 1);
-   PendingQueue[s].ticket = ticket;
-   PendingQueue[s].sl = sl;
-   PendingQueue[s].tp = tp;
-   PendingQueue[s].signalId = signalId;
-   PendingQueue[s].timestamp = TimeCurrent();
-   
    // Persistência em GlobalVariables
    GlobalVariableSet("PSL_" + (string)ticket, sl);
    GlobalVariableSet("PTP_" + (string)ticket, tp);
-   
-   Print("📥 Proteção agendada e persistida | Ticket: ", ticket);
 }
 
 void ProcessPendingProtections() {
@@ -736,11 +716,8 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    }
    
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-      Print("🛡️ Proteção Assíncrona Aplicada | Ticket: ", ticket, " | ID: ", data.signalId);
-      Print("ℹ️ Result: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
+      Print("🛡️ Ordem Protegida | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
-   } else {
-      Print("⚠️ Falha na Proteção Assíncrona | Ticket: ", ticket, " | Erro: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
    }
 }
 
