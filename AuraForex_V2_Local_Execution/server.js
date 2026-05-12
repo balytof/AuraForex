@@ -1459,7 +1459,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: score !== undefined ? parseInt(score) : undefined,
         interval: interval !== undefined ? parseInt(interval) : undefined,
         activePairs: activePairs || undefined,
-        geminiKey: geminiKey || undefined
+        geminiKey: geminiKey || undefined,
+        botStatus: req.body.botStatus || undefined
       },
       create: {
         userId: req.user.id,
@@ -1467,7 +1468,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: parseInt(score) || 55,
         interval: parseInt(interval) || 60,
         activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
-        geminiKey: geminiKey || null
+        geminiKey: geminiKey || null,
+        botStatus: req.body.botStatus || "stopped"
       }
     });
     res.json({ success: true, settings });

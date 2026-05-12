@@ -1311,7 +1311,8 @@ async function saveConfig() {
     score: document.getElementById("scoreSlider").value,
     interval: document.getElementById("interval").value,
     activePairs: Array.from(activePairs).join(","),
-    geminiKey: localStorage.getItem("aura_gemini_key")
+    geminiKey: localStorage.getItem("aura_gemini_key"),
+    botStatus: isRunning ? "running" : "stopped"
   };
   
   // Backup local
@@ -1345,6 +1346,17 @@ async function loadConfig() {
       }
       
       initPairsGrid();
+      
+      // EXPERT: Sincronização de Estado de Execução (Bot Status)
+      if (s.botStatus === "running" && !isRunning) {
+          console.log("[SETTINGS] Sincronização: Bot deve estar a rodar.");
+          localStorage.setItem("aura_bot_state", "running");
+      } else if (s.botStatus === "stopped" && isRunning) {
+          console.log("[SETTINGS] Sincronização: Bot deve estar parado.");
+          localStorage.setItem("aura_bot_state", "stopped");
+          stopBot();
+      }
+
       addLog("⚙️ Definições sincronizadas com a nuvem.");
       return;
     }
@@ -2421,6 +2433,9 @@ function startBot() {
         botLoop(currentLoopId);
       }
     }, 500);
+
+    // Persistir no servidor
+    saveConfig();
   } catch (e) {
     addLog("❌ FALHA AO INICIAR: " + e.message, "sell");
     console.error(e);
@@ -2441,6 +2456,9 @@ function stopBot() {
   if (uptimeDot) uptimeDot.classList.remove("active");
   
   addLog("⏹ Bot parado.");
+  
+  // Persistir no servidor
+  saveConfig();
 }
 
 function resetBot() {
@@ -2810,16 +2828,14 @@ loadSystemConfig();
     const desiredState = localStorage.getItem("aura_bot_state");
     
     if (desiredState === "running" && !isRunning) {
+        // Se broker não está conectado, esperamos (checkBrokerConnection fará o trabalho)
         if (brokerConnected && userLicense) {
-            console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
-            addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
+            console.log("%c[AuraEngine] ✅ Retomando sessão...", "color: #00ff00; font-weight: bold;");
             startBot();
         } else {
-            // Tenta novamente a cada 1.5s enquanto as condições não forem ideais
-            setTimeout(auraEngineMonitor, 1500);
+            setTimeout(auraEngineMonitor, 2000);
         }
     } else {
-        // Vigilância de segurança (5s)
         setTimeout(auraEngineMonitor, 5000);
     }
 })();
