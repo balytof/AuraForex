@@ -60,6 +60,7 @@ struct SignalQueueData {
    datetime timestamp;
 };
 SignalQueueData SignalQueue[]; // Fila de espera para execução
+bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -422,7 +423,10 @@ void AddToSignalQueue(string json) {
 }
 
 void ProcessSignalQueue() {
+   if(ExecutionBusy) return;
    if(ArraySize(SignalQueue) == 0) return;
+
+   ExecutionBusy = true; // Ativar lock
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
@@ -432,6 +436,8 @@ void ProcessSignalQueue() {
 
    // Remover o sinal processado da fila
    ArrayRemove(SignalQueue, 0, 1);
+
+   ExecutionBusy = false; // Libertar lock
 }
 
 void ExecuteSignal(string json)
