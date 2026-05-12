@@ -435,9 +435,32 @@ void ProcessSignalQueue() {
    ExecuteSignal(json);
 
    // Remover o sinal processado da fila
-   ArrayRemove(SignalQueue, 0, 1);
+   // Remover o sinal processado da fila via shift manual
+   RemoveSignalQueueIndex(0);
 
    ExecutionBusy = false; // Libertar lock
+}
+
+void RemoveSignalQueueIndex(int idx)
+{
+   int s = ArraySize(SignalQueue);
+   if(s == 0 || idx >= s) return;
+
+   for(int i = idx; i < s - 1; i++)
+      SignalQueue[i] = SignalQueue[i + 1];
+
+   ArrayResize(SignalQueue, s - 1);
+}
+
+void RemovePendingQueueIndex(int idx)
+{
+   int s = ArraySize(PendingQueue);
+   if(s == 0 || idx >= s) return;
+
+   for(int i = idx; i < s - 1; i++)
+      PendingQueue[i] = PendingQueue[i + 1];
+
+   ArrayResize(PendingQueue, s - 1);
 }
 
 void ExecuteSignal(string json)
@@ -550,19 +573,21 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
 void ProcessPendingProtections() {
    for(int i = ArraySize(PendingQueue) - 1; i >= 0; i--) {
       if(TimeCurrent() - PendingQueue[i].timestamp > 60) {
-         ArrayRemove(PendingQueue, i, 1);
+         RemovePendingQueueIndex(i);
          continue;
       }
 
       ulong ticket = PendingQueue[i].ticket;
       if(PositionSelectByTicket(ticket)) {
-         if(PositionGetDouble(POSITION_SL) == 0) { 
             ApplyAsyncProtection(ticket, PendingQueue[i]);
-            ArrayRemove(PendingQueue, i, 1);
+            RemovePendingQueueIndex(i);
          } else {
             // Já tem SL, remover da fila
-            ArrayRemove(PendingQueue, i, 1);
+            RemovePendingQueueIndex(i);
          }
+      }
+   }
+}
       }
    }
 }
