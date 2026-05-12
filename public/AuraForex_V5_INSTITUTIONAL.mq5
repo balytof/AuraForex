@@ -22,6 +22,7 @@ input int      InpMaxSLJPY          = 2000;                    // Limite SL JPY/
 input int      InpMaxOrders         = 4;                       // Limite Global de Ordens
 input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
 input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
+input int      InpTradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
 
 // --- PROFIT LOCK PARAMETERS ---
 input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -527,6 +528,22 @@ int GetDynamicDeviation(string sym)
    return (int)MathMin(30, spread * 1.2);
 }
 
+bool CanTradeSymbol(string sym)
+{
+   string gvName = "CD_" + sym;
+   if(GlobalVariableCheck(gvName))
+   {
+      datetime lastTrade = (datetime)GlobalVariableGet(gvName);
+      if(TimeCurrent() - lastTrade < InpTradeCooldown) return false;
+   }
+   return true;
+}
+
+void SetSymbolCooldown(string sym)
+{
+   GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
+}
+
 void ExecuteSignal(string json)
 {
    string pair = ExtractValue(json, "pair");
@@ -610,6 +627,12 @@ void ExecuteSignal(string json)
       return;
    }
 
+   // --- SYMBOL COOLDOWN ---
+   if(!CanTradeSymbol(pair)) {
+      Print("⏳ Cooldown activo para ", pair, " | Aguardando intervalo de segurança.");
+      return;
+   }
+
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    
@@ -622,10 +645,10 @@ void ExecuteSignal(string json)
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Buy(lot, pair, 0, 0, 0)) {
+            SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
          }
@@ -636,10 +659,10 @@ void ExecuteSignal(string json)
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Sell(lot, pair, 0, 0, 0)) {
+            SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
             if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
          }
