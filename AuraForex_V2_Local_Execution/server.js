@@ -121,12 +121,23 @@ app.get("/AuraForex_MAGIC_V4_OFFICIAL.mq5", (req, res) => {
   }
 });
 
-app.get("/AuraForex_V5_MASTER_FINAL.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_MASTER_FINAL.mq5');
+app.get("/AuraForex_V5_INSTITUTIONAL.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.ex5');
   if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_V5_MASTER_FINAL.mq5');
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V5_INSTITUTIONAL.ex5"');
+    res.sendFile(filePath);
   } else {
-    res.status(404).send("Ficheiro V5 Master Final não encontrado.");
+    res.status(404).send("Ficheiro V5 Institutional não encontrado.");
+  }
+});
+
+app.get("/AuraForex_V5_INSTITUTIONAL.mq5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.mq5');
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, 'AuraForex_V5_INSTITUTIONAL.mq5');
+  } else {
+    res.status(404).send("Fonte V5 Institutional não encontrada.");
   }
 });
 
