@@ -33,7 +33,7 @@ conn.on('ready', () => {
     });
 
     function runDbPush() {
-        conn.exec('cd /root/AuraForex && npx prisma db push', (err, stream) => {
+        conn.exec('cd /root/AuraForex && npx prisma db push --accept-data-loss', (err, stream) => {
             if (err) throw err;
             stream.on('close', (code) => {
                 console.log(`✅ DB Push concluído (Código: ${code})`);
