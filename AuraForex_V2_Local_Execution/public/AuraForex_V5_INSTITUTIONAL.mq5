@@ -769,6 +769,13 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
    
    double lot  = riskVal / ((slDist / tSize) * tVal);
+
+   // Debug Institucional de Lote
+   Print("📊 Cálculo Lote | Risco: $", DoubleToString(riskVal, 2), 
+         " | Dist SL: ", DoubleToString(slDist, 5), 
+         " | TickVal: ", DoubleToString(tVal, 2),
+         " | Lote Calculado: ", DoubleToString(lot, 2));
+
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
    lot = MathMax(minL, MathFloor(lot / step) * step);
