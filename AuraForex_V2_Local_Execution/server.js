@@ -1,3 +1,5 @@
+const fs = require("fs");
+fs.appendFileSync("/root/debug.log", `--- NOVO ARRANQUE ---\n`);
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -27,6 +29,7 @@ const app = express();
 const PORT = process.env.PORT || 3005; 
 const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
+fs.appendFileSync("/root/debug.log", `[INIT] ROOT: ${ROOT}\n`);
 console.log(`[INIT] ROOT directory: ${ROOT}`);
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
