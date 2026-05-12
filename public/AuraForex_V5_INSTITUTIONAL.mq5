@@ -579,15 +579,13 @@ void ProcessPendingProtections() {
 
       ulong ticket = PendingQueue[i].ticket;
       if(PositionSelectByTicket(ticket)) {
+         if(PositionGetDouble(POSITION_SL) == 0) { 
             ApplyAsyncProtection(ticket, PendingQueue[i]);
             RemovePendingQueueIndex(i);
          } else {
             // Já tem SL, remover da fila
             RemovePendingQueueIndex(i);
          }
-      }
-   }
-}
       }
    }
 }
