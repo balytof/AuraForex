@@ -458,13 +458,22 @@ void ExecuteSignal(string json)
 
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
-   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
-   double spread = (ask - bid) / point;
+   double spreadReal = ask - bid;
 
    if(StringFind(pair, "XAU") >= 0) {
-      if(spread > 80) { Print("⚠️ Spread alto no Ouro (", DoubleToString(spread, 0), " pts) | Entrada Cancelada"); return; }
+      // REGRA OURO: Spread máximo de 80 cêntimos ($0.80)
+      if(spreadReal > 0.80) { 
+         Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
+         return; 
+      }
    } else {
-      if(spread > 25) { Print("⚠️ Spread alto no Forex (", DoubleToString(spread, 0), " pts) | Entrada Cancelada"); return; }
+      // REGRA FOREX: Normalização para 25 Pips (Broker-Agnostic)
+      double pipSize = (SymbolInfoInteger(pair, SYMBOL_DIGITS) == 3 || SymbolInfoInteger(pair, SYMBOL_DIGITS) == 5) ? SymbolInfoDouble(pair, SYMBOL_POINT) * 10 : SymbolInfoDouble(pair, SYMBOL_POINT);
+      double spreadPips = spreadReal / pipSize;
+      if(spreadPips > 25) { 
+         Print("⚠️ Spread Forex Alto: ", DoubleToString(spreadPips, 1), " pips | Entrada Cancelada"); 
+         return; 
+      }
    }
 
    double currentPrice = (dir == "BUY") ? ask : bid;
@@ -472,7 +481,7 @@ void ExecuteSignal(string json)
 
    if(StringFind(pair, "XAU") >= 0)
    {
-      if(atrPercent > 1.2) { 
+      if(atrPercent > 2.5) { 
          Print("⚠️ XAU volatilidade extrema (", DoubleToString(atrPercent, 2), "%) | ATR: ", DoubleToString(atr, 2)); 
          return; 
       }
