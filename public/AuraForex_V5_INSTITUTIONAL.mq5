@@ -19,7 +19,9 @@ input int      InpMagicNumber       = 888222;                  // Magic Number d
 input int      InpTimerSeconds      = 1;                       // Intervalo de Checagem (Segundos)
 input int      InpMaxSLForex        = 700;                     // Limite SL Forex (Pontos)
 input int      InpMaxSLJPY          = 2000;                    // Limite SL JPY/Ouro (Pontos)
-input int      InpMaxOrders         = 4;                       // Limite de Ordens Simultâneas
+input int      InpMaxOrders         = 4;                       // Limite Global de Ordens
+input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
+input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
 
 // --- PROFIT LOCK PARAMETERS ---
 input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -584,6 +586,28 @@ void ExecuteSignal(string json)
    else 
    {
       if(atr > 0.0050) { Print("⚠️ FX volatilidade alta | ATR: ", DoubleToString(atr, 5)); return; }
+   }
+
+   // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
+   int currentBuys = 0;
+   int currentSells = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t)) {
+         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
+         }
+      }
+   }
+
+   if(dir == "BUY" && currentBuys >= InpMaxBuys) {
+      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
+      return;
+   }
+   if(dir == "SELL" && currentSells >= InpMaxSells) {
+      Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
+      return;
    }
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
