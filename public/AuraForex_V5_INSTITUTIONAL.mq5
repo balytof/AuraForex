@@ -34,11 +34,11 @@ input int      InpTrailingStart     = 20;    // Pontos de lucro para activar Tra
 input int      InpTrailingStep      = 10;    // Pontos mínimos para mover o SL
 input int      InpTrailingDistance  = 15;    // Distância do SL ao preço actual (pontos)
 
-//--- ESTRUTURA PROFIT LOCK ---
 struct ProfitLockData {
    ulong    ticket;
    double   peakProfit;   // Pico máximo de lucro atingido
    bool     active;       // ProfitLock activado para este ticket
+   datetime activationTime; // Tempo de activação para buffer anti-spike
 };
 
 //--- GLOBAL VARIABLES ---
@@ -140,8 +140,9 @@ void MonitorProfitLock()
       {
          if(profit >= InpProfitLockMin)
          {
-            ProfitLocks[idx].active     = true;
-            ProfitLocks[idx].peakProfit = profit;
+            ProfitLocks[idx].active         = true;
+            ProfitLocks[idx].peakProfit     = profit;
+            ProfitLocks[idx].activationTime = TimeCurrent(); // Buffer anti-spike começa agora
             Print("🔒 ProfitLock ACTIVADO | ", sym,
                   " | Ticket: ", ticket,
                   " | Lucro: $", DoubleToString(profit, 2));
@@ -149,8 +150,10 @@ void MonitorProfitLock()
          continue;
       }
 
-      // FASE 2: Actualizar pico máximo
-      if(profit > ProfitLocks[idx].peakProfit)
+      // FASE 2: Actualizar pico máximo (Com filtro de ruído/Step)
+      double minPeakStep = (StringFind(sym, "XAU") >= 0) ? 2.0 : 0.5;
+      
+      if(profit > ProfitLocks[idx].peakProfit + minPeakStep)
       {
          ProfitLocks[idx].peakProfit = profit;
          Print("📈 Novo pico | ", sym,
@@ -158,30 +161,51 @@ void MonitorProfitLock()
                " | Pico: $", DoubleToString(profit, 2));
       }
 
-      // FASE 3: Verificar queda do pico com Lógica Adaptativa
-      double peak    = ProfitLocks[idx].peakProfit;
-      double dropPct = ((peak - profit) / peak) * 100.0;
-      
-      // Quanto maior o lucro, mais apertamos o cerco (Mínimo 15% de queda)
-      double dynamicDrop = MathMax(15.0, InpProfitLockDrop - (profit / 10.0));
+      // FASE 3: Verificar queda do pico com Lógica Adaptativa ATR
+      // 1. Buffer de Tempo (Anti-Spike)
+      if(TimeCurrent() - ProfitLocks[idx].activationTime < 30) continue;
 
-      if(dropPct >= dynamicDrop)
+      // 2. Cálculo de Volatilidade Real (ATR M15)
+      double atr = 0;
+      int atrHandle = iATR(sym, PERIOD_M15, 14);
+      if(atrHandle != INVALID_HANDLE)
+      {
+         double atrBuf[];
+         ArraySetAsSeries(atrBuf, true);
+         if(CopyBuffer(atrHandle, 0, 0, 1, atrBuf) > 0) atr = atrBuf[0];
+         IndicatorRelease(atrHandle);
+      }
+
+      // 3. Conversão ATR para Valor Monetário
+      double point    = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double tickVal  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+      double tickSize = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+      
+      if(point <= 0 || tickSize <= 0) continue;
+      
+      double atrInPoints = atr / point;
+      double lotSize     = PositionGetDouble(POSITION_VOLUME);
+      // Cálculo aproximado do valor monetário do ATR para este lote
+      double atrMoney    = (atr / tickSize) * tickVal * lotSize;
+
+      // 4. Factor de Volatilidade por Ativo
+      double volatilityFactor = (StringFind(sym, "XAU") >= 0) ? 2.5 : 1.2;
+      double allowedDropMoney = MathMax(2.0, atrMoney * volatilityFactor);
+      
+      double currentDropMoney = ProfitLocks[idx].peakProfit - profit;
+      double peak = ProfitLocks[idx].peakProfit;
+
+      if(currentDropMoney >= allowedDropMoney)
       {
          // CONFLITO 1: Se SL do Trailing já está em lucro, não fechar pelo ProfitLock
-         // O SL físico irá proteger o lucro por conta própria
-         if(slInProfit)
-         {
-            Print("ℹ️ ProfitLock pausado (Trailing SL em lucro) | ", sym,
-                  " | Ticket: ", ticket,
-                  " | SL já protege lucro");
-            continue;
-         }
+         if(slInProfit) continue;
 
-         Print("🛑 ProfitLock DISPARADO | ", sym,
+         Print("🛑 ProfitLock ADAPTATIVO DISPARADO | ", sym,
                " | Ticket: ", ticket,
                " | Pico: $",   DoubleToString(peak, 2),
                " | Actual: $", DoubleToString(profit, 2),
-               " | Queda: ",   DoubleToString(dropPct, 1), "% (Limite: ", DoubleToString(dynamicDrop, 1), "%)");
+               " | Queda: $",  DoubleToString(currentDropMoney, 2), 
+               " (Limite ATR: $", DoubleToString(allowedDropMoney, 2), ")");
 
          if(trade.PositionClose(ticket))
          {
@@ -215,9 +239,10 @@ int CreateProfitLockEntry(ulong ticket)
 {
    int s = ArraySize(ProfitLocks);
    ArrayResize(ProfitLocks, s + 1);
-   ProfitLocks[s].ticket     = ticket;
-   ProfitLocks[s].peakProfit = 0;
-   ProfitLocks[s].active     = false;
+   ProfitLocks[s].ticket         = ticket;
+   ProfitLocks[s].peakProfit     = 0;
+   ProfitLocks[s].active         = false;
+   ProfitLocks[s].activationTime = 0;
    return s;
 }
 
