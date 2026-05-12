@@ -1,5 +1,3 @@
-const fs = require("fs");
-fs.appendFileSync("/root/debug.log", `--- NOVO ARRANQUE ---\n`);
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -29,7 +27,6 @@ const app = express();
 const PORT = process.env.PORT || 3005; 
 const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
-fs.appendFileSync("/root/debug.log", `[INIT] ROOT: ${ROOT}\n`);
 console.log(`[INIT] ROOT directory: ${ROOT}`);
 const isProd = process.env.NODE_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET || "auraforex_default_jwt_secret";
@@ -187,9 +184,6 @@ const apiLimiter = rateLimit({
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
-console.log("[DEBUG] eaApi type:", typeof eaApi);
-console.log("[DEBUG] eaApi keys:", Object.keys(eaApi));
-console.log("[DEBUG] eaApi.router type:", typeof eaApi.router);
 app.use("/api/ea", eaApi.router);
 app.use("/ea", eaApi.router); // Suporte para o Robô (sem prefixo /api)
 

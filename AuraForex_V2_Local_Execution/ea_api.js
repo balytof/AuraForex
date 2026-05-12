@@ -1,4 +1,3 @@
-console.log("[DEBUG] Carregando EA_API.JS...");
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
