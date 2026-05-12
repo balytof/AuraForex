@@ -170,6 +170,7 @@ model UserSettings {
   interval    Int      @default(60)
   activePairs String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
   geminiKey   String?
+  botStatus   String   @default("stopped")
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
