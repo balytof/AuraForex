@@ -761,13 +761,6 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
    
    double lot  = riskVal / ((slDist / tSize) * tVal);
-
-   // Debug Institucional de Lote
-   Print("📊 Cálculo Lote | Risco: $", DoubleToString(riskVal, 2), 
-         " | Dist SL: ", DoubleToString(slDist, 5), 
-         " | TickVal: ", DoubleToString(tVal, 2),
-         " | Lote Calculado: ", DoubleToString(lot, 2));
-
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
    lot = MathMax(minL, MathFloor(lot / step) * step);
@@ -783,12 +776,10 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
          double minMargin = 0;
          if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
             if(minMargin > freeMargin * 0.80) {
-               Print("⚠️ Sem margem para " + sym + 
-                     " | Necessário: " + DoubleToString(minMargin,2) + 
-                     " | Livre: " + DoubleToString(freeMargin,2));
+               Print("⚠️ Sem margem para " + sym);
                return 0;
             }
-            Print("ℹ️ Margem apertada. Usando lote mínimo (0.01) para " + sym);
+            Print("ℹ️ Margem apertada para " + sym);
             return minL;
          }
       }

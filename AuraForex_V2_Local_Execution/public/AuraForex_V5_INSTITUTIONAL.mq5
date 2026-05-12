@@ -395,7 +395,7 @@ void CheckSignals()
          continue;
       }
 
-      Print("🎯 NOVO SINAL DETECTADO: ", signalId);
+      // Print("🎯 NOVO SINAL DETECTADO: ", signalId); // Removido para silêncio institucional
 
       // Extrair o bloco JSON completo deste sinal { ... }
       int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
@@ -424,8 +424,6 @@ void AddToSignalQueue(string json) {
    
    string signalId = ExtractValue(json, "id");
    GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
-   
-   Print("📥 Sinal adicionado à fila e persistido. Total: ", s + 1);
 }
 
 void ProcessSignalQueue() {
@@ -436,11 +434,8 @@ void ProcessSignalQueue() {
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
-   
-   Print("🚀 Executando sinal da fila... (Restantes: ", ArraySize(SignalQueue) - 1, ")");
    ExecuteSignal(json);
 
-   // Remover o sinal processado da fila
    // Remover o sinal processado da fila via shift manual
    string signalId = ExtractValue(json, "id");
    GlobalVariableDel("SQ_" + signalId); // Remover do estado de fila
@@ -649,10 +644,11 @@ void ExecuteSignal(string json)
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Buy(lot, pair, 0, 0, 0)) {
-            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
-            SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
-            if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
+            if(ticket > 0) {
+               Print("🚀 Executando BUY: ", pair);
+               AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
+            }
          }
       }
    } else {
@@ -665,10 +661,11 @@ void ExecuteSignal(string json)
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Sell(lot, pair, 0, 0, 0)) {
-            Print("✅ Retcode: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
-            SetSymbolCooldown(pair); // Ativar Cooldown
             ulong ticket = trade.ResultOrder();
-            if(ticket > 0) AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
+            if(ticket > 0) {
+               Print("🚀 Executando SELL: ", pair);
+               AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
+            }
          }
       }
    }
@@ -686,8 +683,6 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    // Persistência em GlobalVariables
    GlobalVariableSet("PSL_" + (string)ticket, sl);
    GlobalVariableSet("PTP_" + (string)ticket, tp);
-   
-   Print("📥 Proteção agendada e persistida | Ticket: ", ticket);
 }
 
 void ProcessPendingProtections() {
@@ -736,11 +731,8 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    }
    
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-      Print("🛡️ Proteção Assíncrona Aplicada | Ticket: ", ticket, " | ID: ", data.signalId);
-      Print("ℹ️ Result: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
+      Print("🛡️ Ordem Protegida | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
-   } else {
-      Print("⚠️ Falha na Proteção Assíncrona | Ticket: ", ticket, " | Erro: ", trade.ResultRetcode(), " (", trade.ResultRetcodeDescription(), ")");
    }
 }
 
@@ -769,13 +761,6 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
    
    double lot  = riskVal / ((slDist / tSize) * tVal);
-
-   // Debug Institucional de Lote
-   Print("📊 Cálculo Lote | Risco: $", DoubleToString(riskVal, 2), 
-         " | Dist SL: ", DoubleToString(slDist, 5), 
-         " | TickVal: ", DoubleToString(tVal, 2),
-         " | Lote Calculado: ", DoubleToString(lot, 2));
-
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
    lot = MathMax(minL, MathFloor(lot / step) * step);
@@ -791,12 +776,10 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
          double minMargin = 0;
          if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
             if(minMargin > freeMargin * 0.80) {
-               Print("⚠️ Sem margem para " + sym + 
-                     " | Necessário: " + DoubleToString(minMargin,2) + 
-                     " | Livre: " + DoubleToString(freeMargin,2));
+               Print("⚠️ Sem margem para " + sym);
                return 0;
             }
-            Print("ℹ️ Margem apertada. Usando lote mínimo (0.01) para " + sym);
+            Print("ℹ️ Margem apertada para " + sym);
             return minL;
          }
       }
