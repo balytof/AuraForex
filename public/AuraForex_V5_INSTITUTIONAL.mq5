@@ -71,6 +71,7 @@ int OnInit()
    trade.SetExpertMagicNumber(InpMagicNumber);
    trade.SetDeviationInPoints(30); // Desvio padrão inicial
    ValidateLicense();
+   RecoverState(); // Recuperar estado após crash/reboot
    EventSetTimer(InpTimerSeconds);
    return(INIT_SUCCEEDED);
 }
@@ -408,9 +409,6 @@ void CheckSignals()
       // Adicionar à fila de execução em vez de executar direto
       AddToSignalQueue(signalJson);
       
-      // Marcar como processado para não entrar na fila novamente
-      AddProcessed(signalId);
-      
       pos = objEnd;
    }
 }
@@ -420,7 +418,11 @@ void AddToSignalQueue(string json) {
    ArrayResize(SignalQueue, s + 1);
    SignalQueue[s].json = json;
    SignalQueue[s].timestamp = TimeCurrent();
-   Print("📥 Sinal adicionado à fila de execução. Total na fila: ", s + 1);
+   
+   string signalId = ExtractValue(json, "id");
+   GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
+   
+   Print("📥 Sinal adicionado à fila e persistido. Total: ", s + 1);
 }
 
 void ProcessSignalQueue() {
@@ -437,6 +439,10 @@ void ProcessSignalQueue() {
 
    // Remover o sinal processado da fila
    // Remover o sinal processado da fila via shift manual
+   string signalId = ExtractValue(json, "id");
+   GlobalVariableDel("SQ_" + signalId); // Remover do estado de fila
+   AddProcessed(signalId); // Marcar como definitivamente processado
+   
    RemoveSignalQueueIndex(0);
 
    ExecutionBusy = false; // Libertar lock
@@ -462,6 +468,45 @@ void RemovePendingQueueIndex(int idx)
       PendingQueue[i] = PendingQueue[i + 1];
 
    ArrayResize(PendingQueue, s - 1);
+}
+
+void RecoverState()
+{
+   Print("🔍 Iniciando Recuperação de Estado (Institutional Recovery)...");
+   
+   // 1. Recuperar Proteções Pendentes
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetDouble(POSITION_SL) == 0)
+         {
+            string slKey = "PSL_" + (string)ticket;
+            string tpKey = "PTP_" + (string)ticket;
+            
+            if(GlobalVariableCheck(slKey))
+            {
+               double sl = GlobalVariableGet(slKey);
+               double tp = GlobalVariableGet(tpKey);
+               AddToPendingQueue(ticket, sl, tp, "RECOVERED");
+               Print("✅ Proteção Recuperada para Ticket: ", ticket);
+            }
+         }
+      }
+   }
+   
+   // 2. Limpeza de GVs órfãs (tickets já fechados)
+   int totalGv = GlobalVariablesTotal();
+   for(int i = totalGv - 1; i >= 0; i--)
+   {
+      string name = GlobalVariableName(i);
+      if(StringFind(name, "PSL_") == 0 || StringFind(name, "PTP_") == 0)
+      {
+         ulong ticket = (ulong)StringToInteger(StringSubstr(name, 4));
+         if(!PositionSelectByTicket(ticket)) GlobalVariableDel(name);
+      }
+   }
 }
 
 int GetDynamicDeviation(string sym)
@@ -586,7 +631,12 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    PendingQueue[s].tp = tp;
    PendingQueue[s].signalId = signalId;
    PendingQueue[s].timestamp = TimeCurrent();
-   Print("📥 Proteção agendada para Ticket: ", ticket, " | ID: ", signalId);
+   
+   // Persistência em GlobalVariables
+   GlobalVariableSet("PSL_" + (string)ticket, sl);
+   GlobalVariableSet("PTP_" + (string)ticket, tp);
+   
+   Print("📥 Proteção agendada e persistida | Ticket: ", ticket);
 }
 
 void ProcessPendingProtections() {
@@ -600,9 +650,16 @@ void ProcessPendingProtections() {
       if(PositionSelectByTicket(ticket)) {
          if(PositionGetDouble(POSITION_SL) == 0) { 
             ApplyAsyncProtection(ticket, PendingQueue[i]);
+            
+            // Limpeza persistente
+            GlobalVariableDel("PSL_" + (string)ticket);
+            GlobalVariableDel("PTP_" + (string)ticket);
+            
             RemovePendingQueueIndex(i);
          } else {
-            // Já tem SL, remover da fila
+            // Já tem SL, remover da fila e do disco
+            GlobalVariableDel("PSL_" + (string)ticket);
+            GlobalVariableDel("PTP_" + (string)ticket);
             RemovePendingQueueIndex(i);
          }
       }
