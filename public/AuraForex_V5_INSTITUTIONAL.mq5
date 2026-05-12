@@ -643,10 +643,13 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
+         if(trade.Buy(lot, pair, 0, 0, 0)) {
+            ulong ticket = trade.ResultOrder();
             if(ticket > 0) {
-               Print("🚀 Executando: ", pair, " (", dir, ")");
+               Print("🚀 Executando BUY: ", pair);
                AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
             }
+         }
       }
    } else {
       double high = GetLastHigh(pair, 20);
@@ -657,14 +660,26 @@ void ExecuteSignal(string json)
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
+         if(trade.Sell(lot, pair, 0, 0, 0)) {
+            ulong ticket = trade.ResultOrder();
             if(ticket > 0) {
-               Print("🚀 Executando: ", pair, " (", dir, ")");
+               Print("🚀 Executando SELL: ", pair);
                AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
             }
+         }
       }
    }
 }
 
+void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
+   int s = ArraySize(PendingQueue);
+   ArrayResize(PendingQueue, s + 1);
+   PendingQueue[s].ticket = ticket;
+   PendingQueue[s].sl = sl;
+   PendingQueue[s].tp = tp;
+   PendingQueue[s].signalId = signalId;
+   PendingQueue[s].timestamp = TimeCurrent();
+   
    // Persistência em GlobalVariables
    GlobalVariableSet("PSL_" + (string)ticket, sl);
    GlobalVariableSet("PTP_" + (string)ticket, tp);
