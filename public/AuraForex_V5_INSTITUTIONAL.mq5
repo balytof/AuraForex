@@ -645,6 +645,7 @@ void ExecuteSignal(string json)
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
+      double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Buy(lot, pair, 0, 0, 0)) {
@@ -659,6 +660,7 @@ void ExecuteSignal(string json)
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
+      double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
          if(trade.Sell(lot, pair, 0, 0, 0)) {
