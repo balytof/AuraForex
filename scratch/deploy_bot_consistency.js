@@ -5,7 +5,8 @@ const conn = new Client();
 const filesToSync = [
     { local: 'AuraForex_V2_Local_Execution/prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' },
     { local: 'AuraForex_V2_Local_Execution/server.js', remote: '/root/AuraForex/server.js' },
-    { local: 'AuraForex_V2_Local_Execution/smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' }
+    { local: 'AuraForex_V2_Local_Execution/smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' },
+    { local: 'AuraForex_V2_Local_Execution/prisma.config.js', remote: '/root/AuraForex/prisma.config.js' }
 ];
 
 conn.on('ready', () => {
