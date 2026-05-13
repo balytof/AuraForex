@@ -915,7 +915,7 @@ void ExecuteSignal(string json)
       double minSL = currentPrice - (atr * slMultiplier);
       sl = (low > 0) ? MathMin(low - (atr * 0.3), minSL) : minSL;
       
-      double tp = currentPrice + (atr * tpMultiplier);
+      tp = currentPrice + (atr * tpMultiplier);
       
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
@@ -949,7 +949,7 @@ void ExecuteSignal(string json)
       double maxSLdist = currentPrice + (atr * slMultiplier);
       sl = (high > 0) ? MathMax(high + (atr * 0.3), maxSLdist) : maxSLdist;
       
-      double tp = currentPrice - (atr * tpMultiplier);
+      tp = currentPrice - (atr * tpMultiplier);
       
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
