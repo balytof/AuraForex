@@ -159,6 +159,7 @@ void OnTimer()
       MonitorProfitLock();
       MonitorTrailingStop();
       ProcessPendingProtections();
+      ReportBalance();
    }
 }
 
@@ -480,7 +481,7 @@ void ValidateLicense()
    if(StringFind(result, "\"status\":\"OK\"") >= 0) {
       IsAuthorized = true;
       Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("AURA V5 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+      Comment("AURA V7 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    } else if(result != "") {
       Print("❌ RESPOSTA LICENÇA: " + result);
    }
@@ -895,6 +896,21 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
       Print("🛡️ Ordem Protegida | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
    }
+}
+
+void ReportBalance()
+{
+   static datetime lastReport = 0;
+   if(TimeCurrent() - lastReport < 30) return; // Reporta a cada 30 segundos
+   
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   
+   string url = InpServerUrl + "/ea/report-balance";
+   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + DoubleToString(balance, 2) + ",\"equity\":" + DoubleToString(equity, 2) + "}";
+   
+   SendPost(url, payload);
+   lastReport = TimeCurrent();
 }
 
 string SendPost(string url, string payload) {
