@@ -914,6 +914,7 @@ void ExecuteSignal(string json)
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double sl = 0, tp = 0;
    
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
@@ -1169,7 +1170,8 @@ void ReportBalance()
       // Print("💰 Balance reportado com sucesso."); // Silêncio institucional
    }
    
-   lastReport = TimeCurrent();
+   
+   // Sincronismo em tempo real activo (sem delay)
 
    // HMI - COMENTÁRIO NO GRÁFICO (Monitorização Real Profissional)
    Comment(
