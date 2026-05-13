@@ -943,8 +943,7 @@ void ProtectManualOrders()
       string comment = PositionGetString(POSITION_COMMENT);
       double sl = PositionGetDouble(POSITION_SL);
 
-      // FILTROS INSTITUCIONAIS (Apex Guardian)
-      if(sym != _Symbol) continue;
+      // FILTROS INSTITUCIONAIS (Apex Guardian - MULTI-ASSET)
       if(magic != 0) continue; 
       if(sl > 0) continue; 
 
@@ -953,12 +952,13 @@ void ProtectManualOrders()
       // if(StringFind(comment, "MANUAL") < 0) continue;
 
       double entry = PositionGetDouble(POSITION_PRICE_OPEN);
-      int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
-      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       
-      // --- ENGINE ATR DINÂMICO ---
+      // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
       double atr = 0;
-      int handle = iATR(_Symbol, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int handle = iATR(sym, atrTF, 14);
       if(handle != INVALID_HANDLE) {
          double buf[]; ArraySetAsSeries(buf, true);
          if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
@@ -966,10 +966,10 @@ void ProtectManualOrders()
       }
       
       // Fallback ATR (Institucional)
-      if(atr <= 0) atr = (IsXAU(_Symbol) ? 3.5 : 0.0015); 
+      if(atr <= 0) atr = (IsXAU(sym) ? 3.5 : 0.0015); 
 
       // Multiplicadores Profissionais (XAU: 2.0x ATR | Forex: 1.5x ATR)
-      double slDist = IsXAU(_Symbol) ? (atr * 2.0) : (atr * 1.5);
+      double slDist = IsXAU(sym) ? (atr * 2.0) : (atr * 1.5);
       double tpDist = slDist * 2.5; 
       
       double targetSL = 0, targetTP = 0;
@@ -982,9 +982,9 @@ void ProtectManualOrders()
       }
 
       // Validação de Stop Levels e Spread
-      double stopLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+      double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
       double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
       
       if(MathAbs(currentPrice - targetSL) < stopLevel) {
@@ -992,7 +992,7 @@ void ProtectManualOrders()
       }
 
       if(trade.PositionModify(ticket, NormalizeDouble(targetSL, digits), NormalizeDouble(targetTP, digits))) {
-         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada: ", ticket, " | SL: ", DoubleToString(targetSL, digits));
+         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada em ", sym, " (", ticket, ") | SL: ", DoubleToString(targetSL, digits));
       } else {
          Print("⚠️ [GUARDIAN] Falha ao proteger ticket ", ticket, " | Erro: ", GetLastError());
       }
@@ -1001,20 +1001,49 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < 30) return; // Reporta a cada 30 segundos
-   
-   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
-   
+   // Sem throttling — sincronismo em tempo real (Institutional)
+   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+   double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
+   double floatingPnL = equity - balance;
+
+   double marginLevel = 0;
+   if(margin > 0) marginLevel = (equity / margin) * 100.0;
+
+   double drawdown = 0;
+   if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
+
+   string payload = "{"
+      "\"licenseKey\":\"" + InpLicenseKey + "\","
+      "\"balance\":" + DoubleToString(balance, 2) + ","
+      "\"equity\":" + DoubleToString(equity, 2) + ","
+      "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
+      "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
+      "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
+      "\"drawdown\":" + DoubleToString(drawdown, 2) +
+   "}";
+
    string url = InpServerUrl + "/ea/report-balance";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + DoubleToString(balance, 2) + ",\"equity\":" + DoubleToString(equity, 2) + "}";
-   
-   Print("📊 SINCRONIZANDO HMI | Saldo: ", balance, " | Equity: ", equity);
-   string res = SendPost(url, payload);
-   if(res != "") Print("📡 Resposta HMI: ", res);
-   
-   lastReport = TimeCurrent();
+   string response = SendPost(url, payload);
+
+   if(response == "") {
+      int err = GetLastError();
+      Print("❌ Falha ao reportar saldo | Erro MT5: ", err);
+   }
+
+   // HMI - COMENTÁRIO NO GRÁFICO
+   Comment(
+      "AURA V8 INSTITUCIONAL\n",
+      "----------------------------------\n",
+      "Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), "\n",
+      "Balance: $", DoubleToString(balance, 2), "\n",
+      "Equity: $", DoubleToString(equity, 2), "\n",
+      "Floating: $", DoubleToString(floatingPnL, 2), "\n",
+      "DD Atual: ", DoubleToString(drawdown, 2), "%\n",
+      "Ordens EA: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
+      "Status Sync: Conectado"
+   );
 }
 
 string SendPost(string url, string payload) {
