@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                              AuraForex_SMC_V6 |
+//|                                   AuraForex_V8_INSTITUTIONAL |
 //|                                  Copyright 2026, AuraForex Corp  |
 //|                                             https://auraforex.pt |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "6.0"
+#property version   "8.0"
 #property strict
 
 //--- INCLUDES ---
