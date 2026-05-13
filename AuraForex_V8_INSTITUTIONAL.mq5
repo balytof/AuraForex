@@ -1099,6 +1099,8 @@ void ReportBalance()
       "Ordens EA: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
       "Status Sync: Conectado"
    );
+   
+   lastReport = TimeCurrent();
 }
 
 string SendPost(string url, string payload) {
