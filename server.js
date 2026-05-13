@@ -406,7 +406,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     const timeUntilReset = Math.floor((midnight - now) / 1000);
 
     // 4. Calcular Meta em Dinheiro (Baseada no último saldo conhecido)
-    const lastBalance = license ? license.balance : (risk.balance || 0);
+    let lastBalance = license ? license.balance : (risk.balance || 0);
+    if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
+    
     const dailyTargetMoney = lastBalance * (cfg.dailyProfitTargetPct / 100 || 0.05);
 
     res.json({
