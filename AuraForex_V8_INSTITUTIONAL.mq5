@@ -1055,7 +1055,8 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   // Sem throttling — sincronismo em tempo real (Institutional)
+   static datetime lastReport = 0;
+   if(TimeCurrent() - lastReport < 5) return; // Sincronismo a cada 5s (Institutional Real-Time)
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
    double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
