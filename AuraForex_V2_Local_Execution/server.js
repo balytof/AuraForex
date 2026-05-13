@@ -1884,9 +1884,29 @@ server.listen(PORT, () => {
         if (accountInfo) risk.setBalance(accountInfo.balance);
 
         const positions = await broker.getOpenPositions();
+        
+        // 2. Verificar Meta Diária (Baseada em Equity/Floating)
+        const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+        if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
+           console.log(`\x1b[42m\x1b[30m[META DIÁRIA] Meta atingida! Fechando todas as posições para proteger o lucro...\x1b[0m`);
+           
+           if (positions && positions.length > 0) {
+              for (const pos of positions) {
+                 const ticketId = pos.id || pos.ticket || pos.brokerId;
+                 console.log(`[META] Fechando Ticket #${ticketId}`);
+                 const res = await broker.closePosition(ticketId);
+                 if (res.success) {
+                    const internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
+                    risk.closeTrade(internalTrade ? internalTrade.id : ticketId, pos.price, "DAILY_TARGET_HIT", pos.profit);
+                 }
+              }
+           }
+           continue; 
+        }
+
         if (!positions || positions.length === 0) continue;
 
-        // 2. Sincronizar ordens desconhecidas primeiro
+        // 3. Sincronizar ordens desconhecidas primeiro
         for (const pos of positions) {
            const ticketId = String(pos.id || pos.ticket || pos.brokerId);
            let internalTrade = risk.openTrades.find(t => String(t.brokerId) === ticketId);

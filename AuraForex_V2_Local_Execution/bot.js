@@ -69,6 +69,21 @@ async function runCycle() {
   
   if (account) {
     risk.setBalance(account.balance);
+
+    // Verificação de Meta Diária (Baseada em Equity/Floating)
+    const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+    if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
+       log.info(`[DAILY-TARGET] Meta atingida. Fechando posições...`);
+       for (const pos of (positions || [])) {
+          const ticketId = pos.id || pos.ticket || pos.brokerId;
+          const res = await exitTrade(ticketId, pos.pair, "DAILY_TARGET_HIT");
+          if (res?.success) {
+             risk.closeTrade(ticketId, pos.price, "DAILY_TARGET_HIT", pos.pnl || pos.profit);
+          }
+       }
+       scheduleNext();
+       return;
+    }
     
     // Processa cada par em paralelo passando a conta e posições atuais
     await Promise.allSettled(config.pairs.map(pair => processPair(pair, account, positions)));
