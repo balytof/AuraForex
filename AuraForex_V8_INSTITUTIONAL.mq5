@@ -883,16 +883,25 @@ void ExecuteSignal(string json)
       sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
+      double tp = currentPrice + (atr * 6.0); // TP Dinâmico ATR
+      int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+
       if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Buy(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando BUY: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+         
+         // ATOMIC ENTRY: Abrir já com SL e TP
+         if(trade.Buy(lot, pair, 0, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            uint retCode = trade.ResultRetcode();
+            if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket);
+               
+               // Reportar sucesso imediato
+               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
+         } else {
+            Print("❌ Erro ao abrir BUY: ", trade.ResultRetcodeDescription());
          }
       }
    } else {
@@ -902,14 +911,24 @@ void ExecuteSignal(string json)
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       double risk = GetDynamicRisk(dist);
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
+      double tp = currentPrice - (atr * 6.0); // TP Dinâmico ATR
+      int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+
       if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Sell(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando SELL: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+         
+         // ATOMIC ENTRY: Abrir já com SL e TP
+         if(trade.Sell(lot, pair, 0, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            uint retCode = trade.ResultRetcode();
+            if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket);
+               
+               // Reportar sucesso imediato
+               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
+         } else {
+            Print("❌ Erro ao abrir SELL: ", trade.ResultRetcodeDescription());
          }
       }
    }
