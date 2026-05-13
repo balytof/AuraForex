@@ -922,34 +922,44 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
-      sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
-      double dist = (currentPrice - sl) / tickSize;
+      sl = (low > 0) ? low - (atr * 0.5) : ask - (atr * 3.0);
+      tp = ask + (atr * 6.0);
+      
+      // Validação de StopLevel (Proteção contra rejeição do Broker)
+      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+      if(ask - sl < stopLevel) sl = ask - (stopLevel * 2.0);
+      if(tp - ask < stopLevel) tp = ask + (stopLevel * 2.0);
+      
+      double dist = (ask - sl) / tickSize;
       double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
+      double lot = CalculateLot(pair, risk, ask - sl, ORDER_TYPE_BUY);
+      
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
-         if(trade.Buy(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando BUY: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
-            }
+         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            Print("🚀 BUY Atómico Executado: ", pair, " | SL: ", sl, " | TP: ", tp);
+            AddProcessed(ExtractValue(json, "id"));
          }
       }
    } else {
       double high = GetLastHigh(pair, 20);
-      sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
-      double dist = (sl - currentPrice) / tickSize;
+      sl = (high > 0) ? high + (atr * 0.5) : bid + (atr * 3.0);
+      tp = bid - (atr * 6.0);
+      
+      // Validação de StopLevel (Proteção contra rejeição do Broker)
+      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
+      if(sl - bid < stopLevel) sl = bid + (stopLevel * 2.0);
+      if(bid - tp < stopLevel) tp = bid - (stopLevel * 2.0);
+      
+      double dist = (sl - bid) / tickSize;
       double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
+      double lot = CalculateLot(pair, risk, sl - bid, ORDER_TYPE_SELL);
+      
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
-         if(trade.Sell(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando SELL: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
-            }
+         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            Print("🚀 SELL Atómico Executado: ", pair, " | SL: ", sl, " | TP: ", tp);
+            AddProcessed(ExtractValue(json, "id"));
          }
       }
    }
