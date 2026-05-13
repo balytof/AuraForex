@@ -916,6 +916,7 @@ void ExecuteSignal(string json)
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       
+      double risk = GetDynamicRisk(dist); // Cálculo do risco dinâmico
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
 
       if(lot > 0) {
@@ -949,6 +950,7 @@ void ExecuteSignal(string json)
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
       
+      double risk = GetDynamicRisk(dist); // Cálculo do risco dinâmico
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
 
       if(lot > 0) {
@@ -1350,11 +1352,11 @@ string ExtractValue(string json, string key) {
    
    // Ignorar espaços em branco iniciais
    while(valueStart < StringLen(json) && 
-         (StringGetCharacter(json, valueStart) == ' ' || StringGetCharacter(json, valueStart) == '\t' || StringGetCharacter(json, valueStart) == '\n' || StringGetCharacter(json, valueStart) == '\r'))
+         ((short)StringGetCharacter(json, valueStart) == ' ' || (short)StringGetCharacter(json, valueStart) == '\t' || (short)StringGetCharacter(json, valueStart) == '\n' || (short)StringGetCharacter(json, valueStart) == '\r'))
       valueStart++;
 
    string result = "";
-   short firstChar = StringGetCharacter(json, valueStart);
+   short firstChar = (short)StringGetCharacter(json, valueStart);
 
    if(firstChar == '\"') {
       // Caso seja STRING: pegar tudo entre as próximas aspas
