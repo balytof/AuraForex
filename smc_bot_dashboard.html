@@ -1092,14 +1092,14 @@
       <div class="stat-sub" id="statDailyProgress">P&L Hoje: $0.00</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
-      <div class="stat-label">P&L Não Realizado (Floating)</div>
+      <div class="stat-label">P&L Flutuante / Drawdown</div>
       <div class="stat-value" id="statPnl">$0.00</div>
-      <div class="stat-sub">Flutuação do mercado</div>
+      <div class="stat-sub">DD Atual: <span id="statDrawdown">0.00%</span></div>
     </div>
     <div class="stat-card" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})">
-      <div class="stat-label">Trades Abertos</div>
+      <div class="stat-label">Trades / Margem</div>
       <div class="stat-value accent" id="statOpen">0 / 3</div>
-      <div class="stat-sub">Limite: <span id="statLimitDisplay">3</span> simultâneos</div>
+      <div class="stat-sub">Nível: <span id="statMargin">0%</span></div>
     </div>
     <div class="stat-card" onclick="loadHistoryAndScroll()">
       <div class="stat-label">Win Rate (Execuções)</div>
@@ -2351,6 +2351,18 @@ async function updateStats() {
       const progressEl = document.getElementById("statDailyProgress");
       progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
       progressEl.style.color = status.dailyPnl >= 0 ? "var(--bull)" : "var(--bear)";
+
+      // Novas Métricas Institucionais
+      if (document.getElementById("statDrawdown")) {
+        const dd = status.drawdown || 0;
+        document.getElementById("statDrawdown").textContent = dd.toFixed(2) + "%";
+        document.getElementById("statDrawdown").style.color = dd > 5 ? "var(--bear)" : "var(--muted)";
+      }
+      if (document.getElementById("statMargin")) {
+        const ml = status.marginLevel || 0;
+        document.getElementById("statMargin").textContent = ml > 0 ? ml.toFixed(0) + "%" : "1000%+";
+        document.getElementById("statMargin").style.color = (ml > 0 && ml < 500) ? "var(--warn)" : "var(--bull)";
+      }
 
       // HMI Lock Management
       const lockOverlay = document.getElementById("dailyLockOverlay");
