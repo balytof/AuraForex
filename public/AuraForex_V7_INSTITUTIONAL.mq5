@@ -855,7 +855,7 @@ void ExecuteSignal(string json)
 
    if(StringFind(pair, "XAU") >= 0) {
       // REGRA OURO: Spread máximo de 80 cêntimos ($0.80)
-      if(spreadReal > 0.80) { 
+      if(spreadReal > 1.20) { 
          Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
          return; 
       }
