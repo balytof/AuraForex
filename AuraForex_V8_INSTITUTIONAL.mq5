@@ -958,13 +958,12 @@ void ProcessPendingProtections() {
       ulong ticket = PendingQueue[i].ticket;
       if(PositionSelectByTicket(ticket)) {
          if(PositionGetDouble(POSITION_SL) == 0) { 
-            ApplyAsyncProtection(ticket, PendingQueue[i]);
-            
-            // Limpeza persistente
-            GlobalVariableDel("PSL_" + (string)ticket);
-            GlobalVariableDel("PTP_" + (string)ticket);
-            
-            RemovePendingQueueIndex(i);
+            // Tentar aplicar proteção. Só remove se for bem sucedido.
+            if(ApplyAsyncProtection(ticket, PendingQueue[i])) {
+               GlobalVariableDel("PSL_" + (string)ticket);
+               GlobalVariableDel("PTP_" + (string)ticket);
+               RemovePendingQueueIndex(i);
+            }
          } else {
             // Já tem SL, remover da fila e do disco
             GlobalVariableDel("PSL_" + (string)ticket);
@@ -975,8 +974,8 @@ void ProcessPendingProtections() {
    }
 }
 
-void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
-   if(!PositionSelectByTicket(ticket)) return;
+bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
+   if(!PositionSelectByTicket(ticket)) return false;
    
    string pair = PositionGetString(POSITION_SYMBOL);
    double sl = data.sl;
@@ -996,7 +995,10 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
       Print("🛡️ Ordem Protegida | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+      return true;
    }
+   
+   return false;
 }
 
 void ProtectManualOrders()
