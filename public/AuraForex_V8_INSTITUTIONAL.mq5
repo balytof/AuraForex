@@ -978,13 +978,6 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    GlobalVariableSet("PTP_" + (string)ticket, tp);
 }
 
-void RemovePendingQueueIndex(int idx)
-{
-   int s = ArraySize(PendingQueue);
-   if(s == 0 || idx >= s) return;
-   for(int i = idx; i < s - 1; i++) PendingQueue[i] = PendingQueue[i + 1];
-   ArrayResize(PendingQueue, s - 1);
-}
 
 void ProcessPendingProtections() {
    for(int i = ArraySize(PendingQueue) - 1; i >= 0; i--) {
