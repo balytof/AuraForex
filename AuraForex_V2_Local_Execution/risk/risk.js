@@ -18,6 +18,13 @@ const cfg = config.risk;
 
 class RiskManager {
   constructor(userId = "default") {
+    this.userId = userId;
+    this.openTrades = [];         // trades atualmente abertos
+    this.tradeHistory = [];       // todos os trades fechados
+    this.balance = 0;
+    this.dailyStartBalance = 0;
+    this.dailyPnl = 0;
+    this.dailyDate = null;
     this.circuitBreaker = false;  // true = bot parado por perda diária
     this.lastStateSave = 0;       // Throttle para gravação em disco
     
@@ -92,6 +99,7 @@ class RiskManager {
   }
 
   // ── REGISTAR TRADE ABERTO ─────────────────────────────
+  registerTrade(signal, lotSize, brokerId = null) {
     const trade = {
       id: `T-${Date.now()}`,
       brokerId: String(brokerId),
