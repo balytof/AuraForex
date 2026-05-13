@@ -821,7 +821,7 @@ void ExecuteSignal(string json)
    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
 
    double atr = GetATR(pair, PERIOD_H1);
-   if(atr <= 0) atr = 0.0010; // Fallback safety
+   if(atr <= 0) atr = IsXAU(pair) ? 3.50 : 0.0015; // Fallback Institucional Seguro
 
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
