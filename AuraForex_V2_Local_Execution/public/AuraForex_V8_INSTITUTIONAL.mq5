@@ -1012,11 +1012,11 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
    
    if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-      if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
-      if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
+      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 1.5;
+      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 1.5;
    } else {
-      if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
-      if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
+      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 1.5;
+      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 1.5;
    }
    
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
