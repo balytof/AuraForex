@@ -73,31 +73,31 @@ app.get("/smc-forex", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
 });
 
-// Download do Robô
+// Download do Robô (Versão Institucional V5)
 app.get("/SMC_APEX_EA.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
   
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
+    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V5_INSTITUTIONAL.ex5"');
     res.sendFile(filePath, (err) => {
       if (err) {
         console.error("[DOWNLOAD-ERROR]", err);
       } else {
-        console.log("[DOWNLOAD-SUCCESS] Ficheiro enviado com sucesso.");
+        console.log("[DOWNLOAD-SUCCESS] Versão Institucional enviada com sucesso.");
       }
     });
   } else {
-    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado no disco!");
+    console.error("[DOWNLOAD-ERROR] Ficheiro Institucional não encontrado!");
     res.status(404).send("Ficheiro do Robô não encontrado no servidor.");
   }
 });
 
 app.get("/SMC_APEX_EA.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.mq5');
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.mq5');
   if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_SMC_Pro_V4.mq5');
+    res.download(filePath, 'AuraForex_V5_INSTITUTIONAL.mq5');
   } else {
     res.status(404).send("Fonte não encontrada.");
   }
