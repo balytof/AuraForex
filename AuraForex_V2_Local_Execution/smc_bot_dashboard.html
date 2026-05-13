@@ -2331,9 +2331,11 @@ function updateLimitUI(val) {
 }
 
 async function updateStats() {
+  console.log("[HMI] Iniciando atualização de estatísticas...");
   try {
     // 1. Sincronização Institucional (Status do Cérebro)
     const status = await apiFetch("/api/user/status");
+    console.log("[HMI] Status recebido:", status);
     if (status && status.success) {
       // Saldo e Equity (Sincronizado via EA)
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
