@@ -180,14 +180,15 @@ void OnTimer()
       ProcessSignalQueue();
 
       // HIERARQUIA INSTITUCIONAL DE GESTÃO
-      MonitorTrailingStop();  // 1. Trailing
-      MonitorPartialTP();     // 2. Parciais e BreakEven
-      MonitorProfitLock();    // 3. ProfitLock
+      MonitorTrailingStop();
+      MonitorPartialTP();
+      MonitorProfitLock();
 
       ProcessPendingProtections();
 
       // Sincronismo Dashboard (Tempo Real)
       ReportBalance();
+      UpdateChartVisuals(); // Visual Gráfico (Real-time)
    }
 
    ExecutionBusy = false;
@@ -1102,17 +1103,37 @@ void ReportBalance()
    string url = InpServerUrl + "/ea/report-balance";
    SendPost(url, payload);
 
-   // HMI - COMENTÁRIO NO GRÁFICO
+void UpdateChartVisuals()
+{
+   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+   double floatingPnL = equity - balance;
+   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
+   double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
+   
+   double drawdown = 0;
+   if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
+
+   string targetStatus = DailyTargetReached ? "🏆 ALCANÇADA (LOCK)" : "⏳ EM PROGRESSO";
+
    Comment(
-      "AURA V8 INSTITUCIONAL\n",
-      "----------------------------------\n",
-      "Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), "\n",
-      "Balance: $", DoubleToString(balance, 2), "\n",
-      "Equity: $", DoubleToString(equity, 2), "\n",
-      "Floating: $", DoubleToString(floatingPnL, 2), "\n",
-      "DD Atual: ", DoubleToString(drawdown, 2), "%\n",
-      "Ordens EA: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
-      "Status Sync: Conectado"
+      "╔════════════════════════════════════╗\n",
+      "   AURA V8.1 INSTITUCIONAL\n",
+      "╚════════════════════════════════════╝\n",
+      " Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), " | ", AccountInfoString(ACCOUNT_COMPANY), "\n",
+      " --------------------------------------------------------\n",
+      " Balance: $", DoubleToString(balance, 2), "\n",
+      " Equity: $", DoubleToString(equity, 2), "\n",
+      " Floating: $", DoubleToString(floatingPnL, 2), " (", DoubleToString(drawdown, 2), "%)\n",
+      " Margin Level: ", DoubleToString(marginLevel, 1), "%\n",
+      " --------------------------------------------------------\n",
+      " META DIÁRIA: ", DoubleToString(InpDailyTargetPct, 1), "%\n",
+      " STATUS: ", targetStatus, "\n",
+      " --------------------------------------------------------\n",
+      " Ordens Aura: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
+      " Última Sync: ", TimeToString(TimeCurrent(), TIME_SECONDS), "\n",
+      " --------------------------------------------------------\n",
+      " Execution: ", (ExecutionBusy ? "⚡ BUSY" : "🟢 READY")
    );
 }
 
