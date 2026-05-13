@@ -1056,59 +1056,84 @@ void ProtectManualOrders()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
-      
-      string sym = PositionGetString(POSITION_SYMBOL);
+      if(ticket <= 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
+
       long magic = PositionGetInteger(POSITION_MAGIC);
-      string comment = PositionGetString(POSITION_COMMENT);
-      double sl = PositionGetDouble(POSITION_SL);
 
-      // FILTROS INSTITUCIONAIS (Apex Guardian - MULTI-ASSET)
-      if(magic != 0) continue; 
-      if(sl != 0 && sl != EMPTY_VALUE) continue; // Já tem SL real — ignorar
+      // Apenas ordens manuais (Magic 0)
+      if(magic != 0) continue;
 
-      // Whitelist opcional: Se o trader quiser que o bot ignore tudo o que não diga MANUAL
-      // Descomentar a linha abaixo para segurança máxima
-      // if(StringFind(comment, "MANUAL") < 0) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      double currentSL = PositionGetDouble(POSITION_SL);
+      double currentTP = PositionGetDouble(POSITION_TP);
 
-      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
-      int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
-      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-      
-      // --- ENGINE ATR DINÂMICO via Cache ---
+      // Se já tem proteção completa, ignorar
+      if(currentSL > 0 && currentTP > 0) continue;
+
+      ENUM_POSITION_TYPE type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+      double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
+      int digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double point  = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double ask    = SymbolInfoDouble(sym, SYMBOL_ASK);
+      double bid    = SymbolInfoDouble(sym, SYMBOL_BID);
+
+      // Cálculo ATR via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
       double atr = GetATR(sym, atrTF);
-      
-      // Fallback ATR (Institucional)
-      if(atr <= 0) atr = (IsXAU(sym) ? 3.5 : 0.0015); 
 
-      // Multiplicadores Profissionais (XAU: 2.0x ATR | Forex: 1.5x ATR)
-      double slDist = IsXAU(sym) ? (atr * 2.0) : (atr * 1.5);
-      double tpDist = slDist * 2.5; 
-      
-      double targetSL = 0, targetTP = 0;
-      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-         targetSL = entry - slDist;
-         targetTP = entry + tpDist;
-      } else {
-         targetSL = entry + slDist;
-         targetTP = entry - tpDist;
+      if(atr <= 0)
+         atr = IsXAU(sym) ? 3.5 : 0.0015;
+
+      // Distâncias Institucionais
+      double slDistance = IsXAU(sym) ? atr * 2.0 : atr * 1.5;
+      double tpDistance = slDistance * 2.5;
+
+      double sl = 0;
+      double tp = 0;
+
+      if(type == POSITION_TYPE_BUY)
+      {
+         sl = entry - slDistance;
+         tp = entry + tpDistance;
+      }
+      else
+      {
+         sl = entry + slDistance;
+         tp = entry - tpDistance;
       }
 
-      // Validação de Stop Levels e Spread
-      double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-      double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
-      
-      if(MathAbs(currentPrice - targetSL) < stopLevel) {
-         targetSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.5) : currentPrice + (stopLevel * 1.5);
+      // VALIDAÇÃO DE NÍVEIS (Stop Level + Freeze Level)
+      double stopLevel   = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double freezeLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_FREEZE_LEVEL) * point;
+      double minDistance = MathMax(stopLevel, freezeLevel) * 2.0;
+
+      // Ajustes Finais para evitar rejeição
+      if(type == POSITION_TYPE_BUY)
+      {
+         if((bid - sl) < minDistance) sl = bid - minDistance;
+         if((tp - bid) < minDistance) tp = bid + minDistance;
+      }
+      else
+      {
+         if((sl - ask) < minDistance) sl = ask + minDistance;
+         if((ask - tp) < minDistance) tp = ask - minDistance;
       }
 
-      if(trade.PositionModify(ticket, NormalizeDouble(targetSL, digits), NormalizeDouble(targetTP, digits))) {
-         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada em ", sym, " (", ticket, ") | SL: ", DoubleToString(targetSL, digits));
-      } else {
-         Print("⚠️ [GUARDIAN] Falha ao proteger ticket ", ticket, " | Erro: ", GetLastError());
+      sl = NormalizeDouble(sl, digits);
+      tp = NormalizeDouble(tp, digits);
+
+      ResetLastError();
+      if(trade.PositionModify(ticket, sl, tp))
+      {
+         Print("✅ MANUAL PROTECTED | ", sym, " | Ticket: ", ticket, 
+               " | SL: ", DoubleToString(sl, digits), " | TP: ", DoubleToString(tp, digits));
+      }
+      else
+      {
+         Print("❌ FAILED TO PROTECT | Ticket: ", ticket, 
+               " | Error: ", GetLastError(), " | Retcode: ", trade.ResultRetcode(), 
+               " | ", trade.ResultRetcodeDescription());
       }
    }
 }
