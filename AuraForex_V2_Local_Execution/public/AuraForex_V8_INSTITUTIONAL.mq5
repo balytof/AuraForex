@@ -145,6 +145,10 @@ int OnInit()
 {
    Print("🚀 AURA V8 INSTITUCIONAL - Execution Engine");
    
+   // Configurações Visuais de Gráfico
+   ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
+   ChartSetInteger(0, CHART_SHOW_OBJECT_DESCR, true);
+
    trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
    
@@ -926,8 +930,8 @@ void ExecuteSignal(string json)
          if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultDeal();
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -960,8 +964,8 @@ void ExecuteSignal(string json)
          if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultDeal();
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -993,16 +997,12 @@ void ProcessPendingProtections() {
       }
 
       ulong ticket = PendingQueue[i].ticket;
-      if(PositionSelectByTicket(ticket)) {
-         if(PositionGetDouble(POSITION_SL) == 0) { 
-            // Tentar aplicar proteção. Só remove se for bem sucedido.
-            if(ApplyAsyncProtection(ticket, PendingQueue[i])) {
-               GlobalVariableDel("PSL_" + (string)ticket);
-               GlobalVariableDel("PTP_" + (string)ticket);
-               RemovePendingQueueIndex(i);
-            }
+      if(ticket > 0 && PositionSelectByTicket(ticket)) {
+         double sl = PositionGetDouble(POSITION_SL);
+         if(sl <= 0 || sl == EMPTY_VALUE) {
+            ApplyAsyncProtection(ticket, PendingQueue[i]);
          } else {
-            // Já tem SL, remover da fila e do disco
+            // Já tem proteção (ou aplicada com sucesso)
             GlobalVariableDel("PSL_" + (string)ticket);
             GlobalVariableDel("PTP_" + (string)ticket);
             RemovePendingQueueIndex(i);
@@ -1056,59 +1056,84 @@ void ProtectManualOrders()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
-      
-      string sym = PositionGetString(POSITION_SYMBOL);
+      if(ticket <= 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
+
       long magic = PositionGetInteger(POSITION_MAGIC);
-      string comment = PositionGetString(POSITION_COMMENT);
-      double sl = PositionGetDouble(POSITION_SL);
 
-      // FILTROS INSTITUCIONAIS (Apex Guardian - MULTI-ASSET)
-      if(magic != 0) continue; 
-      if(sl != 0 && sl != EMPTY_VALUE) continue; // Já tem SL real — ignorar
+      // Apenas ordens manuais (Magic 0)
+      if(magic != 0) continue;
 
-      // Whitelist opcional: Se o trader quiser que o bot ignore tudo o que não diga MANUAL
-      // Descomentar a linha abaixo para segurança máxima
-      // if(StringFind(comment, "MANUAL") < 0) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      double currentSL = PositionGetDouble(POSITION_SL);
+      double currentTP = PositionGetDouble(POSITION_TP);
 
-      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
-      int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
-      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-      
-      // --- ENGINE ATR DINÂMICO via Cache ---
+      // Se já tem proteção completa, ignorar
+      if(currentSL > 0 && currentTP > 0) continue;
+
+      ENUM_POSITION_TYPE type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+      double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
+      int digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double point  = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double ask    = SymbolInfoDouble(sym, SYMBOL_ASK);
+      double bid    = SymbolInfoDouble(sym, SYMBOL_BID);
+
+      // Cálculo ATR via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
       double atr = GetATR(sym, atrTF);
-      
-      // Fallback ATR (Institucional)
-      if(atr <= 0) atr = (IsXAU(sym) ? 3.5 : 0.0015); 
 
-      // Multiplicadores Profissionais (XAU: 2.0x ATR | Forex: 1.5x ATR)
-      double slDist = IsXAU(sym) ? (atr * 2.0) : (atr * 1.5);
-      double tpDist = slDist * 2.5; 
-      
-      double targetSL = 0, targetTP = 0;
-      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-         targetSL = entry - slDist;
-         targetTP = entry + tpDist;
-      } else {
-         targetSL = entry + slDist;
-         targetTP = entry - tpDist;
+      if(atr <= 0)
+         atr = IsXAU(sym) ? 3.5 : 0.0015;
+
+      // Distâncias Institucionais
+      double slDistance = IsXAU(sym) ? atr * 2.0 : atr * 1.5;
+      double tpDistance = slDistance * 2.5;
+
+      double sl = 0;
+      double tp = 0;
+
+      if(type == POSITION_TYPE_BUY)
+      {
+         sl = entry - slDistance;
+         tp = entry + tpDistance;
+      }
+      else
+      {
+         sl = entry + slDistance;
+         tp = entry - tpDistance;
       }
 
-      // Validação de Stop Levels e Spread
-      double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-      double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
-      
-      if(MathAbs(currentPrice - targetSL) < stopLevel) {
-         targetSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.5) : currentPrice + (stopLevel * 1.5);
+      // VALIDAÇÃO DE NÍVEIS (Stop Level + Freeze Level)
+      double stopLevel   = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double freezeLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_FREEZE_LEVEL) * point;
+      double minDistance = MathMax(stopLevel, freezeLevel) * 2.0;
+
+      // Ajustes Finais para evitar rejeição
+      if(type == POSITION_TYPE_BUY)
+      {
+         if((bid - sl) < minDistance) sl = bid - minDistance;
+         if((tp - bid) < minDistance) tp = bid + minDistance;
+      }
+      else
+      {
+         if((sl - ask) < minDistance) sl = ask + minDistance;
+         if((ask - tp) < minDistance) tp = ask - minDistance;
       }
 
-      if(trade.PositionModify(ticket, NormalizeDouble(targetSL, digits), NormalizeDouble(targetTP, digits))) {
-         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada em ", sym, " (", ticket, ") | SL: ", DoubleToString(targetSL, digits));
-      } else {
-         Print("⚠️ [GUARDIAN] Falha ao proteger ticket ", ticket, " | Erro: ", GetLastError());
+      sl = NormalizeDouble(sl, digits);
+      tp = NormalizeDouble(tp, digits);
+
+      ResetLastError();
+      if(trade.PositionModify(ticket, sl, tp))
+      {
+         Print("✅ MANUAL PROTECTED | ", sym, " | Ticket: ", ticket, 
+               " | SL: ", DoubleToString(sl, digits), " | TP: ", DoubleToString(tp, digits));
+      }
+      else
+      {
+         Print("❌ FAILED TO PROTECT | Ticket: ", ticket, 
+               " | Error: ", GetLastError(), " | Retcode: ", trade.ResultRetcode(), 
+               " | ", trade.ResultRetcodeDescription());
       }
    }
 }
@@ -1155,36 +1180,30 @@ void ReportBalance()
 
 void UpdateChartVisuals()
 {
-   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
-   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
-   double floatingPnL = equity - balance;
-   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   double floating = equity - balance;
+   double margin  = AccountInfoDouble(ACCOUNT_MARGIN);
    double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
-   
-   double drawdown = 0;
-   if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
-   string targetStatus = DailyTargetReached ? "🏆 ALCANÇADA (LOCK)" : "⏳ EM PROGRESSO";
+   string status = DailyTargetReached ? "LOCKED" : "RUNNING";
 
-   Comment(
-      "╔════════════════════════════════════╗\n",
-      "   AURA V8.1 INSTITUCIONAL\n",
-      "╚════════════════════════════════════╝\n",
-      " Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), " | ", AccountInfoString(ACCOUNT_COMPANY), "\n",
-      " --------------------------------------------------------\n",
-      " Balance: $", DoubleToString(balance, 2), "\n",
-      " Equity: $", DoubleToString(equity, 2), "\n",
-      " Floating: $", DoubleToString(floatingPnL, 2), " (", DoubleToString(drawdown, 2), "%)\n",
-      " Margin Level: ", DoubleToString(marginLevel, 1), "%\n",
-      " --------------------------------------------------------\n",
-      " META DIÁRIA: ", DoubleToString(InpDailyTargetPct, 1), "%\n",
-      " STATUS: ", targetStatus, "\n",
-      " --------------------------------------------------------\n",
-      " Ordens Aura: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
-      " Última Sync: ", TimeToString(TimeCurrent(), TIME_SECONDS), "\n",
-      " --------------------------------------------------------\n",
-      " Execution: ", (ExecutionBusy ? "⚡ BUSY" : "🟢 READY")
-   );
+   string panel = 
+      "============================\n" +
+      "      AURA V8 ENGINE\n" +
+      "============================\n" +
+      "ACCOUNT: " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
+      "----------------------------\n" +
+      "BALANCE : $" + DoubleToString(balance,2) + "\n" +
+      "EQUITY  : $" + DoubleToString(equity,2) + "\n" +
+      "FLOATING: $" + DoubleToString(floating,2) + "\n" +
+      "MARGIN LEVEL: " + DoubleToString(marginLevel,1) + "%\n" +
+      "----------------------------\n" +
+      "ORDERS: " + IntegerToString(CountAuraPositions()) + "/" + IntegerToString(InpMaxOrders) + "\n" +
+      "STATUS: " + status + "\n" +
+      "SYNC: " + TimeToString(TimeCurrent(), TIME_SECONDS);
+
+   Comment(panel);
 }
 
 string SendPost(string url, string payload)
@@ -1212,10 +1231,11 @@ string SendGet(string url)
 {
    uchar res[], data[];
    string rh;
+   string headers = "";
 
    ResetLastError();
 
-   int code = WebRequest("GET", url, NULL, 5000, data, res, rh);
+   int code = WebRequest("GET", url, headers, 5000, data, res, rh);
 
    if(code == -1)
    {
