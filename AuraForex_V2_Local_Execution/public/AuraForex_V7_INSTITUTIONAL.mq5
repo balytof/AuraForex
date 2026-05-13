@@ -23,6 +23,7 @@ input int      InpMaxOrders         = 4;                       // Limite Global 
 input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
 input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
 input int      InpTradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+input double   InpDailyTargetPct    = 5.0;                     // Meta Diária (% de Lucro)
 
 // --- PROFIT LOCK PARAMETERS ---
 input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -93,8 +94,10 @@ double GetMaxAllowedSpread(string sym)
 
 bool IsVolatilityAbnormal(string sym)
 {
+   // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
    double atrNow = 0;
-   int handle = iATR(sym, PERIOD_M15, 14);
+   ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+   int handle = iATR(sym, atrTF, 14);
    if(handle != INVALID_HANDLE)
    {
       double buf[];
@@ -109,6 +112,11 @@ bool IsVolatilityAbnormal(string sym)
    return (atrNow > limit && atrNow > 0);
 }
 
+long GetAuraMagic()
+{
+   return InpMagicNumber + (int)PeriodSeconds();
+}
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -116,14 +124,12 @@ int OnInit()
 {
    Print("🚀 AURA V7 - INSTITUTIONAL (Execution Engine)");
    
-   // Gerar Magic Único por Timeframe para evitar conflitos multi-chart
-   int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-   trade.SetExpertMagicNumber(uniqueMagic);
+   trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
    
    ValidateLicense();
    RecoverState(); 
-   EventSetTimer(1); // Check a cada 1 segundo
+   EventSetTimer(1); 
    return(INIT_SUCCEEDED);
 }
 
@@ -161,16 +167,53 @@ void OnTimer()
 
    if(!IsAuthorized) ValidateLicense();
    else {
+      CheckDailyTarget(); // Novo: Gestão de Meta Diária
+      
       CheckSignals();
       ProcessSignalQueue(); 
       MonitorProfitLock();
       MonitorTrailingStop();
       ProcessPendingProtections();
-      ProtectManualOrders(); // Guardian Engine
+      ProtectManualOrders(); 
       ReportBalance();
    }
    
    ExecutionBusy = false;
+}
+
+void CheckDailyTarget()
+{
+   MqlDateTime tm;
+   TimeCurrent(tm);
+
+   if(tm.day != LastTradingDay)
+   {
+      LastTradingDay = tm.day;
+      DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      DailyTargetReached = false;
+      Print("🌅 [DAILY] Novo dia de trading iniciado. Capital Base: $", DoubleToString(DailyStartBalance, 2));
+   }
+
+   if(DailyTargetReached) return;
+
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(DailyStartBalance <= 0) return;
+
+   double profitPct = ((equity - DailyStartBalance) / DailyStartBalance) * 100.0;
+
+   if(profitPct >= InpDailyTargetPct)
+   {
+      DailyTargetReached = true;
+      Print("🏆 [DAILY] META ATINGIDA: ", DoubleToString(profitPct, 2), "% | Fechando tudo e bloqueando...");
+
+      // Fechar todas as posições (Institucional)
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = PositionGetTicket(i);
+         if(ticket > 0 && PositionSelectByTicket(ticket))
+            trade.PositionClose(ticket);
+      }
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -187,11 +230,8 @@ void MonitorProfitLock()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       double currentSL = PositionGetDouble(POSITION_SL);
@@ -252,9 +292,10 @@ void MonitorProfitLock()
       double protectionStart = (StringFind(sym, "XAU") >= 0) ? 15.0 : 5.0;
       if(peak < protectionStart) continue;
 
-      // 3. Cálculo de Volatilidade Real (ATR M15)
+      // 3. Cálculo de Volatilidade Real (ATR H1 para Ouro, M15 para Forex)
       double atr = 0;
-      int atrHandle = iATR(sym, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int atrHandle = iATR(sym, atrTF, 14);
       if(atrHandle != INVALID_HANDLE)
       {
          double atrBuf[];
@@ -362,11 +403,8 @@ void MonitorPartialTP()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit = PositionGetDouble(POSITION_PROFIT);
       double vol = PositionGetDouble(POSITION_VOLUME);
@@ -417,11 +455,8 @@ void MonitorTrailingStop()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -431,9 +466,10 @@ void MonitorTrailingStop()
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP); // CONFLITO 3: preservar TP original
 
-      // CÁLCULO ATR DINÂMICO PARA TRAILING
+      // CÁLCULO ATR DINÂMICO PARA TRAILING (H1 para Ouro)
       double atr = 0;
-      int handle = iATR(sym, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int handle = iATR(sym, atrTF, 14);
       if(handle != INVALID_HANDLE)
       {
          double buf[];
@@ -444,7 +480,7 @@ void MonitorTrailingStop()
 
       double trailStart = (atr > 0) ? (atr * 1.0) : (InpTrailingStart    * point);
       double trailStep  = InpTrailingStep     * point;
-      double trailDist  = (atr > 0) ? (atr * 1.5) : (InpTrailingDistance * point);
+      double trailDist  = (atr > 0) ? (IsXAU(sym) ? atr * 2.5 : atr * 1.5) : (InpTrailingDistance * point);
 
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
@@ -520,6 +556,16 @@ void ValidateLicense()
 
 void CheckSignals()
 {
+   if(DailyTargetReached)
+   {
+      static datetime lastLockMsg = 0;
+      if(TimeCurrent() - lastLockMsg > 3600) {
+         Print("🛑 [DAILY] Meta diária já atingida. Trading bloqueado até amanhã.");
+         lastLockMsg = TimeCurrent();
+      }
+      return;
+   }
+
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
    
@@ -549,7 +595,7 @@ void CheckSignals()
       ulong t = PositionGetTicket(i);
       if(t > 0 && PositionSelectByTicket(t))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
             openCount++;
       }
    }
@@ -671,7 +717,7 @@ void RecoverState()
       ulong ticket = PositionGetTicket(i);
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetDouble(POSITION_SL) == 0)
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic() && PositionGetDouble(POSITION_SL) == 0)
          {
             string slKey = "PSL_" + (string)ticket;
             string tpKey = "PTP_" + (string)ticket;
@@ -799,7 +845,7 @@ void ExecuteSignal(string json)
    for(int i = PositionsTotal() - 1; i >= 0; i--) {
       ulong t = PositionGetTicket(i);
       if(t > 0 && PositionSelectByTicket(t)) {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
          }
@@ -943,8 +989,7 @@ void ProtectManualOrders()
       string comment = PositionGetString(POSITION_COMMENT);
       double sl = PositionGetDouble(POSITION_SL);
 
-      // FILTROS INSTITUCIONAIS (Apex Guardian)
-      if(sym != _Symbol) continue;
+      // FILTROS INSTITUCIONAIS (Apex Guardian - MULTI-ASSET)
       if(magic != 0) continue; 
       if(sl > 0) continue; 
 
@@ -956,9 +1001,10 @@ void ProtectManualOrders()
       int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
       
-      // --- ENGINE ATR DINÂMICO ---
+      // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
       double atr = 0;
-      int handle = iATR(_Symbol, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int handle = iATR(sym, atrTF, 14);
       if(handle != INVALID_HANDLE) {
          double buf[]; ArraySetAsSeries(buf, true);
          if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
@@ -1002,18 +1048,31 @@ void ProtectManualOrders()
 void ReportBalance()
 {
    static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < 30) return; // Reporta a cada 30 segundos
+   if(TimeCurrent() - lastReport < 5) return; // Reporta a cada 5 segundos (Institucional)
    
-   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+   double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
+   double floatingPnL = equity - balance;
+
+   double marginLevel = 0;
+   if(margin > 0) marginLevel = (equity / margin) * 100.0;
+
+   double drawdown = 0;
+   if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
    
-   string url = InpServerUrl + "/ea/report-balance";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + DoubleToString(balance, 2) + ",\"equity\":" + DoubleToString(equity, 2) + "}";
+   string payload = "{"
+      "\"licenseKey\":\"" + InpLicenseKey + "\","
+      "\"balance\":" + DoubleToString(balance, 2) + ","
+      "\"equity\":" + DoubleToString(equity, 2) + ","
+      "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
+      "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
+      "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
+      "\"drawdown\":" + DoubleToString(drawdown, 2) +
+   "}";
    
-   Print("📊 SINCRONIZANDO HMI | Saldo: ", balance, " | Equity: ", equity);
-   string res = SendPost(url, payload);
-   if(res != "") Print("📡 Resposta HMI: ", res);
-   
+   SendPost(InpServerUrl + "/ea/report-balance", payload);
    lastReport = TimeCurrent();
 }
 
@@ -1101,5 +1160,6 @@ string ExtractValue(string json, string key) {
    int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
    string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
 }
+
 
 
