@@ -30,9 +30,9 @@ input double   InpProfitLockDrop    = 30.0;  // % de queda do pico para fechar o
 
 // --- TRAILING STOP PARAMETERS ---
 input bool   InpTrailingEnabled   = true;      // Trailing Stop Activo
-input int    InpTrailingStart     = 150;       // Trailing Start (Points)
-input int    InpTrailingDistance  = 100;       // Trailing Distance (Points)
-input int    InpTrailingStep      = 20;        // Trailing Step (Points)
+input int    InpTrailingStart     = 50;        // Trailing Start (5.0 pips)
+input int    InpTrailingDistance  = 80;        // Trailing Distance (8.0 pips)
+input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 
