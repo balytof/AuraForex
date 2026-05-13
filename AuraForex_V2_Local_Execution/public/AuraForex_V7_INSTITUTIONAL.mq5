@@ -196,7 +196,6 @@ void MonitorProfitLock()
       if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
-      string sym       = PositionGetString(POSITION_SYMBOL);
       double currentSL = PositionGetDouble(POSITION_SL);
       double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
       long   posType   = PositionGetInteger(POSITION_TYPE);
@@ -371,7 +370,6 @@ void MonitorPartialTP()
       int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
       if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
-      string sym = PositionGetString(POSITION_SYMBOL);
       double profit = PositionGetDouble(POSITION_PROFIT);
       double vol = PositionGetDouble(POSITION_VOLUME);
       
@@ -427,7 +425,6 @@ void MonitorTrailingStop()
       int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
       if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
-      string sym       = PositionGetString(POSITION_SYMBOL);
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double ask       = SymbolInfoDouble(sym, SYMBOL_ASK);
