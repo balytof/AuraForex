@@ -54,11 +54,15 @@ model License {
   type      String   // "PRO", "VIP" (kept for compatibility)
   status    String   // "ACTIVE", "EXPIRED", "SUSPENDED"
   mtAccount String?  // Conta MetaTrader vinculada
-  balance   Float    @default(0)
-  equity    Float    @default(0)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  balance     Float    @default(0)
+  equity      Float    @default(0)
+  freeMargin  Float    @default(0)
+  floatingPnL Float    @default(0)
+  marginLevel Float    @default(0)
+  drawdown    Float    @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan LicensePlan? @relation(fields: [planId], references: [id])
