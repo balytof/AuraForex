@@ -930,8 +930,8 @@ void ExecuteSignal(string json)
          if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultDeal();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -964,8 +964,8 @@ void ExecuteSignal(string json)
          if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultDeal();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
