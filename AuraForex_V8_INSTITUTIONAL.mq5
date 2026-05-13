@@ -996,7 +996,7 @@ void ProtectManualOrders()
 
       // FILTROS INSTITUCIONAIS (Apex Guardian - MULTI-ASSET)
       if(magic != 0) continue; 
-      if(sl > 0) continue; 
+      if(sl != 0 && sl != EMPTY_VALUE) continue; // Já tem SL real — ignorar
 
       // Whitelist opcional: Se o trader quiser que o bot ignore tudo o que não diga MANUAL
       // Descomentar a linha abaixo para segurança máxima
