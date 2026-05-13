@@ -363,7 +363,13 @@ void MonitorPartialTP()
       if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym = PositionGetString(POSITION_SYMBOL);
       double profit = PositionGetDouble(POSITION_PROFIT);
@@ -413,7 +419,13 @@ void MonitorTrailingStop()
       if(!PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym       = PositionGetString(POSITION_SYMBOL);
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
@@ -1079,6 +1091,4 @@ void AddProcessed(string id)
 string ExtractValue(string json, string key) {
    string k = "\"" + key + "\":"; int p = StringFind(json, k); if(p < 0) return "";
    int s = p + StringLen(k); if(StringSubstr(json, s, 1) == "\"") s++;
-   int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
-   string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
-}
+   int e = 
