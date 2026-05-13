@@ -1116,7 +1116,16 @@ void ReportBalance()
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";
-   SendPost(url, payload);
+   string response = SendPost(url, payload);
+
+   if(response == "") {
+      Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
+   } else {
+      // Print("💰 [SYNC] Saldo reportado com sucesso."); // Opcional: Descomentar se quiseres ver no log a cada segundo
+   }
+   
+   UpdateChartVisuals(); // Visual Gráfico (Real-time)
+}
 
 void UpdateChartVisuals()
 {
