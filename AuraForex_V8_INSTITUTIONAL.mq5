@@ -54,6 +54,16 @@ bool              DailyTargetReached = false;
 int               LastTradingDay     = -1;
 int               ConsecutiveLosses  = 0; // Contador de perdas consecutivas
 
+// --- CACHE DE INDICADORES ---
+struct ATRCache {
+   string          symbol;
+   ENUM_TIMEFRAMES tf;
+   int             handle;
+   double          value;
+   datetime        lastBar;
+};
+ATRCache g_atrCache[];
+
 //--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
 struct PendingProtectionData {
    ulong    ticket;
@@ -1330,4 +1340,42 @@ string ExtractValue(string json, string key) {
    StringTrimLeft(result);
    StringTrimRight(result);
    return result;
+}
+
+double GetATR(string sym, ENUM_TIMEFRAMES tf)
+{
+   datetime currentBar = iTime(sym, tf, 0);
+   
+   // 1. Procurar no Cache
+   int size = ArraySize(g_atrCache);
+   for(int i = 0; i < size; i++) {
+      if(g_atrCache[i].symbol == sym && g_atrCache[i].tf == tf) {
+         if(g_atrCache[i].lastBar == currentBar && g_atrCache[i].value > 0) 
+            return g_atrCache[i].value;
+            
+         // Atualizar valor se a barra mudou
+         double atrBuf[];
+         ArraySetAsSeries(atrBuf, true);
+         if(CopyBuffer(g_atrCache[i].handle, 0, 0, 1, atrBuf) > 0) {
+            g_atrCache[i].value = atrBuf[0];
+            g_atrCache[i].lastBar = currentBar;
+         }
+         return g_atrCache[i].value;
+      }
+   }
+   
+   // 2. Se não existir, criar novo handle
+   int newIdx = ArrayResize(g_atrCache, size + 1) - 1;
+   g_atrCache[newIdx].symbol = sym;
+   g_atrCache[newIdx].tf = tf;
+   g_atrCache[newIdx].handle = iATR(sym, tf, 14);
+   g_atrCache[newIdx].lastBar = currentBar;
+   g_atrCache[newIdx].value = 0;
+   
+   double atrBuf2[];
+   ArraySetAsSeries(atrBuf2, true);
+   if(CopyBuffer(g_atrCache[newIdx].handle, 0, 0, 1, atrBuf2) > 0)
+      g_atrCache[newIdx].value = atrBuf2[0];
+      
+   return g_atrCache[newIdx].value;
 }
