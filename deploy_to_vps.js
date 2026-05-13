@@ -42,8 +42,8 @@ conn.on('ready', () => {
                 completed++;
                 if (completed === filesToUpload.length) {
                     console.log('🔄 Reiniciando servidores no VPS via PM2...');
-                    // Comando para reiniciar o processo principal
-                    conn.exec('cd /root/AuraForex && npx pm2 restart server || npx pm2 start server.js --name server', (err, stream) => {
+                    // Comando para reiniciar o processo principal (aura-v2-elite controla o porto 3005)
+                    conn.exec('cd /root/AuraForex && npx pm2 stop server; npx pm2 restart aura-v2-elite', (err, stream) => {
                         if (err) throw err;
                         stream.on('close', () => {
                             console.log('✨ TUDO ATUALIZADO E REINICIADO NO VPS!');
