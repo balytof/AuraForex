@@ -603,7 +603,7 @@ void CheckSignals()
       ulong t = PositionGetTicket(i);
       if(t > 0 && PositionSelectByTicket(t))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
             openCount++;
       }
    }
@@ -725,7 +725,7 @@ void RecoverState()
       ulong ticket = PositionGetTicket(i);
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetDouble(POSITION_SL) == 0)
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic() && PositionGetDouble(POSITION_SL) == 0)
          {
             string slKey = "PSL_" + (string)ticket;
             string tpKey = "PTP_" + (string)ticket;
@@ -853,7 +853,7 @@ void ExecuteSignal(string json)
    for(int i = PositionsTotal() - 1; i >= 0; i--) {
       ulong t = PositionGetTicket(i);
       if(t > 0 && PositionSelectByTicket(t)) {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber) {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
          }
