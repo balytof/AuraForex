@@ -208,6 +208,7 @@ void OnTimer()
       MonitorTrailingStop();
       MonitorPartialTP();
       MonitorProfitLock();
+   }
 
    // SINCRONISMO DASHBOARD (Sempre ativo para evitar dados "travados")
    ReportBalance();
