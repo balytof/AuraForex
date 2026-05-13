@@ -177,14 +177,14 @@ void OnTimer()
       CheckSignals();
       ProcessSignalQueue(); 
       
-      // HIERARQUIA INSTITUCIONAL DE GESTÃO (Ordem de Prioridade)
-      MonitorTrailingStop(); // 1. Trailing
-      MonitorPartialTP();    // 2. Parciais e BreakEven
-      MonitorProfitLock();   // 3. ProfitLock (Proteção Final)
+      // HIERARQUIA INSTITUCIONAL DE GESTÃO
+      MonitorTrailingStop(); 
+      MonitorPartialTP();    
+      MonitorProfitLock();   
       
       ProcessPendingProtections();
       
-      // Reportar Balanço em Tempo Real (Cada ciclo do Timer)
+      // Sincronismo Dashboard (Sempre Activo para Monitorização)
       ReportBalance();
    }
    
@@ -545,18 +545,22 @@ void MonitorTrailingStop()
 
 void ValidateLicense()
 {
-   string url = InpServerUrl + "/ea/validate";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
+   static datetime lastValidate = 0;
+   if(TimeCurrent() - lastValidate < 300 && IsAuthorized) return; 
+   if(TimeCurrent() - lastValidate < 30 && !IsAuthorized) return; 
    
-   Print("🔐 VALIDANDO LICENÇA...");
-   string result = SendPost(url, payload);
+   lastValidate = TimeCurrent();
+   string url = InpServerUrl + "/ea/validate?key=" + InpLicenseKey + "&account=" + (string)AccountInfoInteger(ACCOUNT_LOGIN);
    
-   if(StringFind(result, "\"status\":\"OK\"") >= 0) {
+   string res = SendGet(url);
+   
+   if(StringFind(res, "\"status\":\"success\"") >= 0) {
+      if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
-      Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("AURA V8 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
-   } else if(result != "") {
-      Print("❌ RESPOSTA LICENÇA: " + result);
+   } else {
+      IsAuthorized = false;
+      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
+      else Print("❌ FALHA NA LICENÇA: ", res);
    }
 }
 
