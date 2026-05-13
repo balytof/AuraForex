@@ -677,10 +677,7 @@ void AddToSignalQueue(string json) {
 }
 
 void ProcessSignalQueue() {
-   if(ExecutionBusy) return;
    if(ArraySize(SignalQueue) == 0) return;
-
-   ExecutionBusy = true; // Ativar lock
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
@@ -692,8 +689,6 @@ void ProcessSignalQueue() {
    AddProcessed(signalId); // Marcar como definitivamente processado
    
    RemoveSignalQueueIndex(0);
-
-   ExecutionBusy = false; // Libertar lock
 }
 
 void RemoveSignalQueueIndex(int idx)
@@ -789,16 +784,59 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
+int CountAuraPositions()
+{
+   int total = 0;
+   long baseMagic = InpMagicNumber;
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         // Filtro Profissional: Reconhece ordens de qualquer timeframe/instância deste EA
+         if(magic >= baseMagic && magic <= baseMagic + 100000)
+            total++;
+      }
+   }
+   return total;
+}
+
 void ExecuteSignal(string json)
 {
+   // GLOBAL ORDER LIMIT PROTECTION (Apex Guardian)
+   int totalPositions = CountAuraPositions();
+   if(totalPositions >= InpMaxOrders)
+   {
+      Print("⚠️ LIMITE GLOBAL ATINGIDO: ", totalPositions, "/", InpMaxOrders);
+      return;
+   }
+
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
    
-   if(!SymbolSelect(pair, true)) {
-      for(int s=0; s<SymbolsTotal(false); s++) {
+   // --- MAPEAMENTO INSTITUCIONAL DE SÍMBOLOS (XAUUSDm, GOLD, etc.) ---
+   if(!SymbolSelect(pair, true))
+   {
+      bool found = false;
+      string upperPair = pair; StringToUpper(upperPair);
+      
+      for(int s = 0; s < SymbolsTotal(false); s++)
+      {
          string sym = SymbolName(s, false);
-         if(StringFind(sym, pair) >= 0) { pair = sym; break; }
+         string upperSym = sym; StringToUpper(upperSym);
+
+         if(StringFind(upperSym, upperPair) >= 0 ||
+            (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+         {
+            pair = sym;
+            SymbolSelect(pair, true);
+            found = true;
+            break;
+         }
       }
+      if(!found) { Print("❌ Símbolo não encontrado: ", pair); return; }
    }
    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
 
