@@ -169,7 +169,6 @@ void OnTimer()
       MonitorProfitLock();
       MonitorTrailingStop();
       MonitorPartialTP(); // Garante fecho parcial se necessário
-      ProcessPendingProtections();
       
       // Reportar Balanço apenas a cada 5 segundos
       static datetime lastReport = 0;
