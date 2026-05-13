@@ -929,11 +929,15 @@ void ExecuteSignal(string json)
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
          // ATOMIC ENTRY: Execução institucional com proteção imediata
-         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         double nSL = NormalizeDouble(sl, digits);
+         double nTP = NormalizeDouble(tp, digits);
+         double nAsk = NormalizeDouble(ask, digits);
+
+         if(trade.Buy(lot, pair, nAsk, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -963,11 +967,15 @@ void ExecuteSignal(string json)
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
          // ATOMIC ENTRY: Execução institucional com proteção imediata
-         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         double nSL = NormalizeDouble(sl, digits);
+         double nTP = NormalizeDouble(tp, digits);
+         double nBid = NormalizeDouble(bid, digits);
+
+         if(trade.Sell(lot, pair, nBid, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
