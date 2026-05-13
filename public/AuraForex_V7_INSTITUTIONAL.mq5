@@ -855,8 +855,9 @@ void ExecuteSignal(string json)
 
    if(IsXAU(pair)) {
       // REGRA APEX
-      if(spreadReal > 1.20) { 
-         Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
+      double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+      if(spreadReal / point > 120) { 
+         Print("⚠️ Spread XAU muito alto: ", DoubleToString(spreadReal/point, 1), " pontos"); 
          return; 
       }
    } else {
