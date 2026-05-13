@@ -132,7 +132,7 @@ int OnInit()
    
    ValidateLicense();
    RecoverState(); 
-   EventSetTimer(1); 
+   EventSetTimer(InpTimerSeconds); 
    return(INIT_SUCCEEDED);
 }
 
@@ -677,10 +677,7 @@ void AddToSignalQueue(string json) {
 }
 
 void ProcessSignalQueue() {
-   if(ExecutionBusy) return;
    if(ArraySize(SignalQueue) == 0) return;
-
-   ExecutionBusy = true; // Ativar lock
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
@@ -692,8 +689,6 @@ void ProcessSignalQueue() {
    AddProcessed(signalId); // Marcar como definitivamente processado
    
    RemoveSignalQueueIndex(0);
-
-   ExecutionBusy = false; // Libertar lock
 }
 
 void RemoveSignalQueueIndex(int idx)
@@ -789,16 +784,59 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
+int CountAuraPositions()
+{
+   int total = 0;
+   long baseMagic = InpMagicNumber;
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         // Filtro Profissional: Reconhece ordens de qualquer timeframe/instância deste EA
+         if(magic >= baseMagic && magic <= baseMagic + 100000)
+            total++;
+      }
+   }
+   return total;
+}
+
 void ExecuteSignal(string json)
 {
+   // GLOBAL ORDER LIMIT PROTECTION (Apex Guardian)
+   int totalPositions = CountAuraPositions();
+   if(totalPositions >= InpMaxOrders)
+   {
+      Print("⚠️ LIMITE GLOBAL ATINGIDO: ", totalPositions, "/", InpMaxOrders);
+      return;
+   }
+
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
    
-   if(!SymbolSelect(pair, true)) {
-      for(int s=0; s<SymbolsTotal(false); s++) {
+   // --- MAPEAMENTO INSTITUCIONAL DE SÍMBOLOS (XAUUSDm, GOLD, etc.) ---
+   if(!SymbolSelect(pair, true))
+   {
+      bool found = false;
+      string upperPair = pair; StringToUpper(upperPair);
+      
+      for(int s = 0; s < SymbolsTotal(false); s++)
+      {
          string sym = SymbolName(s, false);
-         if(StringFind(sym, pair) >= 0) { pair = sym; break; }
+         string upperSym = sym; StringToUpper(upperSym);
+
+         if(StringFind(upperSym, upperPair) >= 0 ||
+            (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+         {
+            pair = sym;
+            SymbolSelect(pair, true);
+            found = true;
+            break;
+         }
       }
+      if(!found) { Print("❌ Símbolo não encontrado: ", pair); return; }
    }
    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
 
@@ -815,10 +853,11 @@ void ExecuteSignal(string json)
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    double spreadReal = ask - bid;
 
-   if(StringFind(pair, "XAU") >= 0) {
-      // REGRA OURO: Spread máximo de 80 cêntimos ($0.80)
-      if(spreadReal > 0.80) { 
-         Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
+   if(IsXAU(pair)) {
+      // REGRA APEX
+      double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+      if(spreadReal / point > 120) { 
+         Print("⚠️ Spread XAU muito alto: ", DoubleToString(spreadReal/point, 1), " pontos"); 
          return; 
       }
    } else {
@@ -1073,18 +1112,29 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
    
-   string payload = "{"
-      "\"licenseKey\":\"" + InpLicenseKey + "\","
-      "\"balance\":" + DoubleToString(balance, 2) + ","
-      "\"equity\":" + DoubleToString(equity, 2) + ","
-      "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
-      "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
-      "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
-      "\"drawdown\":" + DoubleToString(drawdown, 2) +
-   "}";
+   string url = InpServerUrl + "/ea/report-balance";
+   string response = SendPost(url, payload);
+
+   if(response == "") {
+      Print("❌ Falha ao reportar saldo (Causa: Timeout ou URL Inválida)");
+   } else {
+      // Print("💰 Balance reportado com sucesso."); // Silêncio institucional
+   }
    
-   SendPost(InpServerUrl + "/ea/report-balance", payload);
    lastReport = TimeCurrent();
+
+   // HMI - COMENTÁRIO NO GRÁFICO (Monitorização Real Profissional)
+   Comment(
+      "AURA V7 INSTITUCIONAL\n",
+      "----------------------------------\n",
+      "Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), "\n",
+      "Balance: $", DoubleToString(balance, 2), "\n",
+      "Equity: $", DoubleToString(equity, 2), "\n",
+      "Floating: $", DoubleToString(floatingPnL, 2), "\n",
+      "DD Atual: ", DoubleToString(drawdown, 2), "%\n",
+      "Ordens EA: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
+      "Status Sync: Conectado"
+   );
 }
 
 string SendPost(string url, string payload) {
@@ -1171,6 +1221,7 @@ string ExtractValue(string json, string key) {
    int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
    string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
 }
+
 
 
 
