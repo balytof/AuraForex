@@ -145,6 +145,10 @@ int OnInit()
 {
    Print("🚀 AURA V8 INSTITUCIONAL - Execution Engine");
    
+   // Configurações Visuais de Gráfico
+   ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
+   ChartSetInteger(0, CHART_SHOW_OBJECT_DESCR, true);
+
    trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
    
