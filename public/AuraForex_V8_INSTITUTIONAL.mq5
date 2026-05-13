@@ -1112,6 +1112,16 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
    
+   string payload = "{"
+      "\"licenseKey\":\"" + InpLicenseKey + "\","
+      "\"balance\":" + DoubleToString(balance, 2) + ","
+      "\"equity\":" + DoubleToString(equity, 2) + ","
+      "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
+      "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
+      "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
+      "\"drawdown\":" + DoubleToString(drawdown, 2) +
+   "}";
+
    string url = InpServerUrl + "/ea/report-balance";
    string response = SendPost(url, payload);
 
