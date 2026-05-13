@@ -108,17 +108,11 @@ double GetMaxAllowedSpread(string sym)
 
 bool IsVolatilityAbnormal(string sym)
 {
-   // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
-   double atrNow = 0;
+   // --- ENGINE ATR DINÂMICO (H1 para Ouro) via Cache ---
    ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
-   int handle = iATR(sym, atrTF, 14);
-   if(handle != INVALID_HANDLE)
-   {
-      double buf[];
-      ArraySetAsSeries(buf, true);
-      if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atrNow = buf[0];
-      IndicatorRelease(handle);
-   }
+   double atrNow = GetATR(sym, atrTF);
+   
+   if(atrNow <= 0) return false;
    
    double limit = IsXAU(sym) ? (2.5 * 0.50) : (1.5 * 0.0002); 
    return (atrNow > limit && atrNow > 0);
@@ -313,17 +307,11 @@ void MonitorProfitLock()
       double protectionStart = (StringFind(sym, "XAU") >= 0) ? 15.0 : 5.0;
       if(peak < protectionStart) continue;
 
-      // 3. Cálculo de Volatilidade Real (H1 para Ouro, M15 para Forex)
-      double atr = 0;
+      // 3. Cálculo de Volatilidade Real via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
-      int atrHandle = iATR(sym, atrTF, 14);
-      if(atrHandle != INVALID_HANDLE)
-      {
-         double atrBuf[];
-         ArraySetAsSeries(atrBuf, true);
-         if(CopyBuffer(atrHandle, 0, 0, 1, atrBuf) > 0) atr = atrBuf[0];
-         IndicatorRelease(atrHandle);
-      }
+      double atr = GetATR(sym, atrTF);
+      
+      if(atr <= 0) continue;
 
       // 3. Conversão ATR para Valor Monetário
       double point    = SymbolInfoDouble(sym, SYMBOL_POINT);
@@ -487,17 +475,9 @@ void MonitorTrailingStop()
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP); // preservar TP original
 
-      // CÁLCULO ATR DINÂMICO PARA TRAILING (H1 para Ouro)
-      double atr = 0;
+      // CÁLCULO ATR DINÂMICO PARA TRAILING via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
-      int handle = iATR(sym, atrTF, 14);
-      if(handle != INVALID_HANDLE)
-      {
-         double buf[];
-         ArraySetAsSeries(buf, true);
-         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
-         IndicatorRelease(handle);
-      }
+      double atr = GetATR(sym, atrTF);
 
       double trailStart = (atr > 0) ? (atr * 1.0) : (InpTrailingStart    * point);
       double trailStep  = InpTrailingStep     * point;
@@ -1032,15 +1012,9 @@ void ProtectManualOrders()
       int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       
-      // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
-      double atr = 0;
+      // --- ENGINE ATR DINÂMICO via Cache ---
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
-      int handle = iATR(sym, atrTF, 14);
-      if(handle != INVALID_HANDLE) {
-         double buf[]; ArraySetAsSeries(buf, true);
-         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
-         IndicatorRelease(handle);
-      }
+      double atr = GetATR(sym, atrTF);
       
       // Fallback ATR (Institucional)
       if(atr <= 0) atr = (IsXAU(sym) ? 3.5 : 0.0015); 
