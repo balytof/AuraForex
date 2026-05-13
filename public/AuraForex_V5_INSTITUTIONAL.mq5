@@ -65,6 +65,41 @@ struct SignalQueueData {
 SignalQueueData SignalQueue[]; // Fila de espera para execução
 bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
 
+//--- Funções Auxiliares de Especialista
+bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, "GOLD") >= 0); }
+
+bool IsTradingSession()
+{
+   MqlDateTime tm;
+   TimeCurrent(tm);
+   int hour = tm.hour;
+   // Londres + NY (7h às 18h) - Horário do Servidor
+   return (hour >= 7 && hour <= 18);
+}
+
+double GetMaxAllowedSpread(string sym)
+{
+   return IsXAU(sym) ? 35.0 : 15.0; // 35 pips para Ouro, 15 para Forex
+}
+
+bool IsVolatilityAbnormal(string sym)
+{
+   double atrNow = 0;
+   int handle = iATR(sym, PERIOD_M15, 14);
+   if(handle != INVALID_HANDLE)
+   {
+      double buf[];
+      ArraySetAsSeries(buf, true);
+      if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atrNow = buf[0];
+      IndicatorRelease(handle);
+   }
+   
+   // Simulação de ATR médio (50 períodos) - Bloqueia se volatilidade > 2.5x a média
+   // Para simplificar, usamos um limite fixo baseado no ativo se não quisermos calcular a média completa agora
+   double limit = IsXAU(sym) ? (2.5 * 0.50) : (1.5 * 0.0002); 
+   return (atrNow > limit && atrNow > 0);
+}
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
