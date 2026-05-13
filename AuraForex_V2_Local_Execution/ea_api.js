@@ -2,29 +2,18 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
 
-
-
-function formatForMT5(signal) {
-  return {
-    id: String(signal.id || Date.now().toString()),
-    pair: String(signal.pair).toUpperCase(),
-    direction: String(signal.direction).toUpperCase(),
-    entry: Number(signal.entry || 0),
-    sl: Number(signal.sl || 0),
-    tp: Number(signal.tp || 0),
-    lot: Number(signal.lot || 0.01)
-  };
-}
-
-
-
-
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
+ * O EA chama este endpoint ao iniciar para verificar se a licença é válida
+ * e se está amarrada ao número da conta MetaTrader correto.
+ * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/validate", async (req, res) => {
   const { licenseKey, mtAccount } = req.body;
-  console.log(`[EA-API] 🛡️ Tentativa de Validação: Conta ${mtAccount} | Licença ${licenseKey}`);
+
+  if (!licenseKey || !mtAccount) {
+    return res.status(400).json({ status: "BLOCKED", error: "Dados incompletos (licenseKey, mtAccount)." });
+  }
 
   try {
     const license = await prisma.license.findUnique({
@@ -32,89 +21,104 @@ router.post("/validate", async (req, res) => {
       include: { user: true }
     });
 
-    if (!license || license.status !== "ACTIVE") {
-      return res.status(401).json({ status: "ERROR", message: "Licença inválida ou expirada." });
+    if (!license) {
+      return res.status(404).json({ status: "BLOCKED", error: "Licença não encontrada." });
     }
 
-    // Amarrar a conta MT5
-    await prisma.license.update({
-      where: { id: licenseKey },
-      data: { mtAccount: String(mtAccount) }
+    if (license.status !== "ACTIVE" || new Date(license.expiresAt) < new Date()) {
+      return res.status(403).json({ status: "BLOCKED", error: "Licença expirada ou inativa." });
+    }
+
+    // Se a licença ainda não tem conta MT, amarra agora (Primeiro uso)
+    if (!license.mtAccount) {
+      await prisma.license.update({
+        where: { id: licenseKey },
+        data: { mtAccount: mtAccount.toString() }
+      });
+      console.log(`[EA-AUTH] Licença ${licenseKey} amarrada à conta ${mtAccount}`);
+    }
+    // Se já tem, verifica se coincide
+    else if (license.mtAccount !== mtAccount.toString()) {
+      return res.status(403).json({ status: "BLOCKED", error: "Esta licença está vinculada a outra conta MetaTrader." });
+    }
+
+    return res.json({
+      status: "OK",
+      message: "Licença validada com sucesso.",
+      user: license.user.email,
+      expiresAt: license.expiresAt
     });
 
-    console.log(`[EA-API] ✅ OK: ${license.user.email}`);
-    res.type('application/json');
-    res.send('{"status":"OK"}');
-
   } catch (err) {
-    console.error("[EA-API] ❌ Erro:", err.message);
-    res.type('application/json');
-    res.send('{"status":"ERROR"}');
+    console.error("[EA-AUTH] Erro na validação:", err);
+    return res.status(500).json({ status: "BLOCKED", error: "Erro interno no servidor." });
   }
 });
 
 /**
  * ── ENDPOINT: SIGNALS ───────────────────────────────────────────────
+ * O EA chama este endpoint periodicamente (ex: a cada 1s) para buscar
+ * novas ordens pendentes geradas pelas estratégias no servidor.
+ * ─────────────────────────────────────────────────────────────────────
  */
 router.get("/signals", async (req, res) => {
   const { licenseKey } = req.query;
 
-  if (!licenseKey) return res.status(400).json({ error: "licenseKey obrigatória." });
+  if (!licenseKey) {
+    return res.status(400).json({ error: "licenseKey obrigatória." });
+  }
 
   try {
-    // 1. Encontrar o dono da licença
     const license = await prisma.license.findUnique({
       where: { id: licenseKey }
     });
 
-    if (!license) return res.json({ signals: [] });
+    if (!license || license.status !== "ACTIVE") {
+      return res.status(403).json({ error: "Licença inválida." });
+    }
 
-    // 2. Buscar sinais para o userId dono da licença
-    const pendingSignals = await prisma.signal.findMany({
+    // LOG DE DIAGNÓSTICO (Expert Method)
+    const pendingCount = await prisma.signal.count({ where: { status: "PENDING" } });
+    console.log(`[EA-DEBUG] Licença: ${licenseKey} | Dono: ${license.userId} | Sinais Pendentes na DB: ${pendingCount}`);
+
+    // Busca sinais PENDENTES para o usuário dono da licença
+    const signals = await prisma.signal.findMany({
       where: {
         userId: license.userId,
         status: "PENDING"
       },
-      take: 10,
-      orderBy: {
-        createdAt: 'asc'
-      }
+      orderBy: { createdAt: "asc" }
     });
 
-    if (pendingSignals.length === 0) {
-      return res.json({ signals: [] });
+    if (signals.length > 0) {
+      console.log(`[EA-DEBUG] ✅ Enviando ${signals.length} sinais para o robô.`);
     }
 
-    // Formata os sinais para o MT5 (V4 Magic)
-    const formattedSignals = pendingSignals.map(sig => ({
-      id: sig.id,
-      pair: sig.pair,
-      direction: sig.direction,
-      entry: 0, // V5: Execução local
-      sl: sig.sl,
-      tp: sig.tp,
-      lot: sig.lot,
-      atr: sig.atr
-    }));
-
-    console.log(`[EA-API] 📤 Enviando ${formattedSignals.length} sinais para a licença ${licenseKey}`);
-    
-    // 3. Marcar sinais como PROCESSING para não repetir
-    const signalIds = pendingSignals.map(s => s.id);
-    await prisma.signal.updateMany({
-      where: { id: { in: signalIds } },
-      data: { status: "PROCESSING" }
+    // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
+    await prisma.license.update({
+      where: { id: licenseKey },
+      data: { updatedAt: new Date() }
     });
 
-    res.json({ signals: formattedSignals });
+    // Formata os sinais para garantir que o EA receba texto (string) e não IDs numéricos
+    const formattedSignals = signals.map(s => ({
+      id: String(s.id).trim(),
+      pair: String(s.pair).trim().toUpperCase(),
+      direction: String(s.direction).trim().toUpperCase(),
+      entry: Number(s.entry || 0),
+      sl: Number(s.sl || 0),
+      tp: Number(s.tp || 0),
+      lot: Number(s.lot || 0.01)
+    }));
+
+    console.log(`[EA-SIGNALS] Enviando ${formattedSignals.length} sinais para ${license.userId}`);
+    return res.status(200).json({ success: true, signals: formattedSignals });
 
   } catch (err) {
-    console.error("[EA-API] Erro ao buscar sinais no DB:", err);
-    res.status(500).json({ error: "Erro interno ao buscar sinais." });
+    console.error("[EA-SIGNALS] Erro ao buscar sinais:", err);
+    return res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
-
-
 
 /**
  * ── ENDPOINT: REPORT ────────────────────────────────────────────────
@@ -130,21 +134,16 @@ router.post("/report", async (req, res) => {
   }
 
   try {
-    const isInternalSignal = signalId.startsWith("TEST_") || signalId.startsWith("MANUAL_");
-    
-    if (!isInternalSignal) {
-      await prisma.signal.update({
-        where: { id: signalId },
-        data: {
-          status: status, // EXECUTED, FAILED
-          brokerId: orderTicket ? orderTicket.toString() : null,
-          executedAt: status === "EXECUTED" ? new Date() : null
-        }
-      });
-    }
+    await prisma.signal.update({
+      where: { id: signalId },
+      data: {
+        status: status, // EXECUTED, FAILED
+        brokerId: orderTicket ? orderTicket.toString() : null,
+        executedAt: status === "EXECUTED" ? new Date() : null
+      }
+    });
 
-    console.log(`[EA-REPORT] Sinal ${signalId} reportado como: ${status} (Ticket: ${orderTicket || 'N/A'})`);
-
+    console.log(`[EA-REPORT] Sinal ${signalId} atualizado para: ${status} (Ticket: ${orderTicket || 'N/A'})`);
     return res.json({ success: true });
 
   } catch (err) {
@@ -183,7 +182,4 @@ router.post("/report-balance", async (req, res) => {
   }
 });
 
-module.exports = {
-  router
-};
-
+module.exports = router;
