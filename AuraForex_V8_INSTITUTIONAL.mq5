@@ -657,8 +657,9 @@ void CheckSignals()
 
       string signalJson = StringSubstr(result, objStart, objEnd - objStart + 1);
       
-      // Adicionar à fila de execução em vez de executar direto
+      // Adicionar à fila e marcar como processado imediatamente (anti-duplicação crash-safe)
       AddToSignalQueue(signalJson);
+      AddProcessed(signalId); // Marcar ANTES da execução — evita duplicação em crash
       
       pos = objEnd;
    }
@@ -685,7 +686,6 @@ void ProcessSignalQueue()
    // Remover o sinal processado da fila
    string signalId = ExtractValue(json, "id");
    GlobalVariableDel("SQ_" + signalId);
-   AddProcessed(signalId);
 
    RemoveSignalQueueIndex(0);
 }
