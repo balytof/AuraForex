@@ -807,14 +807,8 @@ void ExecuteSignal(string json)
    }
    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
 
-   int atrHandle = iATR(pair, PERIOD_H1, 14);
-   double atrBuffer[];
-   ArraySetAsSeries(atrBuffer, true);
-   double atr = 0.0010;
-   if(atrHandle != INVALID_HANDLE) {
-      if(CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) > 0) atr = atrBuffer[0];
-      IndicatorRelease(atrHandle);
-   }
+   double atr = GetATR(pair, PERIOD_H1);
+   if(atr <= 0) atr = 0.0010; // Fallback safety
 
    double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
