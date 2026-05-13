@@ -1235,8 +1235,45 @@ void AddProcessed(string id)
 }
 
 string ExtractValue(string json, string key) {
-   string k = "\"" + key + "\":"; int p = StringFind(json, k); if(p < 0) return "";
-   int s = p + StringLen(k); if(StringSubstr(json, s, 1) == "\"") s++;
-   int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
-   string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
+   // 1. Procurar a chave com aspas
+   string searchKey = "\"" + key + "\"";
+   int keyPos = StringFind(json, searchKey);
+   if(keyPos < 0) return "";
+
+   // 2. Encontrar o início do valor após os dois pontos ":"
+   int colonPos = StringFind(json, ":", keyPos + StringLen(searchKey));
+   if(colonPos < 0) return "";
+
+   int valueStart = colonPos + 1;
+   
+   // Ignorar espaços em branco iniciais
+   while(valueStart < StringLen(json) && 
+         (StringGetCharacter(json, valueStart) == ' ' || StringGetCharacter(json, valueStart) == '\t' || StringGetCharacter(json, valueStart) == '\n' || StringGetCharacter(json, valueStart) == '\r'))
+      valueStart++;
+
+   string result = "";
+   short firstChar = StringGetCharacter(json, valueStart);
+
+   if(firstChar == '\"') {
+      // Caso seja STRING: pegar tudo entre as próximas aspas
+      int endQuote = StringFind(json, "\"", valueStart + 1);
+      if(endQuote > valueStart) result = StringSubstr(json, valueStart + 1, endQuote - (valueStart + 1));
+   } else {
+      // Caso seja NÚMERO/BOOLEAN: pegar até a próxima vírgula ou fecho de chaveta
+      int commaPos = StringFind(json, ",", valueStart);
+      int bracePos = StringFind(json, "}", valueStart);
+      int endPos = -1;
+      
+      if(commaPos > 0 && bracePos > 0) endPos = MathMin(commaPos, bracePos);
+      else if(commaPos > 0) endPos = commaPos;
+      else if(bracePos > 0) endPos = bracePos;
+      
+      if(endPos > valueStart) result = StringSubstr(json, valueStart, endPos - valueStart);
+      else result = StringSubstr(json, valueStart); // Último valor
+   }
+
+   // Limpeza final de espaços
+   StringTrimLeft(result);
+   StringTrimRight(result);
+   return result;
 }
