@@ -1075,8 +1075,6 @@ void ProtectManualOrders()
       double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
       int digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point  = SymbolInfoDouble(sym, SYMBOL_POINT);
-      double ask    = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double bid    = SymbolInfoDouble(sym, SYMBOL_BID);
 
       // Cálculo ATR via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
@@ -1089,51 +1087,42 @@ void ProtectManualOrders()
       double slDistance = IsXAU(sym) ? atr * 2.0 : atr * 1.5;
       double tpDistance = slDistance * 2.5;
 
-      double sl = 0;
-      double tp = 0;
+      double sl = currentSL;
+      double tp = currentTP;
 
-      if(type == POSITION_TYPE_BUY)
+      // Apenas cria SL se não existir
+      if(currentSL <= 0)
       {
-         sl = entry - slDistance;
-         tp = entry + tpDistance;
-      }
-      else
-      {
-         sl = entry + slDistance;
-         tp = entry - tpDistance;
+         if(type == POSITION_TYPE_BUY)
+            sl = entry - slDistance;
+         else
+            sl = entry + slDistance;
       }
 
-      // VALIDAÇÃO DE NÍVEIS (Stop Level + Freeze Level)
-      double stopLevel   = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double freezeLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_FREEZE_LEVEL) * point;
-      double minDistance = MathMax(stopLevel, freezeLevel) * 2.0;
-
-      // Ajustes Finais para evitar rejeição
-      if(type == POSITION_TYPE_BUY)
+      // Apenas cria TP se não existir
+      if(currentTP <= 0)
       {
-         if((bid - sl) < minDistance) sl = bid - minDistance;
-         if((tp - bid) < minDistance) tp = bid + minDistance;
-      }
-      else
-      {
-         if((sl - ask) < minDistance) sl = ask + minDistance;
-         if((ask - tp) < minDistance) tp = ask - minDistance;
+         if(type == POSITION_TYPE_BUY)
+            tp = entry + tpDistance;
+         else
+            tp = entry - tpDistance;
       }
 
       sl = NormalizeDouble(sl, digits);
       tp = NormalizeDouble(tp, digits);
 
-      ResetLastError();
-      if(trade.PositionModify(ticket, sl, tp))
+      // Só modificar se houve alteração real
+      if(sl != currentSL || tp != currentTP)
       {
-         Print("✅ MANUAL PROTECTED | ", sym, " | Ticket: ", ticket, 
-               " | SL: ", DoubleToString(sl, digits), " | TP: ", DoubleToString(tp, digits));
-      }
-      else
-      {
-         Print("❌ FAILED TO PROTECT | Ticket: ", ticket, 
-               " | Error: ", GetLastError(), " | Retcode: ", trade.ResultRetcode(), 
-               " | ", trade.ResultRetcodeDescription());
+         ResetLastError();
+         if(trade.PositionModify(ticket, sl, tp))
+         {
+            Print("✅ Manual Protected: ", ticket, " | SL: ", sl, " | TP: ", tp);
+         }
+         else
+         {
+            Print("❌ Failed Manual Protection: ", trade.ResultRetcodeDescription());
+         }
       }
    }
 }
