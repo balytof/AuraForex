@@ -1082,14 +1082,19 @@
   <!-- STATS -->
   <div class="stats-grid">
     <div class="stat-card" onclick="openBuyModal()">
-      <div class="stat-label">Saldo (MetaTrader 5)</div>
+      <div class="stat-label">Saldo (MT5 Sincronizado)</div>
       <div class="stat-value accent" id="statBalance">—</div>
-      <div class="stat-sub" id="statBalanceSub">Configure o EA para sincronizar</div>
+      <div class="stat-sub" id="statBalanceSub">Ligação EA: Ativa</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Meta Diária (Profit Target)</div>
+      <div class="stat-value bull" id="statDailyTarget">$0.00</div>
+      <div class="stat-sub" id="statDailyProgress">P&L Hoje: $0.00</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
-      <div class="stat-label">P&L Não Realizado</div>
-      <div class="stat-value bull" id="statPnl">$0.00</div>
-      <div class="stat-sub">Posições abertas</div>
+      <div class="stat-label">P&L Não Realizado (Floating)</div>
+      <div class="stat-value" id="statPnl">$0.00</div>
+      <div class="stat-sub">Flutuação do mercado</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">Trades Abertos</div>
@@ -1097,15 +1102,21 @@
       <div class="stat-sub">Limite: <span id="statLimitDisplay">3</span> simultâneos</div>
     </div>
     <div class="stat-card" onclick="loadHistoryAndScroll()">
-      <div class="stat-label">Execuções</div>
+      <div class="stat-label">Win Rate (Execuções)</div>
       <div class="stat-value bull" id="statWr">N/A</div>
       <div class="stat-sub">Total: <span id="statTotal">0</span></div>
     </div>
-    <div class="stat-card" onclick="highlightSection('signalsList')">
-      <div class="stat-label">Sinais Hoje</div>
-      <div class="stat-value accent" id="statSig">0</div>
-      <div class="stat-sub">Confluência ≥55%</div>
-    </div>
+  </div>
+
+  <!-- AVISO META BATIDA (HMI) -->
+  <div id="dailyLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,212,255,0.1)); border: 2px solid var(--bull); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
+     <div style="font-size: 2.5rem; margin-bottom: 10px;">🏆</div>
+     <h2 style="color: var(--bull); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">META DIÁRIA BATIDA</h2>
+     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O sistema protegeu os teus lucros e encerrou as operações por hoje.</p>
+     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">PRÓXIMA SESSÃO EM:</span>
+        <span id="lockCountdown" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--accent);">00:00:00</span>
+     </div>
   </div>
 
   <!-- MAIN GRID -->
@@ -1287,9 +1298,16 @@
 </div>
 
 <script>
-function formatCurrency(value, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
+function formatCurrency(val, currency = "USD") {
+  if (val === undefined || val === null) return "---";
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2
+  }).format(val);
 }
+
+let isDailyLocked = false;
 
 // ─── GEMINI API KEY — Save & Load ─────────────────────
 function saveGeminiApiKey() {
@@ -2313,142 +2331,119 @@ function updateLimitUI(val) {
 }
 
 async function updateStats() {
-  if (brokerConnected) {
-    try {
-      const info = await getBrokerAccount();
-      if (info && info.balance !== undefined) {
-        brokerInfo.balance = info.balance;
-        brokerInfo.equity = info.equity;
-        document.getElementById("statBalance").textContent = formatCurrency(info.balance, info.currency || brokerInfo.currency);
+  try {
+    // 1. Sincronização Institucional (Status do Cérebro)
+    const status = await apiFetch("/api/user/status");
+    if (status && status.success) {
+      // Saldo e Equity (Sincronizado via EA)
+      document.getElementById("statBalance").textContent = formatCurrency(status.balance, "USD");
+      
+      const pnlVal = status.equity - status.balance;
+      const pnlEl = document.getElementById("statPnl");
+      pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
+      pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
 
-        const pnlVal = info.unrealizedPL || (info.equity - info.balance) || 0;
-        const pnlEl = document.getElementById("statPnl");
-        pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, info.currency || brokerInfo.currency);
-        pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
+      // Meta Diária
+      document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
+      const progressEl = document.getElementById("statDailyProgress");
+      progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
+      progressEl.style.color = status.dailyPnl >= 0 ? "var(--bull)" : "var(--bear)";
+
+      // HMI Lock Management
+      const lockOverlay = document.getElementById("dailyLockOverlay");
+      const mainBtn = document.getElementById("mainBtn");
+      
+      isDailyLocked = status.isLocked;
+
+      if (status.isLocked) {
+        lockOverlay.style.display = "block";
+        if (mainBtn) {
+            mainBtn.disabled = true;
+            mainBtn.textContent = "🔒 Meta Atingida";
+            mainBtn.style.opacity = "0.5";
+            if (isRunning) stopBot();
+        }
+        updateLockCountdown(status.timeUntilReset);
+      } else {
+        lockOverlay.style.display = "none";
       }
+    }
 
+    // 2. Dados de Corretora (Se conectada via API)
+    if (brokerConnected) {
       const posData = await getBrokerPositions();
       const positions = posData.positions || [];
       openTrades = positions;
       
-      // EXPERT: Sincronização e Recuperação de Ordens Órfãs
       positions.forEach(pos => {
-         let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
-         
-         // Se a ordem existe na MetaTrader 5 mas NÃO tem cartão no dashboard, recuperamos o controlo
-         if (!pnlEl) {
-            console.log(`[VIGILANTE] Detetada ordem órfã #${pos.id} em ${pos.symbol}. Recuperando controlo...`);
-            const recoverySig = {
-                pair: pos.pair,
-                direction: (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL',
-                entry: pos.openPrice || 0,
-                sl: pos.sl || 0,
-                tp: pos.tp || 0,
-                score: 100,
-                rr: 'EXTERNA',
-                factors: { "VPS VIGILANTE": true, "RECUPERADA": true }
-            };
-            const recoveryExec = { success: true, orderId: pos.id, message: "Controlo Recuperado" };
-            addSignalCard(recoverySig, recoveryExec);
-            
-            // Re-seleciona o elemento recém-criado para continuar a atualização
-            pnlEl = document.getElementById(`pnl-val-${pos.id}`);
-         }
+          let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+          if (!pnlEl) {
+             const recoverySig = {
+                 pair: pos.pair,
+                 direction: (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL',
+                 entry: pos.openPrice || 0,
+                 sl: pos.sl || 0,
+                 tp: pos.tp || 0,
+                 score: 100,
+                 rr: 'EXTERNA',
+                 factors: { "VPS VIGILANTE": true, "RECUPERADA": true }
+             };
+             addSignalCard(recoverySig, { success: true, orderId: pos.id });
+             pnlEl = document.getElementById(`pnl-val-${pos.id}`);
+          }
 
-         if (pnlEl) {
-            const pnlVal = pos.pnl || 0;
-            pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
-            pnlEl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
-            
-            // Update Real SL/TP
-            const slEl = document.getElementById(`active-sl-${pos.id}`);
-            const tpEl = document.getElementById(`active-tp-${pos.id}`);
-            if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(brokerInfo.precision || 5) : "--";
-            if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(brokerInfo.precision || 5) : "--";
-            
-            // Update Top Profit & Lock Trigger
-            const peakEl = document.getElementById(`peak-pnl-${pos.id}`);
-            const lockEl = document.getElementById(`lock-trigger-${pos.id}`);
-            
-            // Peak simulation or real peak from memory if we had it
-            // For dashboard, we use a simple "current is peak" logic unless we track it in browser
-            let currentPeak = parseFloat(localStorage.getItem(`peak_${pos.id}`) || 0);
-            if (pnlVal > currentPeak) {
-                currentPeak = pnlVal;
-                localStorage.setItem(`peak_${pos.id}`, currentPeak);
-            }
-
-            if (peakEl) peakEl.textContent = formatCurrency(currentPeak, brokerInfo.currency);
-            
-            if (lockEl && currentPeak >= 3) {
-                const lockPrice = currentPeak * 0.70;
-                lockEl.textContent = formatCurrency(lockPrice, brokerInfo.currency);
-            } else if (lockEl) {
-                lockEl.textContent = "Aguardando $3";
-            }
-            
-            const topPnl = document.getElementById(`top-pnl-${pos.id}`);
-            if (topPnl) {
-                topPnl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency);
-                topPnl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
-            }
-
-            // Highlight container
-            const container = document.getElementById(`pnl-container-${pos.id}`);
-            if (container) {
-               container.style.borderColor = pnlVal >= 0 ? "rgba(0,230,118,0.3)" : "rgba(255,68,68,0.3)";
-               container.style.background = pnlVal >= 0 ? "rgba(0,230,118,0.05)" : "rgba(255,68,68,0.05)";
-            }
-         }
+          if (pnlEl) {
+             const pnlVal = pos.pnl || 0;
+             pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
+             pnlEl.style.color = pnlVal >= 0 ? "var(--bull)" : "var(--bear)";
+             
+             const slEl = document.getElementById(`active-sl-${pos.id}`);
+             const tpEl = document.getElementById(`active-tp-${pos.id}`);
+             if (slEl) slEl.textContent = pos.sl ? pos.sl.toFixed(5) : "--";
+             if (tpEl) tpEl.textContent = pos.tp ? pos.tp.toFixed(5) : "--";
+          }
       });
-
-      renderActivePositions(positions);
 
       const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
       document.getElementById("statOpen").textContent = `${positions.length} / ${maxTradesLimit}`;
-      document.getElementById("statLimitDisplay").textContent = maxTradesLimit;
 
-      // 🔍 EXPERT: Cálculo de Estatísticas Reais via Histórico do Broker
-      if (tradeHistoryRaw.length === 0 && brokerConnected) {
-         loadHistory(); // Puxa histórico inicial
-      }
-
+      // 3. Atualizar Win Rate via Histórico
       if (tradeHistoryRaw.length > 0) {
-        // Filtramos apenas os trades de HOJE para o "Sinais Hoje" ou deixamos cumulativo?
-        // O utilizador quer que "Sinais Hoje" funcione.
-        const hoje = new Date().toDateString();
-        const tradesHoje = tradeHistoryRaw.filter(t => new Date(t.closeTime).toDateString() === hoje);
-        
-        // Se sigCount for 0 (ao recarregar), podemos estimar pelos trades de hoje + sinais da sessão
-        // Mas o mais preciso é contar os trades fechados hoje + abertos
-        const totalTradesHistorico = tradeHistoryRaw.length;
-        const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
-        
-        // Sincronizar variáveis globais com o histórico para manter consistência
         const totalFechados = tradeHistoryRaw.length;
         const totalAbertos = positions.length;
-        
         tradeCount = totalFechados + totalAbertos;
-        wins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
+        const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
         
-        // Sinais Hoje: Sinais detetados na sessão + trades já fechados hoje
-        const sinaisReaisHoje = sigCount + tradesHoje.length;
-        document.getElementById("statSig").textContent = sinaisReaisHoje;
-      } else {
-        // Se não houver histórico, usamos apenas os dados da sessão
-        const totalAbertos = positions.length;
-        tradeCount = totalAbertos; 
-        document.getElementById("statSig").textContent = sigCount;
+        document.getElementById("statWr").textContent = totalFechados ? `${((totalWins/totalFechados)*100).toFixed(0)}%` : "N/A";
+        document.getElementById("statTotal").textContent = tradeCount;
       }
-
-      document.getElementById("statTotal").textContent = tradeCount;
-      // Win Rate calculado apenas sobre trades FECHADOS para precisão
-      const fechadosCount = tradeHistoryRaw.length;
-      document.getElementById("statWr").textContent = fechadosCount ? `${((wins/fechadosCount)*100).toFixed(0)}%` : "N/A";
-    } catch (e) {
-      addLog(`⚠️ Erro ao atualizar dados: ${e.message}`, "warn");
     }
+  } catch (e) {
+    console.warn("Status UI Sync error:", e.message);
   }
+}
+
+let countdownActive = false;
+function updateLockCountdown(seconds) {
+    if (countdownActive) return;
+    const el = document.getElementById("lockCountdown");
+    if (!el) return;
+    
+    countdownActive = true;
+    let remaining = seconds;
+    const interval = setInterval(() => {
+        if (remaining <= 0) {
+            clearInterval(interval);
+            countdownActive = false;
+            location.reload(); 
+            return;
+        }
+        remaining--;
+        const h = Math.floor(remaining / 3600);
+        const m = Math.floor((remaining % 3600) / 60);
+        const s = remaining % 60;
+        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }, 1000);
 }
 
 function renderActivePositions(positions) {
@@ -2692,6 +2687,10 @@ function toggleBot() {
 }
 
 function startBot() {
+  if (isDailyLocked) {
+     addLog("⚠️ Meta diária já atingida hoje. O bot está bloqueado para proteger os teus lucros.", "warn");
+     return;
+  }
   addLog("Debug: Chamada startBot()");
   try {
     if (!userLicense) {
@@ -3131,9 +3130,9 @@ loadSystemConfig();
     }
 })();
 
-// ─── SINCRONIZAÇÃO DE ORDENS EM TEMPO REAL (RECUPERAÇÃO) ───
+// ─── SINCRONIZAÇÃO DE STATUS EM TEMPO REAL (HMI INSTITUCIONAL) ───
 setInterval(() => {
-    if (brokerConnected) updateStats();
+    updateStats();
 }, 5000);
 
 let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
@@ -3185,8 +3184,8 @@ async function loadSystemConfig() {
       <div class="download-area">
         <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v3.0 Profissional - Compilada para MetaTrader 5</p>
-        <a href="/AURA_PRO_FINAL.mq5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
-          <i class="fas fa-file-download"></i> DOWNLOAD AURA_PRO_FINAL.mq5
+        <a href="/AURA_PRO_FINAL.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+          <i class="fas fa-file-download"></i> DOWNLOAD AURA_PRO_FINAL.ex5
         </a>
       </div>
 

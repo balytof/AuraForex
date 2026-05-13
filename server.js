@@ -386,6 +386,45 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
   }
 });
 
+// ── NOVO: Endpoint de Status HMI (Institucional) ──────────────────
+app.get("/api/user/status", requireAuth, async (req, res) => {
+  try {
+    // 1. Buscar dados da licença (Sincronizados pelo EA)
+    const license = await prisma.license.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // 2. Buscar dados do RiskManager (Meta Diária)
+    const risk = userRisks.get(req.user.id) || new RiskManager(req.user.id);
+    if (!userRisks.has(req.user.id)) userRisks.set(req.user.id, risk);
+
+    // 3. Calcular Tempo para Reset (Meia-noite)
+    const now = new Date();
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const timeUntilReset = Math.floor((midnight - now) / 1000);
+
+    // 4. Calcular Meta em Dinheiro (Baseada no último saldo conhecido)
+    const lastBalance = license ? license.balance : (risk.balance || 0);
+    const dailyTargetMoney = lastBalance * (cfg.dailyProfitTargetPct / 100 || 0.05);
+
+    res.json({
+      success: true,
+      balance: lastBalance,
+      equity: license ? license.equity : lastBalance,
+      dailyPnl: risk.dailyPnl,
+      dailyTargetMoney: dailyTargetMoney,
+      isLocked: risk.dailyProfitLocked,
+      timeUntilReset: timeUntilReset,
+      updatedAt: license ? license.updatedAt : null
+    });
+  } catch (err) {
+    console.error("[STATUS-API] Erro:", err.message);
+    res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
+  }
+});
+
 // ── Broker Endpoints ──────────────────────────────────────────────
 
 app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) => {
@@ -1785,21 +1824,29 @@ server.listen(PORT, () => {
         if (accountInfo) risk.setBalance(accountInfo.balance);
 
         const positions = await broker.getOpenPositions();
+        
+        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock)
+        const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+        if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
+           console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
+           // Fechar todas as posições imediatamente
+           for (const pos of (positions || [])) {
+              await broker.closePosition(pos.id);
+              risk.closeTrade(pos.id, 0, "DAILY_TARGET_LOCK", pos.profit);
+           }
+           continue; 
+        }
+
         if (!positions || positions.length === 0) continue;
 
         // 2. Para cada posição, verificar proteção
         for (const pos of positions) {
           const currentProfit = pos.profit || 0;
-          const ticketId = pos.id; // O ID da MetaApi é o Ticket
+          const ticketId = pos.id; 
 
-          // Debug agressivo: Ver todas as ordens detetadas
-          console.log(`\x1b[33m[MONITOR] Detetado: ${pos.pair} | Ticket: ${ticketId} | Profit: $${currentProfit.toFixed(2)}\x1b[0m`);
-
-          // Sincronizar trade: Se for uma ordem da Aura (pelo comentário ou ID), garantir que está no RiskManager
+          // Sincronizar trade
           let internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
-
           if (!internalTrade) {
-            console.log(`\x1b[35m[SYNC] Nova ordem detetada no broker. Sincronizando Ticket #${ticketId}...\x1b[0m`);
             internalTrade = risk.registerTrade({
               pair: pos.pair,
               direction: pos.direction,
@@ -1811,14 +1858,13 @@ server.listen(PORT, () => {
           }
 
           // 3. Executar Verificação de Profit Lock usando Lucro Real
-          // Passamos 0 no preço pois o checkProfitProtection agora só usa o Lucro
           const toClose = risk.checkOpenTrades(pos.pair, 0, currentProfit, 0);
 
           for (const { trade, reason } of toClose) {
             console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
             const res = await broker.closePosition(ticketId);
             if (res.success) {
-              risk.closeTrade(trade.id, 0, reason);
+              risk.closeTrade(trade.id, 0, reason, currentProfit);
             }
           }
         }
@@ -1826,7 +1872,7 @@ server.listen(PORT, () => {
         console.error(`[MONITOR-ERROR] User ${userId}:`, e.message);
       }
     }
-  }, 1000); // 🏎️ VELOCIDADE MÁXIMA: Verifica a cada 1 segundo para não perder picos
+  }, 1000);
 });
 
 process.on('exit', (code) => {

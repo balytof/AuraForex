@@ -19,13 +19,15 @@ const cfg = config.risk;
 class RiskManager {
   constructor(userId = "default") {
     this.userId = userId;
-    this.openTrades = [];     // trades atualmente abertos
-    this.tradeHistory = [];     // todos os trades fechados
+    this.openTrades = [];         // trades atualmente abertos
+    this.tradeHistory = [];       // todos os trades fechados
     this.balance = 0;
     this.dailyStartBalance = 0;
     this.dailyPnl = 0;
     this.dailyDate = null;
     this.circuitBreaker = false;  // true = bot parado por perda diária
+    this.dailyProfitLocked = false; // true = meta diária atingida
+    this.lastStateSave = 0;       // Throttle para gravação em disco
     
     // Pasta de logs por utilizador
     const logDir = path.join(__dirname, "../logs/users", userId);
@@ -50,7 +52,8 @@ class RiskManager {
       this.dailyStartBalance = balance;
       this.dailyPnl = 0;
       this.circuitBreaker = false;
-      log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)}`);
+      this.dailyProfitLocked = false;
+      log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)} | Locks Resetados.`);
     }
   }
 
@@ -58,6 +61,9 @@ class RiskManager {
   canOpenTrade(pair) {
     if (this.circuitBreaker) {
       return { allowed: false, reason: `Circuit breaker ativo — perda diária ≥ ${cfg.maxDailyLossPct}%` };
+    }
+    if (this.dailyProfitLocked) {
+      return { allowed: false, reason: `Meta diária atingida — bloqueado até às 00h` };
     }
     if (this.balance < 50) return { allowed: false, reason: "Saldo muito baixo para operar (< 50)" };
     if (this.openTrades.length >= cfg.maxOpenTrades) {
@@ -81,10 +87,12 @@ class RiskManager {
 
     let pipValue = 10; 
     if (isJpy) pipValue = 7;
-    if (isXau) pipValue = 1;
+    if (isXau) pipValue = 1; // Para XAUUSD 0.01 lot = $1 por 10 pips (1.0 USD/pt em standard)
 
     let lot = riskAmount / (slPips * pipValue);
-    const finalLot = Math.max(0.01, Math.min(lot, 0.10)); // Limite de segurança 0.10
+    
+    // Limite de segurança institucional: Máximo 0.10 para evitar overexposure em contas pequenas
+    const finalLot = Math.max(0.01, Math.min(lot, 0.10)); 
     return Number(finalLot.toFixed(2));
   }
 
@@ -99,7 +107,7 @@ class RiskManager {
   registerTrade(signal, lotSize, brokerId = null) {
     const trade = {
       id: `T-${Date.now()}`,
-      brokerId,
+      brokerId: String(brokerId),
       pair: signal.pair,
       direction: signal.direction,
       entry: signal.entry,
@@ -111,77 +119,143 @@ class RiskManager {
       peakProfit: 0, 
     };
     this.openTrades.push(trade);
-    this._saveState();
+    this._safeSaveState();
     return trade;
   }
 
   // ── FECHAR TRADE ─────────────────────────────────────
-  closeTrade(tradeId, closePrice, reason = "MANUAL") {
-    const idx = this.openTrades.findIndex(t => t.id === tradeId || t.brokerId === tradeId);
+  closeTrade(tradeId, closePrice, reason = "MANUAL", pnl = 0) {
+    const idx = this.openTrades.findIndex(t => t.id === tradeId || t.brokerId === String(tradeId));
     if (idx === -1) return null;
 
     const trade = this.openTrades[idx];
     const closed = {
       ...trade,
       closePrice,
+      pnl: Number(pnl) || 0,
       closeReason: reason,
       closedAt: new Date().toISOString(),
       status: "CLOSED",
     };
 
+    // Actualizar Circuit Breaker
+    this.dailyPnl += closed.pnl;
+    if (this.dailyStartBalance > 0) {
+        const lossLimit = this.dailyStartBalance * (cfg.maxDailyLossPct / 100);
+        if (this.dailyPnl <= -lossLimit) {
+            this.circuitBreaker = true;
+            log.warn(`[CIRCUIT-BREAKER] Atingido limite de perda diária ($${this.dailyPnl.toFixed(2)})`);
+        }
+    }
+
     this.openTrades.splice(idx, 1);
     this.tradeHistory.push(closed);
+    
+    // Limitar histórico para evitar leak de memória (Max 5000 trades)
+    if (this.tradeHistory.length > 5000) {
+        this.tradeHistory = this.tradeHistory.slice(-5000);
+    }
+
     this._saveHistory();
-    this._saveState();
+    this._safeSaveState();
     return closed;
   }
 
   // ── PROFIT PROTECTION (LOCK) ── Usando Lucro REAL do Broker
   checkProfitProtection(trade, currentProfit) {
-    // 🔼 atualizar pico
+    // 🔼 Atualizar pico
     if (currentProfit > (trade.peakProfit || 0)) {
       trade.peakProfit = currentProfit;
-      this._saveState(); 
+      this._safeSaveState(); 
     }
 
-    const minProfitToActivate = 3;   
-    const drawdown = 0.30; // 30%
+    const isXau = trade.pair.toUpperCase().includes("XAU") || trade.pair.toUpperCase().includes("GOLD");
+    const minProfitToActivate = isXau ? 15 : 3;   
+    
+    // Drawdown Dinâmico: Quanto maior o lucro, menos permitimos devolver
+    let drawdown = 0.35; // 35% inicial
+    if (trade.peakProfit > 50)  drawdown = 0.25;
+    if (trade.peakProfit > 100) drawdown = 0.15;
+    if (trade.peakProfit > 500) drawdown = 0.10;
 
     if (trade.peakProfit >= minProfitToActivate) {
       const minAllowed = trade.peakProfit * (1 - drawdown);
       
-      // LOG DE ALTA VISIBILIDADE NO TERMINAL
-      console.log(`[VIGIA] ${trade.pair} | Lucro: $${currentProfit.toFixed(2)} | Pico: $${trade.peakProfit.toFixed(2)} | Gatilho: $${minAllowed.toFixed(2)}`);
-
       if (currentProfit <= minAllowed) {
         return {
           shouldClose: true,
-          reason: `PROFIT_LOCK ${currentProfit.toFixed(2)}$ < ${minAllowed.toFixed(2)}$`
+          reason: `PROFIT_LOCK | Lucro: $${currentProfit.toFixed(2)} | Queda do Pico ($${trade.peakProfit.toFixed(2)}) > ${(drawdown*100).toFixed(0)}%`
         };
       }
     }
     return { shouldClose: false };
   }
 
-  // ── MONITOR DE TRADES ABERTOS ─────────────────────────
-  checkOpenTrades(pair, currentPrice, currentProfit, atr) {
+  // ── VERIFICAÇÃO DE META DIÁRIA (Baseada em Equity/Lucro Flutuante) ──
+  checkDailyProfitTarget(brokerPositions = []) {
+    if (this.dailyProfitLocked) return { hit: true, alreadyLocked: true };
+    if (this.dailyStartBalance <= 0) return { hit: false };
+
+    // Calcular Lucro Flutuante total das posições abertas
+    const floatingProfit = brokerPositions.reduce((sum, pos) => sum + Number(pos.profit || 0), 0);
+    
+    // Lucro Total do Dia = Realizado (dailyPnl) + Flutuante
+    const totalDayProfit = this.dailyPnl + floatingProfit;
+    const profitPct = (totalDayProfit / this.dailyStartBalance) * 100;
+
+    // Usar meta do config ou 5.0% padrão
+    const targetPct = cfg.dailyProfitTargetPct || 5.0;
+
+    if (profitPct >= targetPct) {
+      this.dailyProfitLocked = true;
+      this._safeSaveState();
+      
+      log.info(`[DAILY-TARGET-HIT] Meta de ${targetPct}% atingida! Lucro: ${profitPct.toFixed(2)}% ($${totalDayProfit.toFixed(2)})`);
+      
+      return {
+        hit: true,
+        reason: `META DIÁRIA ATINGIDA (${profitPct.toFixed(2)}%)`,
+        totalProfit: totalDayProfit
+      };
+    }
+
+    return { hit: false };
+  }
+
+  // ── MONITOR DE TRADES ABERTOS (Lógica de Individualização por Ticket) ──
+  checkOpenTrades(pair, brokerPositions = []) {
     const toClose = [];
     const normalize = (p) => {
         if (!p) return "";
-        // Remove tudo o que não é letra/número e remove sufixos comuns como W, m, etc.
-        return p.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/W$/, "").replace(/M$/, "");
+        // Sanitização cirúrgica: remove sufixos de broker (.m, .raw, _ecn) sem quebrar o par principal
+        return p.toUpperCase().replace(/(\.m|\.raw|_ecn|\.i|\.pro)$/i, "").replace(/[^A-Z0-9]/g, "");
     };
-    const normalizedPair = normalize(pair);
+    
+    const normalizedTargetPair = normalize(pair);
 
-    const tradesForThisPair = this.openTrades.filter(t => {
-        const tPair = normalize(t.pair);
-        return tPair === normalizedPair || tPair.includes(normalizedPair) || normalizedPair.includes(tPair);
-    });
+    // Filtrar apenas trades que pertencem a este par no nosso estado interno
+    const myTradesForPair = this.openTrades.filter(t => normalize(t.pair) === normalizedTargetPair);
 
-    for (const trade of tradesForThisPair) {
+    for (const trade of myTradesForPair) {
+      // Encontrar a posição REAL do broker que corresponde a este ticket
+      const realPosition = brokerPositions.find(p => String(p.ticket || p.brokerId) === String(trade.brokerId));
+      
+      if (!realPosition) {
+        log.warn(`[RISK] Trade ${trade.brokerId} (${trade.pair}) não encontrado nas posições atuais do broker.`);
+        continue;
+      }
+
+      const currentProfit = Number(realPosition.profit);
+      const currentPrice = Number(realPosition.price || realPosition.currentPrice);
+
       const protection = this.checkProfitProtection(trade, currentProfit);
       if (protection.shouldClose) {
-        toClose.push({ trade, closePrice: currentPrice, reason: protection.reason });
+        toClose.push({ 
+            trade, 
+            closePrice: currentPrice, 
+            reason: protection.reason,
+            pnl: currentProfit 
+        });
       }
     }
     return toClose;
@@ -203,17 +277,34 @@ class RiskManager {
     } catch (e) { this.tradeHistory = []; }
   }
 
+  _safeSaveState() {
+    const now = Date.now();
+    // Throttle de 5 segundos para proteger o disco e performance da VPS
+    if (now - this.lastStateSave < 5000) return;
+    this.lastStateSave = now;
+    this._saveState();
+  }
+
   _saveState() {
     try {
-      if (!fs.existsSync(path.dirname(this.stateFile))) fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+      const logDir = path.dirname(this.stateFile);
+      if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+      
       const state = {
         openTrades: this.openTrades,
         dailyPnl: this.dailyPnl,
         dailyStartBalance: this.dailyStartBalance,
-        balance: this.balance
+        balance: this.balance,
+        circuitBreaker: this.circuitBreaker,
+        dailyProfitLocked: this.dailyProfitLocked,
+        lastUpdate: new Date().toISOString()
       };
+      
+      // Gravação síncrona dentro do throttle é segura e evita race conditions simples
       fs.writeFileSync(this.stateFile, JSON.stringify(state, null, 2));
-    } catch (e) {}
+    } catch (e) {
+      log.error(`[RISK-SAVE-ERROR] Falha ao salvar estado: ${e.message}`);
+    }
   }
 
   _loadState() {
@@ -224,6 +315,8 @@ class RiskManager {
         this.dailyPnl = state.dailyPnl || 0;
         this.dailyStartBalance = state.dailyStartBalance || 0;
         this.balance = state.balance || 0;
+        this.circuitBreaker = state.circuitBreaker || false;
+        this.dailyProfitLocked = state.dailyProfitLocked || false;
       }
     } catch (e) { this.openTrades = []; }
   }
