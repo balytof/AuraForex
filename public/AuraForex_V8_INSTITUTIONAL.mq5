@@ -53,16 +53,6 @@ double            DailyStartBalance = 0;
 bool              DailyTargetReached = false;
 int               LastTradingDay = -1;
 
-//--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
-struct PendingProtectionData {
-   ulong    ticket;
-   double   sl;
-   double   tp;
-   string   signalId;
-   datetime timestamp;
-};
-PendingProtectionData PendingQueue[]; // Fila de espera para proteção
-
 //--- ESTRUTURA FILA DE SINAIS ---
 struct SignalQueueData {
    string   json;
