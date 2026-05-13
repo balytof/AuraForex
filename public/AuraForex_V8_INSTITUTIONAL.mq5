@@ -920,41 +920,48 @@ void ExecuteSignal(string json)
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    
+   // --- CÁLCULO ATÓMICO DE SL/TP (Antes da Execução) ---
    double sl = 0, tp = 0;
-   double maxSL = (double)((StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex);
-   
+   double pipSize = (digits == 3 || digits == 5) ? point * 10 : point;
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
+   if(stopLevel <= 0) stopLevel = 30 * point;
+
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
-      sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
-      double dist = (currentPrice - sl) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
+      sl = (low > 0) ? low - (atr * 0.3) : ask - (atr * 1.5);
+      tp = ask + (atr * 3.0);
+      
+      // Validação Institucional de StopLevels (Baseada no ASK de entrada)
+      if(ask - sl < stopLevel) sl = ask - (stopLevel * 1.2);
+      if(tp - ask < stopLevel) tp = ask + (stopLevel * 1.2);
+      
+      double risk = GetDynamicRisk((ask - sl)/point);
+      double lot = CalculateLot(pair, risk, ask - sl, ORDER_TYPE_BUY);
+      
       if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Buy(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando BUY: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice + (atr * 6.0), ExtractValue(json, "id"));
-            }
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            Print("🚀 BUY Executado com Sucesso: ", pair, " | SL: ", sl, " | TP: ", tp);
+            AddProcessed(ExtractValue(json, "id"));
          }
       }
    } else {
       double high = GetLastHigh(pair, 20);
-      sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
-      double dist = (sl - currentPrice) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      double risk = GetDynamicRisk(dist);
-      double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
+      sl = (high > 0) ? high + (atr * 0.3) : bid + (atr * 1.5);
+      tp = bid - (atr * 3.0);
+      
+      // Validação Institucional de StopLevels (Baseada no BID de entrada)
+      if(sl - bid < stopLevel) sl = bid + (stopLevel * 1.2);
+      if(bid - tp < stopLevel) tp = bid - (stopLevel * 1.2);
+      
+      double risk = GetDynamicRisk((sl - bid)/point);
+      double lot = CalculateLot(pair, risk, sl - bid, ORDER_TYPE_SELL);
+      
       if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair)); // Slippage Dinâmico
-         if(trade.Sell(lot, pair, 0, 0, 0)) {
-            ulong ticket = trade.ResultOrder();
-            if(ticket > 0) {
-               Print("🚀 Executando SELL: ", pair);
-               AddToPendingQueue(ticket, sl, currentPrice - (atr * 6.0), ExtractValue(json, "id"));
-            }
+         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+            Print("🚀 SELL Executado com Sucesso: ", pair, " | SL: ", sl, " | TP: ", tp);
+            AddProcessed(ExtractValue(json, "id"));
          }
       }
    }
@@ -1001,27 +1008,28 @@ void ProcessPendingProtections() {
    }
 }
 
-void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
+void ApplyAsyncProtection(ulong ticket, double sl, double tp) {
    if(!PositionSelectByTicket(ticket)) return;
    
    string pair = PositionGetString(POSITION_SYMBOL);
-   double sl = data.sl;
-   double tp = data.tp;
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
-   double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
+   if(stopLevel <= 0) stopLevel = 30 * point;
+
+   double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
    
+   // Validação Rigorosa baseada no preço de entrada (Não no actual)
    if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-      if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
-      if(tp - currentPrice < stopLevel) tp = currentPrice + stopLevel * 1.5;
+      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 1.2;
+      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 1.2;
    } else {
-      if(sl - currentPrice < stopLevel) sl = currentPrice + stopLevel * 1.5;
-      if(currentPrice - tp < stopLevel) tp = currentPrice - stopLevel * 1.5;
+      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 1.2;
+      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 1.2;
    }
    
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-      Print("🛡️ Ordem Protegida | Ticket: ", ticket);
-      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+      Print("🛡️ Ordem Protegida (Async) | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
    }
 }
 
