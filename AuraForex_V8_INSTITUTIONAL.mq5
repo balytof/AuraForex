@@ -902,24 +902,31 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
-      sl = (low > 0) ? low - (atr * 0.5) : currentPrice - (atr * 3.0);
+      
+      // CONFIGURAÇÃO R/R PROFISSIONAL
+      double slMultiplier = IsXAU(pair) ? 2.0 : 1.5;
+      double tpMultiplier = IsXAU(pair) ? 3.0 : 2.5;
+
+      // Cálculo de SL: Priorizar mínima estrutural mas garantir distância ATR mínima
+      double minSL = currentPrice - (atr * slMultiplier);
+      sl = (low > 0) ? MathMin(low - (atr * 0.3), minSL) : minSL;
+      
+      double tp = currentPrice + (atr * tpMultiplier);
+      
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
+      
       double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
-      double tp = currentPrice + (atr * 6.0); // TP Dinâmico ATR
-      int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
 
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
-         // ATOMIC ENTRY: Abrir já com SL e TP
-         if(trade.Buy(lot, pair, 0, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         // ATOMIC ENTRY: Execução institucional com proteção imediata
+         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket);
-               
-               // Reportar sucesso imediato
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -928,25 +935,31 @@ void ExecuteSignal(string json)
       }
    } else {
       double high = GetLastHigh(pair, 20);
-      sl = (high > 0) ? high + (atr * 0.5) : currentPrice + (atr * 3.0);
+      
+      // CONFIGURAÇÃO R/R PROFISSIONAL
+      double slMultiplier = IsXAU(pair) ? 2.0 : 1.5;
+      double tpMultiplier = IsXAU(pair) ? 3.0 : 2.5;
+
+      // Cálculo de SL: Priorizar máxima estrutural mas garantir distância ATR mínima
+      double maxSLdist = currentPrice + (atr * slMultiplier);
+      sl = (high > 0) ? MathMax(high + (atr * 0.3), maxSLdist) : maxSLdist;
+      
+      double tp = currentPrice - (atr * tpMultiplier);
+      
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      double risk = GetDynamicRisk(dist);
+      
       double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
-      double tp = currentPrice - (atr * 6.0); // TP Dinâmico ATR
-      int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
 
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
-         // ATOMIC ENTRY: Abrir já com SL e TP
-         if(trade.Sell(lot, pair, 0, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         // ATOMIC ENTRY: Execução institucional com proteção imediata
+         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket);
-               
-               // Reportar sucesso imediato
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
