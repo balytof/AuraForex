@@ -92,10 +92,10 @@ double GetMaxAllowedSpread(string sym)
    return IsXAU(sym) ? 35.0 : 15.0; // 35 pips para Ouro, 15 para Forex
 }
 
-bool IsVolatilityAbnormal(string sym)
-{
+   // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
    double atrNow = 0;
-   int handle = iATR(sym, PERIOD_M15, 14);
+   ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+   int handle = iATR(sym, atrTF, 14);
    if(handle != INVALID_HANDLE)
    {
       double buf[];
@@ -554,6 +554,16 @@ void ValidateLicense()
 
 void CheckSignals()
 {
+   if(DailyTargetReached)
+   {
+      static datetime lastLockMsg = 0;
+      if(TimeCurrent() - lastLockMsg > 3600) {
+         Print("🛑 [DAILY] Meta diária já atingida. Trading bloqueado até amanhã.");
+         lastLockMsg = TimeCurrent();
+      }
+      return;
+   }
+
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
    
