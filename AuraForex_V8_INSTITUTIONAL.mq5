@@ -1158,9 +1158,21 @@ string SendPost(string url, string payload)
    return CharArrayToString(res);
 }
 
-string SendGet(string url) {
-   uchar res[], data[]; string rh;
-   if(WebRequest("GET", url, NULL, 5000, data, res, rh) < 0) return "";
+string SendGet(string url)
+{
+   uchar res[], data[];
+   string rh;
+
+   ResetLastError();
+
+   int code = WebRequest("GET", url, NULL, 5000, data, res, rh);
+
+   if(code == -1)
+   {
+      Print("❌ WebRequest (GET) ERROR: ", GetLastError(), " | URL: ", url);
+      return "";
+   }
+
    return CharArrayToString(res);
 }
 
