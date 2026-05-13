@@ -955,46 +955,6 @@ void ExecuteSignal(string json)
    }
 }
 
-void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
-   int s = ArraySize(PendingQueue);
-   ArrayResize(PendingQueue, s + 1);
-   PendingQueue[s].ticket = ticket;
-   PendingQueue[s].sl = sl;
-   PendingQueue[s].tp = tp;
-   PendingQueue[s].signalId = signalId;
-   PendingQueue[s].timestamp = TimeCurrent();
-   
-   // Persistência em GlobalVariables
-   GlobalVariableSet("PSL_" + (string)ticket, sl);
-   GlobalVariableSet("PTP_" + (string)ticket, tp);
-}
-
-void ProcessPendingProtections() {
-   for(int i = ArraySize(PendingQueue) - 1; i >= 0; i--) {
-      if(TimeCurrent() - PendingQueue[i].timestamp > 60) {
-         RemovePendingQueueIndex(i);
-         continue;
-      }
-
-      ulong ticket = PendingQueue[i].ticket;
-      if(PositionSelectByTicket(ticket)) {
-         if(PositionGetDouble(POSITION_SL) == 0) { 
-            ApplyAsyncProtection(ticket, PendingQueue[i]);
-            
-            // Limpeza persistente
-            GlobalVariableDel("PSL_" + (string)ticket);
-            GlobalVariableDel("PTP_" + (string)ticket);
-            
-            RemovePendingQueueIndex(i);
-         } else {
-            // Já tem SL, remover da fila e do disco
-            GlobalVariableDel("PSL_" + (string)ticket);
-            GlobalVariableDel("PTP_" + (string)ticket);
-            RemovePendingQueueIndex(i);
-         }
-      }
-   }
-}
 
 void ApplyAsyncProtection(ulong ticket, double sl, double tp) {
    if(!PositionSelectByTicket(ticket)) return;
