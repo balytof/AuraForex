@@ -228,11 +228,8 @@ void MonitorProfitLock()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       double currentSL = PositionGetDouble(POSITION_SL);
@@ -404,11 +401,8 @@ void MonitorPartialTP()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit = PositionGetDouble(POSITION_PROFIT);
       double vol = PositionGetDouble(POSITION_VOLUME);
@@ -459,11 +453,8 @@ void MonitorTrailingStop()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
