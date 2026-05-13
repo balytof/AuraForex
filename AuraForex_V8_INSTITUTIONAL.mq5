@@ -35,6 +35,7 @@ input int    InpTrailingDistance  = 80;        // Trailing Distance (8.0 pips)
 input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
+input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
 
 struct ProfitLockData {
    ulong    ticket;
@@ -48,6 +49,9 @@ CTrade            trade;
 bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
 ProfitLockData    ProfitLocks[];   // Array de monitoramento
+double            DailyStartBalance  = 0;
+bool              DailyTargetReached = false;
+int               LastTradingDay     = -1;
 
 //--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
 struct PendingProtectionData {
