@@ -93,8 +93,10 @@ double GetMaxAllowedSpread(string sym)
 
 bool IsVolatilityAbnormal(string sym)
 {
+   // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
    double atrNow = 0;
-   int handle = iATR(sym, PERIOD_M15, 14);
+   ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+   int handle = iATR(sym, atrTF, 14);
    if(handle != INVALID_HANDLE)
    {
       double buf[];
@@ -103,10 +105,13 @@ bool IsVolatilityAbnormal(string sym)
       IndicatorRelease(handle);
    }
    
-   // Simulação de ATR médio (50 períodos) - Bloqueia se volatilidade > 2.5x a média
-   // Para simplificar, usamos um limite fixo baseado no ativo se não quisermos calcular a média completa agora
    double limit = IsXAU(sym) ? (2.5 * 0.50) : (1.5 * 0.0002); 
    return (atrNow > limit && atrNow > 0);
+}
+
+long GetAuraMagic()
+{
+   return InpMagicNumber + (int)PeriodSeconds();
 }
 
 //+------------------------------------------------------------------+
@@ -114,16 +119,14 @@ bool IsVolatilityAbnormal(string sym)
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V8 - INSTITUTIONAL (Execution Engine)");
+   Print("🚀 AURA V8 INSTITUCIONAL - Execution Engine");
    
-   // Gerar Magic Único por Timeframe para evitar conflitos multi-chart
-   int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-   trade.SetExpertMagicNumber(uniqueMagic);
+   trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
    
    ValidateLicense();
    RecoverState(); 
-   EventSetTimer(1); // Check a cada 1 segundo
+   EventSetTimer(InpTimerSeconds);
    return(INIT_SUCCEEDED);
 }
 
@@ -156,21 +159,66 @@ void OnTick()
 
 void OnTimer()
 {
+   // 1. Proteger Ordens Manuais (Sempre prioridade, independente de autorização)
+   ProtectManualOrders();
+
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
-   if(!IsAuthorized) ValidateLicense();
-   else {
+   // Validar Licença (anti-spam throttle interno)
+   ValidateLicense();
+
+   if(IsAuthorized)
+   {
+      CheckDailyTarget();
       CheckSignals();
-      ProcessSignalQueue(); 
-      MonitorProfitLock();
-      MonitorTrailingStop();
+      ProcessSignalQueue();
+
+      // HIERARQUIA INSTITUCIONAL DE GESTÃO
+      MonitorTrailingStop();  // 1. Trailing
+      MonitorPartialTP();     // 2. Parciais e BreakEven
+      MonitorProfitLock();    // 3. ProfitLock
+
       ProcessPendingProtections();
-      ProtectManualOrders(); // Guardian Engine
+
+      // Sincronismo Dashboard (Tempo Real)
       ReportBalance();
    }
-   
+
    ExecutionBusy = false;
+}
+
+void CheckDailyTarget()
+{
+   MqlDateTime tm;
+   TimeCurrent(tm);
+
+   if(tm.day != LastTradingDay)
+   {
+      LastTradingDay = tm.day;
+      DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      DailyTargetReached = false;
+      Print("🌅 [DAILY] Novo dia. Capital Base: $", DoubleToString(DailyStartBalance, 2));
+   }
+
+   if(DailyTargetReached) return;
+
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(DailyStartBalance <= 0) return;
+
+   double profitPct = ((equity - DailyStartBalance) / DailyStartBalance) * 100.0;
+
+   if(profitPct >= InpDailyTargetPct)
+   {
+      DailyTargetReached = true;
+      Print("🏆 [DAILY] META ATINGIDA: ", DoubleToString(profitPct, 2), "% | Fechando tudo...");
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = PositionGetTicket(i);
+         if(ticket > 0 && PositionSelectByTicket(ticket))
+            trade.PositionClose(ticket);
+      }
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -187,11 +235,8 @@ void MonitorProfitLock()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       double currentSL = PositionGetDouble(POSITION_SL);
@@ -362,11 +407,8 @@ void MonitorPartialTP()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit = PositionGetDouble(POSITION_PROFIT);
       double vol = PositionGetDouble(POSITION_VOLUME);
@@ -417,11 +459,8 @@ void MonitorTrailingStop()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
-      if(sym != _Symbol) continue;
-      
-      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
-      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
+      // FILTRO INSTITUCIONAL (MULTI-ASSET)
+      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -429,11 +468,12 @@ void MonitorTrailingStop()
       double bid       = SymbolInfoDouble(sym, SYMBOL_BID);
       double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
       double currentSL = PositionGetDouble(POSITION_SL);
-      double currentTP = PositionGetDouble(POSITION_TP); // CONFLITO 3: preservar TP original
+      double currentTP = PositionGetDouble(POSITION_TP); // preservar TP original
 
-      // CÁLCULO ATR DINÂMICO PARA TRAILING
+      // CÁLCULO ATR DINÂMICO PARA TRAILING (H1 para Ouro)
       double atr = 0;
-      int handle = iATR(sym, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int handle = iATR(sym, atrTF, 14);
       if(handle != INVALID_HANDLE)
       {
          double buf[];
@@ -444,7 +484,7 @@ void MonitorTrailingStop()
 
       double trailStart = (atr > 0) ? (atr * 1.0) : (InpTrailingStart    * point);
       double trailStep  = InpTrailingStep     * point;
-      double trailDist  = (atr > 0) ? (atr * 1.5) : (InpTrailingDistance * point);
+      double trailDist  = (atr > 0) ? (IsXAU(sym) ? atr * 2.5 : atr * 1.5) : (InpTrailingDistance * point);
 
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
@@ -486,14 +526,10 @@ void MonitorTrailingStop()
 
          double newSL = NormalizeDouble(ask + trailDist, digits);
 
-         if(newSL < currentSL - trailStep || currentSL == 0)
+         if((currentSL == 0 || newSL < currentSL - trailStep) && (newSL - ask > stopLevel))
          {
-            // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
             if(trade.PositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing SELL | ", sym,
-                     " | Ticket: ", ticket,
-                     " | SL: ", DoubleToString(currentSL, digits),
-                     " → ",     DoubleToString(newSL, digits));
+               Print("📊 Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", newSL);
          }
       }
    }
@@ -503,23 +539,36 @@ void MonitorTrailingStop()
 
 void ValidateLicense()
 {
-   string url = InpServerUrl + "/ea/validate";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
-   
-   Print("🔐 VALIDANDO LICENÇA...");
-   string result = SendPost(url, payload);
-   
-   if(StringFind(result, "\"status\":\"OK\"") >= 0) {
+   static datetime lastValidate = 0;
+   if(TimeCurrent() - lastValidate < 300 && IsAuthorized)  return; // Re-valida a cada 5 min
+   if(TimeCurrent() - lastValidate < 30  && !IsAuthorized) return; // Tenta a cada 30s se falhou
+
+   lastValidate = TimeCurrent();
+   string url = InpServerUrl + "/ea/validate?key=" + InpLicenseKey + "&account=" + (string)AccountInfoInteger(ACCOUNT_LOGIN);
+   string res = SendGet(url);
+
+   if(StringFind(res, "\"status\":\"success\"") >= 0) {
+      if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
-      Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("AURA V7 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
-   } else if(result != "") {
-      Print("❌ RESPOSTA LICENÇA: " + result);
+   } else {
+      IsAuthorized = false;
+      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
+      else          Print("❌ FALHA NA LICENÇA: ", res);
    }
 }
 
 void CheckSignals()
 {
+   if(DailyTargetReached)
+   {
+      static datetime lastLockMsg = 0;
+      if(TimeCurrent() - lastLockMsg > 3600) {
+         Print("🛑 [DAILY] Meta diária atingida. Trading bloqueado até amanhã.");
+         lastLockMsg = TimeCurrent();
+      }
+      return;
+   }
+
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
    
