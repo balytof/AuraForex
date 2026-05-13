@@ -213,8 +213,10 @@ void OnTimer()
 
       // Sincronismo Dashboard (Tempo Real)
       ReportBalance();
-      UpdateChartVisuals(); // Visual Gráfico (Real-time)
    }
+
+   // DASHBOARD VISUAL (Sempre visível, independente de autorização)
+   UpdateChartVisuals();
 
    ExecutionBusy = false;
 }
