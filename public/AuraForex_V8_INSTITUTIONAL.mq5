@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "8.0"
+#property version   "8.1"
 #property strict
 
 //--- INCLUDES ---
