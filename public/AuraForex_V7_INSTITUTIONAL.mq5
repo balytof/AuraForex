@@ -132,7 +132,7 @@ int OnInit()
    
    ValidateLicense();
    RecoverState(); 
-   EventSetTimer(1); 
+   EventSetTimer(InpTimerSeconds); 
    return(INIT_SUCCEEDED);
 }
 
