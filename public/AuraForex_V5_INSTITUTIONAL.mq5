@@ -138,34 +138,43 @@ void MonitorProfitLock()
       // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
-         if(profit >= InpProfitLockMin)
+         double minProfitActivation = (StringFind(sym, "XAU") >= 0) ? 15.0 : InpProfitLockMin;
+         
+         if(profit >= minProfitActivation)
          {
             ProfitLocks[idx].active         = true;
             ProfitLocks[idx].peakProfit     = profit;
             ProfitLocks[idx].activationTime = TimeCurrent(); // Buffer anti-spike começa agora
-            Print("🔒 ProfitLock ACTIVADO | ", sym,
+            Print("🔒 ProfitLock ACTIVADO (Warmup Concluído) | ", sym,
                   " | Ticket: ", ticket,
                   " | Lucro: $", DoubleToString(profit, 2));
          }
          continue;
       }
 
-      // FASE 2: Actualizar pico máximo (Com filtro de ruído/Step)
-      double minPeakStep = (StringFind(sym, "XAU") >= 0) ? 2.0 : 0.5;
+      // FASE 2: Actualizar pico máximo (Com filtro de ruído dinâmico % do pico)
+      double peak = ProfitLocks[idx].peakProfit;
+      double peakUpdateThreshold = (StringFind(sym, "XAU") >= 0) ? (peak * 0.05) : 0.5;
       
-      if(profit > ProfitLocks[idx].peakProfit + minPeakStep)
+      if(profit > peak + peakUpdateThreshold)
       {
          ProfitLocks[idx].peakProfit = profit;
          Print("📈 Novo pico | ", sym,
                " | Ticket: ", ticket,
-               " | Pico: $", DoubleToString(profit, 2));
+               " | Pico: $", DoubleToString(profit, 2), 
+               " (Avanço: +$", DoubleToString(profit - peak, 2), ")");
       }
 
       // FASE 3: Verificar queda do pico com Lógica Adaptativa ATR
       // 1. Buffer de Tempo (Anti-Spike)
-      if(TimeCurrent() - ProfitLocks[idx].activationTime < 30) continue;
+      int lockDelay = (StringFind(sym, "XAU") >= 0) ? 120 : 30;
+      if(TimeCurrent() - ProfitLocks[idx].activationTime < lockDelay) continue;
 
-      // 2. Cálculo de Volatilidade Real (ATR M15)
+      // 2. Warmup Zone (Deixar o activo respirar antes de fechar agressivo)
+      double protectionStart = (StringFind(sym, "XAU") >= 0) ? 15.0 : 5.0;
+      if(peak < protectionStart) continue;
+
+      // 3. Cálculo de Volatilidade Real (ATR M15)
       double atr = 0;
       int atrHandle = iATR(sym, PERIOD_M15, 14);
       if(atrHandle != INVALID_HANDLE)
