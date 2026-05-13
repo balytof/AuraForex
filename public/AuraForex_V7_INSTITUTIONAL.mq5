@@ -114,12 +114,16 @@ bool IsVolatilityAbnormal(string sym)
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V6.0.1 - BLINDADA (Persistent Memory)");
-   trade.SetExpertMagicNumber(InpMagicNumber);
-   trade.SetDeviationInPoints(30); // Desvio padrão inicial
+   Print("🚀 AURA V7 - INSTITUTIONAL (Execution Engine)");
+   
+   // Gerar Magic Único por Timeframe para evitar conflitos multi-chart
+   int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+   trade.SetExpertMagicNumber(uniqueMagic);
+   trade.SetDeviationInPoints(30); 
+   
    ValidateLicense();
-   RecoverState(); // Recuperar estado após crash/reboot
-   EventSetTimer(InpTimerSeconds);
+   RecoverState(); 
+   EventSetTimer(1); // Check a cada 1 segundo
    return(INIT_SUCCEEDED);
 }
 
@@ -154,15 +158,21 @@ void OnTick()
 
 void OnTimer()
 {
+   if(ExecutionBusy) return;
+   ExecutionBusy = true;
+
    if(!IsAuthorized) ValidateLicense();
    else {
       CheckSignals();
-      ProcessSignalQueue(); // Processar um sinal por vez
+      ProcessSignalQueue(); 
       MonitorProfitLock();
       MonitorTrailingStop();
       ProcessPendingProtections();
+      ProtectManualOrders(); // Guardian Engine
       ReportBalance();
    }
+   
+   ExecutionBusy = false;
 }
 
 //+------------------------------------------------------------------+
@@ -177,7 +187,13 @@ void MonitorProfitLock()
       if(!PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       string sym       = PositionGetString(POSITION_SYMBOL);
@@ -903,6 +919,64 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
       Print("🛡️ Ordem Protegida | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+   }
+}
+
+void ProtectManualOrders()
+{
+   if(!InpManageManualOrders) return;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
+      
+      // FILTROS INSTITUCIONAIS
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != 0) continue; // Só Magic 0
+      if(PositionGetDouble(POSITION_SL) != 0) continue;    // Já protegido
+
+      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+      int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      
+      // --- ENGINE ATR (Proteção Dinâmica) ---
+      double atr = 0;
+      int handle = iATR(_Symbol, PERIOD_M15, 14);
+      if(handle != INVALID_HANDLE) {
+         double buf[]; ArraySetAsSeries(buf, true);
+         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
+         IndicatorRelease(handle);
+      }
+      
+      // Fallback de segurança se ATR falhar
+      if(atr <= 0) atr = (IsXAU(_Symbol) ? 5.0 : 0.0020); 
+
+      double slDist = IsXAU(_Symbol) ? (atr * 2.5) : (atr * 1.5);
+      double tpDist = slDist * 2.5; // RR Institucional 1:2.5
+      
+      double sl = 0, tp = 0;
+      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+         sl = entry - slDist;
+         tp = entry + tpDist;
+      } else {
+         sl = entry + slDist;
+         tp = entry - tpDist;
+      }
+
+      // Validação de Stop Levels do Broker
+      double stopLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
+      
+      if(MathAbs(currentPrice - sl) < stopLevel) {
+         sl = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.2) : currentPrice + (stopLevel * 1.2);
+      }
+
+      if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         Print("🛡️ [GUARDIAN] Proteção ATR aplicada à ordem manual: ", ticket, " | SL: ", DoubleToString(sl, digits));
+      }
    }
 }
 
