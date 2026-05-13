@@ -123,6 +123,21 @@ long GetAuraMagic()
    return InpMagicNumber + (int)PeriodSeconds();
 }
 
+int CountAuraPositions()
+{
+   int total = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            total++;
+      }
+   }
+   return total;
+}
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -776,6 +791,14 @@ void SetSymbolCooldown(string sym)
 
 void ExecuteSignal(string json)
 {
+   // PROTEÇÃO DE ÚLTIMA LINHA: Verificar limite global antes de executar
+   int totalPositions = CountAuraPositions();
+   if(totalPositions >= InpMaxOrders)
+   {
+      Print("🛑 [LIMIT] Ordem cancelada. Limite global atingido: ", totalPositions, "/", InpMaxOrders);
+      return;
+   }
+
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
    
