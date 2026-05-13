@@ -2336,7 +2336,8 @@ async function updateStats() {
     const status = await apiFetch("/api/user/status");
     if (status && status.success) {
       // Saldo e Equity (Sincronizado via EA)
-      document.getElementById("statBalance").textContent = formatCurrency(status.balance, "USD");
+      const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
+      document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
       const pnlVal = status.equity - status.balance;
       const pnlEl = document.getElementById("statPnl");
@@ -3135,7 +3136,7 @@ setInterval(() => {
     updateStats();
 }, 5000);
 
-let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
+let systemConfig = { apiUrl: window.location.origin, installationGuide: "" };
 
 async function loadSystemConfig() {
   try {
