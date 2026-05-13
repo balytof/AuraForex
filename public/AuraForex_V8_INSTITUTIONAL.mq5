@@ -1157,11 +1157,12 @@ void ReportBalance()
    string url = InpServerUrl + "/ea/report-balance";
    string response = SendPost(url, payload);
 
-   if(response == "") {
-      Print("❌ Falha ao reportar saldo (Causa: Timeout ou URL Inválida)");
-   } else {
-      // Print("💰 Balance reportado com sucesso."); // Silêncio institucional
-   }
+    if(response == "") {
+       int err = GetLastError();
+       Print("❌ Falha crítica ao reportar saldo | URL: ", url, " | Erro MT5: ", err);
+    } else {
+       // Print("💰 Sincronismo Dashboard OK | Payload: ", payload); // Debug opcional
+    }
    
    
    // Sincronismo em tempo real activo (sem delay)
