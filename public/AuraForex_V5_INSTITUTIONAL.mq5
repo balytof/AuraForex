@@ -262,7 +262,6 @@ void MonitorProfitLock()
       double allowedDropMoney = MathMax(2.0, atrMoney * volatilityFactor);
       
       double currentDropMoney = ProfitLocks[idx].peakProfit - profit;
-      double peak = ProfitLocks[idx].peakProfit;
 
       if(currentDropMoney >= allowedDropMoney)
       {

@@ -63,7 +63,49 @@ struct SignalQueueData {
    datetime timestamp;
 };
 SignalQueueData SignalQueue[]; // Fila de espera para execução
+struct PartialCloseData
+{
+   ulong ticket;
+   bool  closed;
+};
+
+PartialCloseData PartialCloses[100]; // Rastreio de fechos parciais
 bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
+
+//--- Funções Auxiliares de Especialista
+bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, "GOLD") >= 0); }
+
+bool IsTradingSession()
+{
+   MqlDateTime tm;
+   TimeCurrent(tm);
+   int hour = tm.hour;
+   // Londres + NY (7h às 18h) - Horário do Servidor
+   return (hour >= 7 && hour <= 18);
+}
+
+double GetMaxAllowedSpread(string sym)
+{
+   return IsXAU(sym) ? 35.0 : 15.0; // 35 pips para Ouro, 15 para Forex
+}
+
+bool IsVolatilityAbnormal(string sym)
+{
+   double atrNow = 0;
+   int handle = iATR(sym, PERIOD_M15, 14);
+   if(handle != INVALID_HANDLE)
+   {
+      double buf[];
+      ArraySetAsSeries(buf, true);
+      if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atrNow = buf[0];
+      IndicatorRelease(handle);
+   }
+   
+   // Simulação de ATR médio (50 períodos) - Bloqueia se volatilidade > 2.5x a média
+   // Para simplificar, usamos um limite fixo baseado no ativo se não quisermos calcular a média completa agora
+   double limit = IsXAU(sym) ? (2.5 * 0.50) : (1.5 * 0.0002); 
+   return (atrNow > limit && atrNow > 0);
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -83,11 +125,29 @@ void OnDeinit(const int reason) { EventKillTimer(); }
 
 void OnTick()
 {
-   if(IsAuthorized) {
-      MonitorProfitLock();
-      MonitorTrailingStop(); 
-      ProcessPendingProtections(); // Processar proteções assíncronas
+   if(!IsAuthorized) return;
+
+   string sym = _Symbol;
+   
+   //--- Filtros Institucionais de Elite (Aplicados apenas ao Ouro para não afectar Forex)
+   if(IsXAU(sym))
+   {
+      // 1. Filtro de Sessão (Ouro só opera em alta liquidez: Londres/NY)
+      if(!IsTradingSession()) return;
+      
+      // 2. Filtro de Spread Guard
+      double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
+      if(spread > GetMaxAllowedSpread(sym)) return;
+      
+      // 3. Filtro de Volatilidade Anormal (Evita "pânico" de mercado)
+      if(IsVolatilityAbnormal(sym)) return;
    }
+
+   // Se autorizado e passou nos filtros, monitoriza proteções
+   MonitorProfitLock();
+   MonitorPartialTP();   // Novo: Fecho Parcial Institucional
+   MonitorTrailingStop(); 
+   ProcessPendingProtections();
 }
 
 void OnTimer()
@@ -138,34 +198,43 @@ void MonitorProfitLock()
       // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
-         if(profit >= InpProfitLockMin)
+         double minProfitActivation = (StringFind(sym, "XAU") >= 0) ? 15.0 : InpProfitLockMin;
+         
+         if(profit >= minProfitActivation)
          {
             ProfitLocks[idx].active         = true;
             ProfitLocks[idx].peakProfit     = profit;
             ProfitLocks[idx].activationTime = TimeCurrent(); // Buffer anti-spike começa agora
-            Print("🔒 ProfitLock ACTIVADO | ", sym,
+            Print("🔒 ProfitLock ACTIVADO (Warmup Concluído) | ", sym,
                   " | Ticket: ", ticket,
                   " | Lucro: $", DoubleToString(profit, 2));
          }
          continue;
       }
 
-      // FASE 2: Actualizar pico máximo (Com filtro de ruído/Step)
-      double minPeakStep = (StringFind(sym, "XAU") >= 0) ? 2.0 : 0.5;
+      // FASE 2: Actualizar pico máximo (Com filtro de ruído dinâmico % do pico)
+      double peak = ProfitLocks[idx].peakProfit;
+      double peakUpdateThreshold = (StringFind(sym, "XAU") >= 0) ? (peak * 0.05) : 0.5;
       
-      if(profit > ProfitLocks[idx].peakProfit + minPeakStep)
+      if(profit > peak + peakUpdateThreshold)
       {
          ProfitLocks[idx].peakProfit = profit;
          Print("📈 Novo pico | ", sym,
                " | Ticket: ", ticket,
-               " | Pico: $", DoubleToString(profit, 2));
+               " | Pico: $", DoubleToString(profit, 2), 
+               " (Avanço: +$", DoubleToString(profit - peak, 2), ")");
       }
 
       // FASE 3: Verificar queda do pico com Lógica Adaptativa ATR
       // 1. Buffer de Tempo (Anti-Spike)
-      if(TimeCurrent() - ProfitLocks[idx].activationTime < 30) continue;
+      int lockDelay = (StringFind(sym, "XAU") >= 0) ? 120 : 30;
+      if(TimeCurrent() - ProfitLocks[idx].activationTime < lockDelay) continue;
 
-      // 2. Cálculo de Volatilidade Real (ATR M15)
+      // 2. Warmup Zone (Deixar o activo respirar antes de fechar agressivo)
+      double protectionStart = (StringFind(sym, "XAU") >= 0) ? 15.0 : 5.0;
+      if(peak < protectionStart) continue;
+
+      // 3. Cálculo de Volatilidade Real (ATR M15)
       double atr = 0;
       int atrHandle = iATR(sym, PERIOD_M15, 14);
       if(atrHandle != INVALID_HANDLE)
@@ -264,6 +333,51 @@ void CleanClosedPositions()
 }
 
 //+------------------------------------------------------------------+
+//| FECHO PARCIAL INSTITUCIONAL (Garante 50% no bolso + BE)          |
+//+------------------------------------------------------------------+
+void MonitorPartialTP()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+
+      string sym = PositionGetString(POSITION_SYMBOL);
+      double profit = PositionGetDouble(POSITION_PROFIT);
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      
+      // Meta para Fecho Parcial: $25 para Ouro, $10 para Forex
+      double partialTarget = IsXAU(sym) ? 25.0 : 10.0;
+
+      // Verificar se já fechamos parcialmente este ticket
+      bool alreadyClosed = false;
+      for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == ticket && PartialCloses[j].closed) { alreadyClosed = true; break; } }
+      if(alreadyClosed) continue;
+
+      if(profit >= partialTarget)
+      {
+         double closeVol = NormalizeDouble(vol / 2.0, 2);
+         if(closeVol < 0.01) closeVol = vol; // Se muito pequeno, fecha tudo
+
+         Print("💰 META PARCIAL ATINGIDA | ", sym, " | Ticket: ", ticket, " | Fechando 50% (", closeVol, ")");
+         
+         if(trade.PositionClosePartial(ticket, closeVol))
+         {
+            // Registar fecho parcial
+            for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == 0 || PartialCloses[j].ticket == ticket) { PartialCloses[j].ticket = ticket; PartialCloses[j].closed = true; break; } }
+            
+            // Mover para Break Even
+            double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+            double currentTP = PositionGetDouble(POSITION_TP);
+            trade.PositionModify(ticket, openPrice, currentTP);
+            Print("🛡️ BREAK EVEN ACTIVADO para Ticket: ", ticket);
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| TRAILING STOP - Monitor principal                                |
 //+------------------------------------------------------------------+
 void MonitorTrailingStop()
@@ -286,9 +400,20 @@ void MonitorTrailingStop()
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP); // CONFLITO 3: preservar TP original
 
-      double trailStart = InpTrailingStart    * point;
+      // CÁLCULO ATR DINÂMICO PARA TRAILING
+      double atr = 0;
+      int handle = iATR(sym, PERIOD_M15, 14);
+      if(handle != INVALID_HANDLE)
+      {
+         double buf[];
+         ArraySetAsSeries(buf, true);
+         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
+         IndicatorRelease(handle);
+      }
+
+      double trailStart = (atr > 0) ? (atr * 1.0) : (InpTrailingStart    * point);
       double trailStep  = InpTrailingStep     * point;
-      double trailDist  = InpTrailingDistance * point;
+      double trailDist  = (atr > 0) ? (atr * 1.5) : (InpTrailingDistance * point);
 
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
@@ -366,6 +491,18 @@ void CheckSignals()
 {
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
+   
+   string sym = _Symbol;
+
+   //--- Filtros Institucionais para Busca de Sinais
+   if(IsXAU(sym))
+   {
+      if(!IsTradingSession()) return; // Não gasta recursos fora de sessão
+      
+      double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
+      if(spread > GetMaxAllowedSpread(sym)) return;
+   }
+
    lastCheckTime = TimeCurrent();
 
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
