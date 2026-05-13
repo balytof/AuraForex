@@ -1009,7 +1009,7 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    double tp = data.tp;
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
-   double currentPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+   double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
    
    if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
       if(currentPrice - sl < stopLevel) sl = currentPrice - stopLevel * 1.5;
