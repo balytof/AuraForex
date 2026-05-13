@@ -125,7 +125,7 @@ long GetAuraMagic()
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V7 - INSTITUTIONAL (Execution Engine)");
+   Print("🚀 AURA V8 - INSTITUTIONAL (Execution Engine)");
    
    trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
@@ -559,7 +559,7 @@ void ValidateLicense()
    if(StringFind(result, "\"status\":\"OK\"") >= 0) {
       IsAuthorized = true;
       Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      Comment("AURA V7 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
+      Comment("AURA V8 INSTITUCIONAL: ATIVO\nConta: " + (string)AccountInfoInteger(ACCOUNT_LOGIN));
    } else if(result != "") {
       Print("❌ RESPOSTA LICENÇA: " + result);
    }
@@ -1135,7 +1135,7 @@ void ReportBalance()
 
    // HMI - COMENTÁRIO NO GRÁFICO (Monitorização Real Profissional)
    Comment(
-      "AURA V7 INSTITUCIONAL\n",
+      "AURA V8 INSTITUCIONAL\n",
       "----------------------------------\n",
       "Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), "\n",
       "Balance: $", DoubleToString(balance, 2), "\n",
