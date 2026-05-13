@@ -29,10 +29,12 @@ input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar Profi
 input double   InpProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
 
 // --- TRAILING STOP PARAMETERS ---
-input bool     InpTrailingEnabled   = true;  // Activar Trailing Stop
-input int      InpTrailingStart     = 20;    // Pontos de lucro para activar Trailing
-input int      InpTrailingStep      = 10;    // Pontos mínimos para mover o SL
-input int      InpTrailingDistance  = 15;    // Distância do SL ao preço actual (pontos)
+input bool   InpTrailingEnabled   = true;      // Trailing Stop Activo
+input int    InpTrailingStart     = 150;       // Trailing Start (Points)
+input int    InpTrailingDistance  = 100;       // Trailing Distance (Points)
+input int    InpTrailingStep      = 20;        // Trailing Step (Points)
+
+input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 
 struct ProfitLockData {
    ulong    ticket;
@@ -341,7 +343,9 @@ void MonitorPartialTP()
    {
       ulong ticket = PositionGetTicket(i);
       if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+      
+      long magic = PositionGetInteger(POSITION_MAGIC);
+      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym = PositionGetString(POSITION_SYMBOL);
       double profit = PositionGetDouble(POSITION_PROFIT);
@@ -909,7 +913,10 @@ void ReportBalance()
    string url = InpServerUrl + "/ea/report-balance";
    string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"balance\":" + DoubleToString(balance, 2) + ",\"equity\":" + DoubleToString(equity, 2) + "}";
    
-   SendPost(url, payload);
+   Print("📊 SINCRONIZANDO HMI | Saldo: ", balance, " | Equity: ", equity);
+   string res = SendPost(url, payload);
+   if(res != "") Print("📡 Resposta HMI: ", res);
+   
    lastReport = TimeCurrent();
 }
 
