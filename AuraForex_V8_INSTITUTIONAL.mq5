@@ -1231,10 +1231,11 @@ string SendGet(string url)
 {
    uchar res[], data[];
    string rh;
+   string headers = "";
 
    ResetLastError();
 
-   int code = WebRequest("GET", url, NULL, 5000, data, res, rh);
+   int code = WebRequest("GET", url, headers, 5000, data, res, rh);
 
    if(code == -1)
    {
