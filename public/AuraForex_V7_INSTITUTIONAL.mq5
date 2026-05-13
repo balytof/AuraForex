@@ -1091,4 +1091,6 @@ void AddProcessed(string id)
 string ExtractValue(string json, string key) {
    string k = "\"" + key + "\":"; int p = StringFind(json, k); if(p < 0) return "";
    int s = p + StringLen(k); if(StringSubstr(json, s, 1) == "\"") s++;
-   int e = 
+   int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
+   string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
+}
