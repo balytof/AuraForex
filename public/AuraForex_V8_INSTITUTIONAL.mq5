@@ -184,7 +184,6 @@ void OnTimer()
       
       // Sincronismo Dashboard (Sempre Activo para Monitorização)
       ReportBalance();
-   }
    
    ExecutionBusy = false;
 }
@@ -556,7 +555,10 @@ void ValidateLicense()
    if(StringFind(res, "\"status\":\"success\"") >= 0) {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
-      Print("❌ RESPOSTA LICENÇA: " + result);
+   } else {
+      IsAuthorized = false;
+      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
+      else Print("❌ FALHA NA LICENÇA: ", res);
    }
 }
 

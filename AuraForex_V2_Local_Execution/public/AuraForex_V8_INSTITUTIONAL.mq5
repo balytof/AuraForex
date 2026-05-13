@@ -171,8 +171,6 @@ void OnTimer()
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
-   if(!IsAuthorized) ValidateLicense();
-   else {
       CheckDailyTarget(); 
       CheckSignals();
       ProcessSignalQueue(); 
@@ -186,7 +184,6 @@ void OnTimer()
       
       // Sincronismo Dashboard (Sempre Activo para Monitorização)
       ReportBalance();
-   }
    
    ExecutionBusy = false;
 }
@@ -546,21 +543,19 @@ void MonitorTrailingStop()
 void ValidateLicense()
 {
    static datetime lastValidate = 0;
-   if(TimeCurrent() - lastValidate < 300 && IsAuthorized) return; 
-   if(TimeCurrent() - lastValidate < 30 && !IsAuthorized) return; 
+   if(TimeCurrent() - lastValidate < 300 && IsAuthorized) return; // Valida a cada 5 min se já autorizado
+   if(TimeCurrent() - lastValidate < 30 && !IsAuthorized) return; // Tenta a cada 30s se falhou (evita spam)
    
    lastValidate = TimeCurrent();
    string url = InpServerUrl + "/ea/validate?key=" + InpLicenseKey + "&account=" + (string)AccountInfoInteger(ACCOUNT_LOGIN);
    
+   // Print("🔐 Validando em: ", url); // Debug de URL
    string res = SendGet(url);
    
    if(StringFind(res, "\"status\":\"success\"") >= 0) {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
-   } else {
-      IsAuthorized = false;
-      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
-      else Print("❌ FALHA NA LICENÇA: ", res);
+      Print("❌ RESPOSTA LICENÇA: " + result);
    }
 }
 
