@@ -187,32 +187,36 @@ async function processPair(pair, accountNow, openPositions = []) {
 //  MONITORIZAR TRADES ABERTOS
 // ══════════════════════════════════════════════
 async function monitorOpenTrades(pair, currentPrice, atr, brokerPositions = []) {
-  // Encontra o lucro real para as trades deste par
+  // 1. Sincronizar ordens desconhecidas primeiro
   const pairPositions = brokerPositions.filter(p => p.pair.includes(pair) || pair.includes(p.pair));
   
-  // Para cada trade aberta no nosso RiskManager, verifica se há lucro real correspondente
-  const toClose = [];
-  
-  for (const trade of risk.openTrades.filter(t => t.pair === pair)) {
-    const brokerPos = pairPositions.find(p => p.id === trade.brokerId || p.id === trade.id);
-    const currentProfit = brokerPos ? brokerPos.pnl : 0;
-    
-    const check = risk.checkOpenTrades(pair, currentPrice, currentProfit, atr);
-    if (check && check.length > 0) {
-      toClose.push(...check);
-    }
+  for (const pos of pairPositions) {
+     const ticketId = String(pos.id || pos.ticket || pos.brokerId);
+     let internalTrade = risk.openTrades.find(t => String(t.brokerId) === ticketId);
+     if (!internalTrade) {
+       log.info(`[SYNC] Sincronizando Ticket #${ticketId} (${pair})`);
+       risk.registerTrade({
+         pair: pos.pair,
+         direction: pos.direction,
+         entry: pos.openPrice || pos.price,
+         sl: pos.sl,
+         tp: pos.tp
+       }, pos.lotSize || pos.volume, ticketId);
+     }
   }
 
-  for (const { trade, closePrice, reason } of toClose) {
+  // 2. Verificar proteções individualizadas
+  const toClose = risk.checkOpenTrades(pair, brokerPositions);
+
+  for (const { trade, closePrice, reason, pnl } of toClose) {
     if (trade.brokerId && !config.bot.demoMode) {
       const result = await exitTrade(trade.brokerId, pair, reason);
-      
       if (!result?.success) {
         log.error(`Falha ao fechar ordem ${trade.brokerId} no broker`);
-        continue; // Não fecha internamente se falhou no broker
+        continue; 
       }
     }
-    risk.closeTrade(trade.id, closePrice, reason);
+    risk.closeTrade(trade.id, closePrice, reason, pnl);
   }
 
   // Atualiza SL no broker para trailing stops

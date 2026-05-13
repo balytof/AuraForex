@@ -1886,40 +1886,38 @@ server.listen(PORT, () => {
         const positions = await broker.getOpenPositions();
         if (!positions || positions.length === 0) continue;
 
-        // 2. Para cada posição, verificar proteção
+        // 2. Sincronizar ordens desconhecidas primeiro
         for (const pos of positions) {
-          const currentProfit = pos.profit || 0;
-          const ticketId = pos.id; // O ID da MetaApi é o Ticket
-          
-          // Debug agressivo: Ver todas as ordens detetadas
-          console.log(`\x1b[33m[MONITOR] Detetado: ${pos.pair} | Ticket: ${ticketId} | Profit: $${currentProfit.toFixed(2)}\x1b[0m`);
+           const ticketId = String(pos.id || pos.ticket || pos.brokerId);
+           let internalTrade = risk.openTrades.find(t => String(t.brokerId) === ticketId);
+           
+           if (!internalTrade) {
+             console.log(`\x1b[35m[SYNC] Nova ordem detetada no broker. Sincronizando Ticket #${ticketId}...\x1b[0m`);
+             risk.registerTrade({
+               pair: pos.pair,
+               direction: pos.direction,
+               entry: pos.openPrice || pos.price,
+               sl: pos.sl,
+               tp: pos.tp,
+               score: 100
+             }, pos.lotSize || pos.volume, ticketId);
+           }
+        }
 
-          // Sincronizar trade: Se for uma ordem da Aura (pelo comentário ou ID), garantir que está no RiskManager
-          let internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
-          
-          if (!internalTrade) {
-            console.log(`\x1b[35m[SYNC] Nova ordem detetada no broker. Sincronizando Ticket #${ticketId}...\x1b[0m`);
-            internalTrade = risk.registerTrade({
-              pair: pos.pair,
-              direction: pos.direction,
-              entry: pos.openPrice,
-              sl: pos.sl,
-              tp: pos.tp,
-              score: 100
-            }, pos.lotSize, ticketId);
-          }
-
-          // 3. Executar Verificação de Profit Lock usando Lucro Real
-          // Passamos 0 no preço pois o checkProfitProtection agora só usa o Lucro
-          const toClose = risk.checkOpenTrades(pos.pair, 0, currentProfit, 0); 
-          
-          for (const { trade, reason } of toClose) {
-            console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
-            const res = await broker.closePosition(ticketId);
-            if (res.success) {
-              risk.closeTrade(trade.id, 0, reason);
-            }
-          }
+        // 3. Executar Verificação de Profit Lock Individualizada
+        // Obtemos pares únicos para verificar proteção
+        const uniquePairs = [...new Set(positions.map(p => p.pair))];
+        for (const pair of uniquePairs) {
+           const toClose = risk.checkOpenTrades(pair, positions); 
+           
+           for (const { trade, closePrice, reason, pnl } of toClose) {
+             const ticketId = trade.brokerId;
+             console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${pnl.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
+             const res = await broker.closePosition(ticketId);
+             if (res.success) {
+               risk.closeTrade(trade.id, closePrice, reason, pnl);
+             }
+           }
         }
       } catch (e) {
         console.error(`[MONITOR-ERROR] User ${userId}:`, e.message);
