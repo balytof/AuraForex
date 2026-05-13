@@ -1052,8 +1052,10 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < 5) return; // Sincronismo a cada 5s (Institutional Real-Time)
+   static ulong lastReport = 0;
+   if(GetTickCount() - lastReport < 1000) return; // 1 segundo real (não depende de ticks)
+   lastReport = GetTickCount();
+
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
    double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
@@ -1077,12 +1079,7 @@ void ReportBalance()
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";
-   string response = SendPost(url, payload);
-
-   if(response == "") {
-      int err = GetLastError();
-      Print("❌ Falha ao reportar saldo | Erro MT5: ", err);
-   }
+   SendPost(url, payload);
 
    // HMI - COMENTÁRIO NO GRÁFICO
    Comment(
@@ -1096,14 +1093,26 @@ void ReportBalance()
       "Ordens EA: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
       "Status Sync: Conectado"
    );
-   
-   lastReport = TimeCurrent();
 }
 
-string SendPost(string url, string payload) {
-   uchar post[], res[]; string headers = "Content-Type: application/json\r\n", rh;
+string SendPost(string url, string payload)
+{
+   uchar post[], res[];
+   string headers = "Content-Type: application/json\r\n";
+   string rh;
+
    StringToCharArray(payload, post);
-   if(WebRequest("POST", url, headers, 5000, post, res, rh) < 0) return "";
+   ResetLastError();
+
+   int code = WebRequest("POST", url, headers, 5000, post, res, rh);
+
+   if(code == -1)
+   {
+      Print("❌ WebRequest ERROR: ", GetLastError(), " | URL: ", url);
+      return "";
+   }
+
+   // Print("🌐 HTTP ", code, " | ", url); // Debug opcional
    return CharArrayToString(res);
 }
 
