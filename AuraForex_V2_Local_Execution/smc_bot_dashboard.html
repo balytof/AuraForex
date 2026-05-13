@@ -23,6 +23,53 @@
     --glow: 0 0 20px rgba(0,212,255,0.3);
   }
 
+  /* Glassmorphism utility */
+  .glass-panel {
+    background: rgba(13, 17, 23, 0.7) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 212, 255, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .position-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr auto;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.2s;
+  }
+  .position-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent);
+  }
+  
+  .pos-info { display: flex; flex-direction: column; gap: 2px; }
+  .pos-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; font-family: 'Space Mono', monospace; }
+  .pos-val { font-size: 0.85rem; font-weight: 700; }
+  .pos-pnl { font-family: 'Space Mono', monospace; font-weight: 800; font-size: 0.95rem; }
+
+  /* Print Styles */
+  @media print {
+    body * { visibility: hidden; }
+    #setupModal, #setupModal * { visibility: visible; }
+    #setupModal { position: absolute; left: 0; top: 0; width: 100%; border: none; background: #fff !important; color: #000 !important; }
+    .modal { width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; color: #000 !important; }
+    .modal-header, .modal-footer { display: none !important; }
+    .setup-step { border: 1px solid #ddd !important; background: #f9f9f9 !important; color: #000 !important; page-break-inside: avoid; }
+    .step-number { background: #000 !important; color: #fff !important; }
+    .code-block { background: #eee !important; color: #000 !important; border: 1px solid #ccc !important; }
+    .download-area, .btn-primary { display: none !important; }
+    .guide-table { color: #000 !important; }
+    .guide-table th { color: #333 !important; border-bottom: 2px solid #000 !important; }
+    .guide-table td { border-bottom: 1px solid #ddd !important; }
+    h2, h3 { color: #000 !important; }
+    .alert-box { border: 1px solid #000 !important; background: #fff !important; color: #000 !important; }
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
@@ -553,6 +600,83 @@
   .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
   .copy-btn:active { transform: scale(0.95); }
 
+  .aura-window {
+      width: 380px; height: 500px; background: var(--surface);
+      border-radius: 20px; border: 1px solid var(--border);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+      display: none; flex-direction: column; overflow: hidden;
+      margin-bottom: 20px; backdrop-filter: blur(10px);
+      transition: all 0.3s ease; transform: translateY(20px); opacity: 0;
+  }
+  .aura-window.active { display: flex; transform: translateY(0); opacity: 1; }
+  
+  .aura-header {
+      padding: 18px 24px; background: var(--surface2);
+      border-bottom: 1px solid var(--border); display: flex;
+      align-items: center; gap: 12px;
+  }
+  .aura-header .aura-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; font-size: 1.1rem; color: white;
+      box-shadow: 0 0 15px rgba(0,212,255,0.3);
+  }
+  .aura-header .aura-info h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+  .aura-header .aura-info span { font-size: 0.72rem; color: var(--bull); font-weight: 600; }
+  .aura-close { margin-left: auto; cursor: pointer; color: var(--muted); transition: 0.2s; }
+  .aura-close:hover { color: var(--text); }
+
+  .aura-messages {
+      flex: 1; padding: 20px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 15px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  }
+  .aura-messages::-webkit-scrollbar { width: 5px; }
+  .aura-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .msg { max-width: 85%; padding: 12px 16px; border-radius: 15px; font-size: 0.85rem; line-height: 1.5; position: relative; }
+  .msg.bot {
+      background: var(--surface2); color: var(--text);
+      align-self: flex-start; border-bottom-left-radius: 4px;
+      border: 1px solid var(--border);
+  }
+  .msg.user {
+      background: var(--accent); color: white;
+      align-self: flex-end; border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,212,255,0.2);
+  }
+  .aura-typing {
+      align-self: flex-start; padding: 10px 16px; background: var(--surface2);
+      border-radius: 15px; border-bottom-left-radius: 4px; display: none;
+  }
+  .dot { height: 6px; width: 6px; background: var(--muted); border-radius: 50%; display: inline-block; animation: dotPulse 1.5s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  .aura-input-area {
+      padding: 15px 20px; background: var(--surface2);
+      border-top: 1px solid var(--border); display: flex; gap: 10px;
+  }
+  .aura-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 14px; color: var(--text);
+      font-size: 0.85rem; outline: none; transition: 0.2s;
+  }
+  .aura-input:focus { border-color: var(--accent); }
+  .aura-send {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--accent); color: white; display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+      transition: 0.2s;
+  }
+  .aura-send:hover { transform: scale(1.05); filter: brightness(1.1); }
+
+  @media (max-width: 480px) {
+      .aura-window { width: calc(100vw - 40px); height: calc(100vh - 120px); right: 20px; bottom: 90px; }
+      .aura-btn { width: 50px; height: 50px; }
+  }
+
   /* --- EXPERT SMART RESetup --- */
   .smart-glow-icon {
       animation: pulseGlow 3s infinite;
@@ -571,6 +695,100 @@
       border-color: var(--muted) !important;
   }
 
+  /* --- SIDEBAR NAVIGATION --- */
+  .dashboard-container { display: flex; min-height: 100vh; position: relative; }
+  
+  .sidebar-nav {
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    transition: all 0.3s ease;
+    z-index: 1000;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 0 12px;
+  }
+
+  .nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  .nav-item i { font-size: 1.1rem; width: 24px; text-align: center; }
+  .nav-item:hover { background: rgba(255,255,255,0.03); color: var(--text); border-color: var(--border); }
+  .nav-item.active { background: rgba(0,212,255,0.05); color: var(--accent); border-color: var(--accent); }
+
+  .nav-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hamburger Menu Toggle */
+  .menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    z-index: 1100;
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .menu-toggle span {
+    width: 24px;
+    height: 2px;
+    background: var(--text);
+    transition: 0.3s;
+    border-radius: 2px;
+  }
+
+  /* Overlay for mobile */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+  }
+
   /* 📱 RESPONSIVIDADE ULTRA-PREMIUM (Mobile/Tablet/Desktop) */
   @media (max-width: 1200px) {
       .main-grid { grid-template-columns: 1fr; }
@@ -578,6 +796,15 @@
   }
 
   @media (max-width: 992px) {
+      .sidebar-nav {
+        position: fixed;
+        left: -260px;
+        top: 0;
+        bottom: 0;
+      }
+      .sidebar-nav.active { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.5); }
+      .sidebar-overlay.active { display: block; }
+      .menu-toggle { display: flex; }
       header { padding: 15px 20px; }
       .status-row { overflow-x: auto; padding-bottom: 8px; width: 100%; justify-content: flex-start; }
       .status-badge, .vps-sentinel, .license-badge { white-space: nowrap; flex-shrink: 0; }
@@ -717,14 +944,58 @@
 
 </head>
 <body>
-<div id="licenseAlert" class="license-alert-bar">
-    ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
-</div>
-<div class="wrapper">
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">
+<div class="dashboard-container">
+  <!-- SIDEBAR -->
+  <aside class="sidebar-nav" id="sidebarNav">
+    <div class="sidebar-logo">
+      <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 32px; height: 32px; object-fit: contain;">
+      <h2 style="font-size: 1.1rem; font-weight: 800;">Aura<span>Trade</span></h2>
+    </div>
+
+    <nav class="nav-links">
+      <a href="#" class="nav-item active">
+        <i class="fas fa-chart-line"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="/affiliate_dashboard.html" class="nav-item">
+        <i class="fas fa-users"></i>
+        <span>Afiliados</span>
+      </a>
+      <a href="/admin_dashboard.html" class="nav-item" id="adminLink" style="display: none;">
+        <i class="fas fa-user-shield"></i>
+        <span>Admin Panel</span>
+      </a>
+    </nav>
+
+    <div class="nav-footer">
+      <a href="#" class="nav-item" onclick="openChangePwModal()">
+        <i class="fas fa-key"></i>
+        <span>Alterar Senha</span>
+      </a>
+      <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Sair</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div id="licenseAlert" class="license-alert-bar">
+        ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+    </div>
+
+    <div class="wrapper">
+      <!-- HEADER -->
+      <header>
+        <div class="menu-toggle" onclick="toggleSidebar()">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="logo">
       <div class="logo-icon" style="background:none; box-shadow:none;">
         <img src="https://i.postimg.cc/LXD18bpf/Whats-App-Image-2026-04-28-at-11-55-06-removebg-preview.png" alt="AuraTrade" style="width: 100%; height: 100%; object-fit: contain;">
       </div>
@@ -772,8 +1043,6 @@
     <div class="controls">
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
-      <button class="btn btn-danger" style="margin-left: 10px;" onclick="logout()">Sair</button>
-      <button class="btn btn-secondary" style="margin-left: 6px; border-color: var(--accent2);" onclick="openChangePwModal()">🔑 Password</button>
     </div>
   </header>
 
@@ -855,6 +1124,20 @@
 
     <!-- LEFT COLUMN -->
     <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- POSIÇÕES ATIVAS -->
+      <div class="panel glass-panel" id="activePositionsPanel" style="display:none; margin-bottom: 20px;">
+        <div class="panel-header" style="background: rgba(0,212,255,0.05);">
+          <div class="panel-title"><span class="icon">💼</span> Posições em Aberto</div>
+          <div class="status-badge" style="background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2);">
+            <div class="dot active"></div>
+            <span id="activePositionsCount">0 Ativas</span>
+          </div>
+        </div>
+        <div class="active-positions-list" id="activePositionsList" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
 
       <!-- SIGNALS -->
       <div class="panel">
@@ -1015,9 +1298,16 @@
 </div>
 
 <script>
-function formatCurrency(value, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
+function formatCurrency(val, currency = "USD") {
+  if (val === undefined || val === null) return "---";
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2
+  }).format(val);
 }
+
+let isDailyLocked = false;
 
 // ─── GEMINI API KEY — Save & Load ─────────────────────
 function saveGeminiApiKey() {
@@ -1058,6 +1348,14 @@ async function remoteLog(msg, level = "INFO") {
 
 // ─── AUTH CHECK (Auditado) ────────────────────────
 let currentUser = null;
+
+// ─── SIDEBAR TOGGLE ──────────────────────────
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebarNav");
+  const overlay = document.querySelector(".sidebar-overlay");
+  sidebar.classList.toggle("active");
+  overlay.classList.toggle("active");
+}
 
 async function checkAuth() {
   console.log("%c[AuraAuth] Iniciando verificação de segurança...", "color: cyan; font-weight: bold; font-size: 12px;");
@@ -1117,6 +1415,9 @@ async function retrySync(attempts) {
 }
 
 function injectAdminButton() {
+  const sidebarAdminLink = document.getElementById("adminLink");
+  if (sidebarAdminLink) sidebarAdminLink.style.display = "flex";
+
   const controls = document.querySelector(".controls");
   if (!controls) {
     console.warn("[AuraAuth] Container '.controls' não encontrado ainda. Retentando em 500ms...");
@@ -1141,6 +1442,9 @@ function injectAdminButton() {
 }
 
 function injectAffiliateButton() {
+  const sidebarAffLink = document.querySelector('.nav-item[href="/affiliate_dashboard.html"]');
+  if (sidebarAffLink) sidebarAffLink.style.display = "flex";
+
   const controls = document.querySelector(".controls");
   if (!controls) return;
   if (document.getElementById("affiliatePanelBtn")) return;
@@ -1239,15 +1543,6 @@ async function doChangePassword() {
     msg.textContent = '❌ ' + (data.error || 'Erro desconhecido.');
   }
 }
-function formatCurrency(val, currency = "USD") {
-  if (val === undefined || val === null) return "---";
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2
-  }).format(val);
-}
-
 // ─── UTILITÁRIOS E SIMULADORES ────────────────
 const PRICES = { EURUSD:1.0850, GBPUSD:1.2650, USDJPY:149.50, XAUUSD:2320.0, GBPJPY:189.0, EURGBP:0.8580 };
 
@@ -1330,13 +1625,16 @@ async function saveConfig() {
     risk: document.getElementById("riskSlider").value,
     score: document.getElementById("scoreSlider").value,
     interval: document.getElementById("interval").value,
+    orderLimit: document.getElementById("limitSlider").value,
+    botRunning: isRunning,
     activePairs: Array.from(activePairs).join(","),
-    geminiKey: localStorage.getItem("aura_gemini_key"),
-    botStatus: isRunning ? "running" : "stopped"
+    geminiKey: localStorage.getItem("aura_gemini_key")
   };
   
-  // Backup local
+  // Backup local e Monitor de Estado
   localStorage.setItem("aura_bot_config", JSON.stringify(config));
+  localStorage.setItem("aura_bot_state", isRunning ? "running" : "stopped");
+  localStorage.setItem("bot_running", isRunning ? "true" : "false");
   
   // Sincronização com Servidor
   try {
@@ -1358,6 +1656,16 @@ async function loadConfig() {
       document.getElementById("scoreSlider").value = s.score;
       document.getElementById("scoreVal").textContent = s.score;
       document.getElementById("interval").value = s.interval;
+      if (s.orderLimit) {
+        document.getElementById("limitSlider").value = s.orderLimit;
+        updateLimitUI(s.orderLimit);
+      }
+      if (s.botRunning) {
+        localStorage.setItem("bot_running", "true");
+        setTimeout(() => { if (!isRunning) startBot(); }, 2000);
+      } else {
+        localStorage.setItem("bot_running", "false");
+      }
       if (s.activePairs) activePairs = new Set(s.activePairs.split(","));
       
       if (s.geminiKey) {
@@ -1366,17 +1674,6 @@ async function loadConfig() {
       }
       
       initPairsGrid();
-      
-      // EXPERT: Sincronização de Estado de Execução (Bot Status)
-      if (s.botStatus === "running" && !isRunning) {
-          console.log("[SETTINGS] Sincronização: Bot deve estar a rodar.");
-          localStorage.setItem("aura_bot_state", "running");
-      } else if (s.botStatus === "stopped" && isRunning) {
-          console.log("[SETTINGS] Sincronização: Bot deve estar parado.");
-          localStorage.setItem("aura_bot_state", "stopped");
-          stopBot();
-      }
-
       addLog("⚙️ Definições sincronizadas com a nuvem.");
       return;
     }
@@ -1394,6 +1691,10 @@ async function loadConfig() {
       document.getElementById("scoreSlider").value = config.score;
       document.getElementById("scoreVal").textContent = config.score;
       document.getElementById("interval").value = config.interval;
+      if (config.orderLimit) {
+        document.getElementById("limitSlider").value = config.orderLimit;
+        updateLimitUI(config.orderLimit);
+      }
       if (config.activePairs) activePairs = new Set(Array.isArray(config.activePairs) ? config.activePairs : config.activePairs.split(","));
       initPairsGrid();
       addLog("⚙️ Configurações locais carregadas.");
@@ -1413,7 +1714,6 @@ const VERSION = "2.5.2-RR-FIX";
 const PAIRS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY","EURGBP"];
 let activePairs = new Set(["EURUSD","GBPUSD","USDJPY","XAUUSD","GBPJPY"]);
 let isRunning = false;
-let isDailyLocked = false;
 let loopTimer = null;
 let currentLoopId = 0;
 let sigCount = 0;
@@ -1433,58 +1733,6 @@ PAIRS.forEach(p => BIASES[p] = { bias:"NEUTRAL", confidence:0 });
 // ─── BROKER STATE ─────────────────────────────
 let brokerConnected = false;
 let brokerInfo = null;
-let selectedBrokerType = null;
-let selectedBrokerEntry = null;
-let currentModalStep = 1;
-let activeBrokerCategory = "all";
-
-// ─── BROKER DATABASE ──────────────────────────
-const BROKERS = [
-  // ── API Directa ──
-  { id:"oanda",       name:"OANDA",           adapter:"oanda",   platform:"API",  cat:"api",     icon:"📊", region:"🌎", desc:"API v20 · REST · Token pessoal" },
-  { id:"capital",     name:"Capital.com",     adapter:"capital", platform:"API",  cat:"api",     icon:"💹", region:"🇪🇺", desc:"REST API · API Key + Login" },
-  // ── MetaTrader Popular ──
-  { id:"xm",          name:"XM",              adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟢", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"icmarkets",   name:"IC Markets",      adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔵", region:"🇦🇺", desc:"Raw Spread · MT4/MT5" },
-  { id:"pepperstone", name:"Pepperstone",     adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟠", region:"🇦🇺", desc:"Razor Account · MT4/MT5" },
-  { id:"exness",      name:"Exness",          adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟡", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"fbs",         name:"FBS",             adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🟣", region:"🇧🇿", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxtm",        name:"FXTM (ForexTime)",adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔴", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"hotforex",    name:"HFM (HotForex)",  adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"⭐", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"avatrade",    name:"AvaTrade",        adapter:"metaapi", platform:"MT4/5", cat:"popular", icon:"🔷", region:"🇮🇪", desc:"MT4/MT5 via MetaApi" },
-  // ── MetaTrader Outros ──
-  { id:"tickmill",    name:"Tickmill",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"✅", region:"🇬🇧", desc:"Pro Account · MT4/MT5" },
-  { id:"fpmarkets",   name:"FP Markets",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔹", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
-  { id:"roboforex",   name:"RoboForex",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🤖", region:"🇧🇿", desc:"ECN · MT4/MT5" },
-  { id:"admirals",    name:"Admirals",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚓", region:"🇪🇪", desc:"MT4/MT5 via MetaApi" },
-  { id:"vantage",     name:"Vantage",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔶", region:"🇦🇺", desc:"Raw ECN · MT4/MT5" },
-  { id:"octafx",      name:"OctaFX",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐙", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"alpari",      name:"Alpari",          adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🅰️", region:"🇰🇳", desc:"ECN · MT4/MT5" },
-  { id:"liteforex",   name:"LiteFinance",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💡", region:"🇲🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"instaforex",  name:"InstaForex",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏆", region:"🇻🇬", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxpro",       name:"FxPro",           adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💎", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  { id:"forex_com",   name:"Forex.com",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌐", region:"🇺🇸", desc:"MT4/MT5 via MetaApi" },
-  { id:"thinkmarkets",name:"ThinkMarkets",    adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"💭", region:"🇬🇧", desc:"MT4/MT5 via MetaApi" },
-  { id:"axi",         name:"Axi",             adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔺", region:"🇦🇺", desc:"Pro Account · MT4" },
-  { id:"justforex",   name:"JustMarkets",     adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"⚡", region:"🇸🇨", desc:"MT4/MT5 via MetaApi" },
-  { id:"fxcm",        name:"FXCM",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏛️", region:"🇬🇧", desc:"MT4 via MetaApi" },
-  { id:"swissquote",  name:"Swissquote",      adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🇨🇭", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"axitrader",   name:"AxiTrader",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📐", region:"🇦🇺", desc:"MT4 via MetaApi" },
-  { id:"multibank",   name:"MultiBank",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🏦", region:"🇦🇪", desc:"MT4/MT5 via MetaApi" },
-  { id:"eightcap",    name:"Eightcap",        adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"8️⃣", region:"🇦🇺", desc:"Raw Account · MT4/MT5" },
-  { id:"bdswiss",     name:"BDSwiss",         adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🔘", region:"🇨🇭", desc:"MT4/MT5 via MetaApi" },
-  { id:"xmglobal",    name:"XM Global",       adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🌍", region:"🇧🇿", desc:"Ultra Low · MT4/MT5" },
-  { id:"naga",        name:"NAGA",            adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"🐉", region:"🇨🇾", desc:"MT4/MT5 via MetaApi" },
-  // ── MetaTrader Genérico ──
-  { id:"mt_generic",  name:"Outro (MT4/MT5)", adapter:"metaapi", platform:"MT4/5", cat:"mt",      icon:"📈", region:"🌐", desc:"Qualquer broker MT4/MT5 via MetaApi" },
-];
-
-const BROKER_CATEGORIES = [
-  { id:"all",     label:"Todas",       icon:"🌐" },
-  { id:"popular", label:"Popular",     icon:"⭐" },
-  { id:"api",     label:"API Directa", icon:"⚡" },
-  { id:"mt",      label:"MetaTrader",  icon:"📈" },
-];
 
 // ─── INIT UI ─────────────────────────────────
 function initPairsGrid() {
@@ -1860,8 +2108,8 @@ async function getBrokerPositions() {
   return apiFetch("/api/broker/positions");
 }
 
-async function placeBrokerOrder(pair, direction, risk, sl, tp) {
-  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp });
+async function placeBrokerOrder(pair, direction, risk, sl, tp, entry) {
+  return apiFetch("/api/broker/order", "POST", { pair, direction, risk, sl, tp, entry });
 }
 
 async function getBrokerCandles(pair, timeframe, count) {
@@ -2018,53 +2266,52 @@ async function checkBrokerConnection() {
 }
 
 async function updateBrokerUI() {
-  const badge = document.getElementById("brokerBadge");
-  const statusText = document.getElementById("brokerStatusText");
+  const badge = document.getElementById("eaBadge");
+  const dot = document.getElementById("eaDot");
+  const statusText = document.getElementById("eaStatusText");
   const mainBtn = document.getElementById("mainBtn");
-  const ConnectBtn = document.getElementById("ConnectBtn");
+  const setupBtn = document.getElementById("setupEABtn");
 
   if (brokerConnected && brokerInfo) {
-    badge.className = "broker-badge connected";
-    badge.querySelector(".dot").className = "dot active";
+    if (badge) badge.className = "status-badge connected";
+    if (dot) dot.className = "dot active";
 
     const typeBadge = brokerInfo.accountType === "LIVE"
       ? '<span class="account-type-badge live">LIVE</span>'
       : '<span class="account-type-badge demo">DEMO</span>';
 
-    statusText.innerHTML = `${brokerInfo.broker} ${typeBadge}`;
-    // mainBtn.disabled = false; // Removido para controle centralizado por licença
-    ConnectBtn.textContent = "🔌 Desconectar";
-    ConnectBtn.className = "btn btn-danger";
-    ConnectBtn.onclick = doDisconnect;
-
-    // Update balance
-    document.getElementById("statBalance").textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
-    document.getElementById("statBalanceSub").textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
-
-    addLog(`✅ Conectado: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    if (statusText) statusText.innerHTML = `MT5: ${brokerInfo.broker} ${typeBadge}`;
     
-    // Expert Fix: Limpar sinais antigos ao conectar para evitar confusão com simulações
+    // Update balance
+    const balanceEl = document.getElementById("statBalance");
+    const balanceSubEl = document.getElementById("statBalanceSub");
+    if (balanceEl) balanceEl.textContent = formatCurrency(brokerInfo.balance, brokerInfo.currency);
+    if (balanceSubEl) balanceSubEl.textContent = `${brokerInfo.broker} · ${brokerInfo.accountType}`;
+
+    addLog(`✅ MT5 Conectada: ${brokerInfo.broker} | Saldo: ${formatCurrency(brokerInfo.balance, brokerInfo.currency)}`, "buy");
+    
     if (signals.length > 0 || openTrades.length === 0) {
-       addLog("🧹 Limpando ambiente para nova sessão de trading...");
-       signals = [];
-       localStorage.setItem('bot_signals', '[]');
-       document.getElementById("signalsList").innerHTML = `
-        <div class="empty-state">
-          <div class="em-icon">🔍</div>
-          <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
-        </div>`;
+       addLog("🧹 Sincronizando ambiente de trading...");
+       // Mantemos os sinais se houver ordens abertas para não perder o rasto visual
+       if (openTrades.length === 0) {
+         signals = [];
+         localStorage.setItem('bot_signals', '[]');
+         document.getElementById("signalsList").innerHTML = `
+          <div class="empty-state">
+            <div class="em-icon">🔍</div>
+            <p>MetaTrader 5 conectada. Inicie o bot para receber sinais SMC.</p>
+          </div>`;
+       }
     }
   } else {
-    badge.className = "broker-badge disconnected";
-    badge.querySelector(".dot").className = "dot danger";
-    statusText.textContent = "Sem MetaTrader 5";
-    // mainBtn.disabled = true; // Removido: O Bot pode rodar em modo Local EA apenas com licença
-    ConnectBtn.textContent = "🔗 ---";
-    ConnectBtn.className = "btn btn-Connect";
-    ConnectBtn.onclick = openSetupModal;
+    if (badge) badge.className = "status-badge offline";
+    if (dot) dot.className = "dot danger";
+    if (statusText) statusText.textContent = "EA: Offline";
 
-    document.getElementById("statBalance").textContent = "—";
-    document.getElementById("statBalanceSub").textContent = "Conecte uma MetaTrader 5";
+    const balanceEl = document.getElementById("statBalance");
+    const balanceSubEl = document.getElementById("statBalanceSub");
+    if (balanceEl) balanceEl.textContent = "—";
+    if (balanceSubEl) balanceSubEl.textContent = "Conecte o EA no MetaTrader 5";
   }
 }
 
@@ -2106,7 +2353,7 @@ async function updateStats() {
       const lockOverlay = document.getElementById("dailyLockOverlay");
       const mainBtn = document.getElementById("mainBtn");
       
-      isDailyLocked = status.isLocked; // Sincroniza variável global
+      isDailyLocked = status.isLocked;
 
       if (status.isLocked) {
         lockOverlay.style.display = "block";
@@ -2128,10 +2375,8 @@ async function updateStats() {
       const positions = posData.positions || [];
       openTrades = positions;
       
-      // EXPERT: Sincronização e Recuperação de Ordens Órfãs
       positions.forEach(pos => {
           let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
-          
           if (!pnlEl) {
              const recoverySig = {
                  pair: pos.pair,
@@ -2161,30 +2406,36 @@ async function updateStats() {
 
       const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
       document.getElementById("statOpen").textContent = `${positions.length} / ${maxTradesLimit}`;
-    }
 
-    // 3. Atualizar Win Rate via Histórico
-    if (tradeHistoryRaw.length > 0) {
-      const fechadosCount = tradeHistoryRaw.length;
-      const winsCount = tradeHistoryRaw.filter(t => t.pnl > 0).length;
-      document.getElementById("statWr").textContent = `${((winsCount/fechadosCount)*100).toFixed(0)}%`;
-      document.getElementById("statTotal").textContent = fechadosCount + openTrades.length;
+      // 3. Atualizar Win Rate via Histórico
+      if (tradeHistoryRaw.length > 0) {
+        const totalFechados = tradeHistoryRaw.length;
+        const totalAbertos = positions.length;
+        tradeCount = totalFechados + totalAbertos;
+        const totalWins = tradeHistoryRaw.filter(t => t.pnl > 0).length;
+        
+        document.getElementById("statWr").textContent = totalFechados ? `${((totalWins/totalFechados)*100).toFixed(0)}%` : "N/A";
+        document.getElementById("statTotal").textContent = tradeCount;
+      }
     }
-
   } catch (e) {
     console.warn("Status UI Sync error:", e.message);
   }
 }
 
+let countdownActive = false;
 function updateLockCountdown(seconds) {
+    if (countdownActive) return;
     const el = document.getElementById("lockCountdown");
     if (!el) return;
     
+    countdownActive = true;
     let remaining = seconds;
     const interval = setInterval(() => {
         if (remaining <= 0) {
             clearInterval(interval);
-            location.reload(); // Recarrega para libertar o lock às 00:00
+            countdownActive = false;
+            location.reload(); 
             return;
         }
         remaining--;
@@ -2193,6 +2444,51 @@ function updateLockCountdown(seconds) {
         const s = remaining % 60;
         el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     }, 1000);
+}
+
+function renderActivePositions(positions) {
+  const panel = document.getElementById("activePositionsPanel");
+  const list = document.getElementById("activePositionsList");
+  const countEl = document.getElementById("activePositionsCount");
+
+  if (!positions || positions.length === 0) {
+    panel.style.display = "none";
+    return;
+  }
+
+  panel.style.display = "block";
+  countEl.textContent = `${positions.length} ${positions.length === 1 ? 'Ativa' : 'Ativas'}`;
+  
+  list.innerHTML = positions.map(pos => {
+    const pnlVal = pos.pnl || 0;
+    const pnlClass = pnlVal >= 0 ? 'bull' : 'bear';
+    const direction = (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL';
+    const dirColor = direction === 'BUY' ? 'var(--bull)' : 'var(--bear)';
+    
+    return `
+      <div class="position-item">
+        <div class="pos-info">
+          <span class="pos-label">Ativo / ID</span>
+          <span class="pos-val">${pos.symbol || pos.pair} <span style="font-size:0.6rem; color:var(--muted);">#${pos.id}</span></span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">Direção / Lote</span>
+          <span class="pos-val" style="color:${dirColor}">${direction} · ${pos.lotSize || pos.lots}</span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">Preço Entrada</span>
+          <span class="pos-val">${pos.openPrice ? pos.openPrice.toFixed(brokerInfo.precision || 5) : '--'}</span>
+        </div>
+        <div class="pos-info">
+          <span class="pos-label">P&L Atual</span>
+          <span class="pos-pnl ${pnlClass}">${(pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency)}</span>
+        </div>
+        <button onclick="closeTradeNow('${pos.id}', '${pos.symbol || pos.pair}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.65rem; border-color: rgba(255,68,68,0.3); color: var(--bear);">
+          FECHAR
+        </button>
+      </div>
+    `;
+  }).join("");
 }
 
 function updateSessionStatus() {
@@ -2253,8 +2549,7 @@ async function botLoop(loopId) {
         const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
         if (sig && openTrades.length < maxTradesLimit) {
           // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
-          const mappedBias = sig.direction === "BUY" ? "BULLISH" : "BEARISH";
-          if (aiResult.bias !== "NEUTRAL" && aiResult.bias !== mappedBias) {
+          if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
              addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
              continue;
           }
@@ -2292,7 +2587,7 @@ async function botLoop(loopId) {
           // Removida restrição de brokerConnected para permitir modo Sinal-EA
           if (true) { 
             addLog(`🚀 Executando ${sig.direction} PRO em ${pair} (Risco: ${riskPercent}%)...`, "buy");
-            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp);
+            const res = await placeBrokerOrder(pair, sig.direction, riskPercent, sig.sl, sig.tp, sig.entry);
 
             if (res.success) {
               lastTradeTime[pair] = Date.now();
@@ -2433,9 +2728,6 @@ function startBot() {
         botLoop(currentLoopId);
       }
     }, 500);
-
-    // Persistir no servidor
-    saveConfig();
   } catch (e) {
     addLog("❌ FALHA AO INICIAR: " + e.message, "sell");
     console.error(e);
@@ -2456,9 +2748,6 @@ function stopBot() {
   if (uptimeDot) uptimeDot.classList.remove("active");
   
   addLog("⏹ Bot parado.");
-  
-  // Persistir no servidor
-  saveConfig();
 }
 
 function resetBot() {
@@ -2579,12 +2868,11 @@ function openSetupModal() {
     return;
   }
   
+  // Recarregar configurações para garantir sincronia com o Admin
+  loadSystemConfig();
+  
   // Atualizar dados dinâmicos no modal
   document.getElementById("eaLicenseKey").textContent = userLicense.id || "CHAVE-NÃO-ENCONTRADA";
-  // Forçar IP fixo para evitar detecção dinâmica de domínio
-  const fixedUrl = "http://139.59.159.48:3005/api";
-  document.getElementById("apiUrlDisplay").textContent = fixedUrl;
-  document.getElementById("eaApiUrl").textContent = fixedUrl;
   
   console.log("%c[UI] Abrindo Modal de Setup...", "color: #00d4ff; font-weight: bold;");
   const modal = document.getElementById("setupModal");
@@ -2828,14 +3116,16 @@ loadSystemConfig();
     const desiredState = localStorage.getItem("aura_bot_state");
     
     if (desiredState === "running" && !isRunning) {
-        // Se broker não está conectado, esperamos (checkBrokerConnection fará o trabalho)
         if (brokerConnected && userLicense) {
-            console.log("%c[AuraEngine] ✅ Retomando sessão...", "color: #00ff00; font-weight: bold;");
+            console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
+            addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
         } else {
-            setTimeout(auraEngineMonitor, 2000);
+            // Tenta novamente a cada 1.5s enquanto as condições não forem ideais
+            setTimeout(auraEngineMonitor, 1500);
         }
     } else {
+        // Vigilância de segurança (5s)
         setTimeout(auraEngineMonitor, 5000);
     }
 })();
@@ -2845,7 +3135,7 @@ setInterval(() => {
     updateStats();
 }, 5000);
 
-let systemConfig = { apiUrl: "http://139.59.159.48:3005/api", installationGuide: "" };
+let systemConfig = { apiUrl: "http://localhost:3005", installationGuide: "" };
 
 async function loadSystemConfig() {
   try {
@@ -2854,17 +3144,27 @@ async function loadSystemConfig() {
     if (data.success) {
       systemConfig = data;
       
+      const url = systemConfig.apiUrl || window.location.origin;
+      
       // Update UI elements
       if (document.getElementById("apiUrlDisplay")) {
-        document.getElementById("apiUrlDisplay").textContent = systemConfig.apiUrl;
+        document.getElementById("apiUrlDisplay").textContent = url;
       }
       if (document.getElementById("eaApiUrl")) {
-        document.getElementById("eaApiUrl").textContent = systemConfig.apiUrl;
+        document.getElementById("eaApiUrl").textContent = url;
       }
       
       const customGuide = document.getElementById("customGuideContent");
       if (customGuide && systemConfig.installationGuide) {
-        customGuide.innerHTML = systemConfig.installationGuide.replace(/\n/g, '<br>');
+        // Advanced formatting for the guide
+        let formattedGuide = systemConfig.installationGuide
+          .replace(/\n/g, '<br>')
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/### (.*?)(<br>|$)/g, '<h3 style="color:var(--accent); margin-top:15px; font-size:0.9rem;">$1</h3>')
+          .replace(/## (.*?)(<br>|$)/g, '<h2 style="color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:5px; margin-top:20px; font-size:1.1rem;">$1</h2>')
+          .replace(/`(.*?)`/g, '<code style="background:#000; padding:2px 5px; border-radius:4px; font-family:\'Space Mono\';">$1</code>');
+        
+        customGuide.innerHTML = formattedGuide;
         customGuide.style.display = "block";
       }
     }
@@ -2883,9 +3183,9 @@ async function loadSystemConfig() {
     <div class="modal-body">
       <div class="download-area">
         <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v5.0 MASTER FINAL — Edição Institucional Definitiva</p>
-        <a href="/AuraForex_V5_INSTITUTIONAL.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem; background: linear-gradient(135deg, #00c6ff, #0072ff); box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);">
-          <i class="fas fa-file-download"></i> DOWNLOAD AURA_PRO_V5_INSTITUTIONAL.ex5
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v3.0 Profissional - Compilada para MetaTrader 5</p>
+        <a href="/AURA_PRO_FINAL.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+          <i class="fas fa-file-download"></i> DOWNLOAD AURA_PRO_FINAL.ex5
         </a>
       </div>
 
@@ -2895,7 +3195,7 @@ async function loadSystemConfig() {
           <p style="font-size: 0.8rem; line-height: 1.5;">
             1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
             2. Navegue até: <code>MQL5 → Experts</code><br>
-            3. Cole o ficheiro <code>AuraForex_V5_INSTITUTIONAL.mq5</code> para esta pasta<br>
+            3. Cole o ficheiro <code>AURA_PRO_FINAL.mq5</code> para esta pasta<br>
             4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
           </p>
         </div>
@@ -2936,7 +3236,7 @@ async function loadSystemConfig() {
               <tr><td>LICENSE_KEY</td><td><b style="color:var(--accent)" id="eaLicenseKey">...</b></td><td>Sua chave pessoal</td></tr>
               <tr><td>API_URL</td><td id="eaApiUrl">...</td><td>Endereço do servidor</td></tr>
               <tr><td>RiskPercent</td><td>1.0</td><td>% do saldo por trade</td></tr>
-              <tr><td>MagicNumber</td><td>888222</td><td>ID único das ordens</td></tr>
+              <tr><td>TP_RR</td><td>2.0</td><td>Take Profit = 2x o SL</td></tr>
             </tbody>
           </table>
         </div>
@@ -3008,7 +3308,7 @@ async function loadSystemConfig() {
       <button class="btn btn-primary" id="buyFinishBtn" onclick="finishPurchase()" style="display:none;">Finalizar Solicitação</button>
     </div>
   </div>
-</div>
-
-</body>
+    </div> <!-- /wrapper -->
+  </main> <!-- /main-content -->
+</div> <!-- /dashboard-container -->
 </html>

@@ -19,12 +19,10 @@ const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
-
-// INICIALIZAÇÃO DO SERVIDOR
-
+const supportApi = require("./support_api");
 
 const app = express();
-const PORT = process.env.PORT || 3005; 
+const PORT = process.env.PORT || 3005;
 const VERSION = "2.5.2-RR-FIX";
 const ROOT = __dirname;
 console.log(`[INIT] ROOT directory: ${ROOT}`);
@@ -73,71 +71,24 @@ app.get("/smc-forex", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
 });
 
-// Download do Robô (Versão Institucional V5)
+// Download do Robô
 app.get("/SMC_APEX_EA.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.ex5');
+  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
-  
+
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V5_INSTITUTIONAL.ex5"');
+    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
     res.sendFile(filePath, (err) => {
       if (err) {
         console.error("[DOWNLOAD-ERROR]", err);
       } else {
-        console.log("[DOWNLOAD-SUCCESS] Versão Institucional enviada com sucesso.");
+        console.log("[DOWNLOAD-SUCCESS] Ficheiro enviado com sucesso.");
       }
     });
   } else {
-    console.error("[DOWNLOAD-ERROR] Ficheiro Institucional não encontrado!");
+    console.error("[DOWNLOAD-ERROR] Ficheiro não encontrado no disco!");
     res.status(404).send("Ficheiro do Robô não encontrado no servidor.");
-  }
-});
-
-app.get("/SMC_APEX_EA.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.mq5');
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_V5_INSTITUTIONAL.mq5');
-  } else {
-    res.status(404).send("Fonte não encontrada.");
-  }
-});
-
-app.get("/AURA_PRO_FINAL.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AURA_PRO_FINAL.mq5');
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_Magic_V4.mq5');
-  } else {
-    res.status(404).send("Arquivo não encontrado.");
-  }
-});
-
-app.get("/AuraForex_MAGIC_V4_OFFICIAL.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_MAGIC_V4_OFFICIAL.mq5');
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_MAGIC_V4_OFFICIAL.mq5');
-  } else {
-    res.status(404).send("Arquivo V4 não encontrado.");
-  }
-});
-
-app.get("/AuraForex_V5_INSTITUTIONAL.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.ex5');
-  if (fs.existsSync(filePath)) {
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V5_INSTITUTIONAL.ex5"');
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send("Ficheiro V5 Institutional não encontrado.");
-  }
-});
-
-app.get("/AuraForex_V5_INSTITUTIONAL.mq5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V5_INSTITUTIONAL.mq5');
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, 'AuraForex_V5_INSTITUTIONAL.mq5');
-  } else {
-    res.status(404).send("Fonte V5 Institutional não encontrada.");
   }
 });
 
@@ -148,40 +99,15 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: "*", 
+  origin: "*",
   credentials: true
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve ativos da raiz (CSS, JS, Imagens)
 
 // ── DEBUG BRIDGE ──────────────────────────────────────────────────
-app.get("/api/debug/inject-test-signal", async (req, res) => {
-  try {
-    const testSignal = {
-      id: "TEST_" + Date.now(),
-      pair: "EURUSD",
-      direction: "BUY",
-      sl: 1.08000,
-      tp: 1.09500,
-      lot: 0.01
-    };
-
-    console.log("[DEBUG] ✅ Sinal de teste gerado no banco de dados.");
-    
-    res.json({
-      success: true,
-      message: "🚀 SINAL DE TESTE INJETADO VIA EA_API!",
-      signal: testSignal,
-      queueSize: eaApi.signalsQueue.length
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.post("/api/debug/log", (req, res) => {
   const { msg, level } = req.body;
   console.log(`[BROWSER-${level || 'INFO'}] ${msg}`);
@@ -190,26 +116,24 @@ app.post("/api/debug/log", (req, res) => {
 
 // Limites globais
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
+  windowMs: 15 * 60 * 1000,
   max: 1000, // Aumentado para desenvolvimento e configuração inicial
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
-app.use("/api/ea", eaApi.router);
-app.use("/ea", eaApi.router); // Suporte para o Robô (sem prefixo /api)
+app.use("/api/ea", eaApi);
+app.use("/ea", eaApi); // Suporte para o Robô (sem prefixo /api)
+app.use("/api/support", supportApi);
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
-
-
 const userRisks = new Map(); // Mapa de RiskManager por User ID
-
 
 let globalBroker = null; // Instância mestre para puxar velas para todos os usuários
 
 async function getGlobalBroker() {
   if (globalBroker && globalBroker.connected) return globalBroker;
-  
+
   try {
     const settings = await prisma.systemSettings.findFirst();
     if (settings && settings.metaApiToken && settings.metaApiAccountId) {
@@ -220,7 +144,7 @@ async function getGlobalBroker() {
         metaApiAccountId: settings.metaApiAccountId,
         region: "vint-hill"
       };
-      
+
       globalBroker = createBroker(config);
       await globalBroker.connect();
       return globalBroker;
@@ -285,7 +209,7 @@ async function requireActiveLicense(req, res, next) {
 // Middleware garante Corretora Conectada (com tentativa de Reconexão Automática)
 async function requireBrokerAuth(req, res, next) {
   let activeBroker = userBrokers.get(req.user.id);
-  
+
   if (!activeBroker || !activeBroker.connected) {
     console.log(`[AUTH-BROKER] Tentando reconexão automática para User ${req.user.id}...`);
     try {
@@ -319,18 +243,18 @@ async function requireBrokerAuth(req, res, next) {
   }
 
   if (!activeBroker || !activeBroker.connected) {
-    req.broker = null; 
+    req.broker = null;
     return next();
   }
-  
+
   req.broker = activeBroker;
-  
+
   // Garantir que existe um RiskManager para este user
   if (!userRisks.has(req.user.id)) {
     userRisks.set(req.user.id, new RiskManager(req.user.id));
   }
   req.risk = userRisks.get(req.user.id);
-  
+
   next();
 }
 
@@ -375,7 +299,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   try {
     console.log(`[AUTH] Tentativa de login: ${email}`);
-    const user = await prisma.user.findUnique({ 
+    const user = await prisma.user.findUnique({
       where: { email },
       include: { licenses: { where: { status: "ACTIVE" }, orderBy: { expiresAt: 'desc' }, take: 1 } }
     });
@@ -385,10 +309,10 @@ app.post("/api/auth/login", async (req, res) => {
     if (!valid) return res.status(401).json({ error: "Credenciais erradas." });
 
     const license = user.licenses[0] || null;
-    const token = jwt.sign({ 
-      id: user.id, 
-      email: user.email, 
-      role: user.role 
+    const token = jwt.sign({
+      id: user.id,
+      email: user.email,
+      role: user.role
     }, JWT_SECRET, { expiresIn: '7d' });
 
     // Auto-Connect Corretora Gravada
@@ -396,35 +320,35 @@ app.post("/api/auth/login", async (req, res) => {
     let bType = null;
     const connection = await prisma.brokerConnection.findFirst({ where: { userId: user.id } });
     if (connection) {
-       try {
-          const config = {
-            provider: connection.brokerType,
-            environment: connection.environment,
-            accountId: connection.accountId,
-            apiToken: decrypt(connection.apiTokenEncrypted),
-            metaApiToken: decrypt(connection.apiTokenEncrypted),
-            metaApiAccountId: connection.accountId,
-            oandaAccountId: connection.accountId,
-            oandaApiKey: decrypt(connection.apiTokenEncrypted),
-            capitalIdentifier: decrypt(connection.capitalIdentifier),
-            capitalPassword: decrypt(connection.capitalPassword),
-            capitalApiKey: decrypt(connection.apiTokenEncrypted),
-            region: connection.region
-          };
-          const adapter = getBrokerAdapter(config);
-          const resConn = await adapter.connect();
-         if (resConn.success) {
-           userBrokers.set(user.id, adapter);
-           autoConnected = true;
-           bType = connection.brokerName;
-         }
-       } catch(e) { console.error("Erro Auto-Connect:", e.message); }
+      try {
+        const config = {
+          provider: connection.brokerType,
+          environment: connection.environment,
+          accountId: connection.accountId,
+          apiToken: decrypt(connection.apiTokenEncrypted),
+          metaApiToken: decrypt(connection.apiTokenEncrypted),
+          metaApiAccountId: connection.accountId,
+          oandaAccountId: connection.accountId,
+          oandaApiKey: decrypt(connection.apiTokenEncrypted),
+          capitalIdentifier: decrypt(connection.capitalIdentifier),
+          capitalPassword: decrypt(connection.capitalPassword),
+          capitalApiKey: decrypt(connection.apiTokenEncrypted),
+          region: connection.region
+        };
+        const adapter = getBrokerAdapter(config);
+        const resConn = await adapter.connect();
+        if (resConn.success) {
+          userBrokers.set(user.id, adapter);
+          autoConnected = true;
+          bType = connection.brokerName;
+        }
+      } catch (e) { console.error("Erro Auto-Connect:", e.message); }
     }
 
-    res.json({ 
-      success: true, 
-      token, 
-      autoConnected, 
+    res.json({
+      success: true,
+      token,
+      autoConnected,
       broker: bType,
       user: {
         email: user.email,
@@ -445,11 +369,11 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
       where: { id: req.user.id },
       include: { licenses: { where: { status: "ACTIVE", expiresAt: { gt: new Date() } }, orderBy: { expiresAt: 'desc' }, take: 1 } }
     });
-    
+
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       user: {
         id: user.id,
         email: user.email,
@@ -482,13 +406,13 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     const timeUntilReset = Math.floor((midnight - now) / 1000);
 
     // 4. Calcular Meta em Dinheiro (Baseada no último saldo conhecido)
-    const lastBalance = license ? license.balance : 0;
-    const dailyTargetMoney = lastBalance * (risk.dailyProfitTarget / 100);
+    const lastBalance = license ? license.balance : (risk.balance || 0);
+    const dailyTargetMoney = lastBalance * (cfg.dailyProfitTargetPct / 100 || 0.05);
 
     res.json({
       success: true,
       balance: lastBalance,
-      equity: license ? license.equity : 0,
+      equity: license ? license.equity : lastBalance,
       dailyPnl: risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
       isLocked: risk.dailyProfitLocked,
@@ -516,10 +440,10 @@ app.get("/api/broker/last-connection", requireAuth, async (req, res) => {
       orderBy: { updatedAt: 'desc' }
     });
     if (!conn) return res.json({ success: false });
-    res.json({ 
-      success: true, 
-      brokerName: conn.brokerName, 
-      accountId: conn.accountId, 
+    res.json({
+      success: true,
+      brokerName: conn.brokerName,
+      accountId: conn.accountId,
       brokerType: conn.brokerType,
       environment: conn.environment
     });
@@ -531,32 +455,32 @@ app.get("/api/broker/last-connection", requireAuth, async (req, res) => {
 app.post("/api/broker/connect", requireAuth, async (req, res) => {
   const { brokerType, credentials, remember } = req.body;
   const userId = req.user.id;
-  
+
   if (!brokerType || !credentials) return res.status(400).json({ success: false, error: "Dados incompletos." });
 
   try {
     // [EXPERT LOGIC] - Recuperar credenciais salvas se for uma reconexão rápida
     let finalCreds = { ...credentials };
     const savedConn = await prisma.brokerConnection.findFirst({ where: { userId } });
-    
+
     if (savedConn && (!credentials.apiToken && !credentials.metaApiToken && !credentials.apiKey)) {
-       console.log(`[AUTH] Usando credenciais seguras da DB para ${brokerType}`);
-       // Mapeamento idêntico ao middleware que funciona no F5
-       finalCreds.apiToken = decrypt(savedConn.apiTokenEncrypted);
-       finalCreds.metaApiToken = decrypt(savedConn.apiTokenEncrypted);
-       finalCreds.apiKey = decrypt(savedConn.apiTokenEncrypted);
-       finalCreds.accountId = savedConn.accountId;
-       finalCreds.metaApiAccountId = savedConn.accountId;
-       finalCreds.oandaAccountId = savedConn.accountId;
-       finalCreds.identifier = decrypt(savedConn.capitalIdentifier);
-       finalCreds.password = decrypt(savedConn.capitalPassword);
-       finalCreds.region = savedConn.region;
-       finalCreds.environment = savedConn.environment;
+      console.log(`[AUTH] Usando credenciais seguras da DB para ${brokerType}`);
+      // Mapeamento idêntico ao middleware que funciona no F5
+      finalCreds.apiToken = decrypt(savedConn.apiTokenEncrypted);
+      finalCreds.metaApiToken = decrypt(savedConn.apiTokenEncrypted);
+      finalCreds.apiKey = decrypt(savedConn.apiTokenEncrypted);
+      finalCreds.accountId = savedConn.accountId;
+      finalCreds.metaApiAccountId = savedConn.accountId;
+      finalCreds.oandaAccountId = savedConn.accountId;
+      finalCreds.identifier = decrypt(savedConn.capitalIdentifier);
+      finalCreds.password = decrypt(savedConn.capitalPassword);
+      finalCreds.region = savedConn.region;
+      finalCreds.environment = savedConn.environment;
     }
 
     let activeBroker = userBrokers.get(userId);
     if (activeBroker && activeBroker.connected) {
-      try { await activeBroker.disconnect(); } catch (e) {}
+      try { await activeBroker.disconnect(); } catch (e) { }
     }
 
     const config = {
@@ -573,14 +497,14 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
       capitalApiKey: finalCreds.apiKey || finalCreds.apiToken,
       region: finalCreds.region
     };
-    
+
     console.log(`[AUTH] Reconexão: AccountID=${config.accountId} MetaID=${config.metaApiAccountId} HasToken=${!!config.apiToken}`);
-    
+
     activeBroker = getBrokerAdapter(config);
     const connectWithTimeout = new Promise(async (resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('ERRO CRÍTICO DE CONEXÃO - 60 SEGUNDOS. Verifique as credenciais e tente novamente.')), 60000);
       try { const rConnect = await activeBroker.connect(); clearTimeout(timer); resolve(rConnect); }
-      catch(err) { clearTimeout(timer); reject(err); }
+      catch (err) { clearTimeout(timer); reject(err); }
     });
     const result = await connectWithTimeout;
 
@@ -591,22 +515,22 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
     // Gravar/Atualizar na BD se tiver checkbox marcardo "Remember My Keys"
     // Caso padrão, vamos sempre gravar se for fornecido.
     if (remember !== false) {
-       await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
-       
-       await prisma.brokerConnection.create({
-         data: {
-           userId: req.user.id,
-           brokerName: activeBroker.name,
-           brokerType: activeBroker.type,
-           environment: credentials.environment || "demo",
-           accountId: credentials.accountId || credentials.identifier || "unknown",
-           apiTokenEncrypted: encrypt(credentials.apiToken || credentials.metaApiToken || credentials.apiKey),
-           capitalIdentifier: encrypt(credentials.identifier),
-           capitalPassword: encrypt(credentials.password),
-           region: credentials.region
-         }
-       });
-       console.log("💾 Credenciais salvas na DB para o user ID: " + req.user.id.substring(0,8));
+      await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
+
+      await prisma.brokerConnection.create({
+        data: {
+          userId: req.user.id,
+          brokerName: activeBroker.name,
+          brokerType: activeBroker.type,
+          environment: credentials.environment || "demo",
+          accountId: credentials.accountId || credentials.identifier || "unknown",
+          apiTokenEncrypted: encrypt(credentials.apiToken || credentials.metaApiToken || credentials.apiKey),
+          capitalIdentifier: encrypt(credentials.identifier),
+          capitalPassword: encrypt(credentials.password),
+          region: credentials.region
+        }
+      });
+      console.log("💾 Credenciais salvas na DB para o user ID: " + req.user.id.substring(0, 8));
     }
 
     return res.json(result);
@@ -619,7 +543,7 @@ app.post("/api/broker/connect", requireAuth, async (req, res) => {
 app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
   const { forgetDb } = req.body;
   const activeBroker = userBrokers.get(req.user.id);
-  
+
   try {
     if (activeBroker) {
       await activeBroker.disconnect();
@@ -631,7 +555,7 @@ app.post("/api/broker/disconnect", requireAuth, async (req, res) => {
       await prisma.brokerConnection.deleteMany({ where: { userId: req.user.id } });
       console.log(`[BROKER] Conexão apagada da DB para user ${req.user.id}`);
     }
-  } catch(e) {
+  } catch (e) {
     console.error("Disconnect error:", e.message);
     userBrokers.delete(req.user.id);
   }
@@ -689,20 +613,20 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
 
 function identifyStructure(candles, lookback = 10) {
   if (candles.length < lookback * 2) return "neutral";
-  
+
   const lastSet = candles.slice(-lookback);
   const prevSet = candles.slice(-lookback * 2, -lookback);
-  
+
   const lastHigh = Math.max(...lastSet.map(c => c.high));
   const prevHigh = Math.max(...prevSet.map(c => c.high));
-  const lastLow  = Math.min(...lastSet.map(c => c.low));
-  const prevLow  = Math.min(...prevSet.map(c => c.low));
-  
+  const lastLow = Math.min(...lastSet.map(c => c.low));
+  const prevLow = Math.min(...prevSet.map(c => c.low));
+
   const hh = lastHigh > prevHigh;
   const hl = lastLow > prevLow;
   const lh = lastHigh < prevHigh;
   const ll = lastLow < prevLow;
-  
+
   if (hh && hl) return "bull";
   if (lh && ll) return "bear";
   return "neutral";
@@ -712,11 +636,11 @@ function detectOrderBlock(candles, direction) {
   // Busca nas últimas 20 velas por um bloco de ordens (vela oposta antes de impulso)
   for (let i = candles.length - 2; i > Math.max(candles.length - 20, 0); i--) {
     const v = candles[i];
-    const next = candles[i+1];
-    
+    const next = candles[i + 1];
+
     const vBody = Math.abs(v.close - v.open);
     const nextBody = Math.abs(next.close - next.open);
-    
+
     if (direction === "BUY") {
       // OB Bull: Última vela de baixa antes de impulso forte de alta
       if (v.close < v.open && next.close > next.open && nextBody > vBody * 1.5) {
@@ -736,9 +660,9 @@ function detectFVG(candles, direction, minPips = 3) {
   const pip = 0.0001; // Ajustado dinamicamente no pipeline
   for (let i = candles.length - 3; i > candles.length - 15; i--) {
     if (i <= 0) break;
-    const vAnt = candles[i-1];
-    const vPos = candles[i+1];
-    
+    const vAnt = candles[i - 1];
+    const vPos = candles[i + 1];
+
     if (direction === "BUY") {
       // Gap entre high da anterior e low da posterior
       if (vAnt.high < vPos.low) {
@@ -758,11 +682,11 @@ function detectFVG(candles, direction, minPips = 3) {
 
 async function validateSMCSignal(broker, pair, direction) {
   console.log(`[EXPERT-FIX] Auto-aprovando ${pair} ${direction} para evitar erro de sistema.`);
-  return { 
-    valid: true, 
-    structure: "bullish (IA-CONFIRMED)", 
-    ob: "detected", 
-    fvg: "detected" 
+  return {
+    valid: true,
+    structure: "bullish (IA-CONFIRMED)",
+    ob: "detected",
+    fvg: "detected"
   };
 }
 
@@ -788,28 +712,18 @@ function normPrice(price, pair) {
  * Usa o mesmo multiplier do smc_signal_engine (ATR x 4.0 SL, ATR x 12.0 TP = RR 3:1)
  */
 async function computeDynamicSlTp(broker, pair, direction, entry) {
+  if (!entry || entry <= 0) return { sl: 0, tp: 0 };
   try {
     const pip = getPipValue(pair);
-    
-    // ESTRATÉGIA SMC PRO: 18 pips para Forex, 60 pips para Gold (Segurança)
-    let slPips = 18; 
-    if (pair.includes("XAU") || pair.includes("GOLD")) slPips = 60;
-
+    let slPips = 20;
+    if (pair.includes("XAU") || pair.includes("GOLD")) slPips = 80;
     const slDist = pip * slPips;
-    const tpDist = slDist * 1.5; 
-    
+    const tpDist = slDist * 1.5;
     const sl = direction === "BUY" ? normPrice(entry - slDist, pair) : normPrice(entry + slDist, pair);
     const tp = direction === "BUY" ? normPrice(entry + tpDist, pair) : normPrice(entry - tpDist, pair);
-
-    console.log(`[STP-1.5RR-VERIFIED] ${pair} SL=${slPips}pips TP=${slPips*1.5}pips RR=1:1.5`);
     return { sl, tp };
   } catch (e) {
-    const pip = getPipValue(pair);
-    const slD = pip * 18; 
-    const tpD = slD * 1.5; // Ajustado fallback de emergência para 1.5
-    const sl = direction === "BUY" ? normPrice(entry - slD, pair) : normPrice(entry + slD, pair);
-    const tp = direction === "BUY" ? normPrice(entry + tpD, pair) : normPrice(entry - tpD, pair);
-    return { sl, tp };
+    return { sl: 0, tp: 0 };
   }
 }
 
@@ -821,7 +735,7 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   // Ajuste profissional para Ouro: Stop Level costuma ser maior ($3-$5)
   let effectiveMinDist = minDistPips;
   if (pair.includes("XAU") || pair.includes("GOLD")) {
-      effectiveMinDist = 60; // 60 pips = $6.00 de distância mínima (Segurança total)
+    effectiveMinDist = 60; // 60 pips = $6.00 de distância mínima (Segurança total)
   }
 
   const pip = getPipValue(pair);
@@ -831,21 +745,21 @@ function enforceMinStopDistance(sl, tp, entry, direction, pair, minDistPips = 10
   let finalTp = tp;
 
   if (direction === "BUY") {
-    if (entry - finalSl < minDist) finalSl = normPrice(entry - (minDist * 1.5), pair);
-    if (finalTp - entry < minDist) finalTp = normPrice(entry + (minDist * 1.5), pair);
+    if (entry - finalSl < minDist) finalSl = normPrice(entry - minDist, pair);
+    if (finalTp - entry < minDist) finalTp = normPrice(entry + minDist, pair);
   } else {
-    if (finalSl - entry < minDist) finalSl = normPrice(entry + (minDist * 1.5), pair);
-    if (entry - finalTp < minDist) finalTp = normPrice(entry - (minDist * 1.5), pair);
+    if (finalSl - entry < minDist) finalSl = normPrice(entry + minDist, pair);
+    if (entry - finalTp < minDist) finalTp = normPrice(entry - minDist, pair);
   }
 
   // ⚠️ SANITY CHECK: Se a distância for maior que 50% do preço, há erro de escala
   const maxAllowedDist = entry * 0.5;
   if (Math.abs(entry - finalSl) > maxAllowedDist) {
-      console.warn(`[SANITY] SL muito longe (${finalSl}). Ajustando para escala local.`);
-      finalSl = direction === "BUY" ? normPrice(entry - minDist, pair) : normPrice(entry + minDist, pair);
+    console.warn(`[SANITY] SL muito longe (${finalSl}). Ajustando para escala local.`);
+    finalSl = direction === "BUY" ? normPrice(entry - minDist, pair) : normPrice(entry + minDist, pair);
   }
   if (Math.abs(finalTp - entry) > maxAllowedDist) {
-      finalTp = direction === "BUY" ? normPrice(entry + minDist, pair) : normPrice(entry - minDist, pair);
+    finalTp = direction === "BUY" ? normPrice(entry + minDist, pair) : normPrice(entry - minDist, pair);
   }
 
   return { sl: finalSl, tp: finalTp };
@@ -856,16 +770,16 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
   const direction = req.body.direction?.toUpperCase();
   if (!pair || !direction || !risk) return res.status(400).json({ error: "Faltam parametros (pair, direction, risk)" });
   try {
-    
+
     // 1. VALIDAÇÃO SMC PRO (INTEGRADA)
     console.log(`[VALIDATION] Iniciando crivo SMC para ${pair} ${direction}...`);
     const validation = { valid: true };
-    
+
     if (!validation.valid) {
       console.warn(`[VALIDATION] ❌ Sinal REJEITADO: ${validation.reason}`);
       return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
     }
-    
+
     console.log(`[VALIDATION] ✅ Sinal APROVADO! Estrutura: ${validation.structure}`);
 
     // 1. VALIDAÇÃO SMC PRO (INTEGRADA - BYPASS)
@@ -873,22 +787,19 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     validation.valid = true; // Apenas atribui, não declara novamente
 
     if (!validation.valid) {
-       return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
+      return res.status(400).json({ success: false, error: `[VERSAO-NOVA-3005] Filtro SMC: ${validation.reason}` });
     }
 
-    // 2. Obter preço actual se não fornecido
-    let entryPrice = entry;
-    if (!entryPrice) {
-      try {
-        if (req.broker) {
+    // 2. Obter preço actual (APENAS SE REAL)
+    let entryPrice = entry || 0;
+    if (entryPrice <= 0 || entryPrice === 1.0850 || entryPrice === 150.00) {
+      entryPrice = 0;
+      if (req.broker) {
+        try {
           const priceData = await req.broker.getPrice(pair);
-          entryPrice = direction === "BUY" ? (priceData?.ask || priceData?.bid || 0) : (priceData?.bid || priceData?.ask || 0);
-        } else {
-          // Fallback para preço aproximado se não estiver conectado (para o EA pegar o preço real depois)
-          entryPrice = entry || 0; 
-          console.log(`[ORDER] Broker não conectado no Dashboard. Usando preço de entrada fornecido: ${entryPrice}`);
-        }
-      } catch(e) { entryPrice = 0; }
+          entryPrice = direction === "BUY" ? (priceData?.ask || 0) : (priceData?.bid || 0);
+        } catch (e) { entryPrice = 0; }
+      }
     }
 
     // 2. Cálculo Dinâmico de SL/TP (EXPERT ATR)
@@ -896,16 +807,19 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       try {
         console.log(`[ORDER] Calculando SL/TP Dinâmico (ATR) para ${pair}...`);
         const dyn = await computeDynamicSlTp(req.broker || null, pair, direction, entryPrice);
-        sl = dyn.sl;
-        tp = dyn.tp;
+        
+        // Se sl/tp não foram fornecidos ou são deltas, usa os dinâmicos
+        if (!sl || Math.abs(sl) < 1.0) sl = dyn.sl;
+        if (!tp || Math.abs(tp) < 1.0) tp = dyn.tp;
+        
         const pip = getPipValue(pair);
-        console.log(`[ORDER] ATR Dinâmico: Pip=${pip}, Dist=${(sl-entryPrice).toFixed(4)}, SL=${sl} TP=${tp}`);
+        console.log(`[ORDER] ATR Dinâmico: Pip=${pip}, Dist=${(sl - entryPrice).toFixed(4)}, SL=${sl} TP=${tp}`);
       } catch (e) {
         console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
         const isBuy = direction === "BUY";
-        sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
-        tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
+        if (!sl || Math.abs(sl) < 1.0) sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
+        if (!tp || Math.abs(tp) < 1.0) tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
       }
     }
 
@@ -913,9 +827,9 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     const isBuy = direction === "BUY";
     const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
     if (invalidSl) {
-        const pip = getPipValue(pair);
-        sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
-        tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270)); // Garante consistência
+      const pip = getPipValue(pair);
+      sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
+      tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270)); // Garante consistência
     }
 
     // 3. Garantir distância mínima e normalização
@@ -925,44 +839,40 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
 
     // 3.5 Fallback final se ainda estiverem ausentes (segurança crítica)
     if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
-        console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
-        const pip = getPipValue(pair);
-        const fallbackDist = pip * 300; // 300 pips de segurança
-        if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
-        if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
+      console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
+      const pip = getPipValue(pair);
+      const fallbackDist = pip * 300; // 300 pips de segurança
+      if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
+      if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
     }
 
     // 4. EM VEZ DE EXECUTAR NA CORRETORA (METADEV/METAAPI), SALVAMOS COMO SINAL PARA O EA
     const signal = await prisma.signal.create({
       data: {
         userId: req.user.id,
-        pair: pair,
-        direction: direction,
-        entry: entryPrice,
-        sl: sl,
-        tp: tp,
+        pair: String(pair).toUpperCase(),
+        direction: String(direction).toUpperCase(),
+        entry: Number(entryPrice || 0),
+        sl: Number(sl || 0),
+        tp: Number(tp || 0),
         lot: 0.01,
         status: "PENDING"
       }
     });
 
-    // O EA buscará este sinal via polling no banco de dados (Multi-Utilizador)
-
-
     console.log(`[V2-LOCAL] ✅ Sinal gerado com sucesso para ${pair} ${direction}. ID: ${signal.id}`);
 
-
-    return res.status(200).json({ 
-      success: true, 
+    return res.status(200).json({
+      success: true,
       message: "Sinal enviado para o terminal local (EA).",
       orderId: signal.id,
       appliedSl: sl,
       appliedTp: tp
     });
 
-  } catch (e) { 
+  } catch (e) {
     console.error("Signal Generation Error:", e);
-    res.status(500).json({ error: "Erro ao gerar sinal: " + e.message }); 
+    res.status(500).json({ error: "Erro ao gerar sinal: " + e.message });
   }
 });
 
@@ -1010,17 +920,27 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl } = req.body;
+    const {
+      geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+      installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
+      cryptoBotEnabled, cryptoBotUrl
+    } = req.body;
     let settings = await prisma.systemSettings.findFirst();
-    
+
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: {
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
+        }
       });
     } else {
       settings = await prisma.systemSettings.create({
-        data: { geminiApiKey, metaApiToken, metaApiAccountId, apiUrl, installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl }
+        data: {
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
+        }
       });
     }
     res.json({ success: true, settings });
@@ -1030,6 +950,30 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ── Configuração Pública (User) ───────────────────────────────────────
+app.get("/api/public/settings", async (req, res) => {
+  try {
+    const settings = await prisma.systemSettings.findFirst({
+      select: {
+        telegramUrl: true,
+        whatsappNumber: true,
+        facebookUrl: true,
+        instagramUrl: true,
+        youtubeUrl: true,
+        cryptoBotEnabled: true,
+        cryptoBotUrl: true
+      }
+    });
+    res.json({
+      success: true,
+      settings: settings || {
+        cryptoBotEnabled: true,
+        cryptoBotUrl: ""
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: "Erro ao buscar configurações públicas." });
+  }
+});
 app.get("/api/public/plans", async (req, res) => {
   try {
     const plans = await prisma.licensePlan.findMany({
@@ -1045,8 +989,8 @@ app.get("/api/public/plans", async (req, res) => {
 app.get("/api/system/config", async (req, res) => {
   try {
     const settings = await prisma.systemSettings.findFirst();
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       apiUrl: settings?.apiUrl || "http://localhost:3005",
       installationGuide: settings?.installationGuide || "",
       telegramUrl: settings?.telegramUrl || "",
@@ -1064,7 +1008,7 @@ app.get("/api/admin/stats", requireAuth, requireAdmin, async (req, res) => {
     const userCount = await prisma.user.count();
     const activeLicenses = await prisma.license.count({ where: { status: "ACTIVE", expiresAt: { gt: new Date() } } });
     const pendingRequests = await prisma.purchaseRequest.count({ where: { status: "PENDING" } });
-    
+
     res.json({
       success: true,
       stats: {
@@ -1142,7 +1086,7 @@ app.get("/api/admin/requests", requireAuth, requireAdmin, async (req, res) => {
   try {
     const requests = await prisma.purchaseRequest.findMany({
       where: { status: "PENDING" },
-      include: { 
+      include: {
         user: { select: { email: true } },
         plan: true
       }
@@ -1155,16 +1099,16 @@ app.get("/api/admin/requests", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  
+
   try {
-    const purchaseRequest = await prisma.purchaseRequest.findUnique({ 
+    const purchaseRequest = await prisma.purchaseRequest.findUnique({
       where: { id },
       include: { plan: true }
     });
     if (!purchaseRequest) return res.status(404).json({ error: "Solicitação não encontrada." });
 
     const days = purchaseRequest.plan ? purchaseRequest.plan.durationDays : 30;
-    
+
     // Buscar licença anterior (pode estar ativa ou expirada)
     const existingLicense = await prisma.license.findFirst({
       where: { userId: purchaseRequest.userId, status: "ACTIVE" },
@@ -1203,17 +1147,17 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
     if (!purchaseRequest.isBonusProcessed) {
       const baseAmount = purchaseRequest.amount;
       const bonusLevels = [0.06, 0.04, 0.02, 0.01, 0.01]; // 6%, 4%, 2%, 1%, 1%
-      
-      let currentUser = await prisma.user.findUnique({ where: { id: purchaseRequest.userId }});
-      
+
+      let currentUser = await prisma.user.findUnique({ where: { id: purchaseRequest.userId } });
+
       for (let i = 0; i < bonusLevels.length; i++) {
         if (!currentUser || !currentUser.sponsorId) break;
-        
-        const sponsor = await prisma.user.findUnique({ where: { id: currentUser.sponsorId }});
+
+        const sponsor = await prisma.user.findUnique({ where: { id: currentUser.sponsorId } });
         if (!sponsor) break;
-        
+
         const bonusAmount = parseFloat((baseAmount * bonusLevels[i]).toFixed(2));
-        
+
         await prisma.bonusTransaction.create({
           data: {
             receiverId: sponsor.id,
@@ -1224,7 +1168,7 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
             status: "COMPLETED"
           }
         });
-        
+
         await prisma.user.update({
           where: { id: sponsor.id },
           data: {
@@ -1232,10 +1176,10 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
             availableBonus: { increment: bonusAmount }
           }
         });
-        
+
         currentUser = sponsor;
       }
-      
+
       await prisma.purchaseRequest.update({
         where: { id },
         data: { status: "APPROVED", isBonusProcessed: true }
@@ -1261,7 +1205,7 @@ app.patch("/api/admin/licenses/:id", requireAuth, requireAdmin, async (req, res)
   try {
     const updated = await prisma.license.update({
       where: { id },
-      data: { 
+      data: {
         expiresAt: expiresAt ? new Date(expiresAt) : undefined,
         status: status || undefined
       }
@@ -1383,7 +1327,7 @@ app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
         }
       }
     });
-    
+
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
     // Buscar histórico de bónus
@@ -1509,8 +1453,7 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: score !== undefined ? parseInt(score) : undefined,
         interval: interval !== undefined ? parseInt(interval) : undefined,
         activePairs: activePairs || undefined,
-        geminiKey: geminiKey || undefined,
-        botStatus: req.body.botStatus || undefined
+        geminiKey: geminiKey || undefined
       },
       create: {
         userId: req.user.id,
@@ -1518,8 +1461,7 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: parseInt(score) || 55,
         interval: parseInt(interval) || 60,
         activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
-        geminiKey: geminiKey || null,
-        botStatus: req.body.botStatus || "stopped"
+        geminiKey: geminiKey || null
       }
     });
     res.json({ success: true, settings });
@@ -1533,14 +1475,14 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
 
 app.post("/api/bot/analyze", requireAuth, async (req, res) => {
   const { pair, htfBias, candles } = req.body;
-  
+
   try {
     let marketCandles = candles;
-    
+
     // 🔍 EXPERT: Tentar buscar velas REAIS da corretora se não foram enviadas
     if (!marketCandles || marketCandles.length === 0) {
       let broker = userBrokers.get(req.user.id);
-      
+
       // Se o utilizador não tem broker ligado, tenta usar o Broker Global do Admin (puxado da Base de Dados)
       if (!broker || !broker.connected) {
         broker = await getGlobalBroker();
@@ -1575,11 +1517,8 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     }
 
     console.log(`[BOT] Analisando ${pair} (HTF: ${htfBias})...`);
-    
+
     const { signal, reason } = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
-
-    // 🚀 ADIÇÃO: Enviar para a fila em memória (Real-time MT5) se houver sinal
-
     const analysis = analyzeAll(marketCandles);
 
     const responseData = {
@@ -1682,7 +1621,7 @@ app.get("/api/admin/finance/report", requireAuth, requireAdmin, async (req, res)
 
     // 1. Receitas (Licenças Aprovadas)
     const revenueObj = await prisma.purchaseRequest.aggregate({
-      where: { 
+      where: {
         status: "APPROVED",
         createdAt: { gte: startDate, lte: endDate }
       },
@@ -1691,7 +1630,7 @@ app.get("/api/admin/finance/report", requireAuth, requireAdmin, async (req, res)
 
     // 2. Saques (Pagos/Aprovados)
     const withdrawalsObj = await prisma.withdrawalRequest.aggregate({
-      where: { 
+      where: {
         status: "APPROVED",
         createdAt: { gte: startDate, lte: endDate }
       },
@@ -1700,7 +1639,7 @@ app.get("/api/admin/finance/report", requireAuth, requireAdmin, async (req, res)
 
     // 3. Bónus de Indicação (Gerados no período)
     const bonusesObj = await prisma.bonusTransaction.aggregate({
-      where: { 
+      where: {
         createdAt: { gte: startDate, lte: endDate }
       },
       _sum: { amount: true }
@@ -1865,51 +1804,13 @@ server.listen(PORT, () => {
   console.log("  ╚══════════════════════════════════════════════════════╝");
   console.log("");
   console.log("[DIAGNOSTIC] Servidor Nativo HTTP ativo na porta " + PORT);
-  
+
   // Testar base de dados
   prisma.$connect()
     .then(() => console.log("[DIAGNOSTIC] ✅ Conexão Prisma OK"))
     .catch(err => console.error("[DIAGNOSTIC] ❌ Erro Prisma:", err.message));
-
-  // ── NOVO: MOTOR DE GERAÇÃO DE SINAIS AUTOMÁTICO ──
-  console.log("[DIAGNOSTIC] 🛰️ Iniciando Motor de Sinais Automático (Aura Pro V3)... ");
-  const PAIRS_TO_WATCH = ["EURUSD", "GBPUSD", "XAUUSD", "USDJPY", "BTCUSD"];
-  
-  setInterval(async () => {
-    try {
-      const broker = await getGlobalBroker();
-      if (!broker || !broker.connected) return;
-
-      for (const pair of PAIRS_TO_WATCH) {
-        try {
-          const marketCandles = await broker.getCandles(pair, "H1", 250);
-          const { signal: sig } = generateSignal(pair, marketCandles, "NEUTRAL");
-          if (sig) {
-            const formatted = {
-              id: Date.now().toString(),
-              pair: sig.pair,
-              direction: sig.direction,
-              sl: sig.sl,
-              tp: sig.tp,
-              lot: 0.01
-            };
-
-            eaApi.signalsQueue.push(formatted);
-            console.log("✅ SINAL GERADO:", formatted);
-          }
-        } catch (e) {
-          // Silenciar erros de conexão temporários por par
-        }
-      }
-    } catch (e) {
-      console.error("[AUTO-BOT-ERROR]:", e.message);
-    }
-  }, 60000); // Verifica a cada 1 minuto
-
-
   // ── INICIAR MONITOR DE BACKGROUND (Profit Lock) ──
   console.log("[DIAGNOSTIC] 🛡️ Iniciando Monitor de Background (Profit Lock)...");
-
   setInterval(async () => {
     for (const [userId, broker] of userBrokers.entries()) {
       try {
@@ -1924,65 +1825,54 @@ server.listen(PORT, () => {
 
         const positions = await broker.getOpenPositions();
         
-        // 2. Verificar Meta Diária (Baseada em Equity/Floating)
+        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock)
         const dailyCheck = risk.checkDailyProfitTarget(positions || []);
         if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
-           console.log(`\x1b[42m\x1b[30m[META DIÁRIA] Meta atingida! Fechando todas as posições para proteger o lucro...\x1b[0m`);
-           
-           if (positions && positions.length > 0) {
-              for (const pos of positions) {
-                 const ticketId = pos.id || pos.ticket || pos.brokerId;
-                 console.log(`[META] Fechando Ticket #${ticketId}`);
-                 const res = await broker.closePosition(ticketId);
-                 if (res.success) {
-                    const internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
-                    risk.closeTrade(internalTrade ? internalTrade.id : ticketId, pos.price, "DAILY_TARGET_HIT", pos.profit);
-                 }
-              }
+           console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
+           // Fechar todas as posições imediatamente
+           for (const pos of (positions || [])) {
+              await broker.closePosition(pos.id);
+              risk.closeTrade(pos.id, 0, "DAILY_TARGET_LOCK", pos.profit);
            }
            continue; 
         }
 
         if (!positions || positions.length === 0) continue;
 
-        // 3. Sincronizar ordens desconhecidas primeiro
+        // 2. Para cada posição, verificar proteção
         for (const pos of positions) {
-           const ticketId = String(pos.id || pos.ticket || pos.brokerId);
-           let internalTrade = risk.openTrades.find(t => String(t.brokerId) === ticketId);
-           
-           if (!internalTrade) {
-             console.log(`\x1b[35m[SYNC] Nova ordem detetada no broker. Sincronizando Ticket #${ticketId}...\x1b[0m`);
-             risk.registerTrade({
-               pair: pos.pair,
-               direction: pos.direction,
-               entry: pos.openPrice || pos.price,
-               sl: pos.sl,
-               tp: pos.tp,
-               score: 100
-             }, pos.lotSize || pos.volume, ticketId);
-           }
-        }
+          const currentProfit = pos.profit || 0;
+          const ticketId = pos.id; 
 
-        // 3. Executar Verificação de Profit Lock Individualizada
-        // Obtemos pares únicos para verificar proteção
-        const uniquePairs = [...new Set(positions.map(p => p.pair))];
-        for (const pair of uniquePairs) {
-           const toClose = risk.checkOpenTrades(pair, positions); 
-           
-           for (const { trade, closePrice, reason, pnl } of toClose) {
-             const ticketId = trade.brokerId;
-             console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${pnl.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
-             const res = await broker.closePosition(ticketId);
-             if (res.success) {
-               risk.closeTrade(trade.id, closePrice, reason, pnl);
-             }
-           }
+          // Sincronizar trade
+          let internalTrade = risk.openTrades.find(t => String(t.brokerId) === String(ticketId));
+          if (!internalTrade) {
+            internalTrade = risk.registerTrade({
+              pair: pos.pair,
+              direction: pos.direction,
+              entry: pos.openPrice,
+              sl: pos.sl,
+              tp: pos.tp,
+              score: 100
+            }, pos.lotSize, ticketId);
+          }
+
+          // 3. Executar Verificação de Profit Lock usando Lucro Real
+          const toClose = risk.checkOpenTrades(pos.pair, 0, currentProfit, 0);
+
+          for (const { trade, reason } of toClose) {
+            console.log(`\x1b[41m\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\x1b[0m`);
+            const res = await broker.closePosition(ticketId);
+            if (res.success) {
+              risk.closeTrade(trade.id, 0, reason, currentProfit);
+            }
+          }
         }
       } catch (e) {
         console.error(`[MONITOR-ERROR] User ${userId}:`, e.message);
       }
     }
-  }, 1000); // 🏎️ VELOCIDADE MÁXIMA: Verifica a cada 1 segundo para não perder picos
+  }, 1000);
 });
 
 process.on('exit', (code) => {
