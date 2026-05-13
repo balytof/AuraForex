@@ -52,6 +52,7 @@ ProfitLockData    ProfitLocks[];   // Array de monitoramento
 double            DailyStartBalance  = 0;
 bool              DailyTargetReached = false;
 int               LastTradingDay     = -1;
+int               ConsecutiveLosses  = 0; // Contador de perdas consecutivas
 
 //--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
 struct PendingProtectionData {
@@ -1112,8 +1113,55 @@ string SendGet(string url) {
    return CharArrayToString(res);
 }
 
-double GetDynamicRisk(double pts) {
-   return InpRiskPercent;
+int GetConsecutiveLosses()
+{
+   int losses = 0;
+   int total  = HistoryDealsTotal();
+   
+   // Ler as últimas 10 operações fechadas (mais recentes primeiro)
+   for(int i = total - 1; i >= MathMax(0, total - 10); i--)
+   {
+      ulong dealTicket = HistoryDealGetTicket(i);
+      if(dealTicket == 0) continue;
+      
+      // Apenas entradas reais (não abertura)
+      if(HistoryDealGetInteger(dealTicket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
+      
+      // Apenas ordens do nosso EA
+      long dealMagic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
+      long baseMagic = InpMagicNumber;
+      if(dealMagic < baseMagic || dealMagic > baseMagic + 100000) continue;
+      
+      double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
+      
+      if(profit < 0)
+         losses++;
+      else
+         break; // Sequência de perdas interrompida por um lucro
+      
+      if(losses >= 3) break; // Só precisamos saber se chegou a 3
+   }
+   
+   return losses;
+}
+
+double GetDynamicRisk(double pts)
+{
+   double risk = InpRiskPercent;
+   
+   // RISCO ADAPTATIVO: Se 3+ perdas consecutivas → corta risco a metade
+   int losses = GetConsecutiveLosses();
+   if(losses >= 3)
+   {
+      risk *= 0.5;
+      static datetime lastWarn = 0;
+      if(TimeCurrent() - lastWarn > 3600) {
+         Print("⚠️ [RISK] ", losses, " perdas consecutivas | Risco reduzido para ", DoubleToString(risk, 2), "%");
+         lastWarn = TimeCurrent();
+      }
+   }
+   
+   return risk;
 }
 
 double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TYPE type) {
