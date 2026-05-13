@@ -13,7 +13,7 @@
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   InpServerUrl         = "https://www.auratradebots.com"; // URL do seu VPS
+input string   InpServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
 input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds      = 1;                       // Intervalo de Checagem (Segundos)
@@ -149,10 +149,8 @@ void OnTick()
       if(IsVolatilityAbnormal(sym)) return;
    }
 
-   // Se autorizado e passou nos filtros, monitoriza proteções
-   MonitorProfitLock();
-   MonitorPartialTP();   // Novo: Fecho Parcial Institucional
-   MonitorTrailingStop(); 
+   // Monitorização movida apenas para o Timer para evitar concorrência (Busy Lock)
+   // O Timer a 1s é suficiente e muito mais estável institucionalmente
    ProcessPendingProtections();
 }
 
@@ -940,16 +938,25 @@ void ProtectManualOrders()
       ulong ticket = PositionGetTicket(i);
       if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
       
-      // FILTROS INSTITUCIONAIS
-      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != 0) continue; // Só Magic 0
-      if(PositionGetDouble(POSITION_SL) != 0) continue;    // Já protegido
+      string sym = PositionGetString(POSITION_SYMBOL);
+      long magic = PositionGetInteger(POSITION_MAGIC);
+      string comment = PositionGetString(POSITION_COMMENT);
+      double sl = PositionGetDouble(POSITION_SL);
+
+      // FILTROS INSTITUCIONAIS (Apex Guardian)
+      if(sym != _Symbol) continue;
+      if(magic != 0) continue; 
+      if(sl > 0) continue; 
+
+      // Whitelist opcional: Se o trader quiser que o bot ignore tudo o que não diga MANUAL
+      // Descomentar a linha abaixo para segurança máxima
+      // if(StringFind(comment, "MANUAL") < 0) continue;
 
       double entry = PositionGetDouble(POSITION_PRICE_OPEN);
       int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
       double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
       
-      // --- ENGINE ATR (Proteção Dinâmica) ---
+      // --- ENGINE ATR DINÂMICO ---
       double atr = 0;
       int handle = iATR(_Symbol, PERIOD_M15, 14);
       if(handle != INVALID_HANDLE) {
@@ -958,33 +965,36 @@ void ProtectManualOrders()
          IndicatorRelease(handle);
       }
       
-      // Fallback de segurança se ATR falhar
-      if(atr <= 0) atr = (IsXAU(_Symbol) ? 5.0 : 0.0020); 
+      // Fallback ATR (Institucional)
+      if(atr <= 0) atr = (IsXAU(_Symbol) ? 3.5 : 0.0015); 
 
-      double slDist = IsXAU(_Symbol) ? (atr * 2.5) : (atr * 1.5);
-      double tpDist = slDist * 2.5; // RR Institucional 1:2.5
+      // Multiplicadores Profissionais (XAU: 2.0x ATR | Forex: 1.5x ATR)
+      double slDist = IsXAU(_Symbol) ? (atr * 2.0) : (atr * 1.5);
+      double tpDist = slDist * 2.5; 
       
-      double sl = 0, tp = 0;
+      double targetSL = 0, targetTP = 0;
       if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-         sl = entry - slDist;
-         tp = entry + tpDist;
+         targetSL = entry - slDist;
+         targetTP = entry + tpDist;
       } else {
-         sl = entry + slDist;
-         tp = entry - tpDist;
+         targetSL = entry + slDist;
+         targetTP = entry - tpDist;
       }
 
-      // Validação de Stop Levels do Broker
+      // Validação de Stop Levels e Spread
       double stopLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * point;
       double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
       double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
       double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
       
-      if(MathAbs(currentPrice - sl) < stopLevel) {
-         sl = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.2) : currentPrice + (stopLevel * 1.2);
+      if(MathAbs(currentPrice - targetSL) < stopLevel) {
+         targetSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.5) : currentPrice + (stopLevel * 1.5);
       }
 
-      if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-         Print("🛡️ [GUARDIAN] Proteção ATR aplicada à ordem manual: ", ticket, " | SL: ", DoubleToString(sl, digits));
+      if(trade.PositionModify(ticket, NormalizeDouble(targetSL, digits), NormalizeDouble(targetTP, digits))) {
+         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada: ", ticket, " | SL: ", DoubleToString(targetSL, digits));
+      } else {
+         Print("⚠️ [GUARDIAN] Falha ao proteger ticket ", ticket, " | Erro: ", GetLastError());
       }
    }
 }
