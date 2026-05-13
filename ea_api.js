@@ -159,7 +159,7 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity } = req.body;
+  const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
@@ -171,6 +171,10 @@ router.post("/report-balance", async (req, res) => {
       data: {
         balance: parseFloat(balance),
         equity: parseFloat(equity),
+        freeMargin: freeMargin ? parseFloat(freeMargin) : undefined,
+        floatingPnL: floatingPnL ? parseFloat(floatingPnL) : undefined,
+        marginLevel: marginLevel ? parseFloat(marginLevel) : undefined,
+        drawdown: drawdown ? parseFloat(drawdown) : undefined,
         updatedAt: new Date()
       }
     });
