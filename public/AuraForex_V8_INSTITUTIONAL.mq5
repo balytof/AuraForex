@@ -176,9 +176,12 @@ void OnTimer()
       CheckDailyTarget(); 
       CheckSignals();
       ProcessSignalQueue(); 
-      MonitorProfitLock();
-      MonitorTrailingStop();
-      MonitorPartialTP(); // Garante fecho parcial se necessário
+      
+      // HIERARQUIA INSTITUCIONAL DE GESTÃO (Ordem de Prioridade)
+      MonitorTrailingStop(); // 1. Trailing
+      MonitorPartialTP();    // 2. Parciais e BreakEven
+      MonitorProfitLock();   // 3. ProfitLock (Proteção Final)
+      
       ProcessPendingProtections();
       
       // Reportar Balanço apenas a cada 5 segundos
@@ -533,14 +536,10 @@ void MonitorTrailingStop()
 
          double newSL = NormalizeDouble(ask + trailDist, digits);
 
-         if(newSL < currentSL - trailStep || currentSL == 0)
+         if((currentSL == 0 || newSL < currentSL - trailStep) && (newSL - ask > stopLevel))
          {
-            // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
             if(trade.PositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing SELL | ", sym,
-                     " | Ticket: ", ticket,
-                     " | SL: ", DoubleToString(currentSL, digits),
-                     " → ",     DoubleToString(newSL, digits));
+               Print("📊 Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", newSL);
          }
       }
    }
@@ -922,43 +921,45 @@ void ExecuteSignal(string json)
    
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
-      sl = (low > 0) ? low - (atr * 0.5) : ask - (atr * 3.0);
-      tp = ask + (atr * 6.0);
+      double slVal = IsXAU(pair) ? (atr * 2.0) : (atr * 1.5);
+      double tpVal = IsXAU(pair) ? (atr * 3.0) : (atr * 2.5);
       
-      // Validação de StopLevel (Proteção contra rejeição do Broker)
+      sl = (low > 0) ? low - (atr * 0.2) : ask - slVal;
+      tp = ask + tpVal;
+      
       double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
       if(ask - sl < stopLevel) sl = ask - (stopLevel * 2.0);
       if(tp - ask < stopLevel) tp = ask + (stopLevel * 2.0);
       
-      double dist = (ask - sl) / tickSize;
-      double risk = GetDynamicRisk(dist);
+      double risk = GetDynamicRisk((ask - sl)/tickSize);
       double lot = CalculateLot(pair, risk, ask - sl, ORDER_TYPE_BUY);
       
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-            Print("🚀 BUY Atómico Executado: ", pair, " | SL: ", sl, " | TP: ", tp);
+            Print("🚀 BUY Atómico [", (IsXAU(pair)?"GOLD":"FX"), "] Executado: ", pair);
             AddProcessed(ExtractValue(json, "id"));
          }
       }
    } else {
       double high = GetLastHigh(pair, 20);
-      sl = (high > 0) ? high + (atr * 0.5) : bid + (atr * 3.0);
-      tp = bid - (atr * 6.0);
+      double slVal = IsXAU(pair) ? (atr * 2.0) : (atr * 1.5);
+      double tpVal = IsXAU(pair) ? (atr * 3.0) : (atr * 2.5);
       
-      // Validação de StopLevel (Proteção contra rejeição do Broker)
+      sl = (high > 0) ? high + (atr * 0.2) : bid + slVal;
+      tp = bid - tpVal;
+      
       double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * _Point;
       if(sl - bid < stopLevel) sl = bid + (stopLevel * 2.0);
       if(bid - tp < stopLevel) tp = bid - (stopLevel * 2.0);
       
-      double dist = (sl - bid) / tickSize;
-      double risk = GetDynamicRisk(dist);
+      double risk = GetDynamicRisk((sl - bid)/tickSize);
       double lot = CalculateLot(pair, risk, sl - bid, ORDER_TYPE_SELL);
       
       if(lot > 0) {
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-            Print("🚀 SELL Atómico Executado: ", pair, " | SL: ", sl, " | TP: ", tp);
+            Print("🚀 SELL Atómico [", (IsXAU(pair)?"GOLD":"FX"), "] Executado: ", pair);
             AddProcessed(ExtractValue(json, "id"));
          }
       }
