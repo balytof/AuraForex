@@ -150,7 +150,6 @@ void OnTick()
 
    // Monitorização movida apenas para o Timer para evitar concorrência (Busy Lock)
    // O Timer a 1s é suficiente e muito mais estável institucionalmente
-   ProcessPendingProtections();
 }
 
 void OnTimer()
