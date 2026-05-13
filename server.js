@@ -388,6 +388,44 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 
 
+
+// ── NOVO: Endpoint de Status HMI (Institucional) ──────────────────
+app.get("/api/user/status", requireAuth, async (req, res) => {
+  try {
+    const license = await prisma.license.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const risk = userRisks.get(req.user.id) || new RiskManager(req.user.id);
+    if (!userRisks.has(req.user.id)) userRisks.set(req.user.id, risk);
+
+    const now = new Date();
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const timeUntilReset = Math.floor((midnight - now) / 1000);
+
+    let lastBalance = license ? license.balance : (risk.balance || 0);
+    if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
+    
+    // Fallback para 5% se não houver config global
+    const dailyTargetMoney = lastBalance * 0.05;
+
+    res.json({
+      success: true,
+      balance: lastBalance,
+      equity: license ? license.equity : lastBalance,
+      dailyPnl: risk.dailyPnl,
+      dailyTargetMoney: dailyTargetMoney,
+      isLocked: risk.dailyProfitLocked,
+      timeUntilReset: timeUntilReset,
+      updatedAt: license ? license.updatedAt : null
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
+  }
+});
+
 // ── Broker Endpoints ──────────────────────────────────────────────
 
 app.get("/api/broker/status", requireAuth, requireBrokerAuth, async (req, res) => {
