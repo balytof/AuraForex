@@ -49,6 +49,9 @@ CTrade            trade;
 bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
 ProfitLockData    ProfitLocks[];   // Array de monitoramento
+double            DailyStartBalance = 0;
+bool              DailyTargetReached = false;
+int               LastTradingDay = -1;
 
 //--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
 struct PendingProtectionData {
