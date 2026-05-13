@@ -165,20 +165,28 @@ void OnTick()
 
 void OnTimer()
 {
+   // 1. Proteger Ordens Manuais (Sempre prioridade, independente de rede ou ocupação)
+   ProtectManualOrders();
+
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
    if(!IsAuthorized) ValidateLicense();
    else {
-      CheckDailyTarget(); // Novo: Gestão de Meta Diária
-      
+      CheckDailyTarget(); 
       CheckSignals();
       ProcessSignalQueue(); 
       MonitorProfitLock();
       MonitorTrailingStop();
+      MonitorPartialTP(); // Garante fecho parcial se necessário
       ProcessPendingProtections();
-      ProtectManualOrders(); 
-      ReportBalance();
+      
+      // Reportar Balanço apenas a cada 5 segundos
+      static datetime lastReport = 0;
+      if(TimeCurrent() - lastReport >= 5) {
+         ReportBalance();
+         lastReport = TimeCurrent();
+      }
    }
    
    ExecutionBusy = false;
@@ -1001,8 +1009,8 @@ void ProtectManualOrders()
       // if(StringFind(comment, "MANUAL") < 0) continue;
 
       double entry = PositionGetDouble(POSITION_PRICE_OPEN);
-      int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
-      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
       
       // --- ENGINE ATR DINÂMICO (H1 para Ouro) ---
       double atr = 0;
@@ -1015,10 +1023,10 @@ void ProtectManualOrders()
       }
       
       // Fallback ATR (Institucional)
-      if(atr <= 0) atr = (IsXAU(_Symbol) ? 3.5 : 0.0015); 
+      if(atr <= 0) atr = (IsXAU(sym) ? 3.5 : 0.0015); 
 
       // Multiplicadores Profissionais (XAU: 2.0x ATR | Forex: 1.5x ATR)
-      double slDist = IsXAU(_Symbol) ? (atr * 2.0) : (atr * 1.5);
+      double slDist = IsXAU(sym) ? (atr * 2.0) : (atr * 1.5);
       double tpDist = slDist * 2.5; 
       
       double targetSL = 0, targetTP = 0;
@@ -1031,9 +1039,9 @@ void ProtectManualOrders()
       }
 
       // Validação de Stop Levels e Spread
-      double stopLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+      double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
       double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
       
       if(MathAbs(currentPrice - targetSL) < stopLevel) {
@@ -1041,7 +1049,7 @@ void ProtectManualOrders()
       }
 
       if(trade.PositionModify(ticket, NormalizeDouble(targetSL, digits), NormalizeDouble(targetTP, digits))) {
-         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada: ", ticket, " | SL: ", DoubleToString(targetSL, digits));
+         Print("🛡️ [GUARDIAN] Proteção ATR APEX aplicada em ", sym, " (", ticket, ") | SL: ", DoubleToString(targetSL, digits));
       } else {
          Print("⚠️ [GUARDIAN] Falha ao proteger ticket ", ticket, " | Erro: ", GetLastError());
       }
