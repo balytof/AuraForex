@@ -419,6 +419,10 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       dailyTargetMoney: dailyTargetMoney,
       isLocked: risk.dailyProfitLocked,
       timeUntilReset: timeUntilReset,
+      drawdown: license ? license.drawdown : 0,
+      marginLevel: license ? license.marginLevel : 0,
+      freeMargin: license ? license.freeMargin : 0,
+      floatingPnL: license ? license.floatingPnL : 0,
       updatedAt: license ? license.updatedAt : null
     });
   } catch (err) {
