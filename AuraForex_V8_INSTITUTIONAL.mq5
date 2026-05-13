@@ -1175,22 +1175,22 @@ void UpdateChartVisuals()
    double margin  = AccountInfoDouble(ACCOUNT_MARGIN);
    double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
 
+   int totalPositions = PositionsTotal();
+
    string status = DailyTargetReached ? "LOCKED" : "RUNNING";
 
    string panel = 
       "============================\n" +
-      "      AURA V8 ENGINE\n" +
+      "      AURAFOREX V8\n" +
       "============================\n" +
-      "ACCOUNT: " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
-      "----------------------------\n" +
+      "ACCOUNT : " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
       "BALANCE : $" + DoubleToString(balance,2) + "\n" +
       "EQUITY  : $" + DoubleToString(equity,2) + "\n" +
       "FLOATING: $" + DoubleToString(floating,2) + "\n" +
-      "MARGIN LEVEL: " + DoubleToString(marginLevel,1) + "%\n" +
-      "----------------------------\n" +
-      "ORDERS: " + IntegerToString(CountAuraPositions()) + "/" + IntegerToString(InpMaxOrders) + "\n" +
-      "STATUS: " + status + "\n" +
-      "SYNC: " + TimeToString(TimeCurrent(), TIME_SECONDS);
+      "MARGIN% : " + DoubleToString(marginLevel,1) + "%\n" +
+      "ORDERS  : " + IntegerToString(totalPositions) + "\n" +
+      "STATUS  : " + status + "\n" +
+      "TIME    : " + TimeToString(TimeCurrent(), TIME_SECONDS);
 
    Comment(panel);
 }
