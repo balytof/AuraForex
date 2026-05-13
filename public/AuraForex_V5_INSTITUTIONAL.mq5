@@ -63,6 +63,13 @@ struct SignalQueueData {
    datetime timestamp;
 };
 SignalQueueData SignalQueue[]; // Fila de espera para execução
+struct PartialCloseData
+{
+   ulong ticket;
+   bool  closed;
+};
+
+PartialCloseData PartialCloses[100]; // Rastreio de fechos parciais
 bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
 
 //--- Funções Auxiliares de Especialista
@@ -138,6 +145,7 @@ void OnTick()
 
    // Se autorizado e passou nos filtros, monitoriza proteções
    MonitorProfitLock();
+   MonitorPartialTP();   // Novo: Fecho Parcial Institucional
    MonitorTrailingStop(); 
    ProcessPendingProtections();
 }
@@ -325,6 +333,51 @@ void CleanClosedPositions()
 }
 
 //+------------------------------------------------------------------+
+//| FECHO PARCIAL INSTITUCIONAL (Garante 50% no bolso + BE)          |
+//+------------------------------------------------------------------+
+void MonitorPartialTP()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+
+      string sym = PositionGetString(POSITION_SYMBOL);
+      double profit = PositionGetDouble(POSITION_PROFIT);
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      
+      // Meta para Fecho Parcial: $25 para Ouro, $10 para Forex
+      double partialTarget = IsXAU(sym) ? 25.0 : 10.0;
+
+      // Verificar se já fechamos parcialmente este ticket
+      bool alreadyClosed = false;
+      for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == ticket && PartialCloses[j].closed) { alreadyClosed = true; break; } }
+      if(alreadyClosed) continue;
+
+      if(profit >= partialTarget)
+      {
+         double closeVol = NormalizeDouble(vol / 2.0, 2);
+         if(closeVol < 0.01) closeVol = vol; // Se muito pequeno, fecha tudo
+
+         Print("💰 META PARCIAL ATINGIDA | ", sym, " | Ticket: ", ticket, " | Fechando 50% (", closeVol, ")");
+         
+         if(trade.PositionClosePartial(ticket, closeVol))
+         {
+            // Registar fecho parcial
+            for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == 0 || PartialCloses[j].ticket == ticket) { PartialCloses[j].ticket = ticket; PartialCloses[j].closed = true; break; } }
+            
+            // Mover para Break Even
+            double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+            double currentTP = PositionGetDouble(POSITION_TP);
+            trade.PositionModify(ticket, openPrice, currentTP);
+            Print("🛡️ BREAK EVEN ACTIVADO para Ticket: ", ticket);
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| TRAILING STOP - Monitor principal                                |
 //+------------------------------------------------------------------+
 void MonitorTrailingStop()
@@ -347,9 +400,20 @@ void MonitorTrailingStop()
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP); // CONFLITO 3: preservar TP original
 
-      double trailStart = InpTrailingStart    * point;
+      // CÁLCULO ATR DINÂMICO PARA TRAILING
+      double atr = 0;
+      int handle = iATR(sym, PERIOD_M15, 14);
+      if(handle != INVALID_HANDLE)
+      {
+         double buf[];
+         ArraySetAsSeries(buf, true);
+         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
+         IndicatorRelease(handle);
+      }
+
+      double trailStart = (atr > 0) ? (atr * 1.0) : (InpTrailingStart    * point);
       double trailStep  = InpTrailingStep     * point;
-      double trailDist  = InpTrailingDistance * point;
+      double trailDist  = (atr > 0) ? (atr * 1.5) : (InpTrailingDistance * point);
 
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
