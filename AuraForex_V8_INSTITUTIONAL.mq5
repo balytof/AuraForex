@@ -209,13 +209,8 @@ void OnTimer()
       MonitorPartialTP();
       MonitorProfitLock();
 
-      ProcessPendingProtections();
-
-      // Sincronismo Dashboard (Tempo Real)
-      ReportBalance();
-   }
-
-   // DASHBOARD VISUAL (Sempre visível, independente de autorização)
+   // SINCRONISMO DASHBOARD (Sempre ativo para evitar dados "travados")
+   ReportBalance();
    UpdateChartVisuals();
 
    ExecutionBusy = false;
