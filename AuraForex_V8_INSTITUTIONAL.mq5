@@ -802,13 +802,23 @@ void ExecuteSignal(string json)
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
    
-   if(!SymbolSelect(pair, true)) {
-      for(int s=0; s<SymbolsTotal(false); s++) {
+   if(!SymbolSelect(pair, true))
+   {
+      for(int s = 0; s < SymbolsTotal(false); s++)
+      {
          string sym = SymbolName(s, false);
-         if(StringFind(sym, pair) >= 0) { pair = sym; break; }
+         string upperSym  = sym; StringToUpper(upperSym);
+         string upperPair = pair; StringToUpper(upperPair);
+
+         if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+         {
+            pair = sym;
+            SymbolSelect(pair, true);
+            break;
+         }
       }
    }
-   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado: " + pair); return; }
+   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
 
    double atr = GetATR(pair, PERIOD_H1);
    if(atr <= 0) atr = 0.0010; // Fallback safety
@@ -817,10 +827,14 @@ void ExecuteSignal(string json)
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    double spreadReal = ask - bid;
 
-   if(StringFind(pair, "XAU") >= 0) {
-      // REGRA OURO: Spread máximo de 80 cêntimos ($0.80)
-      if(spreadReal > 0.80) { 
-         Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
+   if(IsXAU(pair))
+   {
+      double point = SymbolInfoDouble(pair, SYMBOL_POINT);
+      double spreadPoints = spreadReal / point;
+
+      // Brokers GOLD normalmente 30-80 pontos. Limite institucional: 120.
+      if(spreadPoints > 120) { 
+         Print("⚠️ Spread XAU muito alto: ", DoubleToString(spreadPoints, 1), " pontos | Entrada Cancelada"); 
          return; 
       }
    } else {
