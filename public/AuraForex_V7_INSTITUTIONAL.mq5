@@ -175,7 +175,9 @@ void MonitorProfitLock()
       ulong ticket = PositionGetTicket(i);
       if(ticket <= 0) continue;
       if(!PositionSelectByTicket(ticket)) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+      
+      long magic = PositionGetInteger(POSITION_MAGIC);
+      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       string sym       = PositionGetString(POSITION_SYMBOL);
@@ -393,7 +395,9 @@ void MonitorTrailingStop()
       ulong ticket = PositionGetTicket(i);
       if(ticket <= 0) continue;
       if(!PositionSelectByTicket(ticket)) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+      
+      long magic = PositionGetInteger(POSITION_MAGIC);
+      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym       = PositionGetString(POSITION_SYMBOL);
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
