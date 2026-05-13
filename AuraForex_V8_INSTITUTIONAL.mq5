@@ -674,24 +674,20 @@ void AddToSignalQueue(string json) {
    GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
 }
 
-void ProcessSignalQueue() {
-   if(ExecutionBusy) return;
+void ProcessSignalQueue()
+{
    if(ArraySize(SignalQueue) == 0) return;
-
-   ExecutionBusy = true; // Ativar lock
 
    // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
    ExecuteSignal(json);
 
-   // Remover o sinal processado da fila via shift manual
+   // Remover o sinal processado da fila
    string signalId = ExtractValue(json, "id");
-   GlobalVariableDel("SQ_" + signalId); // Remover do estado de fila
-   AddProcessed(signalId); // Marcar como definitivamente processado
-   
-   RemoveSignalQueueIndex(0);
+   GlobalVariableDel("SQ_" + signalId);
+   AddProcessed(signalId);
 
-   ExecutionBusy = false; // Libertar lock
+   RemoveSignalQueueIndex(0);
 }
 
 void RemoveSignalQueueIndex(int idx)
