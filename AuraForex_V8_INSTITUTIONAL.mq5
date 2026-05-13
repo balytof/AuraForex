@@ -302,9 +302,10 @@ void MonitorProfitLock()
       double protectionStart = (StringFind(sym, "XAU") >= 0) ? 15.0 : 5.0;
       if(peak < protectionStart) continue;
 
-      // 3. Cálculo de Volatilidade Real (ATR M15)
+      // 3. Cálculo de Volatilidade Real (H1 para Ouro, M15 para Forex)
       double atr = 0;
-      int atrHandle = iATR(sym, PERIOD_M15, 14);
+      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
+      int atrHandle = iATR(sym, atrTF, 14);
       if(atrHandle != INVALID_HANDLE)
       {
          double atrBuf[];
