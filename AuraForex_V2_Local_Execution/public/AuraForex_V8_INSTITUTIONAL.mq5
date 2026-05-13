@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, AuraForex Corp"
 #property link      "https://auraforex.pt"
-#property version   "8.0"
+#property version   "8.1"
 #property strict
 
 //--- INCLUDES ---
@@ -915,9 +915,6 @@ void ExecuteSignal(string json)
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    
-   double sl = 0, tp = 0;
-   double maxSL = (double)((StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex);
-   
    if(dir == "BUY") {
       double low = GetLastLow(pair, 20);
       double slVal = IsXAU(pair) ? (atr * 2.0) : (atr * 1.5);
@@ -965,6 +962,7 @@ void ExecuteSignal(string json)
    }
 }
 
+
 void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    int s = ArraySize(PendingQueue);
    ArrayResize(PendingQueue, s + 1);
@@ -977,6 +975,14 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    // Persistência em GlobalVariables
    GlobalVariableSet("PSL_" + (string)ticket, sl);
    GlobalVariableSet("PTP_" + (string)ticket, tp);
+}
+
+void RemovePendingQueueIndex(int idx)
+{
+   int s = ArraySize(PendingQueue);
+   if(s == 0 || idx >= s) return;
+   for(int i = idx; i < s - 1; i++) PendingQueue[i] = PendingQueue[i + 1];
+   ArrayResize(PendingQueue, s - 1);
 }
 
 void ProcessPendingProtections() {
@@ -1263,3 +1269,4 @@ string ExtractValue(string json, string key) {
    int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
    string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
 }
+
