@@ -1001,27 +1001,55 @@ void ProcessPendingProtections() {
    }
 }
 
-void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
+void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
+{
    if(!PositionSelectByTicket(ticket)) return;
-   
-   string pair = PositionGetString(POSITION_SYMBOL);
-   double sl = data.sl;
-   double tp = data.tp;
-   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(pair, SYMBOL_POINT);
+
+   string pair      = PositionGetString(POSITION_SYMBOL);
+
+   double sl        = data.sl;
+   double tp        = data.tp;
+
    double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-   
-   if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 1.5;
-      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 1.5;
-   } else {
-      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 1.5;
-      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 1.5;
+
+   int digits       = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+
+   double point     = SymbolInfoDouble(pair, SYMBOL_POINT);
+
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
+
+   ENUM_POSITION_TYPE posType =
+      (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+
+   // BUY
+   if(posType == POSITION_TYPE_BUY)
+   {
+      if(openPrice - sl < stopLevel)
+         sl = openPrice - stopLevel * 2.0;
+
+      if(tp - openPrice < stopLevel)
+         tp = openPrice + stopLevel * 2.0;
    }
-   
-   if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-      Print("🛡️ Ordem Protegida | Ticket: ", ticket);
-      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+   else
+   {
+      if(sl - openPrice < stopLevel)
+         sl = openPrice + stopLevel * 2.0;
+
+      if(openPrice - tp < stopLevel)
+         tp = openPrice - stopLevel * 2.0;
+   }
+
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+
+   if(trade.PositionModify(ticket, sl, tp))
+   {
+      Print("🛡️ Protecção OK | Ticket: ", ticket);
+   }
+   else
+   {
+      Print("❌ Erro proteção: ", trade.ResultRetcode(),
+            " | ", trade.ResultRetcodeDescription());
    }
 }
 
