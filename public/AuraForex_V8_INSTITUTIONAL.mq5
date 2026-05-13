@@ -966,28 +966,104 @@ void ExecuteSignal(string json)
 }
 
 
-void ApplyAsyncProtection(ulong ticket, double sl, double tp) {
-   if(!PositionSelectByTicket(ticket)) return;
+void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
+   int s = ArraySize(PendingQueue);
+   ArrayResize(PendingQueue, s + 1);
+   PendingQueue[s].ticket = ticket;
+   PendingQueue[s].sl = sl;
+   PendingQueue[s].tp = tp;
+   PendingQueue[s].signalId = signalId;
+   PendingQueue[s].timestamp = TimeCurrent();
    
-   string pair = PositionGetString(POSITION_SYMBOL);
-   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double point = SymbolInfoDouble(pair, SYMBOL_POINT);
-   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
-   if(stopLevel <= 0) stopLevel = 30 * point;
+   // Persistência em GlobalVariables
+   GlobalVariableSet("PSL_" + (string)ticket, sl);
+   GlobalVariableSet("PTP_" + (string)ticket, tp);
+}
+
+void RemovePendingQueueIndex(int idx)
+{
+   int s = ArraySize(PendingQueue);
+   if(s == 0 || idx >= s) return;
+   for(int i = idx; i < s - 1; i++) PendingQueue[i] = PendingQueue[i + 1];
+   ArrayResize(PendingQueue, s - 1);
+}
+
+void ProcessPendingProtections() {
+   for(int i = ArraySize(PendingQueue) - 1; i >= 0; i--) {
+      if(TimeCurrent() - PendingQueue[i].timestamp > 60) {
+         RemovePendingQueueIndex(i);
+         continue;
+      }
+
+      ulong ticket = PendingQueue[i].ticket;
+      if(PositionSelectByTicket(ticket)) {
+         if(PositionGetDouble(POSITION_SL) == 0) { 
+            ApplyAsyncProtection(ticket, PendingQueue[i]);
+            
+            // Limpeza persistente
+            GlobalVariableDel("PSL_" + (string)ticket);
+            GlobalVariableDel("PTP_" + (string)ticket);
+            
+            RemovePendingQueueIndex(i);
+         } else {
+            // Já tem SL, remover da fila e do disco
+            GlobalVariableDel("PSL_" + (string)ticket);
+            GlobalVariableDel("PTP_" + (string)ticket);
+            RemovePendingQueueIndex(i);
+         }
+      }
+   }
+}
+
+void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
+{
+   if(!PositionSelectByTicket(ticket)) return;
+
+   string pair      = PositionGetString(POSITION_SYMBOL);
+
+   double sl        = data.sl;
+   double tp        = data.tp;
 
    double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-   
-   // Validação Rigorosa baseada no preço de entrada (Não no actual)
-   if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 1.2;
-      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 1.2;
-   } else {
-      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 1.2;
-      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 1.2;
+
+   int digits       = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+
+   double point     = SymbolInfoDouble(pair, SYMBOL_POINT);
+
+   double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
+
+   ENUM_POSITION_TYPE posType =
+      (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+
+   // BUY
+   if(posType == POSITION_TYPE_BUY)
+   {
+      if(openPrice - sl < stopLevel)
+         sl = openPrice - stopLevel * 2.0;
+
+      if(tp - openPrice < stopLevel)
+         tp = openPrice + stopLevel * 2.0;
    }
-   
-   if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
-      Print("🛡️ Ordem Protegida (Async) | Ticket: ", ticket, " | SL: ", sl, " | TP: ", tp);
+   else
+   {
+      if(sl - openPrice < stopLevel)
+         sl = openPrice + stopLevel * 2.0;
+
+      if(openPrice - tp < stopLevel)
+         tp = openPrice - stopLevel * 2.0;
+   }
+
+   sl = NormalizeDouble(sl, digits);
+   tp = NormalizeDouble(tp, digits);
+
+   if(trade.PositionModify(ticket, sl, tp))
+   {
+      Print("🛡️ Protecção OK | Ticket: ", ticket);
+   }
+   else
+   {
+      Print("❌ Erro proteção: ", trade.ResultRetcode(),
+            " | ", trade.ResultRetcodeDescription());
    }
 }
 
