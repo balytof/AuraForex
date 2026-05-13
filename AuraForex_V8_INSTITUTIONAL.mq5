@@ -993,16 +993,12 @@ void ProcessPendingProtections() {
       }
 
       ulong ticket = PendingQueue[i].ticket;
-      if(PositionSelectByTicket(ticket)) {
-         if(PositionGetDouble(POSITION_SL) == 0) { 
-            // Tentar aplicar proteção. Só remove se for bem sucedido.
-            if(ApplyAsyncProtection(ticket, PendingQueue[i])) {
-               GlobalVariableDel("PSL_" + (string)ticket);
-               GlobalVariableDel("PTP_" + (string)ticket);
-               RemovePendingQueueIndex(i);
-            }
+      if(ticket > 0 && PositionSelectByTicket(ticket)) {
+         double sl = PositionGetDouble(POSITION_SL);
+         if(sl <= 0 || sl == EMPTY_VALUE) {
+            ApplyAsyncProtection(ticket, PendingQueue[i]);
          } else {
-            // Já tem SL, remover da fila e do disco
+            // Já tem proteção (ou aplicada com sucesso)
             GlobalVariableDel("PSL_" + (string)ticket);
             GlobalVariableDel("PTP_" + (string)ticket);
             RemovePendingQueueIndex(i);
