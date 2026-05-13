@@ -118,11 +118,28 @@ void OnDeinit(const int reason) { EventKillTimer(); }
 
 void OnTick()
 {
-   if(IsAuthorized) {
-      MonitorProfitLock();
-      MonitorTrailingStop(); 
-      ProcessPendingProtections(); // Processar proteções assíncronas
+   if(!IsAuthorized) return;
+
+   string sym = _Symbol;
+   
+   //--- Filtros Institucionais de Elite (Aplicados apenas ao Ouro para não afectar Forex)
+   if(IsXAU(sym))
+   {
+      // 1. Filtro de Sessão (Ouro só opera em alta liquidez: Londres/NY)
+      if(!IsTradingSession()) return;
+      
+      // 2. Filtro de Spread Guard
+      double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
+      if(spread > GetMaxAllowedSpread(sym)) return;
+      
+      // 3. Filtro de Volatilidade Anormal (Evita "pânico" de mercado)
+      if(IsVolatilityAbnormal(sym)) return;
    }
+
+   // Se autorizado e passou nos filtros, monitoriza proteções
+   MonitorProfitLock();
+   MonitorTrailingStop(); 
+   ProcessPendingProtections();
 }
 
 void OnTimer()
@@ -410,6 +427,18 @@ void CheckSignals()
 {
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
+   
+   string sym = _Symbol;
+
+   //--- Filtros Institucionais para Busca de Sinais
+   if(IsXAU(sym))
+   {
+      if(!IsTradingSession()) return; // Não gasta recursos fora de sessão
+      
+      double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
+      if(spread > GetMaxAllowedSpread(sym)) return;
+   }
+
    lastCheckTime = TimeCurrent();
 
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
