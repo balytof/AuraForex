@@ -184,12 +184,8 @@ void OnTimer()
       
       ProcessPendingProtections();
       
-      // Reportar Balanço apenas a cada 5 segundos
-      static datetime lastReport = 0;
-      if(TimeCurrent() - lastReport >= 5) {
-         ReportBalance();
-         lastReport = TimeCurrent();
-      }
+      // Reportar Balanço em Tempo Real (Cada ciclo do Timer)
+      ReportBalance();
    }
    
    ExecutionBusy = false;
@@ -1140,8 +1136,7 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < 5) return; // Reporta a cada 5 segundos (Institucional)
+   // Removido throttling de 5s para permitir tempo real (Institutional Real-Time Sync)
    
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
