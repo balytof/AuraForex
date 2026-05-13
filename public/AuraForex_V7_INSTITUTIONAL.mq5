@@ -853,8 +853,8 @@ void ExecuteSignal(string json)
    double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    double spreadReal = ask - bid;
 
-   if(StringFind(pair, "XAU") >= 0) {
-      // REGRA OURO: Spread máximo de 80 cêntimos ($0.80)
+   if(IsXAU(pair)) {
+      // REGRA APEX
       if(spreadReal > 1.20) { 
          Print("⚠️ Spread Ouro Inaceitável: ", DoubleToString(spreadReal, 2), " | Entrada Cancelada"); 
          return; 
