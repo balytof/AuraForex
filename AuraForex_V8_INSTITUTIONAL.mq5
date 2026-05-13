@@ -1180,36 +1180,30 @@ void ReportBalance()
 
 void UpdateChartVisuals()
 {
-   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
-   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
-   double floatingPnL = equity - balance;
-   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   double floating = equity - balance;
+   double margin  = AccountInfoDouble(ACCOUNT_MARGIN);
    double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
-   
-   double drawdown = 0;
-   if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
-   string targetStatus = DailyTargetReached ? "🏆 ALCANÇADA (LOCK)" : "⏳ EM PROGRESSO";
+   string status = DailyTargetReached ? "LOCKED" : "RUNNING";
 
-   Comment(
-      "╔════════════════════════════════════╗\n",
-      "   AURA V8.1 INSTITUCIONAL\n",
-      "╚════════════════════════════════════╝\n",
-      " Conta: ", AccountInfoInteger(ACCOUNT_LOGIN), " | ", AccountInfoString(ACCOUNT_COMPANY), "\n",
-      " --------------------------------------------------------\n",
-      " Balance: $", DoubleToString(balance, 2), "\n",
-      " Equity: $", DoubleToString(equity, 2), "\n",
-      " Floating: $", DoubleToString(floatingPnL, 2), " (", DoubleToString(drawdown, 2), "%)\n",
-      " Margin Level: ", DoubleToString(marginLevel, 1), "%\n",
-      " --------------------------------------------------------\n",
-      " META DIÁRIA: ", DoubleToString(InpDailyTargetPct, 1), "%\n",
-      " STATUS: ", targetStatus, "\n",
-      " --------------------------------------------------------\n",
-      " Ordens Aura: ", CountAuraPositions(), "/", InpMaxOrders, "\n",
-      " Última Sync: ", TimeToString(TimeCurrent(), TIME_SECONDS), "\n",
-      " --------------------------------------------------------\n",
-      " Execution: ", (ExecutionBusy ? "⚡ BUSY" : "🟢 READY")
-   );
+   string panel = 
+      "============================\n" +
+      "      AURA V8 ENGINE\n" +
+      "============================\n" +
+      "ACCOUNT: " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
+      "----------------------------\n" +
+      "BALANCE : $" + DoubleToString(balance,2) + "\n" +
+      "EQUITY  : $" + DoubleToString(equity,2) + "\n" +
+      "FLOATING: $" + DoubleToString(floating,2) + "\n" +
+      "MARGIN LEVEL: " + DoubleToString(marginLevel,1) + "%\n" +
+      "----------------------------\n" +
+      "ORDERS: " + IntegerToString(CountAuraPositions()) + "/" + IntegerToString(InpMaxOrders) + "\n" +
+      "STATUS: " + status + "\n" +
+      "SYNC: " + TimeToString(TimeCurrent(), TIME_SECONDS);
+
+   Comment(panel);
 }
 
 string SendPost(string url, string payload)
