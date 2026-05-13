@@ -13,7 +13,7 @@
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   InpServerUrl         = "http://139.59.159.48:3005/api"; // URL do seu VPS
+input string   InpServerUrl         = "https://www.auratradebots.com"; // URL do seu VPS
 input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds      = 1;                       // Intervalo de Checagem (Segundos)
@@ -114,12 +114,16 @@ bool IsVolatilityAbnormal(string sym)
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V6.0.1 - BLINDADA (Persistent Memory)");
-   trade.SetExpertMagicNumber(InpMagicNumber);
-   trade.SetDeviationInPoints(30); // Desvio padrão inicial
+   Print("🚀 AURA V7 - INSTITUTIONAL (Execution Engine)");
+   
+   // Gerar Magic Único por Timeframe para evitar conflitos multi-chart
+   int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+   trade.SetExpertMagicNumber(uniqueMagic);
+   trade.SetDeviationInPoints(30); 
+   
    ValidateLicense();
-   RecoverState(); // Recuperar estado após crash/reboot
-   EventSetTimer(InpTimerSeconds);
+   RecoverState(); 
+   EventSetTimer(1); // Check a cada 1 segundo
    return(INIT_SUCCEEDED);
 }
 
@@ -154,15 +158,21 @@ void OnTick()
 
 void OnTimer()
 {
+   if(ExecutionBusy) return;
+   ExecutionBusy = true;
+
    if(!IsAuthorized) ValidateLicense();
    else {
       CheckSignals();
-      ProcessSignalQueue(); // Processar um sinal por vez
+      ProcessSignalQueue(); 
       MonitorProfitLock();
       MonitorTrailingStop();
       ProcessPendingProtections();
+      ProtectManualOrders(); // Guardian Engine
       ReportBalance();
    }
+   
+   ExecutionBusy = false;
 }
 
 //+------------------------------------------------------------------+
@@ -177,7 +187,13 @@ void MonitorProfitLock()
       if(!PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       string sym       = PositionGetString(POSITION_SYMBOL);
@@ -347,7 +363,13 @@ void MonitorPartialTP()
       if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym = PositionGetString(POSITION_SYMBOL);
       double profit = PositionGetDouble(POSITION_PROFIT);
@@ -397,7 +419,13 @@ void MonitorTrailingStop()
       if(!PositionSelectByTicket(ticket)) continue;
       
       long magic = PositionGetInteger(POSITION_MAGIC);
-      if(magic != InpMagicNumber && (!InpManageManualOrders || magic != 0)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+
+      // FILTRO INSTITUCIONAL: Símbolo + Magic (ou Manual)
+      if(sym != _Symbol) continue;
+      
+      int uniqueMagic = InpMagicNumber + (int)PeriodSeconds();
+      if(magic != uniqueMagic && (!InpManageManualOrders || magic != 0)) continue;
 
       string sym       = PositionGetString(POSITION_SYMBOL);
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
@@ -906,6 +934,64 @@ void ApplyAsyncProtection(ulong ticket, PendingProtectionData &data) {
    }
 }
 
+void ProtectManualOrders()
+{
+   if(!InpManageManualOrders) return;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
+      
+      // FILTROS INSTITUCIONAIS
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != 0) continue; // Só Magic 0
+      if(PositionGetDouble(POSITION_SL) != 0) continue;    // Já protegido
+
+      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+      int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      
+      // --- ENGINE ATR (Proteção Dinâmica) ---
+      double atr = 0;
+      int handle = iATR(_Symbol, PERIOD_M15, 14);
+      if(handle != INVALID_HANDLE) {
+         double buf[]; ArraySetAsSeries(buf, true);
+         if(CopyBuffer(handle, 0, 0, 1, buf) > 0) atr = buf[0];
+         IndicatorRelease(handle);
+      }
+      
+      // Fallback de segurança se ATR falhar
+      if(atr <= 0) atr = (IsXAU(_Symbol) ? 5.0 : 0.0020); 
+
+      double slDist = IsXAU(_Symbol) ? (atr * 2.5) : (atr * 1.5);
+      double tpDist = slDist * 2.5; // RR Institucional 1:2.5
+      
+      double sl = 0, tp = 0;
+      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+         sl = entry - slDist;
+         tp = entry + tpDist;
+      } else {
+         sl = entry + slDist;
+         tp = entry - tpDist;
+      }
+
+      // Validação de Stop Levels do Broker
+      double stopLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double currentPrice = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? bid : ask;
+      
+      if(MathAbs(currentPrice - sl) < stopLevel) {
+         sl = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? currentPrice - (stopLevel * 1.2) : currentPrice + (stopLevel * 1.2);
+      }
+
+      if(trade.PositionModify(ticket, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         Print("🛡️ [GUARDIAN] Proteção ATR aplicada à ordem manual: ", ticket, " | SL: ", DoubleToString(sl, digits));
+      }
+   }
+}
+
 void ReportBalance()
 {
    static datetime lastReport = 0;
@@ -1008,3 +1094,4 @@ string ExtractValue(string json, string key) {
    int e = StringFind(json, "\"", s); if(e < 0) e = StringFind(json, ",", s); if(e < 0) e = StringFind(json, "}", s);
    string r = StringSubstr(json, s, e - s); StringReplace(r, "\"", ""); StringReplace(r, " ", ""); return r;
 }
+
