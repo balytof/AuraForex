@@ -4,8 +4,8 @@ const path = require('path');
 
 const conn = new Client();
 
-// Usar os arquivos da pasta V2 Local que está estável
-const localDir = './AuraForex_V2_Local_Execution';
+// Usar os arquivos da raiz que são os mais recentes
+const localDir = '.';
 
 const filesToUpload = [
     { local: `${localDir}/server.js`, remote: '/root/AuraForex/server.js' },
@@ -16,7 +16,7 @@ const filesToUpload = [
     { local: `${localDir}/signals/smc_signal_engine.js`, remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
     { local: `${localDir}/risk/risk.js`, remote: '/root/AuraForex/risk/risk.js' },
-    { local: `${localDir}/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' }
+    { local: `${localDir}/public/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' }
 ];
 
 conn.on('ready', () => {
@@ -43,7 +43,7 @@ conn.on('ready', () => {
                 if (completed === filesToUpload.length) {
                     console.log('🔄 Reiniciando servidores no VPS via PM2...');
                     // Comando para reiniciar o processo principal (aura-v2-elite controla o porto 3005)
-                    conn.exec('cd /root/AuraForex && npx pm2 stop server; npx pm2 restart aura-v2-elite', (err, stream) => {
+                    conn.exec('cd /root/AuraForex && cp public/AuraForex_V7_INSTITUTIONAL.ex5 public/SMC_APEX_EA.ex5 && npx pm2 stop server; npx pm2 restart aura-v2-elite', (err, stream) => {
                         if (err) throw err;
                         stream.on('close', () => {
                             console.log('✨ TUDO ATUALIZADO E REINICIADO NO VPS!');
