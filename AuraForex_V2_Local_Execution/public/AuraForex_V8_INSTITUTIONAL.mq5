@@ -36,6 +36,7 @@ input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+input double InpMaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
 input bool   InpSessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
@@ -51,7 +52,9 @@ bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
 ProfitLockData    ProfitLocks[];   // Array de monitoramento
 double            DailyStartBalance  = 0;
+double            DailyStartEquity   = 0; 
 bool              DailyTargetReached = false;
+bool              DailyLossLock      = false; // Bloqueio por perda diária
 int               LastTradingDay     = -1;
 int               ConsecutiveLosses  = 0; // Contador de perdas consecutivas
 
@@ -209,6 +212,7 @@ void OnTimer()
 
    if(IsAuthorized)
    {
+      CheckDailyLoss();
       CheckDailyTarget();
       CheckSignals();
       ProcessSignalQueue();
@@ -269,29 +273,50 @@ void CheckDailyTarget()
    {
       LastTradingDay = tm.day;
       DailyTargetReached = false;
-      Print("🌅 [DAILY] Novo dia detectado. Meta diária reiniciada.");
+      DailyLossLock      = false;
+      DailyStartBalance  = AccountInfoDouble(ACCOUNT_BALANCE);
+      DailyStartEquity   = AccountInfoDouble(ACCOUNT_EQUITY);
+      Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
+   }
+
+   // Fallback inicialização (Primeiro run do bot no dia)
+   if(DailyStartEquity <= 0)
+   {
+      DailyStartBalance  = AccountInfoDouble(ACCOUNT_BALANCE);
+      DailyStartEquity   = AccountInfoDouble(ACCOUNT_EQUITY);
    }
 
    if(DailyTargetReached) return;
 
-   double dailyPnl = GetDailyPnL();
-   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
-   double targetMoney = balance * (InpDailyTargetPct / 100.0);
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   double profitPct = 0;
+   
+   if(DailyStartEquity > 0)
+      profitPct = ((equity - DailyStartEquity) / DailyStartEquity) * 100.0;
 
-   if(targetMoney > 0 && dailyPnl >= targetMoney)
+   if(profitPct >= InpDailyTargetPct)
    {
       DailyTargetReached = true;
-      Print("🏆 [DAILY] META ATINGIDA: $", DoubleToString(dailyPnl, 2), " (", DoubleToString(InpDailyTargetPct, 1), "%) | Fechando posições...");
+      Print("🏆 [DAILY] META ATINGIDA: ", DoubleToString(profitPct, 2), "% | Equity: $", DoubleToString(equity, 2), " | Fechando posições...");
       
-      for(int i = PositionsTotal() - 1; i >= 0; i--)
-      {
-         ulong ticket = PositionGetTicket(i);
-         if(ticket > 0 && PositionSelectByTicket(ticket))
-         {
-            if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
-               trade.PositionClose(ticket);
-         }
-      }
+      CloseAllPositions();
+   }
+}
+
+void CheckDailyLoss()
+{
+   if(DailyLossLock) return;
+
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(DailyStartEquity <= 0) return;
+
+   double lossPct = ((DailyStartEquity - equity) / DailyStartEquity) * 100.0;
+
+   if(lossPct >= InpMaxDailyLossPct)
+   {
+      DailyLossLock = true;
+      Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Fechando tudo...");
+      CloseAllPositions();
    }
 }
 
@@ -662,11 +687,12 @@ void ValidateLicense()
 
 void CheckSignals()
 {
-   if(DailyTargetReached)
+   if(DailyTargetReached || DailyLossLock)
    {
       static datetime lastLockMsg = 0;
       if(TimeCurrent() - lastLockMsg > 3600) {
-         Print("🛑 [DAILY] Meta diária atingida. Trading bloqueado até amanhã.");
+         string reason = DailyTargetReached ? "Meta diária atingida" : "Limite de perda diária atingido";
+         Print("🛑 [DAILY] ", reason, ". Trading bloqueado até amanhã.");
          lastLockMsg = TimeCurrent();
       }
       return;
@@ -1250,6 +1276,8 @@ void ReportBalance()
 
    if(response == "") {
       Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
+   } else {
+      Print("💰 [SYNC] Saldo reportado com sucesso!");
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)
@@ -1519,5 +1547,43 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
       
    return g_atrCache[newIdx].value;
 }
+
+void CloseAllPositions()
+{
+   Print("🚨 [ACTION] Fechando TODAS as posições para garantir lucro diário...");
+   
+   for(int retry=0; retry<3; retry++)
+   {
+      bool stillOpen=false;
+
+      for(int i=PositionsTotal()-1; i>=0; i--)
+      {
+         ulong ticket=PositionGetTicket(i);
+         if(ticket<=0) continue;
+         if(!PositionSelectByTicket(ticket)) continue;
+
+         ResetLastError();
+         bool closed = trade.PositionClose(ticket);
+
+         if(!closed)
+         {
+            Print("❌ Failed close: ", ticket, " | ", trade.ResultRetcodeDescription());
+            stillOpen=true;
+         }
+         else
+         {
+            Print("✅ Closed: ", ticket);
+         }
+
+         Sleep(200);
+      }
+
+      if(!stillOpen) break;
+      Print("🔄 Tentativa ", retry+2, " de fecho total...");
+      Sleep(1000); // Esperar 1s entre retries
+   }
+}
+
+
 
 
