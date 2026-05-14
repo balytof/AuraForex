@@ -417,7 +417,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       equity: lastEquity,
       dailyPnl: (license && license.dailyPnl !== undefined) ? license.dailyPnl : risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked || (lastEquity >= startEquity + dailyTargetMoney),
+      isLocked: risk.dailyProfitLocked || risk.circuitBreaker || (lastEquity >= startEquity + dailyTargetMoney) || (lastEquity <= startEquity - (startEquity * (cfg.maxDailyLossPct || 10.0) / 100)),
       timeUntilReset: timeUntilReset,
       drawdown: license ? license.drawdown : 0,
       marginLevel: license ? license.marginLevel : 0,
@@ -1832,12 +1832,17 @@ server.listen(PORT, () => {
         
         // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock via Equity)
         const dailyCheck = risk.checkDailyProfitTarget(accountInfo.equity || accountInfo.balance);
-        if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
-           console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
+        const lossCheck = risk.checkDailyLossLimit(accountInfo.equity || accountInfo.balance);
+
+        if ((dailyCheck.hit && !dailyCheck.alreadyLocked) || (lossCheck.hit && !lossCheck.alreadyLocked)) {
+           const reason = dailyCheck.hit ? "META-BATIDA" : "LOSS-LIMIT-HIT";
+           const color = dailyCheck.hit ? "\x1b[42m" : "\x1b[41m";
+           console.log(`${color}\x1b[37m[${reason}] User ${userId} atingiu o limite diário! Fechando tudo...\x1b[0m`);
+           
            // Fechar todas as posições imediatamente
            for (const pos of (positions || [])) {
               await broker.closePosition(pos.id);
-              risk.closeTrade(pos.id, 0, "DAILY_TARGET_LOCK", pos.profit);
+              risk.closeTrade(pos.id, 0, dailyCheck.hit ? "DAILY_TARGET_LOCK" : "DAILY_LOSS_LOCK", pos.profit);
            }
            continue; 
         }

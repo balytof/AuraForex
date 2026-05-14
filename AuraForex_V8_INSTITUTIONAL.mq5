@@ -36,6 +36,7 @@ input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+input double InpMaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
 input bool   InpSessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
@@ -53,6 +54,7 @@ ProfitLockData    ProfitLocks[];   // Array de monitoramento
 double            DailyStartBalance  = 0;
 double            DailyStartEquity   = 0; 
 bool              DailyTargetReached = false;
+bool              DailyLossLock      = false; // Bloqueio por perda diária
 int               LastTradingDay     = -1;
 int               ConsecutiveLosses  = 0; // Contador de perdas consecutivas
 
@@ -210,6 +212,7 @@ void OnTimer()
 
    if(IsAuthorized)
    {
+      CheckDailyLoss();
       CheckDailyTarget();
       CheckSignals();
       ProcessSignalQueue();
@@ -270,9 +273,10 @@ void CheckDailyTarget()
    {
       LastTradingDay = tm.day;
       DailyTargetReached = false;
+      DailyLossLock      = false;
       DailyStartBalance  = AccountInfoDouble(ACCOUNT_BALANCE);
       DailyStartEquity   = AccountInfoDouble(ACCOUNT_EQUITY);
-      Print("🌅 [DAILY] Novo dia detectado. Meta reiniciada | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
+      Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
    }
 
    // Fallback inicialização (Primeiro run do bot no dia)
@@ -295,15 +299,24 @@ void CheckDailyTarget()
       DailyTargetReached = true;
       Print("🏆 [DAILY] META ATINGIDA: ", DoubleToString(profitPct, 2), "% | Equity: $", DoubleToString(equity, 2), " | Fechando posições...");
       
-      for(int i = PositionsTotal() - 1; i >= 0; i--)
-      {
-         ulong ticket = PositionGetTicket(i);
-         if(ticket > 0 && PositionSelectByTicket(ticket))
-         {
-            if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
-               trade.PositionClose(ticket);
-         }
-      }
+      CloseAllPositions();
+   }
+}
+
+void CheckDailyLoss()
+{
+   if(DailyLossLock) return;
+
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(DailyStartEquity <= 0) return;
+
+   double lossPct = ((DailyStartEquity - equity) / DailyStartEquity) * 100.0;
+
+   if(lossPct >= InpMaxDailyLossPct)
+   {
+      DailyLossLock = true;
+      Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Fechando tudo...");
+      CloseAllPositions();
    }
 }
 
@@ -674,11 +687,12 @@ void ValidateLicense()
 
 void CheckSignals()
 {
-   if(DailyTargetReached)
+   if(DailyTargetReached || DailyLossLock)
    {
       static datetime lastLockMsg = 0;
       if(TimeCurrent() - lastLockMsg > 3600) {
-         Print("🛑 [DAILY] Meta diária atingida. Trading bloqueado até amanhã.");
+         string reason = DailyTargetReached ? "Meta diária atingida" : "Limite de perda diária atingido";
+         Print("🛑 [DAILY] ", reason, ". Trading bloqueado até amanhã.");
          lastLockMsg = TimeCurrent();
       }
       return;
@@ -1532,4 +1546,40 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
       g_atrCache[newIdx].value = atrBuf2[0];
       
    return g_atrCache[newIdx].value;
+}
+
+void CloseAllPositions()
+{
+   Print("🚨 [ACTION] Fechando TODAS as posições para garantir lucro diário...");
+   
+   for(int retry=0; retry<3; retry++)
+   {
+      bool stillOpen=false;
+
+      for(int i=PositionsTotal()-1; i>=0; i--)
+      {
+         ulong ticket=PositionGetTicket(i);
+         if(ticket<=0) continue;
+         if(!PositionSelectByTicket(ticket)) continue;
+
+         ResetLastError();
+         bool closed = trade.PositionClose(ticket);
+
+         if(!closed)
+         {
+            Print("❌ Failed close: ", ticket, " | ", trade.ResultRetcodeDescription());
+            stillOpen=true;
+         }
+         else
+         {
+            Print("✅ Closed: ", ticket);
+         }
+
+         Sleep(200);
+      }
+
+      if(!stillOpen) break;
+      Print("🔄 Tentativa ", retry+2, " de fecho total...");
+      Sleep(1000); // Esperar 1s entre retries
+   }
 }

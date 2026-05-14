@@ -138,15 +138,8 @@ class RiskManager {
       status: "CLOSED",
     };
 
-    // Actualizar Circuit Breaker
+    // [EXPERT] Actualização de Circuit Breaker (Realizado)
     this.dailyPnl += closed.pnl;
-    if (this.dailyStartBalance > 0) {
-        const lossLimit = this.dailyStartBalance * (cfg.maxDailyLossPct / 100);
-        if (this.dailyPnl <= -lossLimit) {
-            this.circuitBreaker = true;
-            log.warn(`[CIRCUIT-BREAKER] Atingido limite de perda diária ($${this.dailyPnl.toFixed(2)})`);
-        }
-    }
 
     this.openTrades.splice(idx, 1);
     this.tradeHistory.push(closed);
@@ -214,6 +207,22 @@ class RiskManager {
       };
     }
 
+    return { hit: false };
+  }
+
+  checkDailyLossLimit(equity) {
+    if (this.circuitBreaker) return { hit: true, alreadyLocked: true };
+    if (this.dailyStartEquity <= 0) return { hit: false };
+
+    const lossPct = ((this.dailyStartEquity - equity) / this.dailyStartEquity) * 100;
+    const maxLossPct = cfg.maxDailyLossPct || 10.0;
+
+    if (lossPct >= maxLossPct) {
+      this.circuitBreaker = true;
+      this._safeSaveState();
+      log.warn(`[CIRCUIT-BREAKER] Limite de perda diária atingido: ${lossPct.toFixed(2)}% (Equity: $${equity.toFixed(2)})`);
+      return { hit: true, reason: `LIMITE DE PERDA DIÁRIA (${lossPct.toFixed(2)}%)` };
+    }
     return { hit: false };
   }
 
