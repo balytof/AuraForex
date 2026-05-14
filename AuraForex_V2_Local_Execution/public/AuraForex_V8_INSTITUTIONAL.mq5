@@ -1506,4 +1506,3 @@ void CloseAllPositions()
       Sleep(1000); // Esperar 1s entre retries
    }
 }
-
