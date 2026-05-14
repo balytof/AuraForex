@@ -1250,6 +1250,8 @@ void ReportBalance()
 
    if(response == "") {
       Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
+   } else {
+      Print("💰 [SYNC] Saldo reportado com sucesso!");
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)

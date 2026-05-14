@@ -188,11 +188,9 @@ router.post("/report-balance", async (req, res) => {
       }
     });
 
-    // Log periódico para não inundar o console mas confirmar atividade
-    if (Math.random() < 0.1) {
-       console.log(`[EA-BALANCE] 💰 Sync OK para Licença: ${licenseKey.substring(0,8)}... | Bal: ${balance} | Equity: ${equity}`);
-    }
-
+    // Log detalhado para debug institucional
+    console.log(`[EA-SYNC] 📥 Recebido para ${licenseKey.substring(0,8)}... | Bal: ${balance} | DailyPnL: ${dailyPnl}`);
+    
     return res.json({ success: true });
   } catch (err) {
     console.error("[EA-BALANCE] ❌ Erro ao atualizar saldo no banco:", err.message);
