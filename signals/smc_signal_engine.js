@@ -30,7 +30,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const entry = normalizePrice(last.close, pair);
 
     // ================= BUY =================
-    if (htfBias === "BULLISH" || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow)) {
+    if (htfBias === "BULLISH" && last.emaFast > last.emaSlow) {
       const sl = normalizePrice(entry - stopDist, pair);
       const tp = normalizePrice(entry + (stopDist * 1.5), pair);
 
@@ -41,7 +41,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     }
 
     // ================= SELL =================
-    if (htfBias === "BEARISH" || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow)) {
+    if (htfBias === "BEARISH" && last.emaFast < last.emaSlow) {
       const sl = normalizePrice(entry + stopDist, pair);
       const tp = normalizePrice(entry - (stopDist * 1.5), pair);
 

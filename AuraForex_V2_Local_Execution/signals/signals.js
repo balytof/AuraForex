@@ -54,13 +54,18 @@ function validatePriceRange(pair, price) {
  */
 function calcScore(factors) {
   const weights = {
-    smcStructure:  40, // BOS/ChoCh
-    orderBlock:    30, // Mitigation of OB
+    smcStructure:  30, // BOS/ChoCh
+    orderBlock:    25, // Mitigation of OB
     liquidity:     20, // Sweep of Liquidity
-    trend:         10, // EMA Alignment (Trend)
+    trend:         25, // EMA Alignment (Trend)
   };
-  return Object.entries(factors)
+  
+  const totalScore = Object.entries(factors)
+    .filter(([k]) => k !== "displacement") // Displacement é travão, não ponto
     .reduce((sum, [k, v]) => sum + (v && weights[k] ? weights[k] : 0), 0);
+
+  // REGRA INSTITUCIONAL: Sem displacement (força), o sinal é lixo.
+  return factors.displacement ? totalScore : 0;
 }
 
 /**
@@ -91,120 +96,101 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     return null;
   }
 
+  // ── FILTRO DE CHOP (Lateralização)
+  const emaDistance = Math.abs(last.emaFast - last.emaSlow);
+  const isTrending  = emaDistance > (last.atr * 0.15);
+  if (!isTrending) {
+    log.debug(`${pair}: Mercado em lateralização (Chop). Distância EMA: ${emaDistance.toFixed(5)} < ${ (last.atr * 0.15).toFixed(5) }`);
+    return null;
+  }
+
   // ── Analisa SMC
-  const smc = analyzeAll(candles);
+  const smc = analyzeAll(candles, pair);
 
   const session = isActiveSession();
   const rsiCfg  = cfg.indicators.rsi;
   const atrCfg  = cfg.indicators.atr;
 
-  // ══════════════════════════════════════════════
-  //  SINAL LONG (BUY)
-  // ══════════════════════════════════════════════
-  const bullBias = htfBias === "BULLISH" || last.emaFast > last.emaSlow;
+  // ── 5. NARRATIVA INSTITUCIONAL (The Core) ────────────────────────
+  let direction = null;
+  let reason = "";
+  
+  const hasBullishNarrative = smc.sweeps.bullishSweep && smc.structure.some(s => s.type === "BOS_BULLISH" || s.type === "CHOCH_BULLISH");
+  const hasBearishNarrative = smc.sweeps.bearishSweep && smc.structure.some(s => s.type === "BOS_BEARISH" || s.type === "CHOCH_BEARISH");
 
-  if (bullBias) {
-    const factors = {
-      smcStructure:  smc.structure.some(s => s.type === "BOS_BULLISH" || s.type === "CHOCH_BULLISH"),
-      orderBlock:    smc.obs.some(o => o.type === "BULLISH_OB" && Math.abs(last.close - o.mid) < last.atr),
-      liquidity:     smc.sweeps.bullishSweep,
-      trend:         last.emaFast > last.emaSlow,
-    };
+  const isBullishBias = (htfBias === "BULLISH") && (last.emaFast > last.emaSlow);
+  const isBearishBias = (htfBias === "BEARISH") && (last.emaFast < last.emaSlow);
 
-    const score = calcScore(factors);
-    log.debug(`${pair} BUY score: ${score}`, factors);
-
-    if (score >= cfg.risk.minConfluence) {
-      let entryPrice = last.close;
-      let orderType = "MARKET";
-      
-      const zone = smc.obs.filter(o => o.type === "BULLISH_OB")[0] || smc.fvgs.filter(f => f.type === "BULLISH_FVG")[0];
-      const idealEntry = zone ? (zone.high || zone.top) : null;
-      if (idealEntry && last.close > idealEntry + (last.atr * 0.1)) {
-        entryPrice = idealEntry;
-        orderType = "LIMIT";
-      }
-
-      const sl = normalize(entryPrice - last.atr * atrCfg.slMultiplier, pair);
-      const tp = normalize(entryPrice + last.atr * atrCfg.tpMultiplier, pair);
-      const rr = ((tp - entryPrice) / (entryPrice - sl));
-
-      if (rr < cfg.risk.minRR) {
-        log.debug(`${pair} BUY descartado — R:R ${rr.toFixed(2)} < ${cfg.risk.minRR}`);
-      } else {
-        return {
-          pair, direction: "BUY", score, orderType,
-          entry:    0,
-          sl, tp,
-          rr:       parseFloat(rr.toFixed(2)),
-          atr:      last.atr,
-          factors,
-          htfBias,
-          smcZones: {
-            obs:       smc.obs.filter(o => o.type === "BULLISH_OB"),
-            fvgs:      smc.fvgs.filter(f => f.type === "BULLISH_FVG"),
-            structure: smc.structure.filter(s => s.type.includes("BULL")),
-          },
-          timestamp: new Date().toISOString(),
-        };
-      }
+  if (isBullishBias) {
+    const freshOB = smc.obs.find(o => o.type === "BULLISH_OB" && o.mitigationCount === 0);
+    if (freshOB && (hasBullishNarrative || freshOB.hasSweep)) {
+      direction = "BUY";
+      reason = "Bullish Narrative: Sweep + BOS + Fresh OB";
+    }
+  } else if (isBearishBias) {
+    const freshOB = smc.obs.find(o => o.type === "BEARISH_OB" && o.mitigationCount === 0);
+    if (freshOB && (hasBearishNarrative || freshOB.hasSweep)) {
+      direction = "SELL";
+      reason = "Bearish Narrative: Sweep + BOS + Fresh OB";
     }
   }
 
-  // ══════════════════════════════════════════════
-  //  SINAL SHORT (SELL)
-  // ══════════════════════════════════════════════
-  const bearBias = htfBias === "BEARISH" || last.emaFast < last.emaSlow;
+  if (!direction) return null;
 
-  if (bearBias) {
-    const factors = {
-      smcStructure:  smc.structure.some(s => s.type === "BOS_BEARISH" || s.type === "CHOCH_BEARISH"),
-      orderBlock:    smc.obs.some(o => o.type === "BEARISH_OB" && Math.abs(last.close - o.mid) < last.atr),
-      liquidity:     smc.sweeps.bearishSweep,
-      trend:         last.emaFast < last.emaSlow,
-    };
+  // ── 6. CONFLUÊNCIA E SCORE ────────────────────────────────────────
+  const factors = {
+    smcStructure:  smc.structure.some(s => s.type === (direction === "BUY" ? "BOS_BULLISH" : "BOS_BEARISH") || s.type.includes("CHOCH")),
+    orderBlock:    smc.obs.some(o => o.type === (direction === "BUY" ? "BULLISH_OB" : "BEARISH_OB") && o.mitigationCount === 0),
+    displacement:  Math.abs(last.close - last.open) > (last.atr * 0.8),
+    liquidity:     direction === "BUY" ? smc.sweeps.bullishSweep : smc.sweeps.bearishSweep,
+    trend:         direction === "BUY" ? (last.emaFast > last.emaSlow) : (last.emaFast < last.emaSlow),
+  };
 
-    const score = calcScore(factors);
-    log.debug(`${pair} SELL score: ${score}`, factors);
-
-    if (score >= cfg.risk.minConfluence) {
-      let entryPrice = last.close;
-      let orderType = "MARKET";
-      
-      const zone = smc.obs.filter(o => o.type === "BEARISH_OB")[0] || smc.fvgs.filter(f => f.type === "BEARISH_FVG")[0];
-      const idealEntry = zone ? (zone.low || zone.bottom) : null;
-      if (idealEntry && last.close < idealEntry - (last.atr * 0.1)) {
-        entryPrice = idealEntry;
-        orderType = "LIMIT";
-      }
-
-      const sl = normalize(entryPrice + last.atr * atrCfg.slMultiplier, pair);
-      const tp = normalize(entryPrice - last.atr * atrCfg.tpMultiplier, pair);
-      const rr = ((entryPrice - tp) / (sl - entryPrice));
-
-      if (rr < cfg.risk.minRR) {
-        log.debug(`${pair} SELL descartado — R:R ${rr.toFixed(2)} < ${cfg.risk.minRR}`);
-      } else {
-        return {
-          pair, direction: "SELL", score, orderType,
-          entry:    0,
-          sl, tp,
-          rr:       parseFloat(rr.toFixed(2)),
-          atr:      last.atr,
-          factors,
-          htfBias,
-          smcZones: {
-            obs:       smc.obs.filter(o => o.type === "BEARISH_OB"),
-            fvgs:      smc.fvgs.filter(f => f.type === "BEARISH_FVG"),
-            structure: smc.structure.filter(s => s.type.includes("BEAR")),
-          },
-          timestamp: new Date().toISOString(),
-        };
-      }
-    }
+  const score = calcScore(factors);
+  if (score < cfg.risk.minConfluence) {
+    log.debug(`${pair} ${direction} abortado: Score ${score} < ${cfg.risk.minConfluence}`);
+    return null;
   }
 
-  return null;
+  // ── 7. EXECUÇÃO (LIMIT VS MARKET) ─────────────────────────────────
+  const zone = smc.obs.filter(o => o.type === (direction === "BUY" ? "BULLISH_OB" : "BEARISH_OB"))
+    .sort((a, b) => Math.abs(last.close - a.mid) - Math.abs(last.close - b.mid))[0];
+
+  if (!zone) return null;
+
+  let entryPrice = last.close;
+  let orderType = "MARKET";
+  const idealEntry = direction === "BUY" ? zone.high : zone.low;
+
+  // Se o preço já se afastou muito da zona, usa ordem LIMIT no topo/fundo da zona
+  const threshold = last.atr * 0.15;
+  if (direction === "BUY" && last.close > idealEntry + threshold) {
+    entryPrice = idealEntry;
+    orderType = "LIMIT";
+  } else if (direction === "SELL" && last.close < idealEntry - threshold) {
+    entryPrice = idealEntry;
+    orderType = "LIMIT";
+  }
+
+  const slDist = last.atr * atrCfg.slMultiplier;
+  const tpDist = last.atr * atrCfg.tpMultiplier;
+
+  const sl = normalize(direction === "BUY" ? entryPrice - slDist : entryPrice + slDist, pair);
+  const tp = normalize(direction === "BUY" ? entryPrice + tpDist : entryPrice - tpDist, pair);
+  const rr = direction === "BUY" ? (tp - entryPrice) / (entryPrice - sl) : (entryPrice - tp) / (sl - entryPrice);
+
+  if (rr < cfg.risk.minRR) return null;
+
+  return {
+    pair, direction, score, orderType,
+    entry: normalize(entryPrice, pair),
+    sl, tp,
+    rr: parseFloat(rr.toFixed(2)),
+    atr: last.atr,
+    factors,
+    reason,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 module.exports = { generateSignal, calcScore, isActiveSession };

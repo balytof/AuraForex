@@ -904,111 +904,59 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
-void ExecuteSignal(string json)
-{
-   // PROTEÇÃO DE ÚLTIMA LINHA: Verificar limite global antes de executar
-   int totalPositions = CountAuraPositions();
-   if(totalPositions >= InpMaxOrders)
-   {
-      Print("🛑 [LIMIT] Ordem cancelada. Limite global atingido: ", totalPositions, "/", InpMaxOrders);
-      return;
-   }
+    string pair  = ExtractValue(json, "pair");
+    string dir   = ExtractValue(json, "direction");
+    string type  = ExtractValue(json, "orderType");
+    double entry = StringToDouble(ExtractValue(json, "entry"));
+    double sl    = StringToDouble(ExtractValue(json, "sl"));
+    double tp    = StringToDouble(ExtractValue(json, "tp"));
+    string sigId = ExtractValue(json, "id");
+    
+    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
+    if(IsXAU(pair) && !IsTradingSession())
+    {
+       Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
+       return;
+    }
+    
+    if(!SymbolSelect(pair, true))
+    {
+       for(int s = 0; s < SymbolsTotal(false); s++)
+       {
+          string sym = SymbolName(s, false);
+          string upperSym  = sym; StringToUpper(upperSym);
+          string upperPair = pair; StringToUpper(upperPair);
 
-   string pair = ExtractValue(json, "pair");
-   string dir  = ExtractValue(json, "direction");
+          if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+          {
+             pair = sym;
+             SymbolSelect(pair, true);
+             break;
+          }
+       }
+    }
+    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
 
-   // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
-   if(IsXAU(pair) && !IsTradingSession())
-   {
-      Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
-      return;
-   }
-   
-   if(!SymbolSelect(pair, true))
-   {
-      for(int s = 0; s < SymbolsTotal(false); s++)
-      {
-         string sym = SymbolName(s, false);
-         string upperSym  = sym; StringToUpper(upperSym);
-         string upperPair = pair; StringToUpper(upperPair);
+    // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
+    int currentBuys = 0, currentSells = 0;
+    for(int i = PositionsTotal() - 1; i >= 0; i--) {
+       ulong t = PositionGetTicket(i);
+       if(t > 0 && PositionSelectByTicket(t)) {
+          if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
+             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
+             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
+          }
+       }
+    }
 
-         if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
-         {
-            pair = sym;
-            SymbolSelect(pair, true);
-            break;
-         }
-      }
-   }
-   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
-
-   double atr = GetATR(pair, PERIOD_H1);
-   if(atr <= 0) atr = IsXAU(pair) ? 3.50 : 0.0015; // Fallback Institucional Seguro
-
-   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
-   double spreadReal = ask - bid;
-
-   if(IsXAU(pair))
-   {
-      double point = SymbolInfoDouble(pair, SYMBOL_POINT);
-      double spreadPoints = spreadReal / point;
-
-      // Brokers GOLD normalmente 30-80 pontos. Limite institucional: 120.
-      if(spreadPoints > 120) { 
-         Print("⚠️ Spread XAU muito alto: ", DoubleToString(spreadPoints, 1), " pontos | Entrada Cancelada"); 
-         return; 
-      }
-   } else {
-      // REGRA FOREX: Normalização para 25 Pips (Broker-Agnostic)
-      double pipSize = (SymbolInfoInteger(pair, SYMBOL_DIGITS) == 3 || SymbolInfoInteger(pair, SYMBOL_DIGITS) == 5) ? SymbolInfoDouble(pair, SYMBOL_POINT) * 10 : SymbolInfoDouble(pair, SYMBOL_POINT);
-      double spreadPips = spreadReal / pipSize;
-      if(spreadPips > 25) { 
-         Print("⚠️ Spread Forex Alto: ", DoubleToString(spreadPips, 1), " pips | Entrada Cancelada"); 
-         return; 
-      }
-   }
-
-   double currentPrice = (dir == "BUY") ? ask : bid;
-   double atrPercent = (atr / currentPrice) * 100.0;
-
-   if(StringFind(pair, "XAU") >= 0)
-   {
-      if(atrPercent > 2.5) { 
-         Print("⚠️ XAU volatilidade extrema (", DoubleToString(atrPercent, 2), "%) | ATR: ", DoubleToString(atr, 2)); 
-         return; 
-      }
-   }
-   else if(StringFind(pair, "JPY") >= 0)
-   {
-      if(atr > 1.5) { Print("⚠️ JPY volatilidade alta | ATR: ", DoubleToString(atr, 3)); return; }
-   }
-   else 
-   {
-      if(atr > 0.0050) { Print("⚠️ FX volatilidade alta | ATR: ", DoubleToString(atr, 5)); return; }
-   }
-
-   // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
-   int currentBuys = 0;
-   int currentSells = 0;
-   for(int i = PositionsTotal() - 1; i >= 0; i--) {
-      ulong t = PositionGetTicket(i);
-      if(t > 0 && PositionSelectByTicket(t)) {
-         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
-            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
-            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
-         }
-      }
-   }
-
-   if(dir == "BUY" && currentBuys >= InpMaxBuys) {
-      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
-      return;
-   }
-   if(dir == "SELL" && currentSells >= InpMaxSells) {
-      Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
-      return;
-   }
+    if(dir == "BUY" && currentBuys >= InpMaxBuys) {
+       Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
+       return;
+    }
+    if(dir == "SELL" && currentSells >= InpMaxSells) {
+       Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
+       return;
+    }
 
    // --- SYMBOL COOLDOWN ---
    if(!CanTradeSymbol(pair)) {
@@ -1018,81 +966,47 @@ void ExecuteSignal(string json)
 
    double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
    int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
    
-   double sl = 0, tp = 0;
-   double maxSL = (double)((StringFind(pair, "JPY") >= 0 || StringFind(pair, "XAU") >= 0) ? InpMaxSLJPY : InpMaxSLForex);
+   // Fallback se JSON vier zerado
+   if(entry <= 0) entry = (dir == "BUY") ? ask : bid;
    
-   if(dir == "BUY") {
-      double low = GetLastLow(pair, 20);
-      
-      // CONFIGURAÇÃO R/R PROFISSIONAL
-      double slMultiplier = IsXAU(pair) ? 2.0 : 1.5;
-      double tpMultiplier = IsXAU(pair) ? 3.0 : 2.5;
+   double slPoints = MathAbs(entry - sl) / tickSize;
+   if(slPoints > (double)((IsXAU(pair) || StringFind(pair, "JPY") >= 0) ? InpMaxSLJPY : InpMaxSLForex)) {
+      Print("⚠️ SL do Sinal muito longo (", slPoints, " pts) | Rejeitado");
+      return;
+   }
 
-      // Cálculo de SL: Priorizar mínima estrutural mas garantir distância ATR mínima
-      double minSL = currentPrice - (atr * slMultiplier);
-      sl = (low > 0) ? MathMin(low - (atr * 0.3), minSL) : minSL;
-      
-      tp = currentPrice + (atr * tpMultiplier);
-      
-      double dist = (currentPrice - sl) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      
-      double risk = GetDynamicRisk(dist); // Cálculo do risco dinâmico
-      double lot = CalculateLot(pair, risk, currentPrice - sl, ORDER_TYPE_BUY);
+   double risk = GetDynamicRisk(slPoints);
+   double lot  = CalculateLot(pair, risk, MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
 
-      if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
-         
-         // ATOMIC ENTRY: Execução institucional com proteção imediata
-         double nSL = NormalizeDouble(sl, digits);
-         double nTP = NormalizeDouble(tp, digits);
-         if(trade.Buy(lot, pair, 0, nSL, nTP)) {
-            uint retCode = trade.ResultRetcode();
-            if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
-               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
-            }
-         } else {
-            Print("❌ Erro ao abrir BUY: ", trade.ResultRetcodeDescription());
-         }
+   if(lot > 0) {
+      trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+      double nEntry = NormalizeDouble(entry, digits);
+      double nSL    = NormalizeDouble(sl, digits);
+      double nTP    = NormalizeDouble(tp, digits);
+      
+      bool success = false;
+      if(type == "LIMIT") {
+         if(dir == "BUY") success = trade.BuyLimit(lot, nEntry, pair, nSL, nTP);
+         else             success = trade.SellLimit(lot, nEntry, pair, nSL, nTP);
+      } else {
+         if(dir == "BUY") success = trade.Buy(lot, pair, ask, nSL, nTP);
+         else             success = trade.Sell(lot, pair, bid, nSL, nTP);
       }
-   } else {
-      double high = GetLastHigh(pair, 20);
-      
-      // CONFIGURAÇÃO R/R PROFISSIONAL
-      double slMultiplier = IsXAU(pair) ? 2.0 : 1.5;
-      double tpMultiplier = IsXAU(pair) ? 3.0 : 2.5;
 
-      // Cálculo de SL: Priorizar máxima estrutural mas garantir distância ATR mínima
-      double maxSLdist = currentPrice + (atr * slMultiplier);
-      sl = (high > 0) ? MathMax(high + (atr * 0.3), maxSLdist) : maxSLdist;
-      
-      tp = currentPrice - (atr * tpMultiplier);
-      
-      double dist = (sl - currentPrice) / tickSize;
-      if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
-      
-      double risk = GetDynamicRisk(dist); // Cálculo do risco dinâmico
-      double lot = CalculateLot(pair, risk, sl - currentPrice, ORDER_TYPE_SELL);
-
-      if(lot > 0) {
-         trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+      if(success) {
+         Print("✅ Ordem ", type, " Enviada | ", pair, " | Lote: ", lot);
+         SetSymbolCooldown(pair);
          
-         // ATOMIC ENTRY: Execução institucional com proteção imediata
-         double nSL = NormalizeDouble(sl, digits);
-         double nTP = NormalizeDouble(tp, digits);
-         if(trade.Sell(lot, pair, 0, nSL, nTP)) {
-            uint retCode = trade.ResultRetcode();
-            if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultOrder();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
-               SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
-            }
-         } else {
-            Print("❌ Erro ao abrir SELL: ", trade.ResultRetcodeDescription());
+         // Adicionar à fila de protecção assíncrona (Apex Guardian)
+         if(sigId != "") {
+            ulong ticket = trade.ResultOrder();
+            if(ticket > 0) AddToPendingQueue(ticket, nSL, nTP, sigId);
          }
+      } else {
+         Print("❌ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
       }
    }
 }
