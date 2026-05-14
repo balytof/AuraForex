@@ -54,16 +54,11 @@ model License {
   type      String   // "PRO", "VIP" (kept for compatibility)
   status    String   // "ACTIVE", "EXPIRED", "SUSPENDED"
   mtAccount String?  // Conta MetaTrader vinculada
-  balance     Float    @default(0)
-  equity      Float    @default(0)
-  freeMargin  Float    @default(0)
-  floatingPnL Float    @default(0)
-  marginLevel Float    @default(0)
-  drawdown    Float    @default(0)
-  dailyPnl    Float    @default(0)
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  balance   Float    @default(0)
+  equity    Float    @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan LicensePlan? @relation(fields: [planId], references: [id])
@@ -78,7 +73,6 @@ model Signal {
   sl          Float
   tp          Float
   lot         Float
-  atr         Float    @default(0)
   status      String   @default("PENDING") // PENDING, EXECUTED, FAILED
   brokerId    String?  // ID da Ordem no MetaTrader (Ticket)
   executedAt  DateTime?
@@ -176,6 +170,7 @@ model UserSettings {
   interval    Int      @default(60)
   activePairs String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
   geminiKey   String?
+  botStatus   String   @default("stopped")
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -183,23 +178,9 @@ model UserSettings {
 model SystemSettings {
   id                String   @id @default(uuid())
   geminiApiKey      String?
-  geminiApiUrl      String? // Novo campo para o "IP do Gemini"
   metaApiToken      String?
   metaApiAccountId  String?
   apiUrl            String?  @default("http://localhost:3005")
   installationGuide String?  @db.Text
-  
-  // Redes Sociais
-  telegramUrl       String?
-  whatsappNumber    String?
-  facebookUrl       String?
-  instagramUrl      String?
-  youtubeUrl        String? // Novo campo
-  
-  // Card Crypto Bot
-  cryptoBotEnabled  Boolean  @default(true)
-  cryptoBotUrl      String?
-
-  createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

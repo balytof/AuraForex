@@ -4,21 +4,15 @@ const prisma = require("./db");
 
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
- * O EA chama este endpoint ao iniciar para verificar se a licença é válida.
- * Suporta GET (EA V8) e POST (Dashboard/Legado).
+ * O EA chama este endpoint ao iniciar para verificar se a licença é válida
+ * e se está amarrada ao número da conta MetaTrader correto.
  * ─────────────────────────────────────────────────────────────────────
  */
-router.all("/validate", async (req, res) => {
-  // O EA V8 envia via GET (?key=...&account=...)
-  // O Dashboard/Outros podem enviar via POST ({licenseKey, mtAccount})
-  const licenseKey = req.query.key || req.body.licenseKey;
-  const mtAccount  = req.query.account || req.body.mtAccount;
+router.post("/validate", async (req, res) => {
+  const { licenseKey, mtAccount } = req.body;
 
   if (!licenseKey || !mtAccount) {
-    return res.status(400).json({ 
-      status: "error", 
-      error: "Dados incompletos (key/licenseKey, account/mtAccount)." 
-    });
+    return res.status(400).json({ status: "BLOCKED", error: "Dados incompletos (licenseKey, mtAccount)." });
   }
 
   try {
@@ -28,11 +22,11 @@ router.all("/validate", async (req, res) => {
     });
 
     if (!license) {
-      return res.status(404).json({ status: "error", error: "Licença não encontrada." });
+      return res.status(404).json({ status: "BLOCKED", error: "Licença não encontrada." });
     }
 
     if (license.status !== "ACTIVE" || new Date(license.expiresAt) < new Date()) {
-      return res.status(403).json({ status: "error", error: "Licença expirada ou inativa." });
+      return res.status(403).json({ status: "BLOCKED", error: "Licença expirada ou inativa." });
     }
 
     // Se a licença ainda não tem conta MT, amarra agora (Primeiro uso)
@@ -45,12 +39,11 @@ router.all("/validate", async (req, res) => {
     }
     // Se já tem, verifica se coincide
     else if (license.mtAccount !== mtAccount.toString()) {
-      return res.status(403).json({ status: "error", error: "Licença vinculada a outra conta MT." });
+      return res.status(403).json({ status: "BLOCKED", error: "Esta licença está vinculada a outra conta MetaTrader." });
     }
 
-    // O EA V8 procura especificamente por "status":"success"
     return res.json({
-      status: "success",
+      status: "OK",
       message: "Licença validada com sucesso.",
       user: license.user.email,
       expiresAt: license.expiresAt
@@ -58,7 +51,7 @@ router.all("/validate", async (req, res) => {
 
   } catch (err) {
     console.error("[EA-AUTH] Erro na validação:", err);
-    return res.status(500).json({ status: "error", error: "Erro interno no servidor." });
+    return res.status(500).json({ status: "BLOCKED", error: "Erro interno no servidor." });
   }
 });
 
@@ -166,10 +159,9 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown, dailyPnl } = req.body;
+  const { licenseKey, balance, equity } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
-    console.error("[EA-BALANCE] ❌ Erro: Dados incompletos recebidos do EA.", req.body);
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
   }
 
@@ -179,23 +171,13 @@ router.post("/report-balance", async (req, res) => {
       data: {
         balance: parseFloat(balance),
         equity: parseFloat(equity),
-        freeMargin: freeMargin ? parseFloat(freeMargin) : undefined,
-        floatingPnL: floatingPnL ? parseFloat(floatingPnL) : undefined,
-        marginLevel: marginLevel ? parseFloat(marginLevel) : undefined,
-        drawdown: drawdown ? parseFloat(drawdown) : undefined,
-        dailyPnl: dailyPnl !== undefined ? parseFloat(dailyPnl) : undefined,
         updatedAt: new Date()
       }
     });
 
-    // Log periódico para não inundar o console mas confirmar atividade
-    if (Math.random() < 0.1) {
-       console.log(`[EA-BALANCE] 💰 Sync OK para Licença: ${licenseKey.substring(0,8)}... | Bal: ${balance} | Equity: ${equity}`);
-    }
-    
     return res.json({ success: true });
   } catch (err) {
-    console.error("[EA-BALANCE] ❌ Erro ao atualizar saldo no banco:", err.message);
+    console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);
     return res.status(500).json({ error: "Erro interno no servidor." });
   }
 });

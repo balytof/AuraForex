@@ -117,7 +117,7 @@ app.post("/api/debug/log", (req, res) => {
 // Limites globais
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 2000, // Aumentado para suportar análise frequente de múltiplos pares
+  max: 1000, // Aumentado para desenvolvimento e configuração inicial
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
@@ -405,24 +405,20 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     midnight.setHours(24, 0, 0, 0);
     const timeUntilReset = Math.floor((midnight - now) / 1000);
 
-    let lastEquity = license ? license.equity : (risk.balance || 0);
-    let startEquity = risk.dailyStartEquity || lastEquity;
+    let lastBalance = license ? license.balance : (risk.balance || 0);
+    if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
     
-    const cfg = { dailyProfitTargetPct: 5.0, maxDailyLossPct: 10.0 }; // Fallback config
-    const dailyTargetMoney = startEquity * (cfg.dailyProfitTargetPct / 100);
-    
+    // Fallback para 5% se não houver config global
+    const dailyTargetMoney = lastBalance * 0.05;
+
     res.json({
       success: true,
-      balance: lastEquity,
-      equity: lastEquity,
-      dailyPnl: (license && license.dailyPnl !== undefined) ? license.dailyPnl : risk.dailyPnl,
+      balance: lastBalance,
+      equity: license ? license.equity : lastBalance,
+      dailyPnl: risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked || risk.circuitBreaker || (lastEquity >= startEquity + dailyTargetMoney) || (lastEquity <= startEquity - (startEquity * (cfg.maxDailyLossPct) / 100)),
+      isLocked: risk.dailyProfitLocked,
       timeUntilReset: timeUntilReset,
-      drawdown: license ? license.drawdown : 0,
-      marginLevel: license ? license.marginLevel : 0,
-      freeMargin: license ? license.freeMargin : 0,
-      floatingPnL: license ? license.floatingPnL : 0,
       updatedAt: license ? license.updatedAt : null
     });
   } catch (err) {
@@ -996,8 +992,8 @@ app.get("/api/system/config", async (req, res) => {
     const settings = await prisma.systemSettings.findFirst();
     res.json({
       success: true,
-      apiUrl: (settings?.apiUrl && !settings.apiUrl.includes("139.59.159.48")) ? settings.apiUrl : "https://www.auratradebots.com/api",
-      installationGuide: (settings?.installationGuide || "").replace(/http:\/\/139\.59\.159\.48:3005\/api/g, "https://www.auratradebots.com/api"),
+      apiUrl: settings?.apiUrl || "http://localhost:3005",
+      installationGuide: settings?.installationGuide || "",
       telegramUrl: settings?.telegramUrl || "",
       whatsappNumber: settings?.whatsappNumber || "",
       facebookUrl: settings?.facebookUrl || "",
@@ -1826,23 +1822,18 @@ server.listen(PORT, () => {
 
         // 1. Obter dados da conta e posições
         const accountInfo = await broker.getAccountInfo();
-        if (accountInfo) risk.setEquity(accountInfo.equity || accountInfo.balance);
+        if (accountInfo) risk.setBalance(accountInfo.balance);
 
         const positions = await broker.getOpenPositions();
         
-        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock via Equity)
-        const dailyCheck = risk.checkDailyProfitTarget(accountInfo.equity || accountInfo.balance);
-        const lossCheck = risk.checkDailyLossLimit(accountInfo.equity || accountInfo.balance);
-
-        if ((dailyCheck.hit && !dailyCheck.alreadyLocked) || (lossCheck.hit && !lossCheck.alreadyLocked)) {
-           const reason = dailyCheck.hit ? "META-BATIDA" : "LOSS-LIMIT-HIT";
-           const color = dailyCheck.hit ? "\x1b[42m" : "\x1b[41m";
-           console.log(`${color}\x1b[37m[${reason}] User ${userId} atingiu o limite diário! Fechando tudo...\x1b[0m`);
-           
+        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock)
+        const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+        if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
+           console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
            // Fechar todas as posições imediatamente
            for (const pos of (positions || [])) {
               await broker.closePosition(pos.id);
-              risk.closeTrade(pos.id, 0, dailyCheck.hit ? "DAILY_TARGET_LOCK" : "DAILY_LOSS_LOCK", pos.profit);
+              risk.closeTrade(pos.id, 0, "DAILY_TARGET_LOCK", pos.profit);
            }
            continue; 
         }

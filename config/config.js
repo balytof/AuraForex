@@ -61,7 +61,7 @@ module.exports = {
     ema:  { fast: 50, slow: 200 },
     rsi:  { period: 14, overbought: 70, oversold: 30 },
     macd: { fast: 12, slow: 26, signal: 9 },
-    atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 1.5 }, // Reduzido de 2.0 para 1.5 para maior precisão (Feedback do User)
+    atr:  { period: 14, slMultiplier: 2.0, tpMultiplier: 3.0 }, // Padrão Institucional (Feedback do Chef)
     bb:   { period: 20, stdDev: 2 },
   },
 
@@ -71,7 +71,7 @@ module.exports = {
     maxOpenTrades:    3,
     maxDailyLossPct:  5.0,
     minRR:            1.2, // Reduzido de 1.5 para 1.2
-    minConfluence:    55,
+    minConfluence:    60,
     trailingAtrMult:  1.5,
     profitProtectionTrigger: 1.5, // % de lucro para ativar a proteção (era 1.0)
     profitProtectionDrawdown: 0.7, // % de queda do pico para fechar (era 0.3)

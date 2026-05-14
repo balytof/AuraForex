@@ -1,4 +1,4 @@
-# Documentação Técnica — AuraForex SMC Pro (v2.5.1)
+# Documentação Técnica — AuraForex SMC Pro (v3.0.0 MAGIC VERSION)
 
 Este documento fornece uma visão geral técnica completa do ecossistema AuraForex, abrangendo a arquitetura do servidor, a lógica de trading Smart Money Concepts (SMC) e a infraestrutura de integração com corretoras.
 
@@ -58,7 +58,9 @@ O sistema prioriza a preservação de capital através de algoritmos de "Expert 
 - **Contract Size Sensing**: Diferenciação automática entre Forex (100k) e Ouro (100).
 - **Margin Guard**: Bloqueio de ordens se a margem livre for insuficiente (1 lote por 500$ de margem).
 - **Normalização de Tick**: Arredondamento automático de SL/TP para evitar rejeições da corretora.
-- **Emergency Stop Expansion**: Reajuste automático de stops se violarem o *stop level* do broker.
+- **Emergency Stop Expansion**: Reajuste automático de stops se violarem o *stop level* do broker (Buffer de 1.5x).
+- **Profit Lock (Trava de Lucro)**: Ativação a partir de $3 de lucro, com saída automática se houver recuo de 30% do pico.
+- **Magic Engine Execution**: O Backend envia a direção e o ATR, mas o preço de entrada (Entry) é definido em tempo real pelo EA local via Ask/Bid para máxima precisão.
 
 ---
 
@@ -115,5 +117,5 @@ O sistema utiliza a tecnologia **Apex Bridge** para conectividade multi-broker:
 Todos os eventos críticos são registados em `server_log.txt`. Para diagnóstico em tempo real, o servidor emite logs prefixados com `[EXPERT-MA]` para execução de broker e `[DIAGNOSTIC]` para integridade do sistema.
 
 ---
-**Documento gerado em:** 28 de Abril de 2026.
-**Estado:** Estável (v2.5.1)
+**Documento atualizado em:** 05 de Maio de 2026.
+**Estado:** Magic Stable (v3.0.0)

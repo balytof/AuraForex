@@ -12,103 +12,59 @@ const prisma = require("../db");
 
 let activeBroker = null;
 
-async function getBroker() {
+function getBroker() {
   if (!activeBroker) {
-    let provider = config.credentials.provider;
-    let apiToken = config.credentials.oandaApiKey || config.credentials.apiToken;
-    let accountId = config.credentials.oandaAccountId || config.credentials.accountId;
-    let metaApiToken = config.credentials.metaApiToken;
-    let metaApiAccountId = config.credentials.metaApiAccountId;
-
-    // 🔍 EXPERT FALLBACK: Se não houver chaves no .env, busca na DB (SystemSettings do Admin)
-    if (!apiToken && !metaApiToken) {
-      try {
-        const settings = await prisma.systemSettings.findFirst();
-        if (settings && settings.metaApiToken) {
-          log.info("[BROKER] 📂 Usando chaves da Base de Dados (SystemSettings)");
-          metaApiToken = settings.metaApiToken;
-          metaApiAccountId = settings.metaApiAccountId;
-          provider = "metaapi"; // Forçar MetaApi se as chaves vierem da DB
-        }
-      } catch (e) {
-        log.warn("[BROKER] Erro ao buscar SystemSettings da DB:", e.message);
-      }
-    }
-
-    if (!metaApiToken && provider === "metaapi") {
-      log.error("[BROKER] ❌ Nenhuma credencial encontrada. Abortando para evitar BAN.");
-      return { connected: false, error: "NO_KEYS" };
-    }
-
+    const provider = config.credentials.provider;
     log.info(`Inicializando broker: ${provider}`);
-
+    
     const brokerConfig = {
       provider: provider,
       environment: config.bot.demoMode ? "demo" : "live",
-      accountId: accountId || metaApiAccountId,
-      apiToken: apiToken || metaApiToken,
-      metaApiToken: metaApiToken,
-      metaApiAccountId: metaApiAccountId,
-      region: "vint-hill"
+      accountId: config.credentials.oandaAccountId, // Fallback OANDA
+      apiToken: config.credentials.oandaApiKey,     // Fallback OANDA
+      // Adicionar mapeamento para outros providers se necessário
     };
-
+    
+    // Mapeamento específico para MetaApi se estiver no config
+    if (provider === "metaapi") {
+      brokerConfig.metaApiToken = config.credentials.metaApiToken || config.credentials.apiToken;
+      brokerConfig.metaApiAccountId = config.credentials.metaApiAccountId || config.credentials.accountId;
+    }
+    
     activeBroker = createBroker(brokerConfig);
-
-    // Se houver erro de conexão, limpamos o activeBroker para tentar de novo no próximo ciclo
-    const originalConnect = activeBroker.connect;
-    activeBroker.connect = async function () {
-      try {
-        return await originalConnect.apply(this, arguments);
-      } catch (e) {
-        log.error(`[BROKER] Falha na conexão: ${e.message}`);
-        if (e.message.includes("429") || e.message.includes("blocked")) {
-          log.warn("[BROKER] 🛡️ Bloqueio detetado. Aguardando 10 minutos...");
-          global.brokerBlockedUntil = Date.now() + (10 * 60 * 1000);
-        }
-        activeBroker = null; // Força re-inicialização total na próxima vez
-        throw e;
-      }
-    };
   }
-
-  // Verificar se estamos em período de castigo/bloqueio
-  if (global.brokerBlockedUntil && Date.now() < global.brokerBlockedUntil) {
-    const wait = Math.ceil((global.brokerBlockedUntil - Date.now()) / 1000);
-    throw new Error(`MetaApi Temporariamente Bloqueada. Aguarde ${wait}s.`);
-  }
-
   return activeBroker;
 }
 
 module.exports = {
   getBrokerName: () => config.credentials.provider.toUpperCase(),
-
+  
   getAccountInfo: async () => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
     // O novo apex_broker usa getAccountInfo() ou connect() retorna accountInfo
     if (b.type === "metaapi") return await b.getAccountInfo();
     return b.accountInfo;
   },
-
+  
   getMarketData: async (pair) => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
-
+    
     const candles = await b.getCandles(pair, config.timeframes.mtf || "H1", config.bot.candleCount || 250);
     const tick = await b.getPrice(pair);
-
+    
     return {
       candles,
       currentPrice: tick ? tick.ask : 0,
       htfSummary: { pair, candles } // Simplificado para o bot legado
     };
   },
-
+  
   openOrder: async (signal, lotSize) => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
-
+    
     log.info(`[BROADCAST] Gerando sinal para todos os usuários ativos: ${signal.pair} ${signal.direction}`);
 
     try {
@@ -131,12 +87,12 @@ module.exports = {
         return prisma.signal.create({
           data: {
             userId: license.userId,
-            pair: String(signal.pair).toUpperCase(),
-            direction: String(signal.direction).toUpperCase(),
-            entry: Number(signal.entry || 0),
-            sl: Number(signal.sl || 0),
-            tp: Number(signal.tp || 0),
-            lot: 0.01, // Nome correto conforme o schema
+            pair: signal.pair,
+            direction: signal.direction,
+            entry: signal.entry,
+            sl: signal.sl,
+            tp: signal.tp,
+            lot: 0.01, // Lote padrão, o EA pode ajustar conforme o risco local
             status: "PENDING"
           }
         });
@@ -156,24 +112,24 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
-
+  
   closeOrder: async (brokerId, pair) => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
     return await b.closePosition(brokerId);
   },
-
+  
   modifyStopLoss: async (brokerId, newSl) => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
     // Nota: O novo apex_broker ainda não implementa modifySL em todos os adaptadores
     if (b.modifySL) return await b.modifySL(brokerId, newSl);
     log.warn("modifySL não implementado para este broker.");
     return { success: false };
   },
-
+  
   getOpenPositions: async () => {
-    const b = await getBroker();
+    const b = getBroker();
     if (!b.connected) await b.connect();
     return await b.getOpenPositions();
   }
