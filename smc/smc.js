@@ -5,6 +5,37 @@
  */
 
 class SMCDetector {
+  static getSymbolSpecs(symbol) {
+    const s = symbol.toUpperCase();
+    if (s.includes("XAU") || s.includes("GOLD")) {
+      return { digits: 2, pip: 0.1, minStop: 0.50, name: "GOLD" };
+    }
+    if (s.includes("JPY")) {
+      return { digits: 3, pip: 0.01, minStop: 0.030, name: "JPY" };
+    }
+    if (s.includes("BTC") || s.includes("ETH")) {
+      return { digits: 2, pip: 1.0, minStop: 10.0, name: "CRYPTO" };
+    }
+    return { digits: 5, pip: 0.0001, minStop: 0.00030, name: "FOREX" };
+  }
+
+  static calculateATR(candles, period = 14) {
+    if (candles.length < period + 1) return 0;
+    let trs = [];
+    for (let i = 1; i < candles.length; i++) {
+      const current = candles[i];
+      const prev = candles[i - 1];
+      const tr = Math.max(
+        current.high - current.low,
+        Math.abs(current.high - prev.close),
+        Math.abs(current.low - prev.close)
+      );
+      trs.push(tr);
+    }
+    const recent = trs.slice(-period);
+    return recent.reduce((a, b) => a + b, 0) / period;
+  }
+
   static detectOrderBlocks(candles, lookback = 10) {
     const obs = [];
     for (let i = lookback; i < candles.length - 3; i++) {
