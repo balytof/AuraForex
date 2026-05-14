@@ -17,7 +17,8 @@ const filesToUpload = [
     { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
     { local: `${localDir}/risk/risk.js`, remote: '/root/AuraForex/risk/risk.js' },
     { local: `${localDir}/public/AuraForex_V8_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.ex5' },
-    { local: `${localDir}/public/AuraForex_V8_INSTITUTIONAL.mq5`, remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.mq5' }
+    { local: `${localDir}/public/AuraForex_V8_INSTITUTIONAL.mq5`, remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.mq5' },
+    { local: `${localDir}/prisma/schema.prisma`, remote: '/root/AuraForex/prisma/schema.prisma' }
 ];
 
 conn.on('ready', () => {

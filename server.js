@@ -391,6 +391,7 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 // ── NOVO: Endpoint de Status HMI (Institucional) ──────────────────
 app.get("/api/user/status", requireAuth, async (req, res) => {
+  console.log(`[USER-STATUS] Request from User ID: ${req.user.id} (${req.user.email})`);
   try {
     const license = await prisma.license.findFirst({
       where: { userId: req.user.id },

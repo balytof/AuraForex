@@ -60,6 +60,7 @@ model License {
   floatingPnL Float    @default(0)
   marginLevel Float    @default(0)
   drawdown    Float    @default(0)
+  dailyPnl    Float    @default(0)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
