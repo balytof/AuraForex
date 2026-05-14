@@ -21,16 +21,30 @@ function isActiveSession() {
   return true; 
 }
 
-function getPrecision(pair) {
-  const p = String(pair).toUpperCase();
-  if (p.includes("JPY")) return 3;
-  if (p.includes("XAU") || p.includes("GOLD")) return 2;
-  return 5;
+function getSymbolSpecs(symbol) {
+  const s = symbol.toUpperCase();
+  if (s.includes("XAU") || s.includes("GOLD")) {
+    return { digits: 2, pip: 0.1, minStop: 0.50, name: "GOLD" };
+  }
+  if (s.includes("JPY")) {
+    return { digits: 3, pip: 0.01, minStop: 0.030, name: "JPY" };
+  }
+  if (s.includes("BTC") || s.includes("ETH")) {
+    return { digits: 2, pip: 1.0, minStop: 10.0, name: "CRYPTO" };
+  }
+  return { digits: 5, pip: 0.0001, minStop: 0.00030, name: "FOREX" };
 }
 
-function normalize(price, pair) {
-  const p = getPrecision(pair);
-  return Number(Number(price).toFixed(p));
+function normalizePrice(price, pair) {
+  const specs = getSymbolSpecs(pair);
+  return Number(price.toFixed(specs.digits));
+}
+
+function validateStops(entry, sl, tp, symbol) {
+  const specs = getSymbolSpecs(symbol);
+  const slDistance = Math.abs(entry - sl);
+  const tpDistance = Math.abs(entry - tp);
+  return slDistance >= specs.minStop && tpDistance >= specs.minStop;
 }
 
 function validatePriceRange(pair, price) {
@@ -175,15 +189,22 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
   const slDist = last.atr * atrCfg.slMultiplier;
   const tpDist = last.atr * atrCfg.tpMultiplier;
 
-  const sl = normalize(direction === "BUY" ? entryPrice - slDist : entryPrice + slDist, pair);
-  const tp = normalize(direction === "BUY" ? entryPrice + tpDist : entryPrice - tpDist, pair);
-  const rr = direction === "BUY" ? (tp - entryPrice) / (entryPrice - sl) : (entryPrice - tp) / (sl - entryPrice);
+  const sl = normalizePrice(direction === "BUY" ? entryPrice - slDist : entryPrice + slDist, pair);
+  const tp = normalizePrice(direction === "BUY" ? entryPrice + tpDist : entryPrice - tpDist, pair);
+  const nEntry = normalizePrice(entryPrice, pair);
+  
+  if (!validateStops(nEntry, sl, tp, pair)) {
+    log.debug(`${pair}: Paragem (Stops) inválida para a corretora.`);
+    return null;
+  }
+
+  const rr = direction === "BUY" ? (tp - nEntry) / (nEntry - sl) : (nEntry - tp) / (sl - nEntry);
 
   if (rr < cfg.risk.minRR) return null;
 
   return {
     pair, direction, score, orderType,
-    entry: normalize(entryPrice, pair),
+    entry: nEntry,
     sl, tp,
     rr: parseFloat(rr.toFixed(2)),
     atr: last.atr,
