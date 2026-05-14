@@ -222,6 +222,44 @@ void OnTimer()
    ExecutionBusy = false;
 }
 
+double GetDailyPnL()
+{
+   double closedProfit = 0;
+   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
+   
+   if(HistorySelect(todayStart, TimeCurrent()))
+   {
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+            if(magic == GetAuraMagic())
+            {
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+            }
+         }
+      }
+   }
+   
+   double floatingProfit = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            floatingProfit += PositionGetDouble(POSITION_PROFIT);
+      }
+   }
+   
+   return closedProfit + floatingProfit;
+}
+
 void CheckDailyTarget()
 {
    MqlDateTime tm;
@@ -1219,43 +1257,7 @@ void ReportBalance()
 
 
 
-double GetDailyPnL()
-{
-   double closedProfit = 0;
-   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
-   
-   if(HistorySelect(todayStart, TimeCurrent()))
-   {
-      int total = HistoryDealsTotal();
-      for(int i = 0; i < total; i++)
-      {
-         ulong ticket = HistoryDealGetTicket(i);
-         if(ticket > 0)
-         {
-            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
-            if(magic == GetAuraMagic())
-            {
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
-            }
-         }
-      }
-   }
-   
-   double floatingProfit = 0;
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-   {
-      ulong ticket = PositionGetTicket(i);
-      if(ticket > 0 && PositionSelectByTicket(ticket))
-      {
-         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
-            floatingProfit += PositionGetDouble(POSITION_PROFIT);
-      }
-   }
-   
-   return closedProfit + floatingProfit;
-}
+
 
 void UpdateChartVisuals()
 {
