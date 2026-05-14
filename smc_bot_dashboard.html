@@ -2670,6 +2670,10 @@ async function botLoop(loopId) {
         }
 
       } catch (err) {
+        if (err.message && err.message.includes("Limite de pedidos atingido")) {
+           addLog(`⚠️ Limite de pedidos atingido no servidor. A suspender análise neste ciclo.`, "warn");
+           break; // Para o loop de pares para não inundar o log
+        }
         addLog(`⚠️ Erro no par ${pair}: ${err.message}`, "warn");
       }
     }
