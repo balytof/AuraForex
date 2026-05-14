@@ -408,16 +408,16 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let lastEquity = license ? license.equity : (risk.balance || 0);
     let startEquity = risk.dailyStartEquity || lastEquity;
     
-    // Fallback para 5% se não houver config global
-    const dailyTargetMoney = startEquity * 0.05;
-
+    const cfg = { dailyProfitTargetPct: 5.0, maxDailyLossPct: 10.0 }; // Fallback config
+    const dailyTargetMoney = startEquity * (cfg.dailyProfitTargetPct / 100);
+    
     res.json({
       success: true,
-      balance: lastBalance,
+      balance: lastEquity,
       equity: lastEquity,
       dailyPnl: (license && license.dailyPnl !== undefined) ? license.dailyPnl : risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked || risk.circuitBreaker || (lastEquity >= startEquity + dailyTargetMoney) || (lastEquity <= startEquity - (startEquity * (cfg.maxDailyLossPct || 10.0) / 100)),
+      isLocked: risk.dailyProfitLocked || risk.circuitBreaker || (lastEquity >= startEquity + dailyTargetMoney) || (lastEquity <= startEquity - (startEquity * (cfg.maxDailyLossPct) / 100)),
       timeUntilReset: timeUntilReset,
       drawdown: license ? license.drawdown : 0,
       marginLevel: license ? license.marginLevel : 0,
