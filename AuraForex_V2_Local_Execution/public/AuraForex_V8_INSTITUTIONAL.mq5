@@ -17,8 +17,8 @@ input string   InpServerUrl         = "https://www.auratradebots.com/api"; // UR
 input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
-input int      InpMaxSLForex        = 700;                     // Limite SL Forex (Pontos)
-input int      InpMaxSLJPY          = 2000;                    // Limite SL JPY/Ouro (Pontos)
+input int      InpMaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
+input int      InpMaxSLJPY          = 5000;                    // Limite SL JPY/Ouro (Pontos)
 input int      InpMaxOrders         = 4;                       // Limite Global de Ordens
 input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
 input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
@@ -988,14 +988,28 @@ void ExecuteSignal(string json)
       double nEntry = NormalizeDouble(entry, digits);
       double nSL    = NormalizeDouble(sl, digits);
       double nTP    = NormalizeDouble(tp, digits);
-      
+
+      // --- BLINDAGEM INSTITUCIONAL: STOP LEVEL ENFORCEMENT ---
+      double point     = SymbolInfoDouble(pair, SYMBOL_POINT);
+      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
+      double currAsk   = SymbolInfoDouble(pair, SYMBOL_ASK);
+      double currBid   = SymbolInfoDouble(pair, SYMBOL_BID);
+
+      if(dir == "BUY") {
+         if(currAsk - nSL < stopLevel) nSL = currAsk - stopLevel - (5 * point);
+         if(nTP - currAsk < stopLevel && nTP > 0) nTP = currAsk + stopLevel + (5 * point);
+      } else {
+         if(nSL - currBid < stopLevel) nSL = currBid + stopLevel + (5 * point);
+         if(currBid - nTP < stopLevel && nTP > 0) nTP = currBid - stopLevel - (5 * point);
+      }
+
       bool success = false;
       if(type == "LIMIT") {
          if(dir == "BUY") success = trade.BuyLimit(lot, nEntry, pair, nSL, nTP);
          else             success = trade.SellLimit(lot, nEntry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, ask, nSL, nTP);
-         else             success = trade.Sell(lot, pair, bid, nSL, nTP);
+         if(dir == "BUY") success = trade.Buy(lot, pair, currAsk, nSL, nTP);
+         else             success = trade.Sell(lot, pair, currBid, nSL, nTP);
       }
 
       if(success) {
