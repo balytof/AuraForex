@@ -3164,7 +3164,10 @@ async function loadSystemConfig() {
     if (data.success) {
       systemConfig = data;
       
-      const url = systemConfig.apiUrl || window.location.origin;
+      let url = systemConfig.apiUrl || window.location.origin;
+      if (!url.endsWith("/api")) {
+        url = url.replace(/\/$/, "") + "/api";
+      }
       
       // Update UI elements
       if (document.getElementById("apiUrlDisplay")) {
@@ -3215,7 +3218,7 @@ async function loadSystemConfig() {
           <p style="font-size: 0.8rem; line-height: 1.5;">
             1. No MT5, clique em <b>Ficheiro → Abrir pasta de dados</b><br>
             2. Navegue até: <code>MQL5 → Experts</code><br>
-            3. Cole o ficheiro <b>AuraForex_V7_INSTITUTIONAL.ex5</b> para esta pasta<br>
+            3. Cole o ficheiro <b>AuraForex_V8_INSTITUTIONAL.ex5</b> para esta pasta<br>
             4. No MT5, pressione <b>F5</b> (ou clique direito em Expert Advisors → Actualizar)
           </p>
         </div>

@@ -996,8 +996,8 @@ app.get("/api/system/config", async (req, res) => {
     const settings = await prisma.systemSettings.findFirst();
     res.json({
       success: true,
-      apiUrl: settings?.apiUrl || "http://localhost:3005",
-      installationGuide: settings?.installationGuide || "",
+      apiUrl: (settings?.apiUrl && !settings.apiUrl.includes("139.59.159.48")) ? settings.apiUrl : "https://www.auratradebots.com/api",
+      installationGuide: (settings?.installationGuide || "").replace(/http:\/\/139\.59\.159\.48:3005\/api/g, "https://www.auratradebots.com/api"),
       telegramUrl: settings?.telegramUrl || "",
       whatsappNumber: settings?.whatsappNumber || "",
       facebookUrl: settings?.facebookUrl || "",
