@@ -69,29 +69,52 @@ router.get("/signals", async (req, res) => {
   }
 
   try {
-    const license = await prisma.license.findUnique({
-      where: { id: licenseKey }
+    // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
+    const licenseWithSettings = await prisma.license.findUnique({
+      where: { id: licenseKey },
+      include: { 
+        user: { 
+          include: { settings: true } 
+        } 
+      }
     });
 
-    if (!license || license.status !== "ACTIVE") {
+    if (!licenseWithSettings || licenseWithSettings.status !== "ACTIVE") {
       return res.status(403).json({ error: "Licença inválida." });
     }
 
-    // LOG DE DIAGNÓSTICO (Expert Method)
-    const pendingCount = await prisma.signal.count({ where: { status: "PENDING" } });
-    console.log(`[EA-DEBUG] Licença: ${licenseKey} | Dono: ${license.userId} | Sinais Pendentes na DB: ${pendingCount}`);
+    // TRAVA DE SEGURANÇA: Se o bot estiver desligado no painel, não envia sinais
+    const botEnabled = licenseWithSettings.user.settings?.botStatus === "running";
+    if (!botEnabled) {
+      console.log(`[EA-DEBUG] Bot desligado para ${licenseKey}. Ignorando busca de sinais.`);
+      return res.status(200).json({ success: true, signals: [], message: "Bot desligado no painel." });
+    }
 
-    // Busca sinais PENDENTES para o usuário dono da licença
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    // Busca sinais PENDENTES e FRESCOS (últimos 5 minutos)
     const signals = await prisma.signal.findMany({
       where: {
-        userId: license.userId,
-        status: "PENDING"
+        userId: licenseWithSettings.userId,
+        status: "PENDING",
+        createdAt: { gte: fiveMinutesAgo }
       },
       orderBy: { createdAt: "asc" }
     });
 
     if (signals.length > 0) {
-      console.log(`[EA-DEBUG] ✅ Enviando ${signals.length} sinais para o robô.`);
+      console.log(`[EA-DEBUG] ✅ Enviando ${signals.length} sinais FRESCOS para o robô.`);
+    } else {
+      // Opcional: Limpar sinais antigos que ficaram PENDING mas expiraram
+      // Para não acumular lixo na DB
+      await prisma.signal.updateMany({
+        where: {
+          userId: licenseWithSettings.userId,
+          status: "PENDING",
+          createdAt: { lt: fiveMinutesAgo }
+        },
+        data: { status: "EXPIRED" }
+      });
     }
 
     // Heartbeat: Atualiza o updatedAt da licença para indicar que o EA está ativo
@@ -111,7 +134,7 @@ router.get("/signals", async (req, res) => {
       lot: Number(s.lot || 0.01)
     }));
 
-    console.log(`[EA-SIGNALS] Enviando ${formattedSignals.length} sinais para ${license.userId}`);
+    console.log(`[EA-SIGNALS] Enviando ${formattedSignals.length} sinais para ${licenseWithSettings.userId}`);
     return res.status(200).json({ success: true, signals: formattedSignals });
 
   } catch (err) {
