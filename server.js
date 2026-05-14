@@ -405,19 +405,19 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     midnight.setHours(24, 0, 0, 0);
     const timeUntilReset = Math.floor((midnight - now) / 1000);
 
-    let lastBalance = license ? license.balance : (risk.balance || 0);
-    if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
+    let lastEquity = license ? license.equity : (risk.balance || 0);
+    let startEquity = risk.dailyStartEquity || lastEquity;
     
     // Fallback para 5% se não houver config global
-    const dailyTargetMoney = lastBalance * 0.05;
+    const dailyTargetMoney = startEquity * 0.05;
 
     res.json({
       success: true,
       balance: lastBalance,
-      equity: license ? license.equity : lastBalance,
-      dailyPnl: (license && license.dailyPnl !== undefined && license.dailyPnl !== 0) ? license.dailyPnl : risk.dailyPnl,
+      equity: lastEquity,
+      dailyPnl: (license && license.dailyPnl !== undefined) ? license.dailyPnl : risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked || (license && license.dailyPnl >= dailyTargetMoney),
+      isLocked: risk.dailyProfitLocked || (lastEquity >= startEquity + dailyTargetMoney),
       timeUntilReset: timeUntilReset,
       drawdown: license ? license.drawdown : 0,
       marginLevel: license ? license.marginLevel : 0,
@@ -1826,12 +1826,12 @@ server.listen(PORT, () => {
 
         // 1. Obter dados da conta e posições
         const accountInfo = await broker.getAccountInfo();
-        if (accountInfo) risk.setBalance(accountInfo.balance);
+        if (accountInfo) risk.setEquity(accountInfo.equity || accountInfo.balance);
 
         const positions = await broker.getOpenPositions();
         
-        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock)
-        const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock via Equity)
+        const dailyCheck = risk.checkDailyProfitTarget(accountInfo.equity || accountInfo.balance);
         if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
            console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
            // Fechar todas as posições imediatamente
