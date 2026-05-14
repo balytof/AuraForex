@@ -240,6 +240,34 @@
   .license-alert-bar.visible { display: block; }
   @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
 
+  .target-alert-bar {
+    display: none;
+    background: linear-gradient(90deg, var(--bull), #00c853);
+    color: #000;
+    padding: 8px 24px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    position: relative;
+    z-index: 101;
+    animation: slideDown 0.5s ease;
+  }
+  .target-alert-bar.visible { display: block; }
+
+  .loss-alert-bar {
+    display: none;
+    background: linear-gradient(90deg, var(--bear), #d32f2f);
+    color: #fff;
+    padding: 8px 24px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    position: relative;
+    z-index: 102;
+    animation: slideDown 0.5s ease;
+  }
+  .loss-alert-bar.visible { display: block; }
+
   .license-badge {
     padding: 4px 12px;
     background: rgba(124,58,237,0.1);
@@ -985,6 +1013,14 @@
   <main class="main-content">
     <div id="licenseAlert" class="license-alert-bar">
         ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+    </div>
+
+    <div id="targetAlert" class="target-alert-bar">
+        🎉 Parabéns! Meta Diária Atingida. O sistema bloqueou novas operações para garantir o seu lucro. Reset em: <span class="lockTimer">--:--:--</span>
+    </div>
+
+    <div id="lossAlert" class="loss-alert-bar">
+        ⚠️ Atenção: Limite de Perda Diária Atingido. O sistema bloqueou novas operações para proteger o seu capital. Reset em: <span class="lockTimer">--:--:--</span>
     </div>
 
     <div class="wrapper">
@@ -2360,15 +2396,35 @@ async function updateStats() {
 
       if (status.isLocked) {
         lockOverlay.style.display = "block";
+        
+        // Show specific bar
+        if (status.isProfitLocked) {
+           document.getElementById("targetAlert").classList.add("visible");
+           document.getElementById("lossAlert").classList.remove("visible");
+           lockOverlay.querySelector("h2").textContent = "META DIÁRIA BATIDA";
+           lockOverlay.querySelector("h2").style.color = "var(--bull)";
+           lockOverlay.style.borderColor = "var(--bull)";
+           lockOverlay.querySelector("div").textContent = "🏆";
+        } else if (status.isLossLocked) {
+           document.getElementById("lossAlert").classList.add("visible");
+           document.getElementById("targetAlert").classList.remove("visible");
+           lockOverlay.querySelector("h2").textContent = "LIMITE DE PERDA ATINGIDO";
+           lockOverlay.querySelector("h2").style.color = "var(--bear)";
+           lockOverlay.style.borderColor = "var(--bear)";
+           lockOverlay.querySelector("div").textContent = "⚠️";
+        }
+
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "🔒 Meta Atingida";
+            mainBtn.textContent = "🔒 Sistema Bloqueado";
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
         updateLockCountdown(status.timeUntilReset);
       } else {
         lockOverlay.style.display = "none";
+        document.getElementById("targetAlert").classList.remove("visible");
+        document.getElementById("lossAlert").classList.remove("visible");
       }
     }
 
@@ -2445,7 +2501,13 @@ function updateLockCountdown(seconds) {
         const h = Math.floor(remaining / 3600);
         const m = Math.floor((remaining % 3600) / 60);
         const s = remaining % 60;
-        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        el.textContent = timeStr;
+        
+        // Update timers in the alert bars too
+        document.querySelectorAll(".lockTimer").forEach(span => {
+            span.textContent = timeStr;
+        });
     }, 1000);
 }
 

@@ -417,7 +417,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       equity: license ? license.equity : lastBalance,
       dailyPnl: risk.dailyPnl,
       dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked,
+      isLocked: risk.dailyProfitLocked || risk.circuitBreaker,
+      isProfitLocked: risk.dailyProfitLocked,
+      isLossLocked: risk.circuitBreaker,
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null
     });
