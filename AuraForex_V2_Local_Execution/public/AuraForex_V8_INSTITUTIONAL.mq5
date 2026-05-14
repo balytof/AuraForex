@@ -86,7 +86,7 @@ struct PartialCloseData
    bool  closed;
 };
 
-PartialCloseData PartialCloses[100]; // Rastreio de fechos parciais
+PartialCloseData PartialCloses[]; // Rastreio de fechos parciais (Dinâmico)
 bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
 
 //--- Funções Auxiliares de Especialista
@@ -114,13 +114,13 @@ bool IsVolatilityAbnormal(string sym)
    
    if(atrNow <= 0) return false;
    
-   double limit = IsXAU(sym) ? (2.5 * 0.50) : (1.5 * 0.0002); 
+   double limit = IsXAU(sym) ? 5.0 : 0.0050; // Limites realistas (50 pips FX, $5 XAU)
    return (atrNow > limit && atrNow > 0);
 }
 
 long GetAuraMagic()
 {
-   return InpMagicNumber + (int)PeriodSeconds();
+   return InpMagicNumber; // Magic fixo para garantir persistência entre timeframes
 }
 
 int CountAuraPositions()
@@ -189,9 +189,14 @@ void OnTick()
 
 void OnTimer()
 {
-   // 1. Proteger Ordens Manuais (Sempre prioridade, independente de autorização)
+   // 1. SINCRONISMO DASHBOARD (Sempre ativo para evitar dados "travados")
+   ReportBalance();
+   UpdateChartVisuals();
+   
+   // 2. Proteger Ordens Manuais (Prioridade total e independente de autorização)
    ProtectManualOrders();
 
+   // 3. SEMÁFORO DE EXECUÇÃO (Protege contra concorrência em tarefas pesadas)
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
@@ -209,10 +214,6 @@ void OnTimer()
       MonitorPartialTP();
       MonitorProfitLock();
    }
-
-   // SINCRONISMO DASHBOARD (Sempre ativo para evitar dados "travados")
-   ReportBalance();
-   UpdateChartVisuals();
 
    ExecutionBusy = false;
 }
@@ -440,9 +441,16 @@ void MonitorPartialTP()
       // Meta para Fecho Parcial: $25 para Ouro, $10 para Forex
       double partialTarget = IsXAU(sym) ? 25.0 : 10.0;
 
-      // Verificar se já fechamos parcialmente este ticket
+      // Verificar se já fechamos parcialmente este ticket via array dinâmico
       bool alreadyClosed = false;
-      for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == ticket && PartialCloses[j].closed) { alreadyClosed = true; break; } }
+      for(int j = 0; j < ArraySize(PartialCloses); j++) 
+      { 
+         if(PartialCloses[j].ticket == ticket && PartialCloses[j].closed) 
+         { 
+            alreadyClosed = true; 
+            break; 
+         } 
+      }
       if(alreadyClosed) continue;
 
       if(profit >= partialTarget)
@@ -454,8 +462,8 @@ void MonitorPartialTP()
          
          if(trade.PositionClosePartial(ticket, closeVol))
          {
-            // Registar fecho parcial
-            for(int j=0; j<100; j++) { if(PartialCloses[j].ticket == 0 || PartialCloses[j].ticket == ticket) { PartialCloses[j].ticket = ticket; PartialCloses[j].closed = true; break; } }
+            // Registar fecho parcial no array dinâmico
+            RegisterPartialClose(ticket);
             
             // Mover para Break Even
             double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
@@ -463,6 +471,41 @@ void MonitorPartialTP()
             trade.PositionModify(ticket, openPrice, currentTP);
             Print("🛡️ BREAK EVEN ACTIVADO para Ticket: ", ticket);
          }
+      }
+   }
+   // Limpar tickets órfãos do array de parciais
+   CleanPartialCloses();
+}
+
+//+------------------------------------------------------------------+
+//| GESTÃO DINÂMICA DE FECHOS PARCIAIS                               |
+//+------------------------------------------------------------------+
+void RegisterPartialClose(ulong ticket)
+{
+   int s = ArraySize(PartialCloses);
+   for(int i = 0; i < s; i++)
+   {
+      if(PartialCloses[i].ticket == ticket)
+      {
+         PartialCloses[i].closed = true;
+         return;
+      }
+   }
+   ArrayResize(PartialCloses, s + 1);
+   PartialCloses[s].ticket = ticket;
+   PartialCloses[s].closed = true;
+}
+
+void CleanPartialCloses()
+{
+   for(int i = ArraySize(PartialCloses) - 1; i >= 0; i--)
+   {
+      if(!PositionSelectByTicket(PartialCloses[i].ticket))
+      {
+         int s = ArraySize(PartialCloses);
+         for(int j = i; j < s - 1; j++)
+            PartialCloses[j] = PartialCloses[j + 1];
+         ArrayResize(PartialCloses, s - 1);
       }
    }
 }
@@ -588,17 +631,6 @@ void CheckSignals()
    // Anti-flood: Evita sobrecarregar a API
    if(TimeCurrent() - lastCheckTime < 5) return;
    
-   string sym = _Symbol;
-
-   //--- Filtros Institucionais para Busca de Sinais
-   if(IsXAU(sym))
-   {
-      if(!IsTradingSession()) return; // Não gasta recursos fora de sessão
-      
-      double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
-      if(spread > GetMaxAllowedSpread(sym)) return;
-   }
-
    lastCheckTime = TimeCurrent();
 
    string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
@@ -732,7 +764,7 @@ void RecoverState()
       ulong ticket = PositionGetTicket(i);
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic() && PositionGetDouble(POSITION_SL) == 0)
+         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetDouble(POSITION_SL) == 0)
          {
             string slKey = "PSL_" + (string)ticket;
             string tpKey = "PTP_" + (string)ticket;
@@ -805,6 +837,13 @@ void ExecuteSignal(string json)
 
    string pair = ExtractValue(json, "pair");
    string dir  = ExtractValue(json, "direction");
+
+   // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
+   if(IsXAU(pair) && !IsTradingSession())
+   {
+      Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
+      return;
+   }
    
    if(!SymbolSelect(pair, true))
    {
@@ -929,9 +968,7 @@ void ExecuteSignal(string json)
          // ATOMIC ENTRY: Execução institucional com proteção imediata
          double nSL = NormalizeDouble(sl, digits);
          double nTP = NormalizeDouble(tp, digits);
-         double nAsk = NormalizeDouble(ask, digits);
-
-         if(trade.Buy(lot, pair, nAsk, nSL, nTP)) {
+         if(trade.Buy(lot, pair, 0, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
@@ -967,9 +1004,7 @@ void ExecuteSignal(string json)
          // ATOMIC ENTRY: Execução institucional com proteção imediata
          double nSL = NormalizeDouble(sl, digits);
          double nTP = NormalizeDouble(tp, digits);
-         double nBid = NormalizeDouble(bid, digits);
-
-         if(trade.Sell(lot, pair, nBid, nSL, nTP)) {
+         if(trade.Sell(lot, pair, 0, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
                ulong ticket = trade.ResultOrder();
@@ -1259,8 +1294,7 @@ int GetConsecutiveLosses()
       
       // Apenas ordens do nosso EA
       long dealMagic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
-      long baseMagic = InpMagicNumber;
-      if(dealMagic < baseMagic || dealMagic > baseMagic + 100000) continue;
+      if(dealMagic != InpMagicNumber) continue;
       
       double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
       
@@ -1330,14 +1364,14 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
 
 double GetLastLow(string sym, int bars) {
    double lows[]; ArraySetAsSeries(lows, true);
-   if(CopyLow(sym, PERIOD_H1, 1, bars, lows) > 0) {
+   if(CopyLow(sym, _Period, 1, bars, lows) > 0) {
       double m = lows[0]; for(int i=1; i<ArraySize(lows); i++) if(lows[i] < m) m = lows[i]; return m;
    } return 0;
 }
 
 double GetLastHigh(string sym, int bars) {
    double highs[]; ArraySetAsSeries(highs, true);
-   if(CopyHigh(sym, PERIOD_H1, 1, bars, highs) > 0) {
+   if(CopyHigh(sym, _Period, 1, bars, highs) > 0) {
       double m = highs[0]; for(int i=1; i<ArraySize(highs); i++) if(highs[i] > m) m = highs[i]; return m;
    } return 0;
 }
@@ -1436,3 +1470,5 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
       
    return g_atrCache[newIdx].value;
 }
+
+

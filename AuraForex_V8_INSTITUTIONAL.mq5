@@ -1293,6 +1293,7 @@ int GetConsecutiveLosses()
       if(HistoryDealGetInteger(dealTicket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
       
       // Apenas ordens do nosso EA
+      long dealMagic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
       if(dealMagic != InpMagicNumber) continue;
       
       double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
