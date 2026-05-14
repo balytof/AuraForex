@@ -2341,6 +2341,11 @@ async function updateStats() {
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
+      if (status.updatedAt) {
+        const lastSync = new Date(status.updatedAt);
+        document.getElementById("statBalanceSub").textContent = "Última Sincronização: " + lastSync.toLocaleTimeString();
+      }
+
       const pnlVal = status.equity - status.balance;
       const pnlEl = document.getElementById("statPnl");
       pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");

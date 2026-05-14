@@ -166,9 +166,10 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown } = req.body;
+  const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown, dailyPnl } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
+    console.error("[EA-BALANCE] ❌ Erro: Dados incompletos recebidos do EA.", req.body);
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
   }
 
@@ -182,13 +183,19 @@ router.post("/report-balance", async (req, res) => {
         floatingPnL: floatingPnL ? parseFloat(floatingPnL) : undefined,
         marginLevel: marginLevel ? parseFloat(marginLevel) : undefined,
         drawdown: drawdown ? parseFloat(drawdown) : undefined,
+        dailyPnl: dailyPnl !== undefined ? parseFloat(dailyPnl) : undefined,
         updatedAt: new Date()
       }
     });
 
+    // Log periódico para não inundar o console mas confirmar atividade
+    if (Math.random() < 0.1) {
+       console.log(`[EA-BALANCE] 💰 Sync OK para Licença: ${licenseKey.substring(0,8)}... | Bal: ${balance} | Equity: ${equity}`);
+    }
+
     return res.json({ success: true });
   } catch (err) {
-    console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);
+    console.error("[EA-BALANCE] ❌ Erro ao atualizar saldo no banco:", err.message);
     return res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
