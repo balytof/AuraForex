@@ -117,7 +117,7 @@ app.post("/api/debug/log", (req, res) => {
 // Limites globais
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000, // Aumentado para desenvolvimento e configuração inicial
+  max: 2000, // Aumentado para suportar análise frequente de múltiplos pares
   message: { error: "Limite de pedidos atingido. Tente novamente em alguns minutos." }
 });
 app.use("/api/", apiLimiter);
