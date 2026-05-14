@@ -308,14 +308,24 @@ void CheckDailyLoss()
    if(DailyLossLock) return;
 
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(DailyStartEquity <= 0) return;
+   
+   // Buffer de inicialização: Não actua nos primeiros 10 segundos para evitar spikes de boot
+   static datetime bootTime = 0;
+   if(bootTime == 0) bootTime = TimeCurrent();
+   if(TimeCurrent() - bootTime < 10) return;
+
+   if(DailyStartEquity <= 0) {
+      DailyStartEquity = equity;
+      return;
+   }
 
    double lossPct = ((DailyStartEquity - equity) / DailyStartEquity) * 100.0;
 
+   // Só bloqueia se houver uma perda REAL de 10%
    if(lossPct >= InpMaxDailyLossPct)
    {
       DailyLossLock = true;
-      Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Fechando tudo...");
+      Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Equity Inicial: ", DailyStartEquity, " | Equity Actual: ", equity);
       CloseAllPositions();
    }
 }
@@ -1101,6 +1111,48 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
    return false;
 }
 
+struct SymbolSpecs {
+   int    digits;
+   double point;
+   double pip;
+   int    minStopPips;
+   int    maxStopPips;
+};
+
+SymbolSpecs GetInstitutionalSpecs(string sym) {
+   SymbolSpecs s;
+   s.digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   s.point  = SymbolInfoDouble(sym, SYMBOL_POINT);
+   
+   if(IsXAU(sym)) {
+      s.pip = 0.1; // 1 pip = $0.10
+      s.minStopPips = 50;
+      s.maxStopPips = 500;
+   } else if(StringFind(sym, "JPY") >= 0) {
+      s.pip = 0.01; // 1 pip = 0.01
+      s.minStopPips = 10;
+      s.maxStopPips = 100;
+   } else {
+      s.pip = 0.0001;
+      s.minStopPips = 10;
+      s.maxStopPips = 100;
+   }
+   return s;
+}
+
+double CalculateInstitutionalSL(double entry, double atr, ENUM_POSITION_TYPE type, string sym) {
+   SymbolSpecs specs = GetInstitutionalSpecs(sym);
+   double atrPips = atr / specs.pip;
+   
+   // Clamp
+   atrPips = MathMax(specs.minStopPips, atrPips);
+   atrPips = MathMin(specs.maxStopPips, atrPips);
+   
+   double stopDist = atrPips * specs.pip;
+   double sl = (type == POSITION_TYPE_BUY) ? (entry - stopDist) : (entry + stopDist);
+   return NormalizeDouble(sl, specs.digits);
+}
+
 void ProtectManualOrders()
 {
    if(!InpManageManualOrders) return;
@@ -1108,73 +1160,37 @@ void ProtectManualOrders()
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
-      if(ticket <= 0) continue;
-      if(!PositionSelectByTicket(ticket)) continue;
+      if(ticket <= 0 || !PositionSelectByTicket(ticket)) continue;
 
-      long magic = PositionGetInteger(POSITION_MAGIC);
-
-      // Apenas ordens manuais (Magic 0)
-      if(magic != 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != 0) continue;
 
       string sym = PositionGetString(POSITION_SYMBOL);
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP);
 
-      // Se já tem proteção completa, ignorar
       if(currentSL > 0 && currentTP > 0) continue;
 
       ENUM_POSITION_TYPE type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
-      double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
-      int digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
-      double point  = SymbolInfoDouble(sym, SYMBOL_POINT);
-
-      // Cálculo ATR via Cache
-      ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
-      double atr = GetATR(sym, atrTF);
-
-      if(atr <= 0)
-         atr = IsXAU(sym) ? 3.5 : 0.0015;
-
-      // Distâncias Institucionais
-      double slDistance = IsXAU(sym) ? atr * 2.0 : atr * 1.5;
-      double tpDistance = slDistance * 2.5;
+      double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+      
+      double atr = GetATR(sym, IsXAU(sym) ? PERIOD_H1 : PERIOD_M15);
+      if(atr <= 0) atr = IsXAU(sym) ? 3.5 : 0.0015;
 
       double sl = currentSL;
       double tp = currentTP;
 
-      // Apenas cria SL se não existir
-      if(currentSL <= 0)
-      {
-         if(type == POSITION_TYPE_BUY)
-            sl = entry - slDistance;
-         else
-            sl = entry + slDistance;
+      if(currentSL <= 0) sl = CalculateInstitutionalSL(entry, atr * 2.0, type, sym);
+      if(currentTP <= 0) {
+         double tpDist = MathAbs(entry - sl) * 2.0;
+         tp = (type == POSITION_TYPE_BUY) ? (entry + tpDist) : (entry - tpDist);
       }
 
-      // Apenas cria TP se não existir
-      if(currentTP <= 0)
-      {
-         if(type == POSITION_TYPE_BUY)
-            tp = entry + tpDistance;
-         else
-            tp = entry - tpDistance;
-      }
+      sl = NormalizeDouble(sl, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS));
+      tp = NormalizeDouble(tp, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS));
 
-      sl = NormalizeDouble(sl, digits);
-      tp = NormalizeDouble(tp, digits);
-
-      // Só modificar se houve alteração real
-      if(sl != currentSL || tp != currentTP)
-      {
-         ResetLastError();
+      if(sl != currentSL || tp != currentTP) {
          if(trade.PositionModify(ticket, sl, tp))
-         {
-            Print("✅ Manual Protected: ", ticket, " | SL: ", sl, " | TP: ", tp);
-         }
-         else
-         {
-            Print("❌ Failed Manual Protection: ", trade.ResultRetcodeDescription());
-         }
+            Print("✅ Manual Protected (INSTITUTIONAL): ", ticket, " | SL: ", sl, " | TP: ", tp);
       }
    }
 }
