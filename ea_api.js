@@ -166,6 +166,7 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
+  console.log(`[EA-SYNC-DEBUG] Raw Body:`, req.body);
   const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown, dailyPnl } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
