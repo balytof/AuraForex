@@ -145,9 +145,11 @@ int OnInit()
 {
    Print("🚀 AURA V8 INSTITUCIONAL - Execution Engine");
    
-   // Configurações Visuais de Gráfico
+   // Configurações Visuais de Gráfico (Nível Institucional)
+   ChartSetInteger(0, CHART_SHOW_TRADE_HISTORY, true);
    ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
    ChartSetInteger(0, CHART_SHOW_OBJECT_DESCR, true);
+   ChartRedraw();
 
    trade.SetExpertMagicNumber(GetAuraMagic());
    trade.SetDeviationInPoints(30); 
@@ -206,13 +208,11 @@ void OnTimer()
       MonitorTrailingStop();
       MonitorPartialTP();
       MonitorProfitLock();
-
-      ProcessPendingProtections();
-
-      // Sincronismo Dashboard (Tempo Real)
-      ReportBalance();
-      UpdateChartVisuals(); // Visual Gráfico (Real-time)
    }
+
+   // SINCRONISMO DASHBOARD (Sempre ativo para evitar dados "travados")
+   ReportBalance();
+   UpdateChartVisuals();
 
    ExecutionBusy = false;
 }
@@ -915,7 +915,7 @@ void ExecuteSignal(string json)
       double minSL = currentPrice - (atr * slMultiplier);
       sl = (low > 0) ? MathMin(low - (atr * 0.3), minSL) : minSL;
       
-      double tp = currentPrice + (atr * tpMultiplier);
+      tp = currentPrice + (atr * tpMultiplier);
       
       double dist = (currentPrice - sl) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
@@ -927,11 +927,15 @@ void ExecuteSignal(string json)
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
          // ATOMIC ENTRY: Execução institucional com proteção imediata
-         if(trade.Buy(lot, pair, ask, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         double nSL = NormalizeDouble(sl, digits);
+         double nTP = NormalizeDouble(tp, digits);
+         double nAsk = NormalizeDouble(ask, digits);
+
+         if(trade.Buy(lot, pair, nAsk, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultDeal();
-               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] BUY EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -949,7 +953,7 @@ void ExecuteSignal(string json)
       double maxSLdist = currentPrice + (atr * slMultiplier);
       sl = (high > 0) ? MathMax(high + (atr * 0.3), maxSLdist) : maxSLdist;
       
-      double tp = currentPrice - (atr * tpMultiplier);
+      tp = currentPrice - (atr * tpMultiplier);
       
       double dist = (sl - currentPrice) / tickSize;
       if(dist > maxSL) { Print("⚠️ SL bloqueado (" + (string)dist + " pts)"); return; }
@@ -961,11 +965,15 @@ void ExecuteSignal(string json)
          trade.SetDeviationInPoints(GetDynamicDeviation(pair));
          
          // ATOMIC ENTRY: Execução institucional com proteção imediata
-         if(trade.Sell(lot, pair, bid, NormalizeDouble(sl, digits), NormalizeDouble(tp, digits))) {
+         double nSL = NormalizeDouble(sl, digits);
+         double nTP = NormalizeDouble(tp, digits);
+         double nBid = NormalizeDouble(bid, digits);
+
+         if(trade.Sell(lot, pair, nBid, nSL, nTP)) {
             uint retCode = trade.ResultRetcode();
             if(retCode == TRADE_RETCODE_DONE || retCode == TRADE_RETCODE_PLACED) {
-               ulong ticket = trade.ResultDeal();
-               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Deal: ", ticket, " | SL: ", sl, " | TP: ", tp);
+               ulong ticket = trade.ResultOrder();
+               Print("🚀 [ATOMIC] SELL EXECUTADO: ", pair, " | Ticket: ", ticket, " | SL: ", nSL, " | TP: ", nTP);
                SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + ExtractValue(json, "id") + "\",\"status\":\"EXECUTED\"}");
             }
          } else {
@@ -1075,8 +1083,6 @@ void ProtectManualOrders()
       double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
       int digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
       double point  = SymbolInfoDouble(sym, SYMBOL_POINT);
-      double ask    = SymbolInfoDouble(sym, SYMBOL_ASK);
-      double bid    = SymbolInfoDouble(sym, SYMBOL_BID);
 
       // Cálculo ATR via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
@@ -1089,51 +1095,42 @@ void ProtectManualOrders()
       double slDistance = IsXAU(sym) ? atr * 2.0 : atr * 1.5;
       double tpDistance = slDistance * 2.5;
 
-      double sl = 0;
-      double tp = 0;
+      double sl = currentSL;
+      double tp = currentTP;
 
-      if(type == POSITION_TYPE_BUY)
+      // Apenas cria SL se não existir
+      if(currentSL <= 0)
       {
-         sl = entry - slDistance;
-         tp = entry + tpDistance;
-      }
-      else
-      {
-         sl = entry + slDistance;
-         tp = entry - tpDistance;
+         if(type == POSITION_TYPE_BUY)
+            sl = entry - slDistance;
+         else
+            sl = entry + slDistance;
       }
 
-      // VALIDAÇÃO DE NÍVEIS (Stop Level + Freeze Level)
-      double stopLevel   = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double freezeLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_FREEZE_LEVEL) * point;
-      double minDistance = MathMax(stopLevel, freezeLevel) * 2.0;
-
-      // Ajustes Finais para evitar rejeição
-      if(type == POSITION_TYPE_BUY)
+      // Apenas cria TP se não existir
+      if(currentTP <= 0)
       {
-         if((bid - sl) < minDistance) sl = bid - minDistance;
-         if((tp - bid) < minDistance) tp = bid + minDistance;
-      }
-      else
-      {
-         if((sl - ask) < minDistance) sl = ask + minDistance;
-         if((ask - tp) < minDistance) tp = ask - minDistance;
+         if(type == POSITION_TYPE_BUY)
+            tp = entry + tpDistance;
+         else
+            tp = entry - tpDistance;
       }
 
       sl = NormalizeDouble(sl, digits);
       tp = NormalizeDouble(tp, digits);
 
-      ResetLastError();
-      if(trade.PositionModify(ticket, sl, tp))
+      // Só modificar se houve alteração real
+      if(sl != currentSL || tp != currentTP)
       {
-         Print("✅ MANUAL PROTECTED | ", sym, " | Ticket: ", ticket, 
-               " | SL: ", DoubleToString(sl, digits), " | TP: ", DoubleToString(tp, digits));
-      }
-      else
-      {
-         Print("❌ FAILED TO PROTECT | Ticket: ", ticket, 
-               " | Error: ", GetLastError(), " | Retcode: ", trade.ResultRetcode(), 
-               " | ", trade.ResultRetcodeDescription());
+         ResetLastError();
+         if(trade.PositionModify(ticket, sl, tp))
+         {
+            Print("✅ Manual Protected: ", ticket, " | SL: ", sl, " | TP: ", tp);
+         }
+         else
+         {
+            Print("❌ Failed Manual Protection: ", trade.ResultRetcodeDescription());
+         }
       }
    }
 }
@@ -1186,22 +1183,22 @@ void UpdateChartVisuals()
    double margin  = AccountInfoDouble(ACCOUNT_MARGIN);
    double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
 
+   int totalPositions = PositionsTotal();
+
    string status = DailyTargetReached ? "LOCKED" : "RUNNING";
 
    string panel = 
       "============================\n" +
-      "      AURA V8 ENGINE\n" +
+      "      AURAFOREX V8\n" +
       "============================\n" +
-      "ACCOUNT: " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
-      "----------------------------\n" +
+      "ACCOUNT : " + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + "\n" +
       "BALANCE : $" + DoubleToString(balance,2) + "\n" +
       "EQUITY  : $" + DoubleToString(equity,2) + "\n" +
       "FLOATING: $" + DoubleToString(floating,2) + "\n" +
-      "MARGIN LEVEL: " + DoubleToString(marginLevel,1) + "%\n" +
-      "----------------------------\n" +
-      "ORDERS: " + IntegerToString(CountAuraPositions()) + "/" + IntegerToString(InpMaxOrders) + "\n" +
-      "STATUS: " + status + "\n" +
-      "SYNC: " + TimeToString(TimeCurrent(), TIME_SECONDS);
+      "MARGIN% : " + DoubleToString(marginLevel,1) + "%\n" +
+      "ORDERS  : " + IntegerToString(totalPositions) + "\n" +
+      "STATUS  : " + status + "\n" +
+      "TIME    : " + TimeToString(TimeCurrent(), TIME_SECONDS);
 
    Comment(panel);
 }
