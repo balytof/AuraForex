@@ -22,7 +22,7 @@ class RiskManager {
     this.openTrades = [];         // trades atualmente abertos
     this.tradeHistory = [];       // todos os trades fechados
     this.balance = 0;
-    this.dailyStartBalance = 0;
+    this.dailyStartEquity = 0;
     this.dailyPnl = 0;
     this.dailyDate = null;
     this.circuitBreaker = false;  // true = bot parado por perda diária
@@ -44,16 +44,16 @@ class RiskManager {
   }
 
   // ── INICIALIZAÇÃO ─────────────────────────────────────
-  setBalance(balance) {
-    this.balance = balance;
+  setEquity(equity) {
+    this.balance = equity; // Mantemos 'balance' como equity atual para simplificar
     const today = new Date().toDateString();
-    if (this.dailyDate !== today) {
+    if (this.dailyDate !== today || this.dailyStartEquity <= 0) {
       this.dailyDate = today;
-      this.dailyStartBalance = balance;
+      this.dailyStartEquity = equity;
       this.dailyPnl = 0;
       this.circuitBreaker = false;
       this.dailyProfitLocked = false;
-      log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)} | Locks Resetados.`);
+      log.info(`[RISK-NEW-DAY] Novo dia de trading | Equity Inicial: $${equity.toFixed(2)} | Locks Resetados.`);
     }
   }
 
@@ -192,16 +192,11 @@ class RiskManager {
   }
 
   // ── VERIFICAÇÃO DE META DIÁRIA (Baseada em Equity/Lucro Flutuante) ──
-  checkDailyProfitTarget(brokerPositions = []) {
+  checkDailyProfitTarget(equity) {
     if (this.dailyProfitLocked) return { hit: true, alreadyLocked: true };
-    if (this.dailyStartBalance <= 0) return { hit: false };
+    if (this.dailyStartEquity <= 0) return { hit: false };
 
-    // Calcular Lucro Flutuante total das posições abertas
-    const floatingProfit = brokerPositions.reduce((sum, pos) => sum + Number(pos.profit || 0), 0);
-    
-    // Lucro Total do Dia = Realizado (dailyPnl) + Flutuante
-    const totalDayProfit = this.dailyPnl + floatingProfit;
-    const profitPct = (totalDayProfit / this.dailyStartBalance) * 100;
+    const profitPct = ((equity - this.dailyStartEquity) / this.dailyStartEquity) * 100;
 
     // Usar meta do config ou 5.0% padrão
     const targetPct = cfg.dailyProfitTargetPct || 5.0;
@@ -210,12 +205,12 @@ class RiskManager {
       this.dailyProfitLocked = true;
       this._safeSaveState();
       
-      log.info(`[DAILY-TARGET-HIT] Meta de ${targetPct}% atingida! Lucro: ${profitPct.toFixed(2)}% ($${totalDayProfit.toFixed(2)})`);
+      log.info(`[DAILY-TARGET-HIT] Meta de ${targetPct}% atingida! Lucro: ${profitPct.toFixed(2)}% (Equity: $${equity.toFixed(2)})`);
       
       return {
         hit: true,
         reason: `META DIÁRIA ATINGIDA (${profitPct.toFixed(2)}%)`,
-        totalProfit: totalDayProfit
+        totalProfit: equity - this.dailyStartEquity
       };
     }
 
@@ -293,7 +288,7 @@ class RiskManager {
       const state = {
         openTrades: this.openTrades,
         dailyPnl: this.dailyPnl,
-        dailyStartBalance: this.dailyStartBalance,
+        dailyStartEquity: this.dailyStartEquity,
         balance: this.balance,
         circuitBreaker: this.circuitBreaker,
         dailyProfitLocked: this.dailyProfitLocked,
@@ -313,7 +308,7 @@ class RiskManager {
         const state = JSON.parse(fs.readFileSync(this.stateFile, "utf8"));
         this.openTrades = state.openTrades || [];
         this.dailyPnl = state.dailyPnl || 0;
-        this.dailyStartBalance = state.dailyStartBalance || 0;
+        this.dailyStartEquity = state.dailyStartEquity || 0;
         this.balance = state.balance || 0;
         this.circuitBreaker = state.circuitBreaker || false;
         this.dailyProfitLocked = state.dailyProfitLocked || false;
