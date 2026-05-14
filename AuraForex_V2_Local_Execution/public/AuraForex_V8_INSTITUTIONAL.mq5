@@ -222,6 +222,44 @@ void OnTimer()
    ExecutionBusy = false;
 }
 
+double GetDailyPnL()
+{
+   double closedProfit = 0;
+   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
+   
+   if(HistorySelect(todayStart, TimeCurrent()))
+   {
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+            if(magic == GetAuraMagic())
+            {
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+            }
+         }
+      }
+   }
+   
+   double floatingProfit = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            floatingProfit += PositionGetDouble(POSITION_PROFIT);
+      }
+   }
+   
+   return closedProfit + floatingProfit;
+}
+
 void CheckDailyTarget()
 {
    MqlDateTime tm;
@@ -230,27 +268,29 @@ void CheckDailyTarget()
    if(tm.day != LastTradingDay)
    {
       LastTradingDay = tm.day;
-      DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
       DailyTargetReached = false;
-      Print("🌅 [DAILY] Novo dia. Capital Base: $", DoubleToString(DailyStartBalance, 2));
+      Print("🌅 [DAILY] Novo dia detectado. Meta diária reiniciada.");
    }
 
    if(DailyTargetReached) return;
 
-   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(DailyStartBalance <= 0) return;
+   double dailyPnl = GetDailyPnL();
+   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   double targetMoney = balance * (InpDailyTargetPct / 100.0);
 
-   double profitPct = ((equity - DailyStartBalance) / DailyStartBalance) * 100.0;
-
-   if(profitPct >= InpDailyTargetPct)
+   if(targetMoney > 0 && dailyPnl >= targetMoney)
    {
       DailyTargetReached = true;
-      Print("🏆 [DAILY] META ATINGIDA: ", DoubleToString(profitPct, 2), "% | Fechando tudo...");
+      Print("🏆 [DAILY] META ATINGIDA: $", DoubleToString(dailyPnl, 2), " (", DoubleToString(InpDailyTargetPct, 1), "%) | Fechando posições...");
+      
       for(int i = PositionsTotal() - 1; i >= 0; i--)
       {
          ulong ticket = PositionGetTicket(i);
          if(ticket > 0 && PositionSelectByTicket(ticket))
-            trade.PositionClose(ticket);
+         {
+            if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+               trade.PositionClose(ticket);
+         }
       }
    }
 }
@@ -1215,59 +1255,9 @@ void ReportBalance()
    UpdateChartVisuals(); // Visual Gráfico (Real-time)
 }
 
-void CheckDailyTarget()
-{
-   double dailyPnl = GetDailyPnL();
-   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
-   double targetMoney = balance * (InpDailyTargetPct / 100.0);
-   
-   if(targetMoney > 0 && dailyPnl >= targetMoney) {
-      if(!DailyTargetReached) {
-         Print("🎯 [DAILY] Meta de lucro atingida! ($", DoubleToString(dailyPnl, 2), " >= $", DoubleToString(targetMoney, 2), ")");
-         DailyTargetReached = true;
-      }
-   } else {
-      DailyTargetReached = false;
-   }
-}
 
-double GetDailyPnL()
-{
-   double closedProfit = 0;
-   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
-   
-   if(HistorySelect(todayStart, TimeCurrent()))
-   {
-      int total = HistoryDealsTotal();
-      for(int i = 0; i < total; i++)
-      {
-         ulong ticket = HistoryDealGetTicket(i);
-         if(ticket > 0)
-         {
-            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
-            if(magic == GetAuraMagic())
-            {
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
-            }
-         }
-      }
-   }
-   
-   double floatingProfit = 0;
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-   {
-      ulong ticket = PositionGetTicket(i);
-      if(ticket > 0 && PositionSelectByTicket(ticket))
-      {
-         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
-            floatingProfit += PositionGetDouble(POSITION_PROFIT);
-      }
-   }
-   
-   return closedProfit + floatingProfit;
-}
+
+
 
 void UpdateChartVisuals()
 {
