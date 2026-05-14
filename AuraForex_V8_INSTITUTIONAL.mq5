@@ -687,13 +687,22 @@ void ValidateLicense()
 
 void CheckSignals()
 {
-   if(DailyTargetReached || DailyLossLock)
+   if(DailyTargetReached)
    {
       static datetime lastLockMsg = 0;
       if(TimeCurrent() - lastLockMsg > 3600) {
-         string reason = DailyTargetReached ? "Meta diária atingida" : "Limite de perda diária atingido";
-         Print("🛑 [DAILY] ", reason, ". Trading bloqueado até amanhã.");
+         Print("🛑 [DAILY] Meta diária atingida. Trading bloqueado até amanhã.");
          lastLockMsg = TimeCurrent();
+      }
+      return;
+   }
+
+   if(DailyLossLock)
+   {
+      static datetime lastLossMsg = 0;
+      if(TimeCurrent() - lastLossMsg > 3600) {
+         Print("🛑 [DAILY] Limite de perda diária atingido. Trading bloqueado até amanhã.");
+         lastLossMsg = TimeCurrent();
       }
       return;
    }
