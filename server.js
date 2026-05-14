@@ -20,6 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const RiskManager = require("./risk/risk");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
+const { getRiskManager, userRisks } = require("./risk/store");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -127,7 +128,9 @@ app.use("/api/support", supportApi);
 
 // ── Mapa Em-Memória de Corretoras (por User ID) ───────────────────
 const userBrokers = new Map();
-const userRisks = new Map(); // Mapa de RiskManager por User ID
+// Mapa de RiskManager por User ID já importado do store
+// const userRisks = new Map(); 
+
 
 let globalBroker = null; // Instância mestre para puxar velas para todos os usuários
 
@@ -397,8 +400,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       orderBy: { updatedAt: 'desc' }
     });
 
-    const risk = userRisks.get(req.user.id) || new RiskManager(req.user.id);
-    if (!userRisks.has(req.user.id)) userRisks.set(req.user.id, risk);
+    const risk = getRiskManager(req.user.id);
 
     const now = new Date();
     const midnight = new Date();
@@ -1819,8 +1821,7 @@ server.listen(PORT, () => {
       try {
         if (!broker.connected) continue;
 
-        const risk = userRisks.get(userId) || new RiskManager(userId);
-        if (!userRisks.has(userId)) userRisks.set(userId, risk);
+        const risk = getRiskManager(userId);
 
         // 1. Obter dados da conta e posições
         const accountInfo = await broker.getAccountInfo();

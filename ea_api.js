@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
+const { getRiskManager } = require("./risk/store");
 
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
@@ -197,6 +198,18 @@ router.post("/report-balance", async (req, res) => {
         updatedAt: new Date()
       }
     });
+
+    // 🛡️ SINCRONIA INSTITUCIONAL: Atualizar RiskManager do servidor
+    const lic = await prisma.license.findUnique({
+      where: { id: licenseKey }
+    });
+
+    if (lic) {
+      const risk = getRiskManager(lic.userId);
+      risk.setBalance(parseFloat(balance));
+      // Verificar se bateu meta ou drawdown com os novos valores
+      risk.checkDailyProfitTarget([]); 
+    }
 
     return res.json({ success: true });
   } catch (err) {
