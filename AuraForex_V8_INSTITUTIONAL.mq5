@@ -120,7 +120,7 @@ bool IsVolatilityAbnormal(string sym)
 
 long GetAuraMagic()
 {
-   return InpMagicNumber + (int)PeriodSeconds();
+   return InpMagicNumber; // Magic fixo para garantir persistência entre timeframes
 }
 
 int CountAuraPositions()
