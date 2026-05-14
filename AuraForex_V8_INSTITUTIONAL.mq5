@@ -904,6 +904,8 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
+void ExecuteSignal(string json)
+{
     string pair  = ExtractValue(json, "pair");
     string dir   = ExtractValue(json, "direction");
     string type  = ExtractValue(json, "orderType");
