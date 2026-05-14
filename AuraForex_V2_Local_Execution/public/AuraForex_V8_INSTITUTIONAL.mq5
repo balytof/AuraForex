@@ -1168,7 +1168,7 @@ void ProtectManualOrders()
 void ReportBalance()
 {
    static ulong lastReport = 0;
-   if(GetTickCount() - lastReport < 1000) return; // 1 segundo real (não depende de ticks)
+   if(GetTickCount() - lastReport < 60000) return; // Reportar a cada 60 segundos (1 minuto)
    lastReport = GetTickCount();
 
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -1201,8 +1201,6 @@ void ReportBalance()
 
    if(response == "") {
       Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
-   } else {
-      Print("💰 [SYNC] Saldo reportado com sucesso!");
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)
@@ -1508,3 +1506,4 @@ void CloseAllPositions()
       Sleep(1000); // Esperar 1s entre retries
    }
 }
+
