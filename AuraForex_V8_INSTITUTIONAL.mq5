@@ -976,50 +976,81 @@ void ExecuteSignal(string json)
       return;
    }
 
-   double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
-   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double point  = SymbolInfoDouble(pair, SYMBOL_POINT);
+   int digits    = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double ask    = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid    = SymbolInfoDouble(pair, SYMBOL_BID);
+   double entryPrice = (dir == "BUY") ? ask : bid;
    
    // Fallback se JSON vier zerado
-   if(entry <= 0) entry = (dir == "BUY") ? ask : bid;
+   if(entry <= 0) entry = entryPrice;
    
-   double slPoints = MathAbs(entry - sl) / tickSize;
-   if(slPoints > (double)((IsXAU(pair) || StringFind(pair, "JPY") >= 0) ? InpMaxSLJPY : InpMaxSLForex)) {
-      Print("⚠️ SL do Sinal muito longo (", slPoints, " pts) | Rejeitado");
-      return;
+   // 1. CÁLCULO DE PONTOS (Normalização Institucional)
+   double slDist = MathAbs(entry - sl);
+   double tpDist = MathAbs(entry - tp);
+   
+   // Evitar divisão por zero e garantir distância mínima
+   if(point <= 0) point = 0.0001; 
+   int slPoints = (int)MathMax(100, slDist / point);
+   int tpPoints = (int)MathMax(100, tpDist / point);
+
+   // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
+   double nSL = 0, nTP = 0;
+   if(dir == "BUY") {
+      nSL = NormalizeDouble(entry - (slPoints * point), digits);
+      nTP = NormalizeDouble(entry + (tpPoints * point), digits);
+   } else {
+      nSL = NormalizeDouble(entry + (slPoints * point), digits);
+      nTP = NormalizeDouble(entry - (tpPoints * point), digits);
    }
 
-   double risk = GetDynamicRisk(slPoints);
-   double lot  = CalculateLot(pair, risk, MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+   // 3. VALIDAÇÃO DE STOP LEVEL (FBS/Broker Enforcement)
+   int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDistance = (stopLevel + 10) * point; // Buffer de 10 pontos
+
+   if(dir == "BUY") {
+      if(entry - nSL < minDistance) nSL = NormalizeDouble(entry - minDistance, digits);
+      if(nTP > 0 && nTP - entry < minDistance) nTP = NormalizeDouble(entry + minDistance, digits);
+   } else {
+      if(nSL - entry < minDistance) nSL = NormalizeDouble(entry + minDistance, digits);
+      if(nTP > 0 && entry - nTP < minDistance) nTP = NormalizeDouble(entry - minDistance, digits);
+   }
+
+   // 4. DEBUG DE SEGURANÇA (Solicitado pelo utilizador)
+   Print("------------------------------------------");
+   Print("🚀 EXECUTANDO SINAL: ", sigId, " | ", pair);
+   Print("ENTRY: ", entry);
+   Print("SL: ", nSL);
+   Print("TP: ", nTP);
+   Print("POINT: ", point);
+   Print("DIGITS: ", digits);
+   Print("STOPLEVEL: ", stopLevel);
+   
+   // 5. VALIDAÇÃO DE LADO (Invalid Checks)
+   bool invalid = false;
+   if(dir == "BUY") {
+      if(nTP > 0 && nTP <= entry) { Print("❌ TP INVÁLIDO (BUY): TP <= ENTRY"); invalid = true; }
+      if(nSL >= entry) { Print("❌ SL INVÁLIDO (BUY): SL >= ENTRY"); invalid = true; }
+   } else {
+      if(nTP > 0 && nTP >= entry) { Print("❌ TP INVÁLIDO (SELL): TP >= ENTRY"); invalid = true; }
+      if(nSL <= entry) { Print("❌ SL INVÁLIDO (SELL): SL <= ENTRY"); invalid = true; }
+   }
+
+   if(invalid) return;
+
+   double risk = GetDynamicRisk((double)slPoints);
+   double lot  = CalculateLot(pair, risk, MathAbs(entry - nSL), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
 
    if(lot > 0) {
       trade.SetDeviationInPoints(GetDynamicDeviation(pair));
-      double nEntry = NormalizeDouble(entry, digits);
-      double nSL    = NormalizeDouble(sl, digits);
-      double nTP    = NormalizeDouble(tp, digits);
-
-      // --- BLINDAGEM INSTITUCIONAL: STOP LEVEL ENFORCEMENT ---
-      double point     = SymbolInfoDouble(pair, SYMBOL_POINT);
-      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double currAsk   = SymbolInfoDouble(pair, SYMBOL_ASK);
-      double currBid   = SymbolInfoDouble(pair, SYMBOL_BID);
-
-      if(dir == "BUY") {
-         if(currAsk - nSL < stopLevel) nSL = currAsk - stopLevel - (5 * point);
-         if(nTP - currAsk < stopLevel && nTP > 0) nTP = currAsk + stopLevel + (5 * point);
-      } else {
-         if(nSL - currBid < stopLevel) nSL = currBid + stopLevel + (5 * point);
-         if(currBid - nTP < stopLevel && nTP > 0) nTP = currBid - stopLevel - (5 * point);
-      }
 
       bool success = false;
       if(type == "LIMIT") {
-         if(dir == "BUY") success = trade.BuyLimit(lot, nEntry, pair, nSL, nTP);
-         else             success = trade.SellLimit(lot, nEntry, pair, nSL, nTP);
+         if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
+         else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, currAsk, nSL, nTP);
-         else             success = trade.Sell(lot, pair, currBid, nSL, nTP);
+         if(dir == "BUY") success = trade.Buy(lot, pair, ask, nSL, nTP);
+         else             success = trade.Sell(lot, pair, bid, nSL, nTP);
       }
 
       if(success) {
@@ -1087,16 +1118,24 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
 
    ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
 
-   // Verificação de Stop Level (Buffer de 2.0 para segurança máxima)
+   // Verificação de Stop Level (Buffer de 5.0 pontos para segurança extra)
+   double minDistance = (stopLevel + 5.0) * point;
+
    if(posType == POSITION_TYPE_BUY)
    {
-      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 2.0;
-      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 2.0;
+      if(openPrice - sl < minDistance) sl = NormalizeDouble(openPrice - minDistance, digits);
+      if(tp > 0 && tp - openPrice < minDistance) tp = NormalizeDouble(openPrice + minDistance, digits);
+      
+      if(sl >= openPrice) sl = NormalizeDouble(openPrice - minDistance, digits);
+      if(tp > 0 && tp <= openPrice) tp = NormalizeDouble(openPrice + minDistance, digits);
    }
    else
    {
-      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 2.0;
-      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 2.0;
+      if(sl - openPrice < minDistance) sl = NormalizeDouble(openPrice + minDistance, digits);
+      if(tp > 0 && openPrice - tp < minDistance) tp = NormalizeDouble(openPrice - minDistance, digits);
+
+      if(sl <= openPrice) sl = NormalizeDouble(openPrice + minDistance, digits);
+      if(tp > 0 && tp >= openPrice) tp = NormalizeDouble(openPrice - minDistance, digits);
    }
 
    sl = NormalizeDouble(sl, digits);
