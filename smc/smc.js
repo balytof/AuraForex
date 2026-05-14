@@ -169,7 +169,10 @@ class InstitutionalSMC {
         });
       }
     }
-    return obs.filter(ob => ob.valid).sort((a, b) => b.strength - a.strength);
+    return obs.filter(ob => ob.valid).sort((a, b) => b.strength - a.strength).map(ob => ({
+      ...ob,
+      mitigationCount: ob.mitigated ? 1 : 0 // Compatibilidade com signals.js
+    }));
   }
 
   // ============================================================
@@ -196,7 +199,6 @@ class InstitutionalSMC {
       }
     }
     return fvgs;
-  }
   }
 
   static detectLiquidity(candles, pair, tolerance = 0.0005) {
