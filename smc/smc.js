@@ -11,15 +11,15 @@ class InstitutionalSMC {
   static getSymbolSpecs(symbol) {
     const s = symbol.toUpperCase();
     if (s.includes("XAU") || s.includes("GOLD")) {
-      return { digits: 2, pip: 0.1, minStop: 0.50, name: "GOLD" };
+      return { digits: 2, pip: 0.01, minStop: 0.50, name: "GOLD" };
     }
     if (s.includes("JPY")) {
-      return { digits: 3, pip: 0.01, minStop: 0.030, name: "JPY" };
+      return { digits: 3, pip: 0.001, minStop: 0.030, name: "JPY" };
     }
     if (s.includes("BTC") || s.includes("ETH")) {
       return { digits: 2, pip: 1.0, minStop: 10.0, name: "CRYPTO" };
     }
-    return { digits: 5, pip: 0.0001, minStop: 0.00030, name: "FOREX" };
+    return { digits: 5, pip: 0.00001, minStop: 0.00030, name: "FOREX" };
   }
 
   static getPipValue(pair) {
