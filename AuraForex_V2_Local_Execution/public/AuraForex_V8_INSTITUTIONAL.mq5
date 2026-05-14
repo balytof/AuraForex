@@ -36,6 +36,7 @@ input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+input bool   InpSessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
    ulong    ticket;
@@ -94,10 +95,13 @@ bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, 
 
 bool IsTradingSession()
 {
+   if(!InpSessionFilter) return true; // Se o filtro estiver desligado, autoriza sempre
+
    MqlDateTime tm;
    TimeCurrent(tm);
    int hour = tm.hour;
-   // Londres + NY (7h às 18h) - Horário do Servidor
+   
+   // Londres + NY (Aproximado 7h às 18h GMT+2/3)
    return (hour >= 7 && hour <= 18);
 }
 
@@ -1188,6 +1192,8 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
+   double dailyPnl = GetDailyPnL();
+   
    string payload = "{"
       "\"licenseKey\":\"" + InpLicenseKey + "\","
       "\"balance\":" + DoubleToString(balance, 2) + ","
@@ -1195,7 +1201,8 @@ void ReportBalance()
       "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
       "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
       "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
-      "\"drawdown\":" + DoubleToString(drawdown, 2) +
+      "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
+      "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) +
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";
@@ -1203,11 +1210,63 @@ void ReportBalance()
 
    if(response == "") {
       Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
-   } else {
-      // Print("💰 [SYNC] Saldo reportado com sucesso."); // Opcional: Descomentar se quiseres ver no log a cada segundo
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)
+}
+
+void CheckDailyTarget()
+{
+   double dailyPnl = GetDailyPnL();
+   double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   double targetMoney = balance * (InpDailyTargetPct / 100.0);
+   
+   if(targetMoney > 0 && dailyPnl >= targetMoney) {
+      if(!DailyTargetReached) {
+         Print("🎯 [DAILY] Meta de lucro atingida! ($", DoubleToString(dailyPnl, 2), " >= $", DoubleToString(targetMoney, 2), ")");
+         DailyTargetReached = true;
+      }
+   } else {
+      DailyTargetReached = false;
+   }
+}
+
+double GetDailyPnL()
+{
+   double closedProfit = 0;
+   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
+   
+   if(HistorySelect(todayStart, TimeCurrent()))
+   {
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+            if(magic == GetAuraMagic())
+            {
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+            }
+         }
+      }
+   }
+   
+   double floatingProfit = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            floatingProfit += PositionGetDouble(POSITION_PROFIT);
+      }
+   }
+   
+   return closedProfit + floatingProfit;
 }
 
 void UpdateChartVisuals()
