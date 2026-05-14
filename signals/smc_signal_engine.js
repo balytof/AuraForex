@@ -5,15 +5,34 @@
 const config = require("../config/config");
 const { calcAll } = require("../indicators/indicators");
 
-function getPrecision(pair = "") {
-  if (pair.includes("XAU") || pair.includes("GOLD")) return 2;
-  if (pair.includes("JPY")) return 3;
-  return 5;
+function getSymbolSpecs(symbol) {
+  const s = symbol.toUpperCase();
+  // GOLD
+  if (s.includes("XAU") || s.includes("GOLD")) {
+    return { digits: 2, pip: 0.1, minStop: 0.50, name: "GOLD" };
+  }
+  // JPY
+  if (s.includes("JPY")) {
+    return { digits: 3, pip: 0.01, minStop: 0.030, name: "JPY" };
+  }
+  // CRYPTO
+  if (s.includes("BTC") || s.includes("ETH")) {
+    return { digits: 2, pip: 1.0, minStop: 10.0, name: "CRYPTO" };
+  }
+  // FOREX
+  return { digits: 5, pip: 0.0001, minStop: 0.00030, name: "FOREX" };
 }
 
 function normalizePrice(price, pair = "") {
-  const p = getPrecision(pair);
-  return Number(Math.round(price + "e" + p) + "e-" + p);
+  const specs = getSymbolSpecs(pair);
+  return Number(price.toFixed(specs.digits));
+}
+
+function validateStops(entry, sl, tp, symbol) {
+  const specs = getSymbolSpecs(symbol);
+  const slDistance = Math.abs(entry - sl);
+  const tpDistance = Math.abs(entry - tp);
+  return slDistance >= specs.minStop && tpDistance >= specs.minStop;
 }
 
 function validatePriceRange(pair, price) {
@@ -67,12 +86,14 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
         return { signal: null, reason: "Stops muito próximos (anti-invalid)" };
       }
 
+      if (!validateStops(entry, sl, tp, pair)) return { signal: null, reason: "Stops inválidos para a corretora (BUY)" };
+
       const signalKey = `${pair}_BUY`;
       if (recentSignals.get(signalKey) && (Date.now() - recentSignals.get(signalKey) < SIGNAL_COOLDOWN)) return { signal: null, reason: "Cooldown ativo" };
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "BUY", entry: 0, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "BUY", entry: entry, sl, tp, atr, magic: true, timestamp: Date.now() },
         reason: "Sinal COMPRA MAGIC"
       };
     }
@@ -91,12 +112,14 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
         return { signal: null, reason: "Stops muito próximos (anti-invalid)" };
       }
 
+      if (!validateStops(entry, sl, tp, pair)) return { signal: null, reason: "Stops inválidos para a corretora (SELL)" };
+
       const signalKey = `${pair}_SELL`;
       if (recentSignals.get(signalKey) && (Date.now() - recentSignals.get(signalKey) < SIGNAL_COOLDOWN)) return { signal: null, reason: "Cooldown ativo" };
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "SELL", entry: 0, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "SELL", entry: entry, sl, tp, atr, magic: true, timestamp: Date.now() },
         reason: "Sinal VENDA MAGIC"
       };
     }
