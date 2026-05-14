@@ -166,7 +166,6 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  console.log(`[EA-SYNC-DEBUG] Raw Body:`, req.body);
   const { licenseKey, balance, equity, freeMargin, floatingPnL, marginLevel, drawdown, dailyPnl } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
@@ -189,8 +188,10 @@ router.post("/report-balance", async (req, res) => {
       }
     });
 
-    // Log detalhado para debug institucional
-    console.log(`[EA-SYNC] 📥 Recebido para ${licenseKey.substring(0,8)}... | Bal: ${balance} | DailyPnL: ${dailyPnl}`);
+    // Log periódico para não inundar o console mas confirmar atividade
+    if (Math.random() < 0.1) {
+       console.log(`[EA-BALANCE] 💰 Sync OK para Licença: ${licenseKey.substring(0,8)}... | Bal: ${balance} | Equity: ${equity}`);
+    }
     
     return res.json({ success: true });
   } catch (err) {
