@@ -36,6 +36,7 @@ input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
 input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+input bool   InpSessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
    ulong    ticket;
@@ -94,10 +95,13 @@ bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, 
 
 bool IsTradingSession()
 {
+   if(!InpSessionFilter) return true; // Se o filtro estiver desligado, autoriza sempre
+
    MqlDateTime tm;
    TimeCurrent(tm);
    int hour = tm.hour;
-   // Londres + NY (7h às 18h) - Horário do Servidor
+   
+   // Londres + NY (Aproximado 7h às 18h GMT+2/3)
    return (hour >= 7 && hour <= 18);
 }
 
