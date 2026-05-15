@@ -20,7 +20,28 @@ public:
 
    CJAVal() : m_type(jtUNDEF), m_parent(NULL), m_bv("") {}
    CJAVal(CJAVal *parent, ENUM_JTYPE type) : m_parent(parent), m_type(type), m_bv("") {}
+   CJAVal(const CJAVal &other) { Copy(other); }
    ~CJAVal() { Clear(); }
+
+   void operator=(const CJAVal &other) { Copy(other); }
+
+   void Copy(const CJAVal &other)
+   {
+      Clear();
+      m_type = other.m_type;
+      m_key  = other.m_key;
+      m_bv   = other.m_bv;
+      // Note: m_parent is not copied to avoid loops, usually handled by owner
+      for(int i = 0; i < ArraySize(other.m_data); i++)
+      {
+         CJAVal *v = new CJAVal();
+         v.Copy(other.m_data[i]);
+         v.m_parent = GetPointer(this);
+         int sz = ArraySize(m_data);
+         ArrayResize(m_data, sz + 1);
+         m_data[sz] = v;
+      }
+   }
 
    void Clear()
    {
@@ -29,7 +50,7 @@ public:
       m_type = jtUNDEF;
    }
 
-   CJAVal* operator[](string key)
+   CJAVal& operator[](string key)
    {
       if(m_type != jtOBJ) { m_type = jtOBJ; Clear(); }
       for(int i = 0; i < ArraySize(m_data); i++) if(m_data[i].m_key == key) return m_data[i];
@@ -41,11 +62,10 @@ public:
       return v;
    }
 
-   CJAVal* operator[](int i)
+   CJAVal& operator[](int i)
    {
       if(m_type != jtARRAY) { m_type = jtARRAY; Clear(); }
       int s = ArraySize(m_data);
-      if(i < 0) return NULL;
       if(i >= s)
       {
          for(int j = s; j <= i; j++)
