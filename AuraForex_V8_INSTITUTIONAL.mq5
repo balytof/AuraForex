@@ -11,7 +11,7 @@
 
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
-#include <JAson.mqh>
+#include "JAson.mqh"
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
@@ -867,9 +867,9 @@ void ProcessSignalQueue()
    if(ArraySize(SignalQueue) == 0) return;
 
    string json = SignalQueue[0].json;
-   CJAVal j;
-   j.Deserialize(json);
-   string sigId = j["id"].ToStr();
+   CJAVal parser;
+   parser.Deserialize(json);
+   string sigId = parser["id"].ToStr();
 
    if(ExecuteSignal(json))
    {
@@ -991,16 +991,16 @@ void SetSymbolCooldown(string sym)
 
 bool ExecuteSignal(string json)
 {
-   CJAVal j;
-   if(!j.Deserialize(json)) return true; // JSON inválido, removemos da fila para não travar
+   CJAVal parser;
+   if(!parser.Deserialize(json)) return true; // JSON inválido, removemos da fila para não travar
    
-   string dir   = j["type"].ToStr();
-   string pair  = j["symbol"].ToStr();
-   string type  = j["order_type"].ToStr();
-   double entry = j["entry"].ToDbl();
-   double sl    = j["sl"].ToDbl();
-   double tp    = j["tp"].ToDbl();
-   string sigId = j["id"].ToStr();
+   string dir   = parser["type"].ToStr();
+   string pair  = parser["symbol"].ToStr();
+   string type  = parser["order_type"].ToStr();
+   double entry = parser["entry"].ToDbl();
+   double sl    = parser["sl"].ToDbl();
+   double tp    = parser["tp"].ToDbl();
+   string sigId = parser["id"].ToStr();
    
    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
    if(IsXAU(pair) && !IsTradingSession())

@@ -7,9 +7,11 @@
 #property link      "https://auraforex.pt"
 #property version   "8.0"
 #property strict
+#property tester_everytick_calculate
 
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
+#include <JAson.mqh>
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
@@ -101,11 +103,48 @@ bool IsTradingSession()
    if(!InpSessionFilter) return true; // Se o filtro estiver desligado, autoriza sempre
 
    MqlDateTime tm;
-   TimeCurrent(tm);
+   TimeToStruct(TimeCurrent(), tm);
    int hour = tm.hour;
    
    // Londres + NY (Aproximado 7h às 18h GMT+2/3)
    return (hour >= 7 && hour <= 18);
+}
+
+bool ValidateStops(string sym, string dir, double price, double sl, double tp)
+{
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   int stopLevel = (int)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDist = stopLevel * point;
+
+   if(dir == "BUY")
+   {
+      if(price - sl < minDist) return false;
+      if(tp > 0 && tp - price < minDist) return false;
+   }
+   else
+   {
+      if(sl - price < minDist) return false;
+      if(tp > 0 && price - tp < minDist) return false;
+   }
+   return true;
+}
+
+bool SafePositionModify(ulong ticket, double sl, double tp)
+{
+   if(!PositionSelectByTicket(ticket)) return false;
+   string sym = PositionGetString(POSITION_SYMBOL);
+
+   for(int i = 0; i < 5; i++)
+   {
+      ResetLastError();
+      trade.SetTypeFillingBySymbol(sym);
+
+      if(trade.PositionModify(ticket, sl, tp)) return true;
+
+      Print("⚠️ Modify Retry ", i + 1, " | Ticket: ", ticket, " | Error: ", trade.ResultRetcodeDescription());
+      if(i < 4) Sleep(500);
+   }
+   return false;
 }
 
 double GetMaxAllowedSpread(string sym)
@@ -164,10 +203,27 @@ int OnInit()
    ValidateLicense();
    RecoverState(); 
    EventSetTimer(InpTimerSeconds);
+   trade.SetTypeFillingBySymbol(_Symbol);
+   trade.SetAsyncMode(true);
    return(INIT_SUCCEEDED);
 }
 
-void OnDeinit(const int reason) { EventKillTimer(); }
+void OnDeinit(const int reason) 
+{ 
+   EventKillTimer(); 
+   
+   // LIBERTAR HANDLES ATR (Institutional Memory Management)
+   for(int i = 0; i < ArraySize(g_atrCache); i++)
+   {
+      if(g_atrCache[i].handle != INVALID_HANDLE)
+      {
+         IndicatorRelease(g_atrCache[i].handle);
+         g_atrCache[i].handle = INVALID_HANDLE;
+      }
+   }
+   ArrayFree(g_atrCache);
+   Print("🧹 [CLEANUP] Handles de ATR libertados com sucesso.");
+}
 
 void OnTick()
 {
@@ -189,9 +245,8 @@ void OnTick()
       if(IsVolatilityAbnormal(sym)) return;
    }
 
-   // Monitorização movida apenas para o Timer para evitar concorrência (Busy Lock)
-   // O Timer a 1s é suficiente e muito mais estável institucionalmente
-   ProcessPendingProtections();
+   // Monitorização removida do OnTick para evitar race conditions.
+   // Centralizado no OnTimer sob o semáforo ExecutionBusy.
 }
 
 void OnTimer()
@@ -203,10 +258,17 @@ void OnTimer()
    // 2. Proteger Ordens Manuais (Prioridade total e independente de autorização)
    ProtectManualOrders();
 
-   // 3. SEMÁFORO DE EXECUÇÃO (Protege contra concorrência em tarefas pesadas)
+   // 3. SEMÁFORO DE EXECUÇÃO (Protegido por Wrapper para evitar Deadlocks)
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
+   RunInstitutionalCore();
+
+   ExecutionBusy = false;
+}
+
+void RunInstitutionalCore()
+{
    // Validar Licença (anti-spam throttle interno)
    ValidateLicense();
 
@@ -214,6 +276,9 @@ void OnTimer()
    {
       CheckDailyLoss();
       CheckDailyTarget();
+      
+      ProcessPendingProtections(); // Aplica protecções assíncronas (Apex Guardian)
+      
       CheckSignals();
       ProcessSignalQueue();
 
@@ -222,8 +287,6 @@ void OnTimer()
       MonitorPartialTP();
       MonitorProfitLock();
    }
-
-   ExecutionBusy = false;
 }
 
 double GetDailyPnL()
@@ -232,7 +295,7 @@ double GetDailyPnL()
    
    // CORRECÇÃO INSTITUCIONAL: Cálculo via estrutura de tempo para evitar falhas do iTime em mercado fechado
    MqlDateTime dt; 
-   TimeCurrent(dt);
+   TimeToStruct(TimeCurrent(), dt);
    dt.hour = 0; dt.min = 0; dt.sec = 0;
    datetime todayStart = StructToTime(dt);
    
@@ -375,7 +438,7 @@ void MonitorProfitLock()
       // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
-         double minProfitActivation = (StringFind(sym, "XAU") >= 0) ? 15.0 : InpProfitLockMin;
+         double minProfitActivation = (StringFind(sym, "XAU") >= 0) ? 80.0 : 25.0;
          
          if(profit >= minProfitActivation)
          {
@@ -656,7 +719,7 @@ void MonitorTrailingStop()
          if(newSL > currentSL + trailStep)
          {
             // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
-            if(trade.PositionModify(ticket, newSL, currentTP))
+            if(SafePositionModify(ticket, newSL, currentTP))
                Print("📊 Trailing BUY | ", sym,
                      " | Ticket: ", ticket,
                      " | SL: ", DoubleToString(currentSL, digits),
@@ -671,7 +734,7 @@ void MonitorTrailingStop()
 
          if((currentSL == 0 || newSL < currentSL - trailStep) && (newSL - ask > stopLevel))
          {
-            if(trade.PositionModify(ticket, newSL, currentTP))
+            if(SafePositionModify(ticket, newSL, currentTP))
                Print("📊 Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", newSL);
          }
       }
@@ -762,45 +825,27 @@ void CheckSignals()
 
    // Silent Polling - Apenas logamos se houver acção real
 
-   int pos = 0;
-   while(true)
+   // Processamento Profissional via JAson.mqh
+   CJAVal root;
+   if(!root.Deserialize(result)) {
+      Print("❌ [JSON] Erro ao deserializar resposta do servidor.");
+      return;
+   }
+   
+   CJAVal signals = root["signals"];
+   for(int i = 0; i < signals.Size(); i++)
    {
-      // Procura o próximo ID no JSON
-      int idPos = StringFind(result, "\"id\":\"", pos);
-      if(idPos < 0) break;
-
-      int start = idPos + 6;
-      int end   = StringFind(result, "\"", start);
-      if(end < 0) break;
-
-      string signalId = StringSubstr(result, start, end - start);
-
-      // Verificação persistente (Anti-duplicação via GlobalVariable)
-      if(IsProcessed(signalId))
-      {
-         pos = end;
-         continue;
-      }
-
-      // Print("🎯 NOVO SINAL DETECTADO: ", signalId); // Removido para silêncio institucional
-
-      // Extrair o bloco JSON completo deste sinal { ... }
-      int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
-      int objEnd   = StringFind(result, "}", objStart);
+      CJAVal signal = signals[i];
+      string signalId = signal["id"].ToStr();
       
-      if(objStart < 0 || objEnd < 0)
-      {
-         pos = end;
-         continue;
-      }
+      if(signalId == "") continue;
 
-      string signalJson = StringSubstr(result, objStart, objEnd - objStart + 1);
-      
-      // Adicionar à fila e marcar como processado imediatamente (anti-duplicação crash-safe)
+      // Verificação de segurança (Anti-duplicação na FILA e no HISTÓRICO)
+      if(IsProcessed(signalId) || GlobalVariableCheck("SQ_" + signalId)) continue;
+
+      // Serializa o objecto individual do sinal para a fila
+      string signalJson = signal.Serialize();
       AddToSignalQueue(signalJson);
-      AddProcessed(signalId); // Marcar ANTES da execução — evita duplicação em crash
-      
-      pos = objEnd;
    }
 }
 
@@ -810,7 +855,10 @@ void AddToSignalQueue(string json) {
    SignalQueue[s].json = json;
    SignalQueue[s].timestamp = TimeCurrent();
    
-   string signalId = ExtractValue(json, "id");
+   string signalId = "";
+   CJAVal j;
+   if(j.Deserialize(json)) signalId = j["id"].ToStr();
+   
    GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
 }
 
@@ -818,15 +866,21 @@ void ProcessSignalQueue()
 {
    if(ArraySize(SignalQueue) == 0) return;
 
-   // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
-   ExecuteSignal(json);
+   CJAVal parser;
+   parser.Deserialize(json);
+   string sigId = parser["id"].ToStr();
 
-   // Remover o sinal processado da fila
-   string signalId = ExtractValue(json, "id");
-   GlobalVariableDel("SQ_" + signalId);
-
-   RemoveSignalQueueIndex(0);
+   if(ExecuteSignal(json))
+   {
+      GlobalVariableDel("SQ_" + sigId);
+      RemoveSignalQueueIndex(0);
+      Print("🗑️ Sinal ", sigId, " removido da fila (Sucesso/Inválido)");
+   }
+   else
+   {
+      Print("⏳ Sinal ", sigId, " manteve-se na fila para nova tentativa.");
+   }
 }
 
 void RemoveSignalQueueIndex(int idx)
@@ -909,12 +963,25 @@ int GetDynamicDeviation(string sym)
 bool CanTradeSymbol(string sym)
 {
    string gvName = "CD_" + sym;
-   if(GlobalVariableCheck(gvName))
+   if(!GlobalVariableCheck(gvName)) return true;
+   return (TimeCurrent() >= (datetime)GlobalVariableGet(gvName));
+}
+
+ulong FindPositionBySymbol(string sym)
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
-      datetime lastTrade = (datetime)GlobalVariableGet(gvName);
-      if(TimeCurrent() - lastTrade < InpTradeCooldown) return false;
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t))
+      {
+         if(PositionGetString(POSITION_SYMBOL) == sym &&
+            PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+         {
+            return t;
+         }
+      }
    }
-   return true;
+   return 0;
 }
 
 void SetSymbolCooldown(string sym)
@@ -922,140 +989,155 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
-void ExecuteSignal(string json)
+bool ExecuteSignal(string json)
 {
-    string pair  = ExtractValue(json, "pair");
-    string dir   = ExtractValue(json, "direction");
-    string type  = ExtractValue(json, "orderType");
-    double entry = StringToDouble(ExtractValue(json, "entry"));
-    double sl    = StringToDouble(ExtractValue(json, "sl"));
-    double tp    = StringToDouble(ExtractValue(json, "tp"));
-    string sigId = ExtractValue(json, "id");
-    
-    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
-    if(IsXAU(pair) && !IsTradingSession())
-    {
-       Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
-       return;
-    }
-    
-    if(!SymbolSelect(pair, true))
-    {
-       for(int s = 0; s < SymbolsTotal(false); s++)
-       {
-          string sym = SymbolName(s, false);
-          string upperSym  = sym; StringToUpper(upperSym);
-          string upperPair = pair; StringToUpper(upperPair);
+   CJAVal parser;
+   if(!parser.Deserialize(json)) return true; // JSON inválido, removemos da fila para não travar
+   
+   string dir   = parser["type"].ToStr();
+   string pair  = parser["symbol"].ToStr();
+   string type  = parser["order_type"].ToStr();
+   double entry = parser["entry"].ToDbl();
+   double sl    = parser["sl"].ToDbl();
+   double tp    = parser["tp"].ToDbl();
+   string sigId = parser["id"].ToStr();
+   
+   // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
+   if(IsXAU(pair) && !IsTradingSession())
+   {
+      Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
+      return true; // Rejeitado por regra, removemos da fila
+   }
+   
+   if(!SymbolSelect(pair, true))
+   {
+      for(int s = 0; s < SymbolsTotal(false); s++)
+      {
+         string sym = SymbolName(s, false);
+         string upperSym  = sym; StringToUpper(upperSym);
+         string upperPair = pair; StringToUpper(upperPair);
 
-          if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
-          {
-             pair = sym;
-             SymbolSelect(pair, true);
-             break;
-          }
-       }
-    }
-    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
+         if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+         {
+            pair = sym;
+            SymbolSelect(pair, true);
+            break;
+         }
+      }
+   }
+   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return false; } // Tentará novamente
 
-    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
-    if(CountAuraPositions() >= InpMaxOrders)
-    {
-       Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
-       return;
-    }
+   // --- SYMBOL SYNC WARMUP (Institutional Fix for Zero Prices) ---
+   Sleep(500);
+   if(!SymbolIsSynchronized(pair)) {
+      Print("⏳ Aguardando sincronismo de dados para ", pair, "...");
+      for(int i = 0; i < 5; i++) {
+         if(SymbolIsSynchronized(pair)) break;
+         Sleep(200);
+      }
+   }
 
-    // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
-    int currentBuys = 0, currentSells = 0;
-    for(int i = PositionsTotal() - 1; i >= 0; i--) {
-       ulong t = PositionGetTicket(i);
-       if(t > 0 && PositionSelectByTicket(t)) {
-          if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
-             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
-             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
-          }
-       }
-    }
+   // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
+   if(CountAuraPositions() >= InpMaxOrders)
+   {
+      Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
+      return true; // Ignorado por gestão, removemos da fila
+   }
 
-    if(dir == "BUY" && currentBuys >= InpMaxBuys) {
-       Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
-       return;
-    }
-    if(dir == "SELL" && currentSells >= InpMaxSells) {
-       Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
-       return;
-    }
+   // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
+   int currentBuys = 0, currentSells = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t)) {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
+         }
+      }
+   }
+
+   if(dir == "BUY" && currentBuys >= InpMaxBuys) {
+      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
+      return true;
+   }
+   if(dir == "SELL" && currentSells >= InpMaxSells) {
+      Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
+      return true;
+   }
 
    // --- SYMBOL COOLDOWN ---
    if(!CanTradeSymbol(pair)) {
       Print("⏳ Cooldown activo para ", pair, " | Aguardando intervalo de segurança.");
-      return;
+      return false; // Esperar
    }
 
    double point  = SymbolInfoDouble(pair, SYMBOL_POINT);
    int digits    = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
    double ask    = SymbolInfoDouble(pair, SYMBOL_ASK);
    double bid    = SymbolInfoDouble(pair, SYMBOL_BID);
+   
+   if(ask <= 0 || bid <= 0) {
+      Print("❌ [TICK-ERROR] Preços inválidos para ", pair, " (Ask: ", ask, ", Bid: ", bid, "). Rejeitando sinal.");
+      return false;
+   }
    double entryPrice = (dir == "BUY") ? ask : bid;
    
-   // Fallback se JSON vier zerado
    if(entry <= 0) entry = entryPrice;
    
-    // 1. CÁLCULO DE PONTOS (Normalização Institucional)
+   if(IsXAU(pair)) {
+      if(entry < 1000 || entry > 10000) entry = entryPrice;
+   } else {
+      if(entry < 0.01 || entry > 10) entry = entryPrice;
+   }
+
+   if(sl <= 0 || MathAbs(entry - sl) < (10 * point)) {
+      sl = (dir == "BUY") ? entry - (300 * point) : entry + (300 * point);
+   }
+
+   if(tp <= 0 || MathAbs(entry - tp) < (10 * point)) {
+      tp = (dir == "BUY") ? entry + (500 * point) : entry - (500 * point);
+   }
+   
     double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
     double tpDist = (tp > 0) ? MathAbs(entry - tp) : 0;
     
-    // Fallback Inteligente (Hierarquia: Estrutura de Mercado > ATR > Pontos Fixos)
     if(slDist <= 0) {
-       // Tenta buscar o último swing de estrutura (10 velas no M15)
        double structureSL = (dir == "BUY") ? GetLastLow(pair, PERIOD_M15, 10) : GetLastHigh(pair, PERIOD_M15, 10);
        
        if(structureSL > 0 && MathAbs(entry - structureSL) > (10 * point)) {
           slDist = MathAbs(entry - structureSL);
        } else {
-          // Fallback de volatilidade se a estrutura falhar ou for demasiado curta
           double atr = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
           slDist = (atr > 0) ? (atr * 2.2) : (300 * point); 
        }
     }
     if(tpDist <= 0) {
-       tpDist = slDist * 1.5; // Alvo padrão RR 1:1.5
+       tpDist = slDist * 1.5; 
     }
     
-    // --- SOLUÇÃO DEFINITIVA SL/TP (ENGINE DE PROTEÇÃO) ---
-    
-    // 1. Determinar o Limite de Segurança baseado no Ativo
     int hardMaxSL = (IsXAU(pair) || (StringFind(pair, "JPY") >= 0)) ? InpMaxSLJPY : InpMaxSLForex;
     
-    // 2. Cálculo Base dos Pontos
     int slPoints = (int)(slDist / point);
     
-    // 3. Sanity Check contra ATR (Proteção contra Swings Gigantes/Errados)
     double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
-    int atrLimitPoints = (int)((currentATR * 3.5) / point); // 3.5x ATR é o limite técnico de sanidade
+    int atrLimitPoints = (int)((currentATR * 3.5) / point);
     
     if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
-       Print("⚠️ [SMC-GUARD] SL de Estrutura (", slPoints, ") excessivo. Ajustando para Sanidade ATR (", atrLimitPoints, ")");
        slPoints = atrLimitPoints;
     }
     
-    // 4. Aplicação do Hard Limit do Utilizador (O que tu definiste nos Inputs)
     if(slPoints > hardMaxSL) {
-       Print("⚠️ [HARD-LIMIT] SL Reduzido de ", slPoints, " para ", hardMaxSL, " (Limite de Segurança)");
        slPoints = hardMaxSL;
     }
     
-    // 5. Garantir Distância Mínima e Broker Compliance (StopLevel)
     int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
-    slPoints = (int)MathMax(slPoints, stopLevel + 10); // Mínimo de StopLevel + 10 pontos de buffer
+    slPoints = (int)MathMax(slPoints, stopLevel + 10);
     
-    // 6. Cálculo do TP Proporcional
     int tpPoints = (int)(tpDist / point);
-    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5); // Fallback RR 1:1.5 se TP vier zerado
+    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5);
     
-    // Garantir que o TP também respeita o StopLevel
     tpPoints = (int)MathMax(tpPoints, stopLevel + 10);
 
-   // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
    double nSL = 0, nTP = 0;
    if(dir == "BUY") {
       nSL = NormalizeDouble(entry - (slPoints * point), digits);
@@ -1065,67 +1147,99 @@ void ExecuteSignal(string json)
       nTP = NormalizeDouble(entry - (tpPoints * point), digits);
    }
 
-   // 3. VALIDAÇÃO DE STOP LEVEL (FBS/Broker Enforcement)
-   double minDistance = (stopLevel + 10) * point; // Buffer de 10 pontos
+   MqlTick lastTick;
+   if(!SymbolInfoTick(pair, lastTick)) return false;
+   
+   double marketPrice = (dir == "BUY") ? lastTick.ask : lastTick.bid;
+   double tickSize    = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
 
-   if(dir == "BUY") {
-      if(entry - nSL < minDistance) nSL = NormalizeDouble(entry - minDistance, digits);
-      if(nTP > 0 && nTP - entry < minDistance) nTP = NormalizeDouble(entry + minDistance, digits);
-   } else {
-      if(nSL - entry < minDistance) nSL = NormalizeDouble(entry + minDistance, digits);
-      if(nTP > 0 && entry - nTP < minDistance) nTP = NormalizeDouble(entry - minDistance, digits);
+   if(type != "LIMIT") {
+      if(dir == "BUY") {
+         nSL = marketPrice - (slPoints * point);
+         nTP = (tpPoints > 0) ? marketPrice + (tpPoints * point) : 0;
+      } else {
+         nSL = marketPrice + (slPoints * point);
+         nTP = (tpPoints > 0) ? marketPrice - (tpPoints * point) : 0;
+      }
    }
 
-   // 4. DEBUG DE SEGURANÇA (Solicitado pelo utilizador)
-   Print("------------------------------------------");
-   Print("🚀 EXECUTANDO SINAL: ", sigId, " | ", pair);
-   Print("ENTRY: ", entry);
-   Print("SL: ", nSL);
-   Print("TP: ", nTP);
-   Print("POINT: ", point);
-   Print("DIGITS: ", digits);
-   Print("STOPLEVEL: ", stopLevel);
+   if(tickSize > 0) {
+      nSL = MathRound(nSL / tickSize) * tickSize;
+      if(nTP > 0) nTP = MathRound(nTP / tickSize) * tickSize;
+   }
    
-   // 5. VALIDAÇÃO DE LADO (Invalid Checks)
+   nSL = NormalizeDouble(nSL, digits);
+   if(nTP > 0) nTP = NormalizeDouble(nTP, digits);
+
+   double freezeLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_FREEZE_LEVEL) * point;
+   double brokerMin   = MathMax(stopLevel * point, freezeLevel);
+   
+   double minDistance = MathMax(
+      brokerMin + (20 * point), 
+      IsXAU(pair) ? (150 * point) : (30 * point)
+   );
+
+   if(dir == "BUY") {
+      if(marketPrice - nSL < minDistance) nSL = NormalizeDouble(marketPrice - minDistance, digits);
+      if(nTP > 0 && nTP - marketPrice < minDistance) nTP = NormalizeDouble(marketPrice + minDistance, digits);
+   } else {
+      if(nSL - marketPrice < minDistance) nSL = NormalizeDouble(marketPrice + minDistance, digits);
+      if(nTP > 0 && marketPrice - nTP < minDistance) nTP = NormalizeDouble(marketPrice - minDistance, digits);
+   }
+
    bool invalid = false;
    if(dir == "BUY") {
-      if(nTP > 0 && nTP <= entry) { Print("❌ TP INVÁLIDO (BUY): TP <= ENTRY"); invalid = true; }
-      if(nSL >= entry) { Print("❌ SL INVÁLIDO (BUY): SL >= ENTRY"); invalid = true; }
+      if(nTP > 0 && nTP <= entry) invalid = true;
+      if(nSL >= entry) invalid = true;
    } else {
-      if(nTP > 0 && nTP >= entry) { Print("❌ TP INVÁLIDO (SELL): TP >= ENTRY"); invalid = true; }
-      if(nSL <= entry) { Print("❌ SL INVÁLIDO (SELL): SL <= ENTRY"); invalid = true; }
+      if(nTP > 0 && nTP >= entry) invalid = true;
+      if(nSL <= entry) invalid = true;
    }
 
-   if(invalid) return;
+   if(invalid) return true; // Sinal inválido, removemos da fila
 
    double risk = GetDynamicRisk((double)slPoints);
    double lot  = CalculateLot(pair, risk, MathAbs(entry - nSL), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
 
    if(lot > 0) {
       trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+      trade.SetTypeFillingBySymbol(pair);
+
+      if(!ValidateStops(pair, dir, entryPrice, nSL, nTP))
+      {
+         Print("❌ [EXECUTION-ABORT] Stops inválidos após normalização para ", pair);
+         return true; // Erro fatal de stops, removemos
+      }
 
       bool success = false;
       if(type == "LIMIT") {
          if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
          else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, 0, nSL, nTP);
-         else             success = trade.Sell(lot, pair, 0, nSL, nTP);
+         if(dir == "BUY") success = trade.Buy(lot, pair);
+         else             success = trade.Sell(lot, pair);
       }
 
       if(success) {
-         Print("✅ Ordem ", type, " Enviada | ", pair, " | Lote: ", lot);
+         Print("✅ Ordem executada com sucesso!");
          SetSymbolCooldown(pair);
          
-         // Adicionar à fila de protecção assíncrona (Apex Guardian)
          if(sigId != "") {
-            ulong ticket = trade.ResultOrder();
+            Sleep(500); 
+            ulong ticket = FindPositionBySymbol(pair);
+            
             if(ticket > 0) AddToPendingQueue(ticket, nSL, nTP, sigId);
+            else Print("⚠️ [WARNING] Posição aberta mas não encontrada para proteção imediata. Tentará no próximo ciclo.");
+            
+            AddProcessed(sigId);
          }
+         return true; // SUCESSO!
       } else {
          Print("❌ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
+         return false; // FALHA TEMPORÁRIA, TENTAR NOVAMENTE
       }
    }
+   return false;
 }
 
 void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
@@ -1201,7 +1315,7 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
    sl = NormalizeDouble(sl, digits);
    tp = NormalizeDouble(tp, digits);
 
-   if(trade.PositionModify(ticket, sl, tp))
+   if(SafePositionModify(ticket, sl, tp))
    {
       Print("🛡️ Protecção OK | Ticket: ", ticket);
       SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
@@ -1288,7 +1402,7 @@ void ProtectManualOrders()
       tp = NormalizeDouble(tp, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS));
 
       if(sl != currentSL || tp != currentTP) {
-         if(trade.PositionModify(ticket, sl, tp))
+         if(SafePositionModify(ticket, sl, tp))
             Print("✅ Manual Protected (INSTITUTIONAL): ", ticket, " | SL: ", sl, " | TP: ", tp);
       }
    }
@@ -1304,7 +1418,7 @@ void ReportBalance()
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
    double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
-   double floatingPnL = equity - balance;
+   double floatingPnL = CalculateAuraFloatingPnL();
 
    double marginLevel = 0;
    if(margin > 0) marginLevel = (equity / margin) * 100.0;
@@ -1338,6 +1452,21 @@ void ReportBalance()
 
 
 
+
+double CalculateAuraFloatingPnL()
+{
+   double total = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            total += PositionGetDouble(POSITION_PROFIT);
+      }
+   }
+   return total;
+}
 
 void UpdateChartVisuals()
 {
@@ -1376,7 +1505,7 @@ string SendPost(string url, string payload)
    StringToCharArray(payload, post);
    ResetLastError();
 
-   int code = WebRequest("POST", url, headers, 5000, post, res, rh);
+   int code = WebRequest("POST", url, headers, 10000, post, res, rh);
 
    if(code == -1)
    {
@@ -1396,7 +1525,7 @@ string SendGet(string url)
 
    ResetLastError();
 
-   int code = WebRequest("GET", url, headers, 5000, data, res, rh);
+   int code = WebRequest("GET", url, headers, 10000, data, res, rh);
 
    if(code == -1)
    {
@@ -1467,7 +1596,7 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    double lot  = riskVal / ((slDist / tSize) * tVal);
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
    double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
-   lot = MathMax(minL, MathFloor(lot / step) * step);
+   lot = NormalizeDouble(MathMax(minL, MathFloor(lot / step) * step), 2);
    
    double margin = 0;
    double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
@@ -1518,49 +1647,7 @@ void AddProcessed(string id)
    GlobalVariableSet(key, (double)TimeCurrent());
 }
 
-string ExtractValue(string json, string key) {
-   // 1. Procurar a chave com aspas
-   string searchKey = "\"" + key + "\"";
-   int keyPos = StringFind(json, searchKey);
-   if(keyPos < 0) return "";
-
-   // 2. Encontrar o início do valor após os dois pontos ":"
-   int colonPos = StringFind(json, ":", keyPos + StringLen(searchKey));
-   if(colonPos < 0) return "";
-
-   int valueStart = colonPos + 1;
-   
-   // Ignorar espaços em branco iniciais
-   while(valueStart < StringLen(json) && 
-         ((short)StringGetCharacter(json, valueStart) == ' ' || (short)StringGetCharacter(json, valueStart) == '\t' || (short)StringGetCharacter(json, valueStart) == '\n' || (short)StringGetCharacter(json, valueStart) == '\r'))
-      valueStart++;
-
-   string result = "";
-   short firstChar = (short)StringGetCharacter(json, valueStart);
-
-   if(firstChar == '\"') {
-      // Caso seja STRING: pegar tudo entre as próximas aspas
-      int endQuote = StringFind(json, "\"", valueStart + 1);
-      if(endQuote > valueStart) result = StringSubstr(json, valueStart + 1, endQuote - (valueStart + 1));
-   } else {
-      // Caso seja NÚMERO/BOOLEAN: pegar até a próxima vírgula ou fecho de chaveta
-      int commaPos = StringFind(json, ",", valueStart);
-      int bracePos = StringFind(json, "}", valueStart);
-      int endPos = -1;
-      
-      if(commaPos > 0 && bracePos > 0) endPos = MathMin(commaPos, bracePos);
-      else if(commaPos > 0) endPos = commaPos;
-      else if(bracePos > 0) endPos = bracePos;
-      
-      if(endPos > valueStart) result = StringSubstr(json, valueStart, endPos - valueStart);
-      else result = StringSubstr(json, valueStart); // Último valor
-   }
-
-   // Limpeza final de espaços
-   StringTrimLeft(result);
-   StringTrimRight(result);
-   return result;
-}
+// ExtractValue removido em favor da biblioteca JAson.mqh
 
 double GetATR(string sym, ENUM_TIMEFRAMES tf)
 {
@@ -1585,10 +1672,19 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
    }
    
    // 2. Se não existir, criar novo handle
-   int newIdx = ArrayResize(g_atrCache, size + 1) - 1;
+   ArrayResize(g_atrCache, size + 1);
+   int newIdx = size;
    g_atrCache[newIdx].symbol = sym;
    g_atrCache[newIdx].tf = tf;
    g_atrCache[newIdx].handle = iATR(sym, tf, 14);
+   
+   if(g_atrCache[newIdx].handle == INVALID_HANDLE)
+   {
+      Print("❌ [ATR-ERROR] Falha ao criar handle ATR para ", sym, " | Erro: ", GetLastError());
+      ArrayResize(g_atrCache, size); // Reverter o resize
+      return 0;
+   }
+
    g_atrCache[newIdx].lastBar = currentBar;
    g_atrCache[newIdx].value = 0;
    
@@ -1613,6 +1709,9 @@ void CloseAllPositions()
          ulong ticket=PositionGetTicket(i);
          if(ticket<=0) continue;
          if(!PositionSelectByTicket(ticket)) continue;
+
+         if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic())
+            continue;
 
          ResetLastError();
          bool closed = trade.PositionClose(ticket);
