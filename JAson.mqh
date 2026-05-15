@@ -102,7 +102,7 @@ public:
       Clear();
       Skip(s, pos);
       if(pos >= StringLen(s)) return false;
-      char c = StringGetCharacter(s, pos);
+      ushort c = StringGetCharacter(s, pos);
       if(c == '{') return ParseObj(s, pos);
       if(c == '[') return ParseArray(s, pos);
       if(c == '\"') return ParseStr(s, pos);
@@ -116,7 +116,7 @@ private:
    {
       while(pos < StringLen(s))
       {
-         char c = StringGetCharacter(s, pos);
+         ushort c = StringGetCharacter(s, pos);
          if(c > 32) break;
          pos++;
       }
@@ -140,7 +140,7 @@ private:
          ArrayResize(m_data, sz + 1);
          m_data[sz] = v;
          Skip(s, pos);
-         char c = StringGetCharacter(s, pos);
+         ushort c = (ushort)StringGetCharacter(s, pos);
          if(c == ',') pos++;
          else if(c == '}') { pos++; return true; }
       }
@@ -180,7 +180,7 @@ private:
          ArrayResize(m_data, sz + 1);
          m_data[sz] = v;
          Skip(s, pos);
-         char c = StringGetCharacter(s, pos);
+         ushort c = (ushort)StringGetCharacter(s, pos);
          if(c == ',') pos++;
          else if(c == ']') { pos++; return true; }
       }
@@ -212,7 +212,7 @@ private:
       int start = pos;
       while(pos < StringLen(s))
       {
-         char c = StringGetCharacter(s, pos);
+         ushort c = StringGetCharacter(s, pos);
          if(c == ',' || c == '}' || c == ']' || c <= 32) break;
          pos++;
       }
@@ -228,8 +228,8 @@ private:
       StringReplace(s, "\\\"", "\"");
       StringReplace(s, "\\\\", "\\");
       StringReplace(s, "\\/", "/");
-      StringReplace(s, "\\b", "\b");
-      StringReplace(s, "\\f", "\f");
+      StringReplace(s, "\\b", ShortToString(8));
+      StringReplace(s, "\\f", ShortToString(12));
       StringReplace(s, "\\n", "\n");
       StringReplace(s, "\\r", "\r");
       StringReplace(s, "\\t", "\t");
