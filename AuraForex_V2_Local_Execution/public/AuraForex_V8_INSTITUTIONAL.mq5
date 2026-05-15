@@ -1001,6 +1001,7 @@ bool ExecuteSignal(string json)
    CJAVal jParser;
    if(!jParser.Deserialize(json)) return true; // JSON invalido, removemos da fila para nao travar
    
+   string sigId = jParser["id"].ToStr();
    string dir   = jParser["type"].ToStr();
    string pair  = jParser["symbol"].ToStr();
 
@@ -1014,7 +1015,6 @@ bool ExecuteSignal(string json)
    double entry = jParser["entry"].ToDbl();
    double sl    = jParser["sl"].ToDbl();
    double tp    = jParser["tp"].ToDbl();
-   string sigId = jParser["id"].ToStr();
    
    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
    if(IsXAU(pair) && !IsTradingSession())
