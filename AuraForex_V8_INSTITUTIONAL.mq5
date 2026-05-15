@@ -867,9 +867,9 @@ void ProcessSignalQueue()
    if(ArraySize(SignalQueue) == 0) return;
 
    string json = SignalQueue[0].json;
-   CJAVal parser;
-   parser.Deserialize(json);
-   string sigId = parser["id"].ToStr();
+   CJAVal jParser;
+   jParser.Deserialize(json);
+   string sigId = jParser["id"].ToStr();
 
    if(ExecuteSignal(json))
    {
@@ -991,16 +991,16 @@ void SetSymbolCooldown(string sym)
 
 bool ExecuteSignal(string json)
 {
-   CJAVal parser;
-   if(!parser.Deserialize(json)) return true; // JSON inválido, removemos da fila para não travar
+   CJAVal jParser;
+   if(!jParser.Deserialize(json)) return true; // JSON invalido, removemos da fila para nao travar
    
-   string dir   = parser["type"].ToStr();
-   string pair  = parser["symbol"].ToStr();
-   string type  = parser["order_type"].ToStr();
-   double entry = parser["entry"].ToDbl();
-   double sl    = parser["sl"].ToDbl();
-   double tp    = parser["tp"].ToDbl();
-   string sigId = parser["id"].ToStr();
+   string dir   = jParser["type"].ToStr();
+   string pair  = jParser["symbol"].ToStr();
+   string type  = jParser["order_type"].ToStr();
+   double entry = jParser["entry"].ToDbl();
+   double sl    = jParser["sl"].ToDbl();
+   double tp    = jParser["tp"].ToDbl();
+   string sigId = jParser["id"].ToStr();
    
    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
    if(IsXAU(pair) && !IsTradingSession())
