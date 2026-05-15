@@ -421,8 +421,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let lastBalance = (risk.balance && risk.balance > 0) ? risk.balance : (license ? license.balance : 0);
     if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
     
-    // Fallback para 5% se não houver config global
-    const dailyTargetMoney = lastBalance * 0.05;
+    // Usar a meta configurada no EA (ou 5% como fallback)
+    const targetPercent = (risk.dailyProfitTarget && risk.dailyProfitTarget > 0) ? (risk.dailyProfitTarget / 100) : 0.05;
+    const dailyTargetMoney = lastBalance * targetPercent;
 
     res.json({
       success: true,
