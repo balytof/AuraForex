@@ -1021,10 +1021,39 @@ void ExecuteSignal(string json)
        tpDist = slDist * 1.5; // Alvo padrão RR 1:1.5
     }
     
-    // Evitar divisão por zero e garantir distância mínima
-    if(point <= 0) point = 0.0001; 
-    int slPoints = (int)MathMax(100, slDist / point);
-    int tpPoints = (int)MathMax(100, tpDist / point);
+    // --- SOLUÇÃO DEFINITIVA SL/TP (ENGINE DE PROTEÇÃO) ---
+    
+    // 1. Determinar o Limite de Segurança baseado no Ativo
+    int hardMaxSL = (IsXAU(pair) || (StringFind(pair, "JPY") >= 0)) ? InpMaxSLJPY : InpMaxSLForex;
+    
+    // 2. Cálculo Base dos Pontos
+    int slPoints = (int)(slDist / point);
+    
+    // 3. Sanity Check contra ATR (Proteção contra Swings Gigantes/Errados)
+    double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
+    int atrLimitPoints = (int)((currentATR * 3.5) / point); // 3.5x ATR é o limite técnico de sanidade
+    
+    if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
+       Print("⚠️ [SMC-GUARD] SL de Estrutura (", slPoints, ") excessivo. Ajustando para Sanidade ATR (", atrLimitPoints, ")");
+       slPoints = atrLimitPoints;
+    }
+    
+    // 4. Aplicação do Hard Limit do Utilizador (O que tu definiste nos Inputs)
+    if(slPoints > hardMaxSL) {
+       Print("⚠️ [HARD-LIMIT] SL Reduzido de ", slPoints, " para ", hardMaxSL, " (Limite de Segurança)");
+       slPoints = hardMaxSL;
+    }
+    
+    // 5. Garantir Distância Mínima e Broker Compliance (StopLevel)
+    int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
+    slPoints = (int)MathMax(slPoints, stopLevel + 10); // Mínimo de StopLevel + 10 pontos de buffer
+    
+    // 6. Cálculo do TP Proporcional
+    int tpPoints = (int)(tpDist / point);
+    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5); // Fallback RR 1:1.5 se TP vier zerado
+    
+    // Garantir que o TP também respeita o StopLevel
+    tpPoints = (int)MathMax(tpPoints, stopLevel + 10);
 
    // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
    double nSL = 0, nTP = 0;
@@ -1463,16 +1492,45 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    return NormalizeDouble(lot, 2);
 }
 
-double GetLastLow(string sym, int bars) {
+struct SymbolCooldownData {
+   string symbol;
+   datetime lastTrade;
+};
+SymbolCooldownData g_symbolCooldowns[];
+
+bool CanTradeSymbol(string sym) {
+   for(int i = 0; i < ArraySize(g_symbolCooldowns); i++) {
+      if(g_symbolCooldowns[i].symbol == sym) {
+         if(TimeCurrent() - g_symbolCooldowns[i].lastTrade < InpTradeCooldown) return false;
+         return true;
+      }
+   }
+   return true;
+}
+
+void SetSymbolCooldown(string sym) {
+   for(int i = 0; i < ArraySize(g_symbolCooldowns); i++) {
+      if(g_symbolCooldowns[i].symbol == sym) {
+         g_symbolCooldowns[i].lastTrade = TimeCurrent();
+         return;
+      }
+   }
+   int size = ArraySize(g_symbolCooldowns);
+   ArrayResize(g_symbolCooldowns, size + 1);
+   g_symbolCooldowns[size].symbol = sym;
+   g_symbolCooldowns[size].lastTrade = TimeCurrent();
+}
+
+double GetLastLow(string sym, ENUM_TIMEFRAMES tf, int bars) {
    double lows[]; ArraySetAsSeries(lows, true);
-   if(CopyLow(sym, _Period, 1, bars, lows) > 0) {
+   if(CopyLow(sym, tf, 1, bars, lows) > 0) {
       double m = lows[0]; for(int i=1; i<ArraySize(lows); i++) if(lows[i] < m) m = lows[i]; return m;
    } return 0;
 }
 
-double GetLastHigh(string sym, int bars) {
+double GetLastHigh(string sym, ENUM_TIMEFRAMES tf, int bars) {
    double highs[]; ArraySetAsSeries(highs, true);
-   if(CopyHigh(sym, _Period, 1, bars, highs) > 0) {
+   if(CopyHigh(sym, tf, 1, bars, highs) > 0) {
       double m = highs[0]; for(int i=1; i<ArraySize(highs); i++) if(highs[i] > m) m = highs[i]; return m;
    } return 0;
 }
