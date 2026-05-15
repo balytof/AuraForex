@@ -682,10 +682,13 @@ void ValidateLicense()
    if(TimeCurrent() - lastValidate < 30  && !IsAuthorized) return; // Tenta a cada 30s se falhou
 
    lastValidate = TimeCurrent();
-   string url = InpServerUrl + "/ea/validate?key=" + InpLicenseKey + "&account=" + (string)AccountInfoInteger(ACCOUNT_LOGIN);
-   string res = SendGet(url);
+   
+   // CORRECÇÃO INSTITUCIONAL v2
+   string url = InpServerUrl + "/ea/validate";
+   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
+   string res = SendPost(url, payload);
 
-   if(StringFind(res, "\"status\":\"success\"") >= 0) {
+   if(StringFind(res, "\"status\":\"OK\"") >= 0) {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
    } else {
@@ -949,6 +952,13 @@ void ExecuteSignal(string json)
     }
     if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
 
+    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
+    if(CountAuraPositions() >= InpMaxOrders)
+    {
+       Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
+       return;
+    }
+
     // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
     int currentBuys = 0, currentSells = 0;
     for(int i = PositionsTotal() - 1; i >= 0; i--) {
@@ -1049,8 +1059,8 @@ void ExecuteSignal(string json)
          if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
          else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, ask, nSL, nTP);
-         else             success = trade.Sell(lot, pair, bid, nSL, nTP);
+         if(dir == "BUY") success = trade.Buy(lot, pair, 0, nSL, nTP);
+         else             success = trade.Sell(lot, pair, 0, nSL, nTP);
       }
 
       if(success) {
@@ -1236,9 +1246,9 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   static ulong lastReport = 0;
-   if(GetTickCount() - lastReport < 60000) return; // Reportar a cada 60 segundos (1 minuto)
-   lastReport = GetTickCount();
+   static datetime lastReport = 0;
+   if(TimeCurrent() - lastReport < 60) return; // Reportar a cada 60 segundos (1 minuto)
+   lastReport = TimeCurrent();
 
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
