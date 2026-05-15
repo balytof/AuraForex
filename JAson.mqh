@@ -50,7 +50,7 @@ public:
       m_type = jtUNDEF;
    }
 
-   CJAVal& operator[](string key)
+   CJAVal operator[](string key)
    {
       if(m_type != jtOBJ) { m_type = jtOBJ; Clear(); }
       for(int i = 0; i < ArraySize(m_data); i++) if(m_data[i].m_key == key) return *m_data[i];
@@ -62,7 +62,7 @@ public:
       return *v;
    }
 
-   CJAVal& operator[](int i)
+   CJAVal operator[](int i)
    {
       if(m_type != jtARRAY) { m_type = jtARRAY; Clear(); }
       int s = ArraySize(m_data);
