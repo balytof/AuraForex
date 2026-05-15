@@ -402,7 +402,14 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
 
     const risk = getRiskManager(req.user.id);
 
-    console.log(`[HMI-DEBUG] UserID: ${req.user.id} | Email: ${req.user.email} | isLocked: ${risk.dailyProfitLocked || risk.circuitBreaker}`);
+    // Reset forçado se solicitado (apenas para debug)
+    if (req.query.forceReset === "true") {
+       risk.dailyProfitLocked = false;
+       risk.circuitBreaker = false;
+       console.log(`[FORCE-RESET] Bloqueios limpos para o usuário: ${req.user.id}`);
+    }
+
+    log.info(`[HMI-DEBUG] UserID: ${req.user.id} | Email: ${req.user.email} | isLocked: ${risk.dailyProfitLocked || risk.circuitBreaker}`);
 
     const now = new Date();
     const midnight = new Date();
