@@ -15,6 +15,7 @@ const filesToUpload = [
     { local: './apex_broker.js', remote: '/root/AuraForex/apex_broker.js' },
     { local: './signals/smc_signal_engine.js', remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: './risk/risk.js', remote: '/root/AuraForex/risk/risk.js' },
+    { local: './risk/store.js', remote: '/root/AuraForex/risk/store.js' },
     { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.ex5' },
     { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.mq5' },
     { local: './JAson.mqh', remote: '/root/AuraForex/public/JAson.mqh' },
@@ -46,7 +47,7 @@ conn.on('ready', () => {
                 if (completed === filesToUpload.length) {
                     console.log('🔄 Reiniciando servidores no VPS via PM2...');
                     // Comando para reiniciar o processo principal
-                    conn.exec('cd /root/AuraForex && npx pm2 restart server || npx pm2 start server.js --name server', (err, stream) => {
+                    conn.exec('cd /root/AuraForex && npx pm2 restart aura-v2-elite || npx pm2 start server.js --name aura-v2-elite', (err, stream) => {
                         if (err) throw err;
                         stream.on('close', () => {
                             console.log('✨ TUDO ATUALIZADO E REINICIADO NO VPS!');
