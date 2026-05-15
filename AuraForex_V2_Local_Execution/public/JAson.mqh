@@ -53,13 +53,13 @@ public:
    CJAVal& operator[](string key)
    {
       if(m_type != jtOBJ) { m_type = jtOBJ; Clear(); }
-      for(int i = 0; i < ArraySize(m_data); i++) if(m_data[i].m_key == key) return m_data[i];
+      for(int i = 0; i < ArraySize(m_data); i++) if(m_data[i].m_key == key) return *m_data[i];
       CJAVal *v = new CJAVal(GetPointer(this), jtUNDEF);
       v.m_key = key;
       int s = ArraySize(m_data);
       ArrayResize(m_data, s + 1);
       m_data[s] = v;
-      return v;
+      return *v;
    }
 
    CJAVal& operator[](int i)
@@ -74,7 +74,7 @@ public:
             m_data[j] = new CJAVal(GetPointer(this), jtUNDEF);
          }
       }
-      return m_data[i];
+      return *m_data[i];
    }
 
    void operator=(string v) { m_bv = v; m_type = jtSTR; }
