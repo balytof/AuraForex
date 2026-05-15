@@ -11,6 +11,7 @@ require("dotenv").config();
 
 const prisma = require("./db");
 const { encrypt, decrypt } = require("./utils/encryption");
+const log = require("./utils/logger");
 
 // APEX SMC Broker Layer
 const { createBroker } = require("./apex_broker");
@@ -291,7 +292,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     res.json({ success: true, message: "Conta criada com sucesso." });
   } catch (err) {
-    console.error("Register Error:", err);
+    log.info(`[HMI-ERROR] ${err.message} \n ${err.stack}`);
     res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
@@ -360,7 +361,7 @@ app.post("/api/auth/login", async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
+    log.info(`[HMI-ERROR] ${err.message} \n ${err.stack}`);
     res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
@@ -416,7 +417,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     midnight.setHours(24, 0, 0, 0);
     const timeUntilReset = Math.floor((midnight - now) / 1000);
 
-    let lastBalance = license ? license.balance : (risk.balance || 0);
+    // Priorizar saldo em tempo real do RiskManager (MT5) sobre a base de dados
+    let lastBalance = (risk.balance && risk.balance > 0) ? risk.balance : (license ? license.balance : 0);
     if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
     
     // Fallback para 5% se não houver config global
@@ -435,6 +437,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       updatedAt: license ? license.updatedAt : null
     });
   } catch (err) {
+    log.info(`[HMI-ERROR] ${err.message} \n ${err.stack}`);
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
   }
 });
