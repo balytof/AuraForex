@@ -35,7 +35,7 @@ public:
       for(int i = 0; i < ArraySize(other.m_data); i++)
       {
          CJAVal *v = new CJAVal();
-         v.Copy(other.m_data[i]);
+         v.Copy(*other.m_data[i]);
          v.m_parent = GetPointer(this);
          int sz = ArraySize(m_data);
          ArrayResize(m_data, sz + 1);
