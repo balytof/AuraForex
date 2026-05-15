@@ -13,6 +13,7 @@ const filesToUpload = [
     { local: './ea_api.js', remote: '/root/AuraForex/ea_api.js' },
     { local: './db.js', remote: '/root/AuraForex/db.js' },
     { local: './apex_broker.js', remote: '/root/AuraForex/apex_broker.js' },
+    { local: './smc/smc.js', remote: '/root/AuraForex/smc/smc.js' },
     { local: './signals/smc_signal_engine.js', remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: './risk/risk.js', remote: '/root/AuraForex/risk/risk.js' },
     { local: './risk/store.js', remote: '/root/AuraForex/risk/store.js' },

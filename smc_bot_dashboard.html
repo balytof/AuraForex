@@ -1119,7 +1119,7 @@
   <div class="stats-grid">
     <div class="stat-card" onclick="openBuyModal()">
       <div class="stat-label">Saldo (MT5 Sincronizado)</div>
-      <div class="stat-value accent" id="statBalance">—</div>
+      <div class="stat-value accent" id="statBalance">$0.00</div>
       <div class="stat-sub" id="statBalanceSub">Ligação EA: Ativa</div>
     </div>
     <div class="stat-card">
@@ -1719,6 +1719,9 @@ async function loadConfig() {
   }
 
   // 2. Fallback para localStorage
+  document.getElementById("balanceVal").textContent = (status.balance !== null && status.balance !== undefined) ? `$${parseFloat(status.balance).toFixed(2)}` : "$0.00";
+  document.getElementById("equityVal").textContent = (status.equity !== null && status.equity !== undefined) ? `$${parseFloat(status.equity).toFixed(2)}` : "$0.00";
+  document.getElementById("pnlVal").textContent = (status.dailyPnl !== null && status.dailyPnl !== undefined) ? `$${parseFloat(status.dailyPnl).toFixed(2)}` : "$0.00";
   const saved = localStorage.getItem("aura_bot_config");
   if (saved) {
     try {
@@ -2375,10 +2378,13 @@ async function updateStats() {
     console.log("[HMI] Status recebido:", status);
     if (status && status.success) {
       // Saldo e Equity (Sincronizado via EA)
-      const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
-      document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
+      const bal = (status.balance !== undefined && status.balance !== null) ? parseFloat(status.balance) : 0;
+      const eq  = (status.equity !== undefined && status.equity !== null) ? parseFloat(status.equity) : bal;
       
-      const pnlVal = status.equity - status.balance;
+      document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
+      document.getElementById("balanceVal").textContent = formatCurrency(bal, "USD");
+      
+      const pnlVal = eq - bal;
       const pnlEl = document.getElementById("statPnl");
       pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
       pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");

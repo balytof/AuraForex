@@ -143,4 +143,5 @@ class InstitutionalSMC {
   }
 }
 
-module.exports = { InstitutionalSMC };
+const analyzeAll = InstitutionalSMC.analyzeAll.bind(InstitutionalSMC);
+module.exports = { InstitutionalSMC, analyzeAll };
