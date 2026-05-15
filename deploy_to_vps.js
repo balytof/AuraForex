@@ -8,15 +8,16 @@ const conn = new Client();
 const localDir = './AuraForex_V2_Local_Execution';
 
 const filesToUpload = [
-    { local: `${localDir}/server.js`, remote: '/root/AuraForex/server.js' },
-    { local: `${localDir}/smc_bot_dashboard.html`, remote: '/root/AuraForex/smc_bot_dashboard.html' },
-    { local: `${localDir}/ea_api.js`, remote: '/root/AuraForex/ea_api.js' },
-    { local: `${localDir}/db.js`, remote: '/root/AuraForex/db.js' },
-    { local: `${localDir}/apex_broker.js`, remote: '/root/AuraForex/apex_broker.js' },
-    { local: `${localDir}/signals/smc_signal_engine.js`, remote: '/root/AuraForex/signals/smc_signal_engine.js' },
-    { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
-    { local: `${localDir}/risk/risk.js`, remote: '/root/AuraForex/risk/risk.js' },
-    { local: `${localDir}/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' }
+    { local: './server.js', remote: '/root/AuraForex/server.js' },
+    { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' },
+    { local: './ea_api.js', remote: '/root/AuraForex/ea_api.js' },
+    { local: './db.js', remote: '/root/AuraForex/db.js' },
+    { local: './apex_broker.js', remote: '/root/AuraForex/apex_broker.js' },
+    { local: './signals/smc_signal_engine.js', remote: '/root/AuraForex/signals/smc_signal_engine.js' },
+    { local: './risk/risk.js', remote: '/root/AuraForex/risk/risk.js' },
+    { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.ex5' },
+    { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.mq5' },
+    { local: './JAson.mqh', remote: '/root/AuraForex/public/JAson.mqh' }
 ];
 
 conn.on('ready', () => {
