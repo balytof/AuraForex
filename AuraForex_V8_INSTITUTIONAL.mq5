@@ -110,13 +110,39 @@ bool IsTradingSession()
    return (hour >= 7 && hour <= 18);
 }
 
+bool ValidateStops(string sym, string dir, double price, double sl, double tp)
+{
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   int stopLevel = (int)SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDist = stopLevel * point;
+
+   if(dir == "BUY")
+   {
+      if(price - sl < minDist) return false;
+      if(tp > 0 && tp - price < minDist) return false;
+   }
+   else
+   {
+      if(sl - price < minDist) return false;
+      if(tp > 0 && price - tp < minDist) return false;
+   }
+   return true;
+}
+
 bool SafePositionModify(ulong ticket, double sl, double tp)
 {
-   for(int i = 0; i < 3; i++)
+   if(!PositionSelectByTicket(ticket)) return false;
+   string sym = PositionGetString(POSITION_SYMBOL);
+
+   for(int i = 0; i < 5; i++)
    {
       ResetLastError();
+      trade.SetTypeFillingBySymbol(sym);
+
       if(trade.PositionModify(ticket, sl, tp)) return true;
-      if(i < 2) Sleep(300);
+
+      Print("⚠️ Modify Retry ", i + 1, " | Ticket: ", ticket, " | Error: ", trade.ResultRetcodeDescription());
+      if(i < 4) Sleep(500);
    }
    return false;
 }
@@ -231,10 +257,17 @@ void OnTimer()
    // 2. Proteger Ordens Manuais (Prioridade total e independente de autorização)
    ProtectManualOrders();
 
-   // 3. SEMÁFORO DE EXECUÇÃO (Protege contra concorrência em tarefas pesadas)
+   // 3. SEMÁFORO DE EXECUÇÃO (Protegido por Wrapper para evitar Deadlocks)
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
+   RunInstitutionalCore();
+
+   ExecutionBusy = false;
+}
+
+void RunInstitutionalCore()
+{
    // Validar Licença (anti-spam throttle interno)
    ValidateLicense();
 
@@ -242,6 +275,9 @@ void OnTimer()
    {
       CheckDailyLoss();
       CheckDailyTarget();
+      
+      ProcessPendingProtections(); // Aplica protecções assíncronas (Apex Guardian)
+      
       CheckSignals();
       ProcessSignalQueue();
 
@@ -250,8 +286,6 @@ void OnTimer()
       MonitorPartialTP();
       MonitorProfitLock();
    }
-
-   ExecutionBusy = false;
 }
 
 double GetDailyPnL()
@@ -924,12 +958,25 @@ int GetDynamicDeviation(string sym)
 bool CanTradeSymbol(string sym)
 {
    string gvName = "CD_" + sym;
-   if(GlobalVariableCheck(gvName))
+   if(!GlobalVariableCheck(gvName)) return true;
+   return (TimeCurrent() >= (datetime)GlobalVariableGet(gvName));
+}
+
+ulong FindPositionBySymbol(string sym)
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
-      datetime lastTrade = (datetime)GlobalVariableGet(gvName);
-      if(TimeCurrent() - lastTrade < InpTradeCooldown) return false;
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t))
+      {
+         if(PositionGetString(POSITION_SYMBOL) == sym &&
+            PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+         {
+            return t;
+         }
+      }
    }
-   return true;
+   return 0;
 }
 
 void SetSymbolCooldown(string sym)
@@ -1200,6 +1247,14 @@ void ExecuteSignal(string json)
 
    if(lot > 0) {
       trade.SetDeviationInPoints(GetDynamicDeviation(pair));
+      trade.SetTypeFillingBySymbol(pair);
+
+      // VALIDAÇÃO FINAL ANTES DO ENVIO (Last Line of Defense)
+      if(!ValidateStops(pair, dir, entryPrice, nSL, nTP))
+      {
+         Print("❌ [EXECUTION-ABORT] Stops inválidos após normalização para ", pair);
+         return;
+      }
 
       bool success = false;
       if(type == "LIMIT") {
@@ -1219,10 +1274,11 @@ void ExecuteSignal(string json)
          
          // Adicionar à fila de protecção assíncrona (Apex Guardian)
          if(sigId != "") {
-            ulong ticket = trade.ResultDeal();
-            if(ticket == 0) ticket = trade.ResultOrder();
+            Sleep(500); // Buffer institucional para sincronismo de ticket
+            ulong ticket = FindPositionBySymbol(pair);
             
             if(ticket > 0) AddToPendingQueue(ticket, nSL, nTP, sigId);
+            else Print("⚠️ [WARNING] Posição aberta mas não encontrada para proteção imediata. Tentará no próximo ciclo.");
          }
       } else {
          Print("❌ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
