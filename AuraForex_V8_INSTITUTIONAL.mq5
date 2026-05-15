@@ -204,7 +204,7 @@ int OnInit()
    RecoverState(); 
    EventSetTimer(InpTimerSeconds);
    trade.SetTypeFillingBySymbol(_Symbol);
-   trade.SetAsyncMode(true);
+   trade.SetAsyncMode(false);
    return(INIT_SUCCEEDED);
 }
 
@@ -673,6 +673,12 @@ void MonitorTrailingStop()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
+      if(sym == "" || !SymbolSelect(sym, true))
+      {
+         Print("⚠️ Símbolo inválido no trailing.");
+         continue;
+      }
+
       // FILTRO INSTITUCIONAL (MULTI-ASSET)
       if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
 
@@ -996,6 +1002,12 @@ bool ExecuteSignal(string json)
    
    string dir   = jParser["type"].ToStr();
    string pair  = jParser["symbol"].ToStr();
+
+   if(pair == "" || StringLen(pair) < 3)
+   {
+      Print("❌ [SIGNAL] Símbolo inválido recebido.");
+      return true;
+   }
    string type  = jParser["order_type"].ToStr();
    double entry = jParser["entry"].ToDbl();
    double sl    = jParser["sl"].ToDbl();
@@ -1651,49 +1663,83 @@ void AddProcessed(string id)
 
 double GetATR(string sym, ENUM_TIMEFRAMES tf)
 {
-   datetime currentBar = iTime(sym, tf, 0);
-   
-   // 1. Procurar no Cache
-   int size = ArraySize(g_atrCache);
-   for(int i = 0; i < size; i++) {
-      if(g_atrCache[i].symbol == sym && g_atrCache[i].tf == tf) {
-         if(g_atrCache[i].lastBar == currentBar && g_atrCache[i].value > 0) 
-            return g_atrCache[i].value;
-            
-         // Atualizar valor se a barra mudou
-         double atrBuf[];
-         ArraySetAsSeries(atrBuf, true);
-         if(CopyBuffer(g_atrCache[i].handle, 0, 0, 1, atrBuf) > 0) {
-            g_atrCache[i].value = atrBuf[0];
-            g_atrCache[i].lastBar = currentBar;
-         }
-         return g_atrCache[i].value;
-      }
-   }
-   
-   // 2. Se não existir, criar novo handle
-   ArrayResize(g_atrCache, size + 1);
-   int newIdx = size;
-   g_atrCache[newIdx].symbol = sym;
-   g_atrCache[newIdx].tf = tf;
-   g_atrCache[newIdx].handle = iATR(sym, tf, 14);
-   
-   if(g_atrCache[newIdx].handle == INVALID_HANDLE)
+   // --- PROTEÇÃO CRÍTICA ---
+   if(sym == "" || StringLen(sym) < 3)
    {
-      Print("❌ [ATR-ERROR] Falha ao criar handle ATR para ", sym, " | Erro: ", GetLastError());
-      ArrayResize(g_atrCache, size); // Reverter o resize
+      Print("❌ [ATR] Símbolo inválido.");
       return 0;
    }
 
-   g_atrCache[newIdx].lastBar = currentBar;
-   g_atrCache[newIdx].value = 0;
-   
+   if(!SymbolSelect(sym, true))
+   {
+      Print("❌ [ATR] Falha ao selecionar símbolo: ", sym);
+      return 0;
+   }
+
+   datetime currentBar = iTime(sym, tf, 0);
+
+   if(currentBar <= 0)
+   {
+      Print("❌ [ATR] Sem barras disponíveis para ", sym);
+      return 0;
+   }
+
+   // --- CACHE ---
+   int size = ArraySize(g_atrCache);
+
+   for(int i = 0; i < size; i++)
+   {
+      if(g_atrCache[i].symbol == sym &&
+         g_atrCache[i].tf == tf)
+      {
+         if(g_atrCache[i].lastBar == currentBar &&
+            g_atrCache[i].value > 0)
+         {
+            return g_atrCache[i].value;
+         }
+
+         double atrBuf[];
+         ArraySetAsSeries(atrBuf, true);
+
+         if(CopyBuffer(g_atrCache[i].handle, 0, 0, 1, atrBuf) > 0)
+         {
+            g_atrCache[i].value   = atrBuf[0];
+            g_atrCache[i].lastBar = currentBar;
+         }
+
+         return g_atrCache[i].value;
+      }
+   }
+
+   // --- NOVO HANDLE ---
+   int handle = iATR(sym, tf, 14);
+
+   if(handle == INVALID_HANDLE)
+   {
+      Print("❌ [ATR-ERROR] Handle inválido para ", sym,
+            " | TF=", EnumToString(tf),
+            " | Erro=", GetLastError());
+
+      return 0;
+   }
+
+   ArrayResize(g_atrCache, size + 1);
+
+   g_atrCache[size].symbol  = sym;
+   g_atrCache[size].tf      = tf;
+   g_atrCache[size].handle  = handle;
+   g_atrCache[size].lastBar = currentBar;
+   g_atrCache[size].value   = 0;
+
    double atrBuf2[];
    ArraySetAsSeries(atrBuf2, true);
-   if(CopyBuffer(g_atrCache[newIdx].handle, 0, 0, 1, atrBuf2) > 0)
-      g_atrCache[newIdx].value = atrBuf2[0];
-      
-   return g_atrCache[newIdx].value;
+
+   if(CopyBuffer(handle, 0, 0, 1, atrBuf2) > 0)
+   {
+      g_atrCache[size].value = atrBuf2[0];
+   }
+
+   return g_atrCache[size].value;
 }
 
 void CloseAllPositions()
