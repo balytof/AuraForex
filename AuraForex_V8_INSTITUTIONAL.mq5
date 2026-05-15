@@ -229,7 +229,12 @@ void OnTimer()
 double GetDailyPnL()
 {
    double closedProfit = 0;
-   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
+   
+   // CORRECÇÃO INSTITUCIONAL: Cálculo via estrutura de tempo para evitar falhas do iTime em mercado fechado
+   MqlDateTime dt; 
+   TimeCurrent(dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime todayStart = StructToTime(dt);
    
    if(HistorySelect(todayStart, TimeCurrent()))
    {
@@ -995,14 +1000,31 @@ void ExecuteSignal(string json)
    // Fallback se JSON vier zerado
    if(entry <= 0) entry = entryPrice;
    
-   // 1. CÁLCULO DE PONTOS (Normalização Institucional)
-   double slDist = MathAbs(entry - sl);
-   double tpDist = MathAbs(entry - tp);
-   
-   // Evitar divisão por zero e garantir distância mínima
-   if(point <= 0) point = 0.0001; 
-   int slPoints = (int)MathMax(100, slDist / point);
-   int tpPoints = (int)MathMax(100, tpDist / point);
+    // 1. CÁLCULO DE PONTOS (Normalização Institucional)
+    double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
+    double tpDist = (tp > 0) ? MathAbs(entry - tp) : 0;
+    
+    // Fallback Inteligente (Hierarquia: Estrutura de Mercado > ATR > Pontos Fixos)
+    if(slDist <= 0) {
+       // Tenta buscar o último swing de estrutura (10 velas no M15)
+       double structureSL = (dir == "BUY") ? GetLastLow(pair, PERIOD_M15, 10) : GetLastHigh(pair, PERIOD_M15, 10);
+       
+       if(structureSL > 0 && MathAbs(entry - structureSL) > (10 * point)) {
+          slDist = MathAbs(entry - structureSL);
+       } else {
+          // Fallback de volatilidade se a estrutura falhar ou for demasiado curta
+          double atr = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
+          slDist = (atr > 0) ? (atr * 2.2) : (300 * point); 
+       }
+    }
+    if(tpDist <= 0) {
+       tpDist = slDist * 1.5; // Alvo padrão RR 1:1.5
+    }
+    
+    // Evitar divisão por zero e garantir distância mínima
+    if(point <= 0) point = 0.0001; 
+    int slPoints = (int)MathMax(100, slDist / point);
+    int tpPoints = (int)MathMax(100, tpDist / point);
 
    // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
    double nSL = 0, nTP = 0;
@@ -1412,7 +1434,7 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    double riskVal  = balance * (riskPercent / 100.0);
    double tVal     = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
    double tSize    = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-   if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
+   if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0;
    
    double lot  = riskVal / ((slDist / tSize) * tVal);
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
