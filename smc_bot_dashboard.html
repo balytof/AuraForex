@@ -2390,6 +2390,7 @@ async function updateStats() {
       pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
 
       // Meta Diária
+      console.log(status);
       document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
       const progressEl = document.getElementById("statDailyProgress");
       progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
