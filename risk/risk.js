@@ -17,7 +17,11 @@ const path = require("path");
 const cfg = config.risk;
 
 class RiskManager {
-  constructor(userId = "default") {
+  constructor(userId) {
+    if (!userId) {
+      console.error("[RISK-ERROR] Tentativa de criar RiskManager sem UserID!");
+      throw new Error("UserID is required for RiskManager");
+    }
     this.userId = userId;
     this.openTrades = [];         // trades atualmente abertos
     this.tradeHistory = [];       // todos os trades fechados
@@ -47,13 +51,17 @@ class RiskManager {
   setBalance(balance) {
     this.balance = balance;
     const today = new Date().toDateString();
-    if (this.dailyDate !== today) {
-      this.dailyDate = today;
-      this.dailyStartBalance = balance;
-      this.dailyPnl = 0;
-      this.circuitBreaker = false;
-      this.dailyProfitLocked = false;
-      log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)} | Locks Resetados.`);
+    
+    // Se mudou o dia OU se o saldo inicial do dia ainda não foi capturado corretamente (> 10)
+    if (this.dailyDate !== today || this.dailyStartBalance <= 10) {
+      if (balance > 10) {
+        this.dailyDate = today;
+        this.dailyStartBalance = balance;
+        this.dailyPnl = 0;
+        this.circuitBreaker = false;
+        this.dailyProfitLocked = false;
+        log.info(`[RISK-SYNC] [User: ${this.userId}] Saldo Inicial Definido: $${balance.toFixed(2)}`);
+      }
     }
   }
 
@@ -201,12 +209,16 @@ class RiskManager {
     
     // Lucro Total do Dia = Realizado (dailyPnl) + Flutuante
     const totalDayProfit = this.dailyPnl + floatingProfit;
+    
+    // 🛡️ CORREÇÃO CRÍTICA: Evitar divisão por zero ou saldo inválido
+    if (this.dailyStartBalance <= 10) return { hit: false }; 
+
     const profitPct = (totalDayProfit / this.dailyStartBalance) * 100;
 
     // Usar meta do config ou 5.0% padrão
     const targetPct = cfg.dailyProfitTargetPct || 5.0;
 
-    if (profitPct >= targetPct) {
+    if (totalDayProfit > 0 && profitPct >= targetPct && profitPct !== Infinity) {
       this.dailyProfitLocked = true;
       this._safeSaveState();
       

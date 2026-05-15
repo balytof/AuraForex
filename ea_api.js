@@ -209,10 +209,16 @@ router.post("/report-balance", async (req, res) => {
       risk.setBalance(parseFloat(balance));
       risk.dailyPnl = parseFloat(dailyPnl || 0);
       
+      console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
+
       // Sincroniza estados de trava vindo do EA
       if (isLocked !== undefined) {
         risk.dailyProfitLocked = isProfitLocked || false;
         risk.circuitBreaker = isLossLocked || false;
+        
+        if (isLocked) {
+           console.log(`[EA-LOCK-DETECTED] Bloqueio aplicado para o User: ${lic.userId}`);
+        }
       }
 
       // Verificar se bateu meta ou drawdown com os novos valores (servidor também monitora)
