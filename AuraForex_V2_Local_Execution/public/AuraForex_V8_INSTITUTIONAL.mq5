@@ -1002,16 +1002,23 @@ bool ExecuteSignal(string json)
    if(!jParser.Deserialize(json)) return true; // JSON invalido, removemos da fila para nao travar
    
    string sigId = jParser["id"].ToStr();
-   string dir   = jParser["type"].ToStr();
-   string pair  = jParser["symbol"].ToStr();
+   
+   // Mapeamento Flexível (Suporta 'pair' ou 'symbol' e 'direction' ou 'type')
+   string pair = jParser["pair"].ToStr(); 
+   if(pair == "") pair = jParser["symbol"].ToStr();
+   
+   string dir = jParser["direction"].ToStr();
+   if(dir == "") dir = jParser["type"].ToStr();
 
    if(pair == "" || StringLen(pair) < 3)
    {
-      Print("❌ [SIGNAL] Símbolo inválido recebido. Pulando sinal para evitar loop.");
+      Print("❌ [SIGNAL] Símbolo inválido recebido no JSON. Pulando sinal.");
       if(sigId != "") AddProcessed(sigId);
       return true;
    }
-   string type  = jParser["order_type"].ToStr();
+   
+   string type = jParser["order_type"].ToStr();
+   if(type == "") type = "MARKET"; // Padrão institucional se omitido
    double entry = jParser["entry"].ToDbl();
    double sl    = jParser["sl"].ToDbl();
    double tp    = jParser["tp"].ToDbl();
