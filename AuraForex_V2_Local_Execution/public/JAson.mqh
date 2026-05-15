@@ -53,7 +53,12 @@ public:
    CJAVal operator[](string key)
    {
       if(m_type != jtOBJ) { m_type = jtOBJ; Clear(); }
-      for(int i = 0; i < ArraySize(m_data); i++) if(m_data[i].m_key == key) return *m_data[i];
+      string searchKey = key; StringToUpper(searchKey);
+      for(int i = 0; i < ArraySize(m_data); i++)
+      {
+         string currentKey = m_data[i].m_key; StringToUpper(currentKey);
+         if(currentKey == searchKey) return *m_data[i];
+      }
       CJAVal *v = new CJAVal(GetPointer(this), jtUNDEF);
       v.m_key = key;
       int s = ArraySize(m_data);

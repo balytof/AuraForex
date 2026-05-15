@@ -997,6 +997,7 @@ void SetSymbolCooldown(string sym)
 
 bool ExecuteSignal(string json)
 {
+   Print("🔍 [DEBUG] JSON recebido: ", json);
    CJAVal jParser;
    if(!jParser.Deserialize(json)) return true; // JSON invalido, removemos da fila para nao travar
    
@@ -1005,7 +1006,8 @@ bool ExecuteSignal(string json)
 
    if(pair == "" || StringLen(pair) < 3)
    {
-      Print("❌ [SIGNAL] Símbolo inválido recebido.");
+      Print("❌ [SIGNAL] Símbolo inválido recebido. Pulando sinal para evitar loop.");
+      if(sigId != "") AddProcessed(sigId);
       return true;
    }
    string type  = jParser["order_type"].ToStr();
