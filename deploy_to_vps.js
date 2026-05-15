@@ -17,7 +17,9 @@ const filesToUpload = [
     { local: './risk/risk.js', remote: '/root/AuraForex/risk/risk.js' },
     { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.ex5' },
     { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.mq5' },
-    { local: './JAson.mqh', remote: '/root/AuraForex/public/JAson.mqh' }
+    { local: './JAson.mqh', remote: '/root/AuraForex/public/JAson.mqh' },
+    { local: './public/landing.html', remote: '/root/AuraForex/public/landing.html' },
+    { local: './public/bot-human.png', remote: '/root/AuraForex/public/bot-human.png' }
 ];
 
 conn.on('ready', () => {
