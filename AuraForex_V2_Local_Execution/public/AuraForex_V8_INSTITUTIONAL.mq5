@@ -229,7 +229,12 @@ void OnTimer()
 double GetDailyPnL()
 {
    double closedProfit = 0;
-   datetime todayStart = iTime(_Symbol, PERIOD_D1, 0);
+   
+   // CORRECÇÃO INSTITUCIONAL: Cálculo via estrutura de tempo para evitar falhas do iTime em mercado fechado
+   MqlDateTime dt; 
+   TimeCurrent(dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime todayStart = StructToTime(dt);
    
    if(HistorySelect(todayStart, TimeCurrent()))
    {
@@ -682,10 +687,13 @@ void ValidateLicense()
    if(TimeCurrent() - lastValidate < 30  && !IsAuthorized) return; // Tenta a cada 30s se falhou
 
    lastValidate = TimeCurrent();
-   string url = InpServerUrl + "/ea/validate?key=" + InpLicenseKey + "&account=" + (string)AccountInfoInteger(ACCOUNT_LOGIN);
-   string res = SendGet(url);
+   
+   // CORRECÇÃO INSTITUCIONAL v2
+   string url = InpServerUrl + "/ea/validate";
+   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
+   string res = SendPost(url, payload);
 
-   if(StringFind(res, "\"status\":\"success\"") >= 0) {
+   if(StringFind(res, "\"status\":\"OK\"") >= 0) {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
    } else {
@@ -949,6 +957,13 @@ void ExecuteSignal(string json)
     }
     if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
 
+    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
+    if(CountAuraPositions() >= InpMaxOrders)
+    {
+       Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
+       return;
+    }
+
     // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
     int currentBuys = 0, currentSells = 0;
     for(int i = PositionsTotal() - 1; i >= 0; i--) {
@@ -976,50 +991,126 @@ void ExecuteSignal(string json)
       return;
    }
 
-   double tickSize = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
-   int digits = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
-   double ask = SymbolInfoDouble(pair, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(pair, SYMBOL_BID);
+   double point  = SymbolInfoDouble(pair, SYMBOL_POINT);
+   int digits    = (int)SymbolInfoInteger(pair, SYMBOL_DIGITS);
+   double ask    = SymbolInfoDouble(pair, SYMBOL_ASK);
+   double bid    = SymbolInfoDouble(pair, SYMBOL_BID);
+   double entryPrice = (dir == "BUY") ? ask : bid;
    
    // Fallback se JSON vier zerado
-   if(entry <= 0) entry = (dir == "BUY") ? ask : bid;
+   if(entry <= 0) entry = entryPrice;
    
-   double slPoints = MathAbs(entry - sl) / tickSize;
-   if(slPoints > (double)((IsXAU(pair) || StringFind(pair, "JPY") >= 0) ? InpMaxSLJPY : InpMaxSLForex)) {
-      Print("⚠️ SL do Sinal muito longo (", slPoints, " pts) | Rejeitado");
-      return;
+    // 1. CÁLCULO DE PONTOS (Normalização Institucional)
+    double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
+    double tpDist = (tp > 0) ? MathAbs(entry - tp) : 0;
+    
+    // Fallback Inteligente (Hierarquia: Estrutura de Mercado > ATR > Pontos Fixos)
+    if(slDist <= 0) {
+       // Tenta buscar o último swing de estrutura (10 velas no M15)
+       double structureSL = (dir == "BUY") ? GetLastLow(pair, PERIOD_M15, 10) : GetLastHigh(pair, PERIOD_M15, 10);
+       
+       if(structureSL > 0 && MathAbs(entry - structureSL) > (10 * point)) {
+          slDist = MathAbs(entry - structureSL);
+       } else {
+          // Fallback de volatilidade se a estrutura falhar ou for demasiado curta
+          double atr = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
+          slDist = (atr > 0) ? (atr * 2.2) : (300 * point); 
+       }
+    }
+    if(tpDist <= 0) {
+       tpDist = slDist * 1.5; // Alvo padrão RR 1:1.5
+    }
+    
+    // --- SOLUÇÃO DEFINITIVA SL/TP (ENGINE DE PROTEÇÃO) ---
+    
+    // 1. Determinar o Limite de Segurança baseado no Ativo
+    int hardMaxSL = (IsXAU(pair) || (StringFind(pair, "JPY") >= 0)) ? InpMaxSLJPY : InpMaxSLForex;
+    
+    // 2. Cálculo Base dos Pontos
+    int slPoints = (int)(slDist / point);
+    
+    // 3. Sanity Check contra ATR (Proteção contra Swings Gigantes/Errados)
+    double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
+    int atrLimitPoints = (int)((currentATR * 3.5) / point); // 3.5x ATR é o limite técnico de sanidade
+    
+    if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
+       Print("⚠️ [SMC-GUARD] SL de Estrutura (", slPoints, ") excessivo. Ajustando para Sanidade ATR (", atrLimitPoints, ")");
+       slPoints = atrLimitPoints;
+    }
+    
+    // 4. Aplicação do Hard Limit do Utilizador (O que tu definiste nos Inputs)
+    if(slPoints > hardMaxSL) {
+       Print("⚠️ [HARD-LIMIT] SL Reduzido de ", slPoints, " para ", hardMaxSL, " (Limite de Segurança)");
+       slPoints = hardMaxSL;
+    }
+    
+    // 5. Garantir Distância Mínima e Broker Compliance (StopLevel)
+    int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
+    slPoints = (int)MathMax(slPoints, stopLevel + 10); // Mínimo de StopLevel + 10 pontos de buffer
+    
+    // 6. Cálculo do TP Proporcional
+    int tpPoints = (int)(tpDist / point);
+    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5); // Fallback RR 1:1.5 se TP vier zerado
+    
+    // Garantir que o TP também respeita o StopLevel
+    tpPoints = (int)MathMax(tpPoints, stopLevel + 10);
+
+   // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
+   double nSL = 0, nTP = 0;
+   if(dir == "BUY") {
+      nSL = NormalizeDouble(entry - (slPoints * point), digits);
+      nTP = NormalizeDouble(entry + (tpPoints * point), digits);
+   } else {
+      nSL = NormalizeDouble(entry + (slPoints * point), digits);
+      nTP = NormalizeDouble(entry - (tpPoints * point), digits);
    }
 
-   double risk = GetDynamicRisk(slPoints);
-   double lot  = CalculateLot(pair, risk, MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+   // 3. VALIDAÇÃO DE STOP LEVEL (FBS/Broker Enforcement)
+   double minDistance = (stopLevel + 10) * point; // Buffer de 10 pontos
+
+   if(dir == "BUY") {
+      if(entry - nSL < minDistance) nSL = NormalizeDouble(entry - minDistance, digits);
+      if(nTP > 0 && nTP - entry < minDistance) nTP = NormalizeDouble(entry + minDistance, digits);
+   } else {
+      if(nSL - entry < minDistance) nSL = NormalizeDouble(entry + minDistance, digits);
+      if(nTP > 0 && entry - nTP < minDistance) nTP = NormalizeDouble(entry - minDistance, digits);
+   }
+
+   // 4. DEBUG DE SEGURANÇA (Solicitado pelo utilizador)
+   Print("------------------------------------------");
+   Print("🚀 EXECUTANDO SINAL: ", sigId, " | ", pair);
+   Print("ENTRY: ", entry);
+   Print("SL: ", nSL);
+   Print("TP: ", nTP);
+   Print("POINT: ", point);
+   Print("DIGITS: ", digits);
+   Print("STOPLEVEL: ", stopLevel);
+   
+   // 5. VALIDAÇÃO DE LADO (Invalid Checks)
+   bool invalid = false;
+   if(dir == "BUY") {
+      if(nTP > 0 && nTP <= entry) { Print("❌ TP INVÁLIDO (BUY): TP <= ENTRY"); invalid = true; }
+      if(nSL >= entry) { Print("❌ SL INVÁLIDO (BUY): SL >= ENTRY"); invalid = true; }
+   } else {
+      if(nTP > 0 && nTP >= entry) { Print("❌ TP INVÁLIDO (SELL): TP >= ENTRY"); invalid = true; }
+      if(nSL <= entry) { Print("❌ SL INVÁLIDO (SELL): SL <= ENTRY"); invalid = true; }
+   }
+
+   if(invalid) return;
+
+   double risk = GetDynamicRisk((double)slPoints);
+   double lot  = CalculateLot(pair, risk, MathAbs(entry - nSL), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
 
    if(lot > 0) {
       trade.SetDeviationInPoints(GetDynamicDeviation(pair));
-      double nEntry = NormalizeDouble(entry, digits);
-      double nSL    = NormalizeDouble(sl, digits);
-      double nTP    = NormalizeDouble(tp, digits);
-
-      // --- BLINDAGEM INSTITUCIONAL: STOP LEVEL ENFORCEMENT ---
-      double point     = SymbolInfoDouble(pair, SYMBOL_POINT);
-      double stopLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL) * point;
-      double currAsk   = SymbolInfoDouble(pair, SYMBOL_ASK);
-      double currBid   = SymbolInfoDouble(pair, SYMBOL_BID);
-
-      if(dir == "BUY") {
-         if(currAsk - nSL < stopLevel) nSL = currAsk - stopLevel - (5 * point);
-         if(nTP - currAsk < stopLevel && nTP > 0) nTP = currAsk + stopLevel + (5 * point);
-      } else {
-         if(nSL - currBid < stopLevel) nSL = currBid + stopLevel + (5 * point);
-         if(currBid - nTP < stopLevel && nTP > 0) nTP = currBid - stopLevel - (5 * point);
-      }
 
       bool success = false;
       if(type == "LIMIT") {
-         if(dir == "BUY") success = trade.BuyLimit(lot, nEntry, pair, nSL, nTP);
-         else             success = trade.SellLimit(lot, nEntry, pair, nSL, nTP);
+         if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
+         else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, currAsk, nSL, nTP);
-         else             success = trade.Sell(lot, pair, currBid, nSL, nTP);
+         if(dir == "BUY") success = trade.Buy(lot, pair, 0, nSL, nTP);
+         else             success = trade.Sell(lot, pair, 0, nSL, nTP);
       }
 
       if(success) {
@@ -1087,16 +1178,24 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
 
    ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
 
-   // Verificação de Stop Level (Buffer de 2.0 para segurança máxima)
+   // Verificação de Stop Level (Buffer de 5.0 pontos para segurança extra)
+   double minDistance = (stopLevel + 5.0) * point;
+
    if(posType == POSITION_TYPE_BUY)
    {
-      if(openPrice - sl < stopLevel) sl = openPrice - stopLevel * 2.0;
-      if(tp - openPrice < stopLevel) tp = openPrice + stopLevel * 2.0;
+      if(openPrice - sl < minDistance) sl = NormalizeDouble(openPrice - minDistance, digits);
+      if(tp > 0 && tp - openPrice < minDistance) tp = NormalizeDouble(openPrice + minDistance, digits);
+      
+      if(sl >= openPrice) sl = NormalizeDouble(openPrice - minDistance, digits);
+      if(tp > 0 && tp <= openPrice) tp = NormalizeDouble(openPrice + minDistance, digits);
    }
    else
    {
-      if(sl - openPrice < stopLevel) sl = openPrice + stopLevel * 2.0;
-      if(openPrice - tp < stopLevel) tp = openPrice - stopLevel * 2.0;
+      if(sl - openPrice < minDistance) sl = NormalizeDouble(openPrice + minDistance, digits);
+      if(tp > 0 && openPrice - tp < minDistance) tp = NormalizeDouble(openPrice - minDistance, digits);
+
+      if(sl <= openPrice) sl = NormalizeDouble(openPrice + minDistance, digits);
+      if(tp > 0 && tp >= openPrice) tp = NormalizeDouble(openPrice - minDistance, digits);
    }
 
    sl = NormalizeDouble(sl, digits);
@@ -1197,9 +1296,9 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
-   static ulong lastReport = 0;
-   if(GetTickCount() - lastReport < 60000) return; // Reportar a cada 60 segundos (1 minuto)
-   lastReport = GetTickCount();
+   static datetime lastReport = 0;
+   if(TimeCurrent() - lastReport < 60) return; // Reportar a cada 60 segundos (1 minuto)
+   lastReport = TimeCurrent();
 
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -1363,7 +1462,7 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    double riskVal  = balance * (riskPercent / 100.0);
    double tVal     = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
    double tSize    = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-   if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0.01;
+   if(slDist <= 0 || tSize <= 0 || tVal <= 0) return 0;
    
    double lot  = riskVal / ((slDist / tSize) * tVal);
    double minL = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
@@ -1392,16 +1491,16 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
    return NormalizeDouble(lot, 2);
 }
 
-double GetLastLow(string sym, int bars) {
+double GetLastLow(string sym, ENUM_TIMEFRAMES tf, int bars) {
    double lows[]; ArraySetAsSeries(lows, true);
-   if(CopyLow(sym, _Period, 1, bars, lows) > 0) {
+   if(CopyLow(sym, tf, 1, bars, lows) > 0) {
       double m = lows[0]; for(int i=1; i<ArraySize(lows); i++) if(lows[i] < m) m = lows[i]; return m;
    } return 0;
 }
 
-double GetLastHigh(string sym, int bars) {
+double GetLastHigh(string sym, ENUM_TIMEFRAMES tf, int bars) {
    double highs[]; ArraySetAsSeries(highs, true);
-   if(CopyHigh(sym, _Period, 1, bars, highs) > 0) {
+   if(CopyHigh(sym, tf, 1, bars, highs) > 0) {
       double m = highs[0]; for(int i=1; i<ArraySize(highs); i++) if(highs[i] > m) m = highs[i]; return m;
    } return 0;
 }
@@ -1536,4 +1635,3 @@ void CloseAllPositions()
       Sleep(1000); // Esperar 1s entre retries
    }
 }
-

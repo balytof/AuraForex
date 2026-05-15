@@ -1066,7 +1066,6 @@ void ExecuteSignal(string json)
    }
 
    // 3. VALIDAÇÃO DE STOP LEVEL (FBS/Broker Enforcement)
-   int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
    double minDistance = (stopLevel + 10) * point; // Buffer de 10 pontos
 
    if(dir == "BUY") {
@@ -1490,35 +1489,6 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
       }
    }
    return NormalizeDouble(lot, 2);
-}
-
-struct SymbolCooldownData {
-   string symbol;
-   datetime lastTrade;
-};
-SymbolCooldownData g_symbolCooldowns[];
-
-bool CanTradeSymbol(string sym) {
-   for(int i = 0; i < ArraySize(g_symbolCooldowns); i++) {
-      if(g_symbolCooldowns[i].symbol == sym) {
-         if(TimeCurrent() - g_symbolCooldowns[i].lastTrade < InpTradeCooldown) return false;
-         return true;
-      }
-   }
-   return true;
-}
-
-void SetSymbolCooldown(string sym) {
-   for(int i = 0; i < ArraySize(g_symbolCooldowns); i++) {
-      if(g_symbolCooldowns[i].symbol == sym) {
-         g_symbolCooldowns[i].lastTrade = TimeCurrent();
-         return;
-      }
-   }
-   int size = ArraySize(g_symbolCooldowns);
-   ArrayResize(g_symbolCooldowns, size + 1);
-   g_symbolCooldowns[size].symbol = sym;
-   g_symbolCooldowns[size].lastTrade = TimeCurrent();
 }
 
 double GetLastLow(string sym, ENUM_TIMEFRAMES tf, int bars) {
