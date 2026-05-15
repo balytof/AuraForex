@@ -204,6 +204,7 @@ int OnInit()
    RecoverState(); 
    EventSetTimer(InpTimerSeconds);
    trade.SetTypeFillingBySymbol(_Symbol);
+   trade.SetAsyncMode(true);
    return(INIT_SUCCEEDED);
 }
 
@@ -865,17 +866,21 @@ void ProcessSignalQueue()
 {
    if(ArraySize(SignalQueue) == 0) return;
 
-   // Processar apenas o sinal mais antigo (Index 0)
    string json = SignalQueue[0].json;
-   ExecuteSignal(json);
-
-   // Remover o sinal processado da fila
    CJAVal j;
-   string signalId = "";
-   if(j.Deserialize(json)) signalId = j["id"].ToStr();
-   GlobalVariableDel("SQ_" + signalId);
+   j.Deserialize(json);
+   string sigId = j["id"].ToStr();
 
-   RemoveSignalQueueIndex(0);
+   if(ExecuteSignal(json))
+   {
+      GlobalVariableDel("SQ_" + sigId);
+      RemoveSignalQueueIndex(0);
+      Print("🗑️ Sinal ", sigId, " removido da fila (Sucesso/Inválido)");
+   }
+   else
+   {
+      Print("⏳ Sinal ", sigId, " manteve-se na fila para nova tentativa.");
+   }
 }
 
 void RemoveSignalQueueIndex(int idx)
@@ -984,89 +989,86 @@ void SetSymbolCooldown(string sym)
    GlobalVariableSet("CD_" + sym, (double)TimeCurrent());
 }
 
-void ExecuteSignal(string json)
+bool ExecuteSignal(string json)
 {
-    CJAVal j;
-    if(!j.Deserialize(json)) {
-       Print("❌ [JSON-ERROR] Falha ao deserializar sinal: ", json);
-       return;
-    }
+   CJAVal j;
+   if(!j.Deserialize(json)) return true; // JSON inválido, removemos da fila para não travar
+   
+   string dir   = j["type"].ToStr();
+   string pair  = j["symbol"].ToStr();
+   string type  = j["order_type"].ToStr();
+   double entry = j["entry"].ToDbl();
+   double sl    = j["sl"].ToDbl();
+   double tp    = j["tp"].ToDbl();
+   string sigId = j["id"].ToStr();
+   
+   // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
+   if(IsXAU(pair) && !IsTradingSession())
+   {
+      Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
+      return true; // Rejeitado por regra, removemos da fila
+   }
+   
+   if(!SymbolSelect(pair, true))
+   {
+      for(int s = 0; s < SymbolsTotal(false); s++)
+      {
+         string sym = SymbolName(s, false);
+         string upperSym  = sym; StringToUpper(upperSym);
+         string upperPair = pair; StringToUpper(upperPair);
 
-    string pair  = j["pair"].ToStr();
-    string dir   = j["direction"].ToStr();
-    string type  = j["orderType"].ToStr();
-    double entry = j["entry"].ToDbl();
-    double sl    = j["sl"].ToDbl();
-    double tp    = j["tp"].ToDbl();
-    string sigId = j["id"].ToStr();
-    
-    // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
-    if(IsXAU(pair) && !IsTradingSession())
-    {
-       Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
-       return;
-    }
-    
-    if(!SymbolSelect(pair, true))
-    {
-       for(int s = 0; s < SymbolsTotal(false); s++)
-       {
-          string sym = SymbolName(s, false);
-          string upperSym  = sym; StringToUpper(upperSym);
-          string upperPair = pair; StringToUpper(upperPair);
+         if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
+         {
+            pair = sym;
+            SymbolSelect(pair, true);
+            break;
+         }
+      }
+   }
+   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return false; } // Tentará novamente
 
-          if(StringFind(upperSym, upperPair) >= 0 || (IsXAU(pair) && (StringFind(upperSym, "XAU") >= 0 || StringFind(upperSym, "GOLD") >= 0)))
-          {
-             pair = sym;
-             SymbolSelect(pair, true);
-             break;
-          }
-       }
-    }
-    if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return; }
+   // --- SYMBOL SYNC WARMUP (Institutional Fix for Zero Prices) ---
+   Sleep(500);
+   if(!SymbolIsSynchronized(pair)) {
+      Print("⏳ Aguardando sincronismo de dados para ", pair, "...");
+      for(int i = 0; i < 5; i++) {
+         if(SymbolIsSynchronized(pair)) break;
+         Sleep(200);
+      }
+   }
 
-    // --- SYMBOL SYNC WARMUP (Institutional Fix for Zero Prices) ---
-    Sleep(500);
-    if(!SymbolIsSynchronized(pair)) {
-       Print("⏳ Aguardando sincronismo de dados para ", pair, "...");
-       for(int i = 0; i < 5; i++) {
-          if(SymbolIsSynchronized(pair)) break;
-          Sleep(200);
-       }
-    }
+   // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
+   if(CountAuraPositions() >= InpMaxOrders)
+   {
+      Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
+      return true; // Ignorado por gestão, removemos da fila
+   }
 
-    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
-    if(CountAuraPositions() >= InpMaxOrders)
-    {
-       Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
-       return;
-    }
+   // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
+   int currentBuys = 0, currentSells = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t)) {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
+         }
+      }
+   }
 
-    // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
-    int currentBuys = 0, currentSells = 0;
-    for(int i = PositionsTotal() - 1; i >= 0; i--) {
-       ulong t = PositionGetTicket(i);
-       if(t > 0 && PositionSelectByTicket(t)) {
-          if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
-             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
-             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
-          }
-       }
-    }
-
-    if(dir == "BUY" && currentBuys >= InpMaxBuys) {
-       Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
-       return;
-    }
-    if(dir == "SELL" && currentSells >= InpMaxSells) {
-       Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
-       return;
-    }
+   if(dir == "BUY" && currentBuys >= InpMaxBuys) {
+      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
+      return true;
+   }
+   if(dir == "SELL" && currentSells >= InpMaxSells) {
+      Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
+      return true;
+   }
 
    // --- SYMBOL COOLDOWN ---
    if(!CanTradeSymbol(pair)) {
       Print("⏳ Cooldown activo para ", pair, " | Aguardando intervalo de segurança.");
-      return;
+      return false; // Esperar
    }
 
    double point  = SymbolInfoDouble(pair, SYMBOL_POINT);
@@ -1076,93 +1078,66 @@ void ExecuteSignal(string json)
    
    if(ask <= 0 || bid <= 0) {
       Print("❌ [TICK-ERROR] Preços inválidos para ", pair, " (Ask: ", ask, ", Bid: ", bid, "). Rejeitando sinal.");
-      return;
+      return false;
    }
    double entryPrice = (dir == "BUY") ? ask : bid;
    
-   // Fallback se JSON vier zerado ou inválido
    if(entry <= 0) entry = entryPrice;
    
-   // VALIDAÇÃO INSTITUCIONAL DE PREÇOS (Anti-Corruption Fix)
    if(IsXAU(pair)) {
-      if(entry < 1000 || entry > 10000) {
-         Print("⚠️ ENTRY inválido para XAUUSD (", entry, "). Usando preço de mercado.");
-         entry = entryPrice;
-      }
+      if(entry < 1000 || entry > 10000) entry = entryPrice;
    } else {
-      if(entry < 0.01 || entry > 10) {
-         Print("⚠️ ENTRY inválido para Forex (", entry, "). Usando preço de mercado.");
-         entry = entryPrice;
-      }
+      if(entry < 0.01 || entry > 10) entry = entryPrice;
    }
 
-   // Validação de SL/TP (Fallback se vier corrompido ou colado ao preço)
    if(sl <= 0 || MathAbs(entry - sl) < (10 * point)) {
-      Print("⚠️ SL inválido ou muito próximo (", sl, "). Recalculando...");
       sl = (dir == "BUY") ? entry - (300 * point) : entry + (300 * point);
    }
 
    if(tp <= 0 || MathAbs(entry - tp) < (10 * point)) {
-      Print("⚠️ TP inválido ou muito próximo (", tp, "). Recalculando...");
       tp = (dir == "BUY") ? entry + (500 * point) : entry - (500 * point);
    }
    
-    // 1. CÁLCULO DE PONTOS (Normalização Institucional)
     double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
     double tpDist = (tp > 0) ? MathAbs(entry - tp) : 0;
     
-    // Fallback Inteligente (Hierarquia: Estrutura de Mercado > ATR > Pontos Fixos)
     if(slDist <= 0) {
-       // Tenta buscar o último swing de estrutura (10 velas no M15)
        double structureSL = (dir == "BUY") ? GetLastLow(pair, PERIOD_M15, 10) : GetLastHigh(pair, PERIOD_M15, 10);
        
        if(structureSL > 0 && MathAbs(entry - structureSL) > (10 * point)) {
           slDist = MathAbs(entry - structureSL);
        } else {
-          // Fallback de volatilidade se a estrutura falhar ou for demasiado curta
           double atr = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
           slDist = (atr > 0) ? (atr * 2.2) : (300 * point); 
        }
     }
     if(tpDist <= 0) {
-       tpDist = slDist * 1.5; // Alvo padrão RR 1:1.5
+       tpDist = slDist * 1.5; 
     }
     
-    // --- SOLUÇÃO DEFINITIVA SL/TP (ENGINE DE PROTEÇÃO) ---
-    
-    // 1. Determinar o Limite de Segurança baseado no Ativo
     int hardMaxSL = (IsXAU(pair) || (StringFind(pair, "JPY") >= 0)) ? InpMaxSLJPY : InpMaxSLForex;
     
-    // 2. Cálculo Base dos Pontos
     int slPoints = (int)(slDist / point);
     
-    // 3. Sanity Check contra ATR (Proteção contra Swings Gigantes/Errados)
     double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
-    int atrLimitPoints = (int)((currentATR * 3.5) / point); // 3.5x ATR é o limite técnico de sanidade
+    int atrLimitPoints = (int)((currentATR * 3.5) / point);
     
     if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
-       Print("⚠️ [SMC-GUARD] SL de Estrutura (", slPoints, ") excessivo. Ajustando para Sanidade ATR (", atrLimitPoints, ")");
        slPoints = atrLimitPoints;
     }
     
-    // 4. Aplicação do Hard Limit do Utilizador (O que tu definiste nos Inputs)
     if(slPoints > hardMaxSL) {
-       Print("⚠️ [HARD-LIMIT] SL Reduzido de ", slPoints, " para ", hardMaxSL, " (Limite de Segurança)");
        slPoints = hardMaxSL;
     }
     
-    // 5. Garantir Distância Mínima e Broker Compliance (StopLevel)
     int stopLevel = (int)SymbolInfoInteger(pair, SYMBOL_TRADE_STOPS_LEVEL);
-    slPoints = (int)MathMax(slPoints, stopLevel + 10); // Mínimo de StopLevel + 10 pontos de buffer
+    slPoints = (int)MathMax(slPoints, stopLevel + 10);
     
-    // 6. Cálculo do TP Proporcional
     int tpPoints = (int)(tpDist / point);
-    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5); // Fallback RR 1:1.5 se TP vier zerado
+    if(tpPoints <= 0) tpPoints = (int)(slPoints * 1.5);
     
-    // Garantir que o TP também respeita o StopLevel
     tpPoints = (int)MathMax(tpPoints, stopLevel + 10);
 
-   // 2. RE-CÁLCULO SEGURO (Fórmula solicitada pelo utilizador)
    double nSL = 0, nTP = 0;
    if(dir == "BUY") {
       nSL = NormalizeDouble(entry - (slPoints * point), digits);
@@ -1172,17 +1147,12 @@ void ExecuteSignal(string json)
       nTP = NormalizeDouble(entry - (tpPoints * point), digits);
    }
 
-   // 7. ANCORAGEM AO PREÇO REAL (Solução Institucional Final)
    MqlTick lastTick;
-   if(!SymbolInfoTick(pair, lastTick)) {
-      Print("❌ Erro ao obter tick para ", pair);
-      return;
-   }
+   if(!SymbolInfoTick(pair, lastTick)) return false;
    
    double marketPrice = (dir == "BUY") ? lastTick.ask : lastTick.bid;
    double tickSize    = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
 
-   // Para ordens MARKET, recalcular SL/TP baseado no preço REAL para evitar [invalid stops]
    if(type != "LIMIT") {
       if(dir == "BUY") {
          nSL = marketPrice - (slPoints * point);
@@ -1193,17 +1163,14 @@ void ExecuteSignal(string json)
       }
    }
 
-   // 8. NORMALIZAÇÃO POR TICK SIZE (Anti-Rejeição Ouro/JPY)
    if(tickSize > 0) {
       nSL = MathRound(nSL / tickSize) * tickSize;
       if(nTP > 0) nTP = MathRound(nTP / tickSize) * tickSize;
    }
    
-   // Backup Final: NormalizeDouble para segurança de dígitos
    nSL = NormalizeDouble(nSL, digits);
    if(nTP > 0) nTP = NormalizeDouble(nTP, digits);
 
-   // 9. VALIDAÇÃO FINAL DE STOP LEVEL (FBS/Broker Enforcement - Definitive Fix)
    double freezeLevel = SymbolInfoInteger(pair, SYMBOL_TRADE_FREEZE_LEVEL) * point;
    double brokerMin   = MathMax(stopLevel * point, freezeLevel);
    
@@ -1220,27 +1187,16 @@ void ExecuteSignal(string json)
       if(nTP > 0 && marketPrice - nTP < minDistance) nTP = NormalizeDouble(marketPrice - minDistance, digits);
    }
 
-   // 4. DEBUG DE SEGURANÇA (Solicitado pelo utilizador)
-   Print("------------------------------------------");
-   Print("🚀 EXECUTANDO SINAL: ", sigId, " | ", pair);
-   Print("ENTRY: ", entry);
-   Print("SL: ", nSL);
-   Print("TP: ", nTP);
-   Print("POINT: ", point);
-   Print("DIGITS: ", digits);
-   Print("STOPLEVEL: ", stopLevel);
-   
-   // 5. VALIDAÇÃO DE LADO (Invalid Checks)
    bool invalid = false;
    if(dir == "BUY") {
-      if(nTP > 0 && nTP <= entry) { Print("❌ TP INVÁLIDO (BUY): TP <= ENTRY"); invalid = true; }
-      if(nSL >= entry) { Print("❌ SL INVÁLIDO (BUY): SL >= ENTRY"); invalid = true; }
+      if(nTP > 0 && nTP <= entry) invalid = true;
+      if(nSL >= entry) invalid = true;
    } else {
-      if(nTP > 0 && nTP >= entry) { Print("❌ TP INVÁLIDO (SELL): TP >= ENTRY"); invalid = true; }
-      if(nSL <= entry) { Print("❌ SL INVÁLIDO (SELL): SL <= ENTRY"); invalid = true; }
+      if(nTP > 0 && nTP >= entry) invalid = true;
+      if(nSL <= entry) invalid = true;
    }
 
-   if(invalid) return;
+   if(invalid) return true; // Sinal inválido, removemos da fila
 
    double risk = GetDynamicRisk((double)slPoints);
    double lot  = CalculateLot(pair, risk, MathAbs(entry - nSL), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
@@ -1249,11 +1205,10 @@ void ExecuteSignal(string json)
       trade.SetDeviationInPoints(GetDynamicDeviation(pair));
       trade.SetTypeFillingBySymbol(pair);
 
-      // VALIDAÇÃO FINAL ANTES DO ENVIO (Last Line of Defense)
       if(!ValidateStops(pair, dir, entryPrice, nSL, nTP))
       {
          Print("❌ [EXECUTION-ABORT] Stops inválidos após normalização para ", pair);
-         return;
+         return true; // Erro fatal de stops, removemos
       }
 
       bool success = false;
@@ -1266,24 +1221,25 @@ void ExecuteSignal(string json)
       }
 
       if(success) {
-         Print("✅ Ordem ", type, " Enviada | ", pair, " | Lote: ", lot);
+         Print("✅ Ordem executada com sucesso!");
          SetSymbolCooldown(pair);
          
-         // Marcar como processado apenas após o sucesso
-         if(sigId != "") AddProcessed(sigId);
-         
-         // Adicionar à fila de protecção assíncrona (Apex Guardian)
          if(sigId != "") {
-            Sleep(500); // Buffer institucional para sincronismo de ticket
+            Sleep(500); 
             ulong ticket = FindPositionBySymbol(pair);
             
             if(ticket > 0) AddToPendingQueue(ticket, nSL, nTP, sigId);
             else Print("⚠️ [WARNING] Posição aberta mas não encontrada para proteção imediata. Tentará no próximo ciclo.");
+            
+            AddProcessed(sigId);
          }
+         return true; // SUCESSO!
       } else {
          Print("❌ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
+         return false; // FALHA TEMPORÁRIA, TENTAR NOVAMENTE
       }
    }
+   return false;
 }
 
 void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
@@ -1721,6 +1677,14 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
    g_atrCache[newIdx].symbol = sym;
    g_atrCache[newIdx].tf = tf;
    g_atrCache[newIdx].handle = iATR(sym, tf, 14);
+   
+   if(g_atrCache[newIdx].handle == INVALID_HANDLE)
+   {
+      Print("❌ [ATR-ERROR] Falha ao criar handle ATR para ", sym, " | Erro: ", GetLastError());
+      ArrayResize(g_atrCache, size); // Reverter o resize
+      return 0;
+   }
+
    g_atrCache[newIdx].lastBar = currentBar;
    g_atrCache[newIdx].value = 0;
    
@@ -1745,6 +1709,9 @@ void CloseAllPositions()
          ulong ticket=PositionGetTicket(i);
          if(ticket<=0) continue;
          if(!PositionSelectByTicket(ticket)) continue;
+
+         if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic())
+            continue;
 
          ResetLastError();
          bool closed = trade.PositionClose(ticket);
