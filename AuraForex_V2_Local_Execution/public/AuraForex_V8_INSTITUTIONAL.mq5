@@ -1004,15 +1004,17 @@ bool ExecuteSignal(string json)
    string sigId = jParser["id"].ToStr();
    
    // Mapeamento Flexível (Suporta 'pair' ou 'symbol' e 'direction' ou 'type')
-   string pair = jParser["pair"].ToStr(); 
-   if(pair == "") pair = jParser["symbol"].ToStr();
+   string pairRaw = jParser["pair"].ToStr(); 
+   if(pairRaw == "") pairRaw = jParser["symbol"].ToStr();
+   
+   string pair = GetBrokerSymbol(pairRaw);
    
    string dir = jParser["direction"].ToStr();
    if(dir == "") dir = jParser["type"].ToStr();
 
    if(pair == "" || StringLen(pair) < 3)
    {
-      Print("❌ [SIGNAL] Símbolo inválido recebido no JSON. Pulando sinal.");
+      Print("❌ [SIGNAL] Símbolo inválido (", pairRaw, ") recebido no JSON. Pulando sinal.");
       if(sigId != "") AddProcessed(sigId);
       return true;
    }
@@ -1208,14 +1210,22 @@ bool ExecuteSignal(string json)
       if(nTP > 0 && marketPrice - nTP < minDistance) nTP = NormalizeDouble(marketPrice - minDistance, digits);
    }
 
+   // --- HARMONIZAÇÃO INSTITUCIONAL DE PREÇOS ---
+   // Se o sinal for MARKET, ignoramos o entry do JSON e usamos o preço actual de mercado
+   if(type == "MARKET") entry = marketPrice;
+
    bool invalid = false;
    if(dir == "BUY") {
-      if(nTP > 0 && nTP <= entry) invalid = true;
-      if(nSL >= entry) invalid = true;
+      if(nTP > 0 && nTP <= entry) nTP = NormalizeDouble(entry + minDistance, digits);
+      if(nSL >= entry) nSL = NormalizeDouble(entry - minDistance, digits);
    } else {
-      if(nTP > 0 && nTP >= entry) invalid = true;
-      if(nSL <= entry) invalid = true;
+      if(nTP > 0 && nTP >= entry) nTP = NormalizeDouble(entry - minDistance, digits);
+      if(nSL <= entry) nSL = NormalizeDouble(entry + minDistance, digits);
    }
+   
+   // Verificação final
+   if(dir == "BUY" && (entry <= 0 || (nTP > 0 && nTP <= entry))) invalid = true;
+   if(dir == "SELL" && (entry <= 0 || (nTP > 0 && nTP >= entry))) invalid = true;
 
    if(invalid) return true; // Sinal inválido, removemos da fila
 
@@ -1666,6 +1676,29 @@ void AddProcessed(string id)
 {
    string key = "A_" + id;
    GlobalVariableSet(key, (double)TimeCurrent());
+}
+
+// --- FUNÇÃO DE HARMONIZAÇÃO DE SÍMBOLOS (SUFIXOS) ---
+string GetBrokerSymbol(string baseSym)
+{
+   if(baseSym == "") return "";
+   
+   // 1. Tentar correspondência exacta
+   if(SymbolInfoInteger(baseSym, SYMBOL_VISIBLE)) return baseSym;
+   
+   // 2. Procurar por sufixos (.ecn, .pro, etc)
+   int total = SymbolsTotal(false);
+   for(int i = 0; i < total; i++)
+   {
+      string sym = SymbolName(i, false);
+      if(StringFind(sym, baseSym) == 0) // Começa com o nome base
+      {
+         SymbolSelect(sym, true);
+         return sym;
+      }
+   }
+   
+   return baseSym; // Fallback
 }
 
 // ExtractValue removido em favor da biblioteca JAson.mqh
