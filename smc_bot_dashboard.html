@@ -1344,6 +1344,7 @@ function formatCurrency(val, currency = "USD") {
 }
 
 let isDailyLocked = false;
+let lockNotified = false;
 
 // ─── GEMINI API KEY — Save & Load ─────────────────────
 function saveGeminiApiKey() {
@@ -2397,7 +2398,25 @@ async function updateStats() {
       if (status.isLocked) {
         lockOverlay.style.display = "block";
         
-        // Show specific bar
+        if (!lockNotified) {
+            lockNotified = true;
+            if (status.isProfitLocked) {
+                Swal.fire({
+                    title: '🏆 META DIÁRIA ATINGIDA!',
+                    text: 'Parabéns! A tua meta de lucro foi alcançada. O sistema foi bloqueado para proteger os teus ganhos até amanhã.',
+                    icon: 'success',
+                    background: '#0f172a', color: '#fff', confirmButtonColor: '#00e676'
+                });
+            } else if (status.isLossLocked) {
+                Swal.fire({
+                    title: '⚠️ LIMITE DE PERDA ATINGIDO',
+                    text: 'O limite de perda diária foi atingido. O sistema foi bloqueado por segurança para preservar o teu capital.',
+                    icon: 'warning',
+                    background: '#0f172a', color: '#fff', confirmButtonColor: '#ff4444'
+                });
+            }
+        }
+
         if (status.isProfitLocked) {
            document.getElementById("targetAlert").classList.add("visible");
            document.getElementById("lossAlert").classList.remove("visible");
@@ -2416,12 +2435,14 @@ async function updateStats() {
 
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "🔒 Sistema Bloqueado";
-            mainBtn.style.opacity = "0.5";
+            mainBtn.innerHTML = '<i class="fas fa-lock"></i> SISTEMA BLOQUEADO';
+            mainBtn.style.opacity = "0.7";
+            mainBtn.style.cursor = "not-allowed";
             if (isRunning) stopBot();
         }
         updateLockCountdown(status.timeUntilReset);
       } else {
+        lockNotified = false;
         lockOverlay.style.display = "none";
         document.getElementById("targetAlert").classList.remove("visible");
         document.getElementById("lossAlert").classList.remove("visible");
