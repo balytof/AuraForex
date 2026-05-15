@@ -10,6 +10,7 @@
 
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
+#include <JAson.mqh>
 
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
@@ -784,9 +785,26 @@ void CheckSignals()
 
       // Print("🎯 NOVO SINAL DETECTADO: ", signalId); // Removido para silêncio institucional
 
-      // Extrair o bloco JSON completo deste sinal { ... }
-      int objStart = StringFind(result, "{", idPos - 10); // Volta um pouco para pegar o {
-      int objEnd   = StringFind(result, "}", objStart);
+      // Extrair o bloco JSON completo deste sinal { ... } usando contador de profundidade (Institutional Fix)
+      int objStart = StringFind(result, "{", idPos - 10);
+      int depth = 0;
+      int objEnd = -1;
+
+      if(objStart >= 0)
+      {
+         for(int i = objStart; i < StringLen(result); i++)
+         {
+            string ch = StringSubstr(result, i, 1);
+            if(ch == "{") depth++;
+            if(ch == "}") depth--;
+
+            if(depth == 0)
+            {
+               objEnd = i;
+               break;
+            }
+         }
+      }
       
       if(objStart < 0 || objEnd < 0)
       {
@@ -810,7 +828,10 @@ void AddToSignalQueue(string json) {
    SignalQueue[s].json = json;
    SignalQueue[s].timestamp = TimeCurrent();
    
-   string signalId = ExtractValue(json, "id");
+   string signalId = "";
+   CJAVal j;
+   if(j.Deserialize(json)) signalId = j["id"].ToStr();
+   
    GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
 }
 
@@ -823,7 +844,9 @@ void ProcessSignalQueue()
    ExecuteSignal(json);
 
    // Remover o sinal processado da fila
-   string signalId = ExtractValue(json, "id");
+   CJAVal j;
+   string signalId = "";
+   if(j.Deserialize(json)) signalId = j["id"].ToStr();
    GlobalVariableDel("SQ_" + signalId);
 
    RemoveSignalQueueIndex(0);
@@ -924,13 +947,19 @@ void SetSymbolCooldown(string sym)
 
 void ExecuteSignal(string json)
 {
-    string pair  = ExtractValue(json, "pair");
-    string dir   = ExtractValue(json, "direction");
-    string type  = ExtractValue(json, "orderType");
-    double entry = StringToDouble(ExtractValue(json, "entry"));
-    double sl    = StringToDouble(ExtractValue(json, "sl"));
-    double tp    = StringToDouble(ExtractValue(json, "tp"));
-    string sigId = ExtractValue(json, "id");
+    CJAVal j;
+    if(!j.Deserialize(json)) {
+       Print("❌ [JSON-ERROR] Falha ao deserializar sinal: ", json);
+       return;
+    }
+
+    string pair  = j["pair"].ToStr();
+    string dir   = j["direction"].ToStr();
+    string type  = j["orderType"].ToStr();
+    double entry = j["entry"].ToDbl();
+    double sl    = j["sl"].ToDbl();
+    double tp    = j["tp"].ToDbl();
+    string sigId = j["id"].ToStr();
     
     // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
     if(IsXAU(pair) && !IsTradingSession())
@@ -997,8 +1026,32 @@ void ExecuteSignal(string json)
    double bid    = SymbolInfoDouble(pair, SYMBOL_BID);
    double entryPrice = (dir == "BUY") ? ask : bid;
    
-   // Fallback se JSON vier zerado
+   // Fallback se JSON vier zerado ou inválido
    if(entry <= 0) entry = entryPrice;
+   
+   // VALIDAÇÃO INSTITUCIONAL DE PREÇOS (Anti-Corruption Fix)
+   if(IsXAU(pair)) {
+      if(entry < 1000 || entry > 10000) {
+         Print("⚠️ ENTRY inválido para XAUUSD (", entry, "). Usando preço de mercado.");
+         entry = entryPrice;
+      }
+   } else {
+      if(entry < 0.01 || entry > 10) {
+         Print("⚠️ ENTRY inválido para Forex (", entry, "). Usando preço de mercado.");
+         entry = entryPrice;
+      }
+   }
+
+   // Validação de SL/TP (Fallback se vier corrompido ou colado ao preço)
+   if(sl <= 0 || MathAbs(entry - sl) < (10 * point)) {
+      Print("⚠️ SL inválido ou muito próximo (", sl, "). Recalculando...");
+      sl = (dir == "BUY") ? entry - (300 * point) : entry + (300 * point);
+   }
+
+   if(tp <= 0 || MathAbs(entry - tp) < (10 * point)) {
+      Print("⚠️ TP inválido ou muito próximo (", tp, "). Recalculando...");
+      tp = (dir == "BUY") ? entry + (500 * point) : entry - (500 * point);
+   }
    
     // 1. CÁLCULO DE PONTOS (Normalização Institucional)
     double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
@@ -1065,15 +1118,46 @@ void ExecuteSignal(string json)
       nTP = NormalizeDouble(entry - (tpPoints * point), digits);
    }
 
-   // 3. VALIDAÇÃO DE STOP LEVEL (FBS/Broker Enforcement)
+   // 7. ANCORAGEM AO PREÇO REAL (Solução Institucional Final)
+   MqlTick lastTick;
+   if(!SymbolInfoTick(pair, lastTick)) {
+      Print("❌ Erro ao obter tick para ", pair);
+      return;
+   }
+   
+   double marketPrice = (dir == "BUY") ? lastTick.ask : lastTick.bid;
+   double tickSize    = SymbolInfoDouble(pair, SYMBOL_TRADE_TICK_SIZE);
+
+   // Para ordens MARKET, recalcular SL/TP baseado no preço REAL para evitar [invalid stops]
+   if(type != "LIMIT") {
+      if(dir == "BUY") {
+         nSL = marketPrice - (slPoints * point);
+         nTP = (tpPoints > 0) ? marketPrice + (tpPoints * point) : 0;
+      } else {
+         nSL = marketPrice + (slPoints * point);
+         nTP = (tpPoints > 0) ? marketPrice - (tpPoints * point) : 0;
+      }
+   }
+
+   // 8. NORMALIZAÇÃO POR TICK SIZE (Anti-Rejeição Ouro/JPY)
+   if(tickSize > 0) {
+      nSL = MathRound(nSL / tickSize) * tickSize;
+      if(nTP > 0) nTP = MathRound(nTP / tickSize) * tickSize;
+   }
+   
+   // Backup Final: NormalizeDouble para segurança de dígitos
+   nSL = NormalizeDouble(nSL, digits);
+   if(nTP > 0) nTP = NormalizeDouble(nTP, digits);
+
+   // 9. VALIDAÇÃO FINAL DE STOP LEVEL (FBS/Broker Enforcement)
    double minDistance = (stopLevel + 10) * point; // Buffer de 10 pontos
 
    if(dir == "BUY") {
-      if(entry - nSL < minDistance) nSL = NormalizeDouble(entry - minDistance, digits);
-      if(nTP > 0 && nTP - entry < minDistance) nTP = NormalizeDouble(entry + minDistance, digits);
+      if(marketPrice - nSL < minDistance) nSL = NormalizeDouble(marketPrice - minDistance, digits);
+      if(nTP > 0 && nTP - marketPrice < minDistance) nTP = NormalizeDouble(marketPrice + minDistance, digits);
    } else {
-      if(nSL - entry < minDistance) nSL = NormalizeDouble(entry + minDistance, digits);
-      if(nTP > 0 && entry - nTP < minDistance) nTP = NormalizeDouble(entry - minDistance, digits);
+      if(nSL - marketPrice < minDistance) nSL = NormalizeDouble(marketPrice + minDistance, digits);
+      if(nTP > 0 && marketPrice - nTP < minDistance) nTP = NormalizeDouble(marketPrice - minDistance, digits);
    }
 
    // 4. DEBUG DE SEGURANÇA (Solicitado pelo utilizador)
@@ -1518,49 +1602,7 @@ void AddProcessed(string id)
    GlobalVariableSet(key, (double)TimeCurrent());
 }
 
-string ExtractValue(string json, string key) {
-   // 1. Procurar a chave com aspas
-   string searchKey = "\"" + key + "\"";
-   int keyPos = StringFind(json, searchKey);
-   if(keyPos < 0) return "";
-
-   // 2. Encontrar o início do valor após os dois pontos ":"
-   int colonPos = StringFind(json, ":", keyPos + StringLen(searchKey));
-   if(colonPos < 0) return "";
-
-   int valueStart = colonPos + 1;
-   
-   // Ignorar espaços em branco iniciais
-   while(valueStart < StringLen(json) && 
-         ((short)StringGetCharacter(json, valueStart) == ' ' || (short)StringGetCharacter(json, valueStart) == '\t' || (short)StringGetCharacter(json, valueStart) == '\n' || (short)StringGetCharacter(json, valueStart) == '\r'))
-      valueStart++;
-
-   string result = "";
-   short firstChar = (short)StringGetCharacter(json, valueStart);
-
-   if(firstChar == '\"') {
-      // Caso seja STRING: pegar tudo entre as próximas aspas
-      int endQuote = StringFind(json, "\"", valueStart + 1);
-      if(endQuote > valueStart) result = StringSubstr(json, valueStart + 1, endQuote - (valueStart + 1));
-   } else {
-      // Caso seja NÚMERO/BOOLEAN: pegar até a próxima vírgula ou fecho de chaveta
-      int commaPos = StringFind(json, ",", valueStart);
-      int bracePos = StringFind(json, "}", valueStart);
-      int endPos = -1;
-      
-      if(commaPos > 0 && bracePos > 0) endPos = MathMin(commaPos, bracePos);
-      else if(commaPos > 0) endPos = commaPos;
-      else if(bracePos > 0) endPos = bracePos;
-      
-      if(endPos > valueStart) result = StringSubstr(json, valueStart, endPos - valueStart);
-      else result = StringSubstr(json, valueStart); // Último valor
-   }
-
-   // Limpeza final de espaços
-   StringTrimLeft(result);
-   StringTrimRight(result);
-   return result;
-}
+// ExtractValue removido em favor da biblioteca JAson.mqh
 
 double GetATR(string sym, ENUM_TIMEFRAMES tf)
 {

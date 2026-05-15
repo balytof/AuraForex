@@ -693,7 +693,7 @@ void ValidateLicense()
    string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    string res = SendPost(url, payload);
 
-   if(StringFind(res, "\"status\":\"OK\"") >= 0) {
+   if(StringFind(res, "\"status\":\"success\"") >= 0 || StringFind(res, "\"status\":\"OK\"") >= 0) {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
    } else {
