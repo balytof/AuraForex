@@ -1467,7 +1467,10 @@ void ReportBalance()
       "\"floatingPnL\":" + DoubleToString(floatingPnL, 2) + ","
       "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
       "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
-      "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) +
+      "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) + ","
+      "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
+      "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
+      "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") +
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";

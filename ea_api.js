@@ -183,7 +183,7 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity } = req.body;
+  const { licenseKey, balance, equity, dailyPnl, isLocked, isProfitLocked, isLossLocked } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
@@ -207,7 +207,15 @@ router.post("/report-balance", async (req, res) => {
     if (lic) {
       const risk = getRiskManager(lic.userId);
       risk.setBalance(parseFloat(balance));
-      // Verificar se bateu meta ou drawdown com os novos valores
+      risk.dailyPnl = parseFloat(dailyPnl || 0);
+      
+      // Sincroniza estados de trava vindo do EA
+      if (isLocked !== undefined) {
+        risk.dailyProfitLocked = isProfitLocked || false;
+        risk.circuitBreaker = isLossLocked || false;
+      }
+
+      // Verificar se bateu meta ou drawdown com os novos valores (servidor também monitora)
       risk.checkDailyProfitTarget([]); 
     }
 
