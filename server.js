@@ -427,7 +427,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     if (req.user.email === 'admin@auratrade.ai') dailyTargetMoney = 13.01;
     if (isNaN(dailyTargetMoney)) dailyTargetMoney = 0;
 
-    res.json({
+    const responseData = {
       success: true,
       balance: lastBalance,
       equity: license ? license.equity : lastBalance,
@@ -438,7 +438,10 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       isLossLocked: risk.circuitBreaker,
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null
-    });
+    };
+    
+    log.info(`[JSON-OUT] User: ${req.user.email} | TargetMoney: ${dailyTargetMoney} | Pnl: ${risk.dailyPnl}`);
+    res.json(responseData);
   } catch (err) {
     log.info(`[HMI-ERROR] ${err.message} \n ${err.stack}`);
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
