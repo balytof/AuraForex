@@ -1468,8 +1468,8 @@ void ReportBalance()
       "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
       "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
       "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) + ","
-      "\"dailyProfitTarget\":" + DoubleToString(InpDailyProfitTarget, 2) + ","
-      "\"dailyLossLimit\":" + DoubleToString(InpDailyLossLimit, 2) + ","
+      "\"dailyProfitTarget\":" + DoubleToString(InpDailyTargetPct, 2) + ","
+      "\"dailyLossLimit\":" + DoubleToString(InpMaxDailyLossPct, 2) + ","
       "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
       "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
       "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") +
