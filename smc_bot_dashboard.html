@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AuraTrade SMC Bot v2.5.2-ULTRA-SYNC</title>
+<title>AuraTrade SMC Bot v3.0-INSTITUTIONAL</title>
 <meta name="description" content="Bot de trading forex com Smart Money Concepts, integração com MetaTrader 5s OANDA, Capital.com e MetaTrader">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -2371,30 +2371,47 @@ function updateLimitUI(val) {
 }
 
 async function updateStats() {
-  console.log("[HMI] Iniciando atualização de estatísticas...");
+  const token = localStorage.getItem("aura_token");
   try {
-    // 1. Sincronização Institucional (Status do Cérebro)
-    const status = await apiFetch("/api/user/status");
-    console.log("[HMI] Status recebido:", status);
-    if (status && status.success) {
-      // Saldo e Equity (Sincronizado via EA)
-      const bal = (status.balance !== undefined && status.balance !== null) ? parseFloat(status.balance) : 0;
-      const eq  = (status.equity !== undefined && status.equity !== null) ? parseFloat(status.equity) : bal;
-      
-      document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
-      document.getElementById("balanceVal").textContent = formatCurrency(bal, "USD");
-      
-      const pnlVal = eq - bal;
-      const pnlEl = document.getElementById("statPnl");
-      pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
-      pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
+      if (!token) {
+          const targetEl = document.getElementById("statDailyTarget");
+          if (targetEl) targetEl.textContent = "SESSÃO EXPIRADA";
+          return;
+      }
+      const status = await apiFetch("/api/user/status");
+      console.log("[HMI] Status recebido:", status);
+      if (!status || !status.success) return;
 
-      // Meta Diária
-      console.log(status);
-      document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
+      const balanceEl = document.getElementById("statBalance");
+      if (balanceEl) balanceEl.textContent = formatCurrency(status.balance, "USD");
+      
+      const eaStatusEl = document.getElementById("eaStatusText");
+      if (eaStatusEl) {
+          if (status.balance > 0) {
+            eaStatusEl.textContent = "Ligação EA: Ativa";
+            eaStatusEl.style.color = "var(--bull)";
+          } else {
+            eaStatusEl.textContent = "EA: Offline";
+            eaStatusEl.style.color = "var(--bear)";
+          }
+      }
+
+      const pnlVal = status.dailyPnl || 0;
+      const pnlEl = document.getElementById("statPnl");
+      if (pnlEl) {
+          pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
+          pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
+      }
+
+      // Meta Diária (Recuperado!)
+      const targetEl = document.getElementById("statDailyTarget");
+      if (targetEl) targetEl.textContent = formatCurrency(status.dailyTargetMoney, "USD");
+      
       const progressEl = document.getElementById("statDailyProgress");
-      progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
-      progressEl.style.color = status.dailyPnl >= 0 ? "var(--bull)" : "var(--bear)";
+      if (progressEl) {
+          progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
+          progressEl.style.color = (status.dailyPnl || 0) >= 0 ? "var(--bull)" : "var(--bear)";
+      }
 
       // HMI Lock Management
       const lockOverlay = document.getElementById("dailyLockOverlay");
@@ -2454,7 +2471,7 @@ async function updateStats() {
         document.getElementById("targetAlert").classList.remove("visible");
         document.getElementById("lossAlert").classList.remove("visible");
       }
-    }
+
 
     // 2. Dados de Corretora (Se conectada via API)
     if (brokerConnected) {

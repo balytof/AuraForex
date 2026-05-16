@@ -48,25 +48,45 @@ class RiskManager {
   }
 
   // ── INICIALIZAÇÃO ─────────────────────────────────────
+  _checkDailyReset() {
+    const today = new Date().toDateString();
+    if (this.dailyDate !== today) {
+      log.info(`[RISK-RESET] [User: ${this.userId}] Mudança de dia detectada (${this.dailyDate} -> ${today}). Resetando estatísticas.`);
+      this.dailyDate = today;
+      this.dailyStartBalance = this.balance || 0;
+      this.dailyPnl = 0;
+      this.circuitBreaker = false;
+      this.dailyProfitLocked = false;
+      this._saveState();
+      return true;
+    }
+    return false;
+  }
+
   setBalance(balance) {
     this.balance = balance;
-    const today = new Date().toDateString();
     
-    // Se mudou o dia OU se o saldo inicial do dia ainda não foi capturado corretamente (> 10)
-    if (this.dailyDate !== today || this.dailyStartBalance <= 10) {
+    // Se ainda não temos saldo inicial (primeira execução)
+    if (!this.dailyDate || this.dailyStartBalance <= 10) {
       if (balance > 10) {
-        this.dailyDate = today;
+        this.dailyDate = new Date().toDateString();
         this.dailyStartBalance = balance;
         this.dailyPnl = 0;
         this.circuitBreaker = false;
         this.dailyProfitLocked = false;
         log.info(`[RISK-SYNC] [User: ${this.userId}] Saldo Inicial Definido: $${balance.toFixed(2)}`);
+        this._saveState();
       }
+    } else {
+      // Verificar se o dia mudou para resetar
+      this._checkDailyReset();
     }
   }
 
   // ── VERIFICAÇÃO DE PERMISSÃO ──────────────────────────
   canOpenTrade(pair) {
+    this._checkDailyReset(); // Garantir que está atualizado antes de verificar bloqueios
+
     if (this.circuitBreaker) {
       return { allowed: false, reason: `Circuit breaker ativo — perda diária ≥ ${cfg.maxDailyLossPct}%` };
     }
@@ -305,6 +325,7 @@ class RiskManager {
       
       const state = {
         openTrades: this.openTrades,
+        dailyDate: this.dailyDate,
         dailyPnl: this.dailyPnl,
         dailyStartBalance: this.dailyStartBalance,
         balance: this.balance,
@@ -325,6 +346,7 @@ class RiskManager {
       if (fs.existsSync(this.stateFile)) {
         const state = JSON.parse(fs.readFileSync(this.stateFile, "utf8"));
         this.openTrades = state.openTrades || [];
+        this.dailyDate = state.dailyDate || null;
         this.dailyPnl = state.dailyPnl || 0;
         this.dailyStartBalance = state.dailyStartBalance || 0;
         this.balance = state.balance || 0;

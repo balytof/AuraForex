@@ -410,6 +410,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
        console.log(`[FORCE-RESET] Bloqueios limpos para o usuário: ${req.user.id}`);
     }
 
+    // Reset Proativo (Caso seja meia-noite)
+    if (typeof risk._checkDailyReset === "function") risk._checkDailyReset();
+
     const targetPercent = (risk.dailyProfitTarget && risk.dailyProfitTarget > 0) ? (risk.dailyProfitTarget / 100) : 0.05;
     log.info(`[HMI-DEBUG] UserID: ${req.user.id} | Balance: ${risk.balance} | Target%: ${targetPercent*100}% | isLocked: ${risk.dailyProfitLocked || risk.circuitBreaker}`);
 
@@ -422,9 +425,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let lastBalance = (risk.balance && risk.balance > 0) ? risk.balance : (license ? license.balance : 0);
     if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
     
-    // TESTE DE FORÇA BRUTA PARA ADMIN
+    // Usar a meta configurada no EA (ou 5% como fallback)
     let dailyTargetMoney = lastBalance * targetPercent;
-    if (req.user.email === 'admin@auratrade.ai') dailyTargetMoney = 13.01;
     if (isNaN(dailyTargetMoney)) dailyTargetMoney = 0;
 
     const responseData = {
