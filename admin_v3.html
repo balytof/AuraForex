@@ -1299,11 +1299,45 @@
         }
     }
 
-    loadStats();
-    loadRequests();
-    loadSystemSettings();
-    loadPaymentMethods();
-    loadFinance();
+    async function checkAuth() {
+        const token = localStorage.getItem("aura_token");
+        if (!token) {
+            window.location.href = "/login.html";
+            return;
+        }
+        
+        // Verificação rápida do payload para garantir que é ADMIN
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            if (payload.role !== "ADMIN") {
+                alert("Acesso negado. Apenas administradores.");
+                window.location.href = "/smc_bot_dashboard.html";
+                return;
+            }
+        } catch(e) {
+            window.location.href = "/login.html";
+            return;
+        }
+
+        // Validação oficial com o servidor
+        const res = await api("/api/auth/me");
+        if (!res.success || res.user.role !== "ADMIN") {
+            localStorage.removeItem("aura_token");
+            window.location.href = "/login.html";
+            return;
+        }
+
+        // Se chegou aqui, é admin. Carregar tudo.
+        loadStats();
+        loadRequests();
+        loadSystemSettings();
+        loadPaymentMethods();
+        loadFinance();
+    }
+
+    checkAuth();
 </script>
 </body>
 </html>

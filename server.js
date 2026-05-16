@@ -68,8 +68,12 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-app.get("/admin_v3.html", requireAuth, requireAdmin, (req, res) => {
+app.get("/admin_v3.html", (req, res) => {
   res.sendFile(path.join(__dirname, "admin_v3.html"));
+});
+
+app.get("/smc_bot_dashboard.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "smc_bot_dashboard.html"));
 });
 
 // Página de Detalhes do Bot Forex
