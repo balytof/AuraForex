@@ -362,8 +362,15 @@
 
     <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px;">
         <div class="panel">
-            <div class="panel-header">
-                <h3>Sua Equipa (Nível 1)</h3>
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="teamLevelTitle">Sua Equipa (Nível 1)</h3>
+                <select id="levelFilter" class="form-input" style="width:160px; padding:6px 10px; font-size:0.75rem; background: var(--surface2); border-color: var(--border);" onchange="renderTeamTable()">
+                    <option value="1">Nível 1 (6%)</option>
+                    <option value="2">Nível 2 (4%)</option>
+                    <option value="3">Nível 3 (2%)</option>
+                    <option value="4">Nível 4 (1%)</option>
+                    <option value="5">Nível 5 (1%)</option>
+                </select>
             </div>
             <div class="table-container">
                 <table>
@@ -429,6 +436,8 @@
     const token = localStorage.getItem("aura_token");
     if (!token) window.location.href = "/login";
 
+    let allReferrals = [];
+
     async function loadAffiliateStats() {
         try {
             const res = await fetch("/api/affiliate/stats", { headers: {"Authorization": "Bearer "+token} });
@@ -459,18 +468,8 @@
                 document.getElementById("withdrawMax").textContent = "$" + (s.availableBonus || 0).toFixed(2);
                 document.getElementById("affWithdrawn").textContent = "$" + (s.totalBonusWithdrawn || 0).toFixed(2);
                 
-                const tbody = document.getElementById("affTeamTable");
-                if(!s.referrals || s.referrals.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Você ainda não tem nenhum afiliado. Convide amigos usando seu link!</td></tr>';
-                } else {
-                    tbody.innerHTML = s.referrals.map(r => `
-                        <tr>
-                            <td>${r.email}</td>
-                            <td>${new Date(r.createdAt).toLocaleDateString()}</td>
-                            <td>${r._count ? r._count.referrals : 0}</td>
-                        </tr>
-                    `).join("");
-                }
+                allReferrals = s.referrals || [];
+                renderTeamTable();
             } else {
                 document.getElementById("refLinkInput").value = "Erro: " + (data.error || "Desconhecido");
             }
@@ -500,6 +499,26 @@
         } catch(e) {
             console.error("Error loading affiliates", e);
             document.getElementById("refLinkInput").value = "Erro de ligação: " + e.message;
+        }
+    }
+
+    function renderTeamTable() {
+        const level = parseInt(document.getElementById("levelFilter").value);
+        document.getElementById("teamLevelTitle").textContent = `Sua Equipa (Nível ${level})`;
+        
+        const filtered = allReferrals.filter(r => r.level === level);
+        const tbody = document.getElementById("affTeamTable");
+        
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--muted);">Nenhum afiliado encontrado no Nível ${level}.</td></tr>`;
+        } else {
+            tbody.innerHTML = filtered.map(r => `
+                <tr>
+                    <td>${r.email}</td>
+                    <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td>${r._count ? r._count.referrals : 0}</td>
+                </tr>
+            `).join("");
         }
     }
 

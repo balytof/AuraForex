@@ -991,7 +991,7 @@
         <i class="fas fa-users"></i>
         <span>Afiliados</span>
       </a>
-      <a href="/admin_dashboard.html" class="nav-item" id="adminLink" style="display: none;">
+      <a href="/admin_v3.html" class="nav-item" id="adminLink" style="display: none;">
         <i class="fas fa-user-shield"></i>
         <span>Admin Panel</span>
       </a>
@@ -1472,7 +1472,7 @@ function injectAdminButton() {
   adminBtn.style.border = "2px solid #00d4ff";
   adminBtn.style.boxShadow = "0 0 15px rgba(0,212,255,0.4)";
   adminBtn.style.fontWeight = "bold";
-  adminBtn.onclick = () => window.location.href = "/admin_dashboard.html";
+  adminBtn.onclick = () => window.location.href = "/admin_v3.html";
   
   controls.prepend(adminBtn);
   console.log("%c[AuraAuth] BOTÃO INJETADO COM SUCESSO!", "color: yellow; font-weight: bold;");

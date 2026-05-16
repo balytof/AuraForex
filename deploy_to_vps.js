@@ -10,6 +10,9 @@ const localDir = './AuraForex_V2_Local_Execution';
 const filesToUpload = [
     { local: './server.js', remote: '/root/AuraForex/server.js' },
     { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' },
+    { local: './admin_v3.html', remote: '/root/AuraForex/admin_v3.html' },
+    { local: './affiliate_dashboard.html', remote: '/root/AuraForex/affiliate_dashboard.html' },
+    { local: './login.html', remote: '/root/AuraForex/login.html' },
     { local: './ea_api.js', remote: '/root/AuraForex/ea_api.js' },
     { local: './db.js', remote: '/root/AuraForex/db.js' },
     { local: './utils/logger.js', remote: '/root/AuraForex/utils/logger.js' },

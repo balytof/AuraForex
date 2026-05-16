@@ -373,8 +373,8 @@
         </div>
     </div>
 
-    <!-- PANEL: REQUESTS -->
-    <div id="panel-requests" class="panel active">
+    <!-- PANEL: STATS / SUMMARY (Combining Stats Grid + Pending) -->
+    <div id="panel-stats" class="panel active">
         <div class="panel-header">
             <h3>Pendentes de Aprovação</h3>
             <button class="btn" onclick="loadRequests()">Atualizar</button>
@@ -392,7 +392,32 @@
                     </tr>
                 </thead>
                 <tbody id="requestsTable">
-                    <!-- Dynamic -->
+                    <tr><td colspan="6" style="text-align:center;">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: REQUESTS (Same as stats for now, or can be separate) -->
+    <div id="panel-requests" class="panel">
+        <div class="panel-header">
+            <h3>Todas as Solicitações</h3>
+            <button class="btn" onclick="loadRequests()">Atualizar</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Plano</th>
+                        <th>Valor</th>
+                        <th>Hash</th>
+                        <th>Data</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="requestsTableFull">
+                    <tr><td colspan="6" style="text-align:center;">Carregando...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -404,16 +429,12 @@
             <h3>Gestão de Usuários</h3>
             <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
                 <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Filtrar Mês</span>
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Global</span>
+                    <input type="text" id="searchUserGlobal" class="form-input" placeholder="Email, Ref ou ID..." onkeyup="filterUsers()" style="width:250px; height:34px; font-size:0.75rem;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Filtrar Mês (Opcional)</span>
                     <input type="month" id="userReportPeriod" class="form-input" style="width:140px; height:34px; font-size:0.75rem;" onchange="filterUsers()">
-                </div>
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Email</span>
-                    <input type="text" id="searchUserEmail" class="form-input" placeholder="Buscar..." onkeyup="filterUsers()" style="width:160px; height:34px; font-size:0.75rem;">
-                </div>
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.6rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Pesquisar Ref/ID</span>
-                    <input type="text" id="searchUserRef" class="form-input" placeholder="Ref/ID..." onkeyup="filterUsers()" style="width:120px; height:34px; font-size:0.75rem;">
                 </div>
                 <button class="btn btn-success" onclick="generateUsersReport()" style="display:flex; align-items:center; gap:8px; margin-top:14px;">
                     <span style="font-size:1rem;">📄</span> PDF
@@ -720,7 +741,10 @@
             toggleSidebar();
         }
 
-        if (id === 'stats') loadStats();
+        if (id === 'stats') {
+            loadStats();
+            loadRequests();
+        }
         if (id === 'requests') loadRequests();
         if (id === 'plans') loadPlans();
         if (id === 'users') loadUsers();
@@ -761,10 +785,14 @@
                 </td>
                 <td>${new Date(r.createdAt).toLocaleDateString()}</td>
                 <td>
-                    <button class="btn btn-success" onclick="openApproveModal('${r.id}', '${r.user.email}', '${r.plan ? r.plan.name : r.licenseType}')">Aprovar Pagamento</button>
+                    <button class="btn btn-success" onclick="openApproveModal('${r.id}', '${r.user ? r.user.email : 'N/A'}', '${r.plan ? r.plan.name : r.licenseType}')">Aprovar Pagamento</button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="5" style="text-align:center;">Sem pendências.</td></tr>';
+        `).join('') || '<tr><td colspan="6" style="text-align:center;">Sem pendências.</td></tr>';
+        
+        // Também atualizar a tabela full se existir
+        const tbodyFull = document.getElementById('requestsTableFull');
+        if (tbodyFull) tbodyFull.innerHTML = tbody.innerHTML;
     }
 
     async function loadPlans() {
@@ -827,13 +855,30 @@
     }
 
     function filterUsers() {
-        const email = document.getElementById('searchUserEmail').value.toLowerCase();
-        const ref = document.getElementById('searchUserRef').value.toLowerCase();
-        const period = document.getElementById('userReportPeriod').value; // YYYY-MM
+        const globalInput = document.getElementById('searchUserGlobal');
+        const emailInput = document.getElementById('searchUserEmail');
+        const refInput = document.getElementById('searchUserRef');
+        const periodInput = document.getElementById('userReportPeriod');
+
+        const query = (globalInput ? globalInput.value : "").toLowerCase().trim();
+        const emailQuery = (emailInput ? emailInput.value : "").toLowerCase().trim();
+        const refQuery = (refInput ? refInput.value : "").toLowerCase().trim();
+        const period = periodInput ? periodInput.value : "";
         
+        // Se estiver na versão antiga, usar refQuery como query global se email estiver vazio
+        const activeQuery = query || refQuery || emailQuery;
+
         const filtered = allUsers.filter(u => {
-            const matchesEmail = u.email.toLowerCase().includes(email);
-            const matchesRef = (u.referralCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref));
+            const userEmail = (u.email || "").toLowerCase();
+            const userRef = (u.referralCode || "").toLowerCase();
+            const userId = (u.id || "").toLowerCase();
+
+            // Busca inteligente: verifica se o termo pesquisado está no dado OU se o dado está dentro do termo (para URLs)
+            const matchesGlobal = (
+                userEmail.includes(activeQuery) || 
+                (userRef && (userRef.includes(activeQuery) || activeQuery.includes(userRef))) ||
+                userId.includes(activeQuery)
+            );
             
             let matchesPeriod = true;
             if (period) {
@@ -842,7 +887,7 @@
                 matchesPeriod = (d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month));
             }
             
-            return matchesEmail && matchesRef && matchesPeriod;
+            return matchesGlobal && matchesPeriod;
         });
         renderUsers(filtered);
     }
@@ -873,8 +918,8 @@
         }).join('') || '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
     }
 
-    // Período padrão para usuários
-    document.getElementById('userReportPeriod').value = new Date().toISOString().substring(0, 7);
+    // Período vazio por padrão para busca global
+    document.getElementById('userReportPeriod').value = "";
 
     async function generateUsersReport() {
         if (!allUsers || allUsers.length === 0) return alert("Nenhum usuário carregado.");
@@ -1188,6 +1233,7 @@
     }
 
     loadStats();
+    loadRequests();
     loadSystemSettings();
     loadPaymentMethods();
     loadFinance();

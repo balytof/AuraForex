@@ -68,6 +68,10 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
+app.get("/admin_v3.html", requireAuth, requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, "admin_v3.html"));
+});
+
 // Página de Detalhes do Bot Forex
 app.get("/smc-forex", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'smc-forex.html'));
@@ -271,7 +275,7 @@ app.post("/api/auth/register", async (req, res) => {
 
   try {
     let sponsorId = null;
-    if (referralCode !== "AURA-MASTER") {
+    if (referralCode) {
       const sponsor = await prisma.user.findUnique({ where: { referralCode } });
       if (!sponsor) return res.status(400).json({ error: "Código de indicação inválido." });
       sponsorId = sponsor.id;
@@ -1347,20 +1351,67 @@ app.post("/api/purchase/request", requireAuth, async (req, res) => {
 
 app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
   try {
+    const userId = req.user.id;
+
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        referrals: {
-          select: { id: true, email: true, createdAt: true, _count: { select: { referrals: true } } }
-        }
-      }
+      where: { id: userId }
     });
 
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
+    // Função auxiliar para buscar referências recursivamente
+    async function getReferralsAtLevel(parentIds, level, maxLevel) {
+      if (level > maxLevel || parentIds.length === 0) return [];
+
+      const referrals = await prisma.user.findMany({
+        where: { sponsorId: { in: parentIds } },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          _count: { select: { referrals: true } }
+        }
+      });
+
+      const nextLevelReferrals = await getReferralsAtLevel(
+        referrals.map(r => r.id),
+        level + 1,
+        maxLevel
+      );
+
+      return referrals.map(r => ({
+        ...r,
+        level,
+        subReferrals: nextLevelReferrals.filter(sr => sr.sponsorId === r.id)
+      }));
+    }
+
+    // Buscar todos os níveis de uma vez para organizar no frontend
+    // Mas para o seletor, é melhor devolver uma lista flat com o 'level' marcado
+    async function getFlatReferrals(parentIds, level, maxLevel) {
+      if (level > maxLevel || parentIds.length === 0) return [];
+
+      const refs = await prisma.user.findMany({
+        where: { sponsorId: { in: parentIds } },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          sponsorId: true,
+          _count: { select: { referrals: true } }
+        }
+      });
+
+      const nextLevelRefs = await getFlatReferrals(refs.map(r => r.id), level + 1, maxLevel);
+      
+      return refs.map(r => ({ ...r, level })).concat(nextLevelRefs);
+    }
+
+    const allReferrals = await getFlatReferrals([userId], 1, 5);
+
     // Buscar histórico de bónus
     const bonuses = await prisma.bonusTransaction.findMany({
-      where: { receiverId: user.id },
+      where: { receiverId: userId },
       include: { sourceUser: { select: { email: true } } },
       orderBy: { createdAt: 'desc' },
       take: 20
@@ -1373,7 +1424,7 @@ app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
         totalBonusEarned: user.totalBonusEarned,
         totalBonusWithdrawn: user.totalBonusWithdrawn,
         availableBonus: user.availableBonus,
-        referrals: user.referrals,
+        referrals: allReferrals, // Agora contém todos os 5 níveis
         recentBonuses: bonuses
       }
     });
