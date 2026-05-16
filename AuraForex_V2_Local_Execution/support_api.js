@@ -125,7 +125,7 @@ router.post("/chat/public", async (req, res) => {
         if (m.includes("investir") || m.includes("plano") || m.includes("preço")) {
             reply = "Temos diversos planos conforme sua banca! Veja a seção 'Planos' na nossa página inicial.";
         } else if (m.includes("rede") || m.includes("convite")) {
-            reply = "A AuraTrade funciona via convites. Se não tem um, use o código oficial **1630FBED** no registo!";
+            reply = "A AuraTrade funciona via convites. Se não tem um, use o código oficial **C6D1F1F9** no registo!";
         }
         return res.json({ reply });
 
