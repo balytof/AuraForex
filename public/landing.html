@@ -554,9 +554,9 @@
             <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
             <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
             <a href="#access" style="color: var(--accent); font-weight: 700;" onclick="toggleMenu()">Acesso</a>
-            <div style="display:flex; gap:10px; margin-left:10px; align-items:center;">
-                <a href="/login" style="padding: 8px 18px; border: 1px solid var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--accent); transition: 0.3s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'" data-i18n="nav_login_btn">Login</a>
-                <a href="/login?mode=register" style="padding: 8px 18px; background: var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--bg); transition: 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" data-i18n="nav_reg_btn">Criar Conta</a>
+            <div style="display:flex; gap:12px; margin-left:15px; align-items:center;">
+                <a href="/login" style="padding: 10px 25px; border: 2px solid var(--accent); border-radius: 30px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--accent); transition: 0.3s; box-sizing: border-box;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='transparent'; this.style.transform='translateY(0)'" data-i18n="nav_login_btn">Login</a>
+                <a href="/login?mode=register" class="btn-access" style="font-size: 0.85rem; padding: 10px 25px;" data-i18n="nav_reg_btn">Criar Conta</a>
             </div>
             <select class="lang-switcher" onchange="changeLanguage(this.value)" style="margin-left:10px;">
                 <option value="pt">PT</option>
