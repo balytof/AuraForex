@@ -221,7 +221,6 @@ class RiskManager {
 
   // ── VERIFICAÇÃO DE META DIÁRIA (Baseada em Equity/Lucro Flutuante) ──
   checkDailyProfitTarget(brokerPositions = []) {
-    if (this.dailyProfitLocked) return { hit: true, alreadyLocked: true };
     if (this.dailyStartBalance <= 0) return { hit: false };
 
     // Calcular Lucro Flutuante total das posições abertas
@@ -235,10 +234,17 @@ class RiskManager {
 
     const profitPct = (totalDayProfit / this.dailyStartBalance) * 100;
 
-    // Usar meta do config ou 5.0% padrão
-    const targetPct = cfg.dailyProfitTargetPct || 5.0;
+    // Usar meta do objeto ou do config (fallback)
+    const targetPct = this.dailyProfitTarget || cfg.dailyProfitTargetPct || 5.0;
 
-    if (totalDayProfit > 0 && profitPct >= targetPct && profitPct !== Infinity) {
+    // Se estiver bloqueado mas o lucro agora for INFERIOR à meta (ex: subiu a meta no MT5)
+    if (this.dailyProfitLocked && profitPct < targetPct) {
+      log.info(`[DAILY-UNLOCK] Meta aumentada detected. Lucro (${profitPct.toFixed(2)}%) < Nova Meta (${targetPct}%). Desbloqueando.`);
+      this.dailyProfitLocked = false;
+      this._safeSaveState();
+    }
+
+    if (!this.dailyProfitLocked && totalDayProfit > 0 && profitPct >= targetPct && profitPct !== Infinity) {
       this.dailyProfitLocked = true;
       this._safeSaveState();
       
@@ -251,7 +257,7 @@ class RiskManager {
       };
     }
 
-    return { hit: false };
+    return { hit: this.dailyProfitLocked };
   }
 
   // ── MONITOR DE TRADES ABERTOS ─────────────────────────

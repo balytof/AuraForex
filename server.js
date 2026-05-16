@@ -413,6 +413,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     // Reset Proativo (Caso seja meia-noite)
     if (typeof risk._checkDailyReset === "function") risk._checkDailyReset();
 
+    // Reavaliar meta (caso tenha mudado no EA)
+    if (typeof risk.checkDailyProfitTarget === "function") risk.checkDailyProfitTarget([]);
+
     const targetPercent = (risk.dailyProfitTarget && risk.dailyProfitTarget > 0) ? (risk.dailyProfitTarget / 100) : 0.05;
     log.info(`[HMI-DEBUG] UserID: ${req.user.id} | Balance: ${risk.balance} | Target%: ${targetPercent*100}% | isLocked: ${risk.dailyProfitLocked || risk.circuitBreaker}`);
 
