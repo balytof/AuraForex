@@ -664,6 +664,26 @@
     </div>
 </div>
 
+<!-- MODAL: MANUAL LICENSE [NEW] -->
+<div class="modal-overlay" id="manualLicenseModal">
+    <div class="modal">
+        <h3>Ativação Manual de Licença</h3>
+        <p id="manualLicenseUser" style="font-size:0.8rem; color:var(--accent); margin-bottom:15px;"></p>
+        <div class="form-group">
+            <label class="form-label">Selecionar Plano</label>
+            <select id="manualPlanSelect" class="form-input"></select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Dias de Validade (Personalizado)</label>
+            <input type="number" id="manualDays" class="form-input" placeholder="Ex: 30">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button class="btn" onclick="closeModal('manualLicenseModal')">Cancelar</button>
+            <button class="btn btn-success" id="confirmManualBtn">Ativar Agora</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: PLAN [NEW] -->
 <div class="modal-overlay" id="planModal">
     <div class="modal">
@@ -805,12 +825,21 @@
                 <td>$${p.price.toFixed(2)}</td>
                 <td>${p.durationDays} dias</td>
                 <td><span class="badge ${p.isActive ? 'badge-active' : ''}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
-                <td>
+                <td style="display:flex; gap:8px;">
                     <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays})">✏️</button>
+                    <button class="btn" style="background:${p.isActive ? 'var(--warn)' : 'var(--bull)'}; color:#000; border:none; font-size:0.7rem; font-weight:bold;" onclick="togglePlanStatus('${p.id}', ${p.isActive})">
+                        ${p.isActive ? 'Desabilitar' : 'Habilitar'}
+                    </button>
                     <button class="btn" style="color:var(--bear)" onclick="deletePlan('${p.id}')">🗑️</button>
                 </td>
             </tr>
         `).join('') || '<tr><td colspan="5" style="text-align:center;">Nenhum plano criado.</td></tr>';
+    }
+
+    async function togglePlanStatus(id, currentStatus) {
+        const res = await api(`/api/admin/plans/${id}`, "PUT", { isActive: !currentStatus });
+        if (res.success) loadPlans();
+        else alert(res.error);
     }
 
     let currentPlanId = null;
@@ -910,12 +939,50 @@
                     <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
                     <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-success" style="font-size:0.75rem;padding:5px 10px;" onclick="openManualLicenseModal('${u.id}', '${u.email}')">🚀 Ativar Licença</button>
                         <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset PW</button>
                         <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="deleteUser('${u.id}', '${u.email}')">🗑️ Eliminar</button>
                     </td>
                 </tr>
             `;
         }).join('') || '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+    }
+
+    let allPlans = [];
+    async function openManualLicenseModal(userId, email) {
+        const res = await api("/api/admin/plans");
+        if (!res.success) return alert("Erro ao carregar planos.");
+        allPlans = res.plans;
+        
+        const select = document.getElementById("manualPlanSelect");
+        select.innerHTML = allPlans.map(p => `<option value="${p.id}" data-days="${p.durationDays}">${p.name} (${p.durationDays} dias)</option>`).join("");
+        
+        // Atualizar dias automaticamente ao trocar plano
+        select.onchange = () => {
+            const opt = select.options[select.selectedIndex];
+            document.getElementById("manualDays").value = opt.dataset.days;
+        };
+        
+        // Trigger inicial
+        if (allPlans.length > 0) document.getElementById("manualDays").value = allPlans[0].durationDays;
+
+        document.getElementById("manualLicenseUser").textContent = `Usuário: ${email}`;
+        document.getElementById("confirmManualBtn").onclick = () => confirmManualActivation(userId);
+        document.getElementById("manualLicenseModal").classList.add("active");
+    }
+
+    async function confirmManualActivation(userId) {
+        const planId = document.getElementById("manualPlanSelect").value;
+        const days = document.getElementById("manualDays").value;
+        if (!days) return alert("Defina os dias de validade.");
+
+        const res = await api(`/api/admin/users/${userId}/activate-license`, "POST", { planId, days: parseInt(days) });
+        if (res.success) {
+            alert("✅ Licença ativada com sucesso!");
+            closeModal('manualLicenseModal');
+            loadUsers();
+            loadStats();
+        } else alert("❌ " + res.error);
     }
 
     // Período vazio por padrão para busca global

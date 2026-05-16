@@ -1114,6 +1114,60 @@ app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.delete("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao eliminar usuário." });
+  }
+});
+
+app.post("/api/admin/users/:id/activate-license", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { planId, days } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+
+    const plan = planId ? await prisma.licensePlan.findUnique({ where: { id: planId } }) : null;
+
+    const existingLicense = await prisma.license.findFirst({
+      where: { userId: id, status: "ACTIVE" },
+      orderBy: { expiresAt: 'desc' }
+    });
+
+    let expiresAt = new Date();
+    if (existingLicense && existingLicense.expiresAt > new Date()) {
+      expiresAt = new Date(existingLicense.expiresAt);
+    }
+    expiresAt.setDate(expiresAt.getDate() + parseInt(days));
+
+    // Desativar licenças anteriores
+    await prisma.license.updateMany({
+      where: { userId: id, status: "ACTIVE" },
+      data: { status: "EXPIRED" }
+    });
+
+    // Criar nova licença manual
+    const license = await prisma.license.create({
+      data: {
+        userId: id,
+        planId: planId || null,
+        type: plan ? plan.name : "MANUAL",
+        status: "ACTIVE",
+        expiresAt: expiresAt
+      }
+    });
+
+    res.json({ success: true, license });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao ativar licença manual." });
+  }
+});
+
 app.get("/api/admin/requests", requireAuth, requireAdmin, async (req, res) => {
   try {
     const requests = await prisma.purchaseRequest.findMany({
