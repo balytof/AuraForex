@@ -328,6 +328,8 @@ class RiskManager {
         dailyDate: this.dailyDate,
         dailyPnl: this.dailyPnl,
         dailyStartBalance: this.dailyStartBalance,
+        dailyProfitTarget: this.dailyProfitTarget,
+        dailyLossLimit: this.dailyLossLimit,
         balance: this.balance,
         circuitBreaker: this.circuitBreaker,
         dailyProfitLocked: this.dailyProfitLocked,
@@ -349,6 +351,8 @@ class RiskManager {
         this.dailyDate = state.dailyDate || null;
         this.dailyPnl = state.dailyPnl || 0;
         this.dailyStartBalance = state.dailyStartBalance || 0;
+        this.dailyProfitTarget = state.dailyProfitTarget || 5.0;
+        this.dailyLossLimit = state.dailyLossLimit || 5.0;
         this.balance = state.balance || 0;
         this.circuitBreaker = state.circuitBreaker || false;
         this.dailyProfitLocked = state.dailyProfitLocked || false;

@@ -183,7 +183,11 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity, dailyPnl, isLocked, isProfitLocked, isLossLocked } = req.body;
+  const { 
+    licenseKey, balance, equity, dailyPnl, 
+    dailyProfitTarget, dailyLossLimit,
+    isLocked, isProfitLocked, isLossLocked 
+  } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
@@ -208,6 +212,10 @@ router.post("/report-balance", async (req, res) => {
       const risk = getRiskManager(lic.userId);
       risk.setBalance(parseFloat(balance));
       risk.dailyPnl = parseFloat(dailyPnl || 0);
+      
+      // Sincroniza configurações de meta dinâmicas
+      if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
+      if (dailyLossLimit !== undefined) risk.dailyLossLimit = parseFloat(dailyLossLimit);
       
       console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
 
