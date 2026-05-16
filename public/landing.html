@@ -554,7 +554,11 @@
             <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
             <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
             <a href="#access" style="color: var(--accent); font-weight: 700;" onclick="toggleMenu()">Acesso</a>
-            <select class="lang-switcher" onchange="changeLanguage(this.value)">
+            <div style="display:flex; gap:10px; margin-left:10px; align-items:center;">
+                <a href="/login" style="padding: 8px 18px; border: 1px solid var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--accent); transition: 0.3s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'" data-i18n="nav_login_btn">Login</a>
+                <a href="/login?mode=register" style="padding: 8px 18px; background: var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--bg); transition: 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" data-i18n="nav_reg_btn">Criar Conta</a>
+            </div>
+            <select class="lang-switcher" onchange="changeLanguage(this.value)" style="margin-left:10px;">
                 <option value="pt">PT</option>
                 <option value="en">EN</option>
                 <option value="fr">FR</option>
@@ -820,8 +824,9 @@
                 footer_social_title: "Nossas Redes",
                 footer_social_desc: "Siga-nos para atualizações diárias e sinais gratuitos.",
                 footer_rights: "&copy; 2026 AuraTrade. Todos os direitos reservados.",
-                nav_members: "Área de Membros",
-                nav_terms: "Termos de Serviço"
+                nav_terms: "Termos de Serviço",
+                nav_login_btn: "Login",
+                nav_reg_btn: "Criar Conta"
             },
             en: {
                 nav_services: "Bots",
@@ -901,8 +906,9 @@
                 footer_social_title: "Our Networks",
                 footer_social_desc: "Follow us for daily updates and free signals.",
                 footer_rights: "&copy; 2026 AuraTrade. All rights reserved.",
-                nav_members: "Members Area",
-                nav_terms: "Terms of Service"
+                nav_terms: "Terms of Service",
+                nav_login_btn: "Login",
+                nav_reg_btn: "Sign Up"
             },
             fr: {
                 nav_services: "Bots",
@@ -982,8 +988,9 @@
                 footer_social_title: "Nos Réseaux",
                 footer_social_desc: "Suivez-nous pour des mises à jour quotidiennes et des signaux gratuits.",
                 footer_rights: "&copy; 2026 AuraTrade. Tous droits réservés.",
-                nav_members: "Espace Membres",
-                nav_terms: "Conditions d'utilisation"
+                nav_terms: "Conditions d'utilisation",
+                nav_login_btn: "Connexion",
+                nav_reg_btn: "S'inscrire"
             },
             es: {
                 nav_services: "Bots",
@@ -1063,8 +1070,9 @@
                 footer_social_title: "Nuestras Redes",
                 footer_social_desc: "Síguenos para actualizaciones diarias y señales gratuitas.",
                 footer_rights: "&copy; 2026 AuraTrade. Todos los derechos reservados.",
-                nav_members: "Área de Miembros",
-                nav_terms: "Términos de Servicio"
+                nav_terms: "Términos de Servicio",
+                nav_login_btn: "Ingresar",
+                nav_reg_btn: "Registrarse"
             },
         };
 
