@@ -894,6 +894,11 @@
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
+        color: black !important;
+      }
+      /* Forçar todos os textos dentro do modal do guia a serem pretos para evitar páginas em branco */
+      #setupModal, #setupModal *, #setupModal p, #setupModal span, #setupModal h2, #setupModal h3, #setupModal th, #setupModal td, #setupModal li, #setupModal div, #setupModal b, #setupModal strong {
+        color: black !important;
       }
       /* Esconde TUDO na raiz do body, exceto o modal do guia */
       body > *:not(#setupModal) {
