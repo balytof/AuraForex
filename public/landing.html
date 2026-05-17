@@ -437,7 +437,7 @@
             .step-card { padding: 20px; }
         }
 
-        /* 🤖 AURA AI CHAT WIDGET */
+        /* AURA AI CHAT WIDGET */
         .aura-chat-widget {
             position: fixed; bottom: 30px; right: 30px; z-index: 9999;
             display: flex; flex-direction: column; align-items: flex-end;
@@ -553,11 +553,9 @@
             <a href="#services" data-i18n="nav_services" onclick="toggleMenu()">Bots</a>
             <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
             <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
-            <a href="#access" style="color: var(--accent); font-weight: 700;" onclick="toggleMenu()">Acesso</a>
-            <div style="display:flex; gap:10px; margin-left:10px; align-items:center;">
-                <a href="/login" style="padding: 8px 18px; border: 1px solid var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: var(--accent); transition: 0.3s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'" data-i18n="nav_login_btn">Login</a>
-                <a href="/login?mode=register" style="padding: 8px 18px; background: var(--accent); border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #03050a; transition: 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" data-i18n="nav_reg_btn">Criar Conta</a>
-            </div>
+            <a href="#access" onclick="toggleMenu()">Acesso</a>
+            <a href="/login" data-i18n="nav_login_btn" onclick="toggleMenu()">Login</a>
+            <a href="/login?mode=register" data-i18n="nav_reg_btn" onclick="toggleMenu()">Criar Conta</a>
             <select class="lang-switcher" onchange="changeLanguage(this.value)" style="margin-left:10px;">
                 <option value="pt">PT</option>
                 <option value="en">EN</option>
@@ -671,15 +669,15 @@
             <h2 class="section-title" data-i18n="partner_title">Porquê ser um Parceiro AuraTrade?</h2>
             <div class="info-grid">
                 <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
-                    <h4 class="syne" style="color: var(--accent);" data-i18n="p1_title">📈 Plano de Rede</h4>
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p1_title">Plano de Rede</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p1_desc">Partilhe a tecnologia e ganhe comissões recorrentes sobre as licenças ativadas na sua rede.</p>
                 </div>
                 <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
-                    <h4 class="syne" style="color: var(--accent);" data-i18n="p2_title">🏆 Liderança Global</h4>
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p2_title">Liderança Global</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p2_desc">Acesso a mentorias exclusivas e ferramentas de marketing para expandir o seu negócio digital.</p>
                 </div>
                 <div style="padding: 25px; background: var(--surface); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); text-align: left;">
-                    <h4 class="syne" style="color: var(--accent);" data-i18n="p3_title">💎 Tecnologia Non-Custodial</h4>
+                    <h4 class="syne" style="color: var(--accent);" data-i18n="p3_title">Tecnologia Non-Custodial</h4>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;" data-i18n="p3_desc">Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.</p>
                 </div>
             </div>
@@ -692,41 +690,41 @@
 
     <section class="section" id="about" style="text-align: left; background: transparent;">
         <div class="content-container">
-            <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">🌐 O que é a AURATRADE</h2>
+            <h2 class="section-title" style="text-align: center;" data-i18n="feat_title">O que é a AURATRADE</h2>
             
             <div class="about-content">
                 <p style="font-size: 1.1rem; margin-bottom: 30px;" data-i18n="about_intro">A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:</p>
                 <ul class="about-list">
-                    <li data-i18n="about_card1">👉 Não guarda o dinheiro do utilizador</li>
-                    <li data-i18n="about_card2">👉 Não controla os fundos</li>
-                    <li data-i18n="about_card3">👉 Não interfere na posse dos ativos</li>
+                    <li data-i18n="about_card1">Não guarda o dinheiro do utilizador</li>
+                    <li data-i18n="about_card2">Não controla os fundos</li>
+                    <li data-i18n="about_card3">Não interfere na posse dos ativos</li>
                 </ul>
 
-                <h3 class="syne" style="color: var(--accent); margin-bottom: 20px;" data-i18n="about_phil_title">🔐 Filosofia Non-Custodial</h3>
-                <p style="color: var(--text-muted); margin-bottom: 30px;" data-i18n="about_phil_desc">Inspirada pela tecnologia Blockchain: <strong>“Not your keys, not your money.”</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.</p>
+                <h3 class="syne" style="color: var(--accent); margin-bottom: 20px;" data-i18n="about_phil_title">Filosofia Non-Custodial</h3>
+                <p style="color: var(--text-muted); margin-bottom: 30px;" data-i18n="about_phil_desc">Inspirada pela tecnologia Blockchain: <strong>Not your keys, not your money.</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.</p>
 
                 <div class="info-grid" style="margin-top: 50px;">
                     <div class="glass-box" style="margin-bottom: 0;">
-                        <h3 class="syne" data-i18n="about_inst_title">🤖 Inteligência Institucional</h3>
+                        <h3 class="syne" data-i18n="about_inst_title">Inteligência Institucional</h3>
                         <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_inst_desc">Sistemas inspirados em fundos hedge e bancos de investimento, baseados em análise quantitativa e machine learning para redução de erro humano.</p>
                     </div>
                     <div class="glass-box" style="margin-bottom: 0;">
-                        <h3 class="syne" data-i18n="about_defi_title">🔗 Conexão Forex & DeFi</h3>
+                        <h3 class="syne" data-i18n="about_defi_title">Conexão Forex & DeFi</h3>
                         <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;" data-i18n="about_defi_desc">Um ecossistema híbrido que une a liquidez do Forex tradicional com a inovação dos Smart Contracts e staking do mundo DeFi.</p>
                     </div>
                 </div>
 
                 <div style="margin-top: 60px; background: rgba(0, 212, 255, 0.03); backdrop-filter: blur(10px); padding: 40px; border-radius: 24px; border: 1px solid var(--glass-border);">
-                    <h3 class="syne" style="margin-bottom: 20px; font-size: 1.4rem; color: var(--accent);" data-i18n="about_model_title">🚀 AuraForex V8.1 Institutional</h3>
+                    <h3 class="syne" style="margin-bottom: 20px; font-size: 1.4rem; color: var(--accent);" data-i18n="about_model_title">AuraForex V8.1 Institutional</h3>
                     <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;" data-i18n="about_model_intro">AuraForex V8.1 Institutional oferece a máxima sofisticação tecnológica sem os custos ocultos de serviços de terceiros. Através do nosso sistema de <strong>Conexão Direta via Licença</strong>, o investidor elimina taxas de APIs mensais, mantendo a performance institucional e a soberania total do seu capital.</p>
                     
-                    <h4 class="syne" style="margin-bottom: 15px; color: white;" data-i18n="about_model_sub">🔑 Conexão Direta: Sem Taxas Extras de API</h4>
+                    <h4 class="syne" style="margin-bottom: 15px; color: white;" data-i18n="about_model_sub">Conexão Direta: Sem Taxas Extras de API</h4>
                     <ul style="color: var(--text-muted); padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 15px;">
                         <li data-i18n="about_model_step1"><strong>Ativação Instantânea via Licença</strong>: Basta inserir a sua chave de licença no MetaTrader 5 e o sistema liga-se diretamente ao nosso cérebro analítico.</li>
                         <li data-i18n="about_model_step2"><strong>Custo de Manutenção Zero</strong>: Economize centenas de dólares anuais em taxas de conexão. Toda a infraestrutura de comunicação já está incluída no sistema.</li>
                         <li data-i18n="about_model_step3"><strong>Simplicidade Institucional</strong>: Configuração rápida, sem necessidade de chaves complexas ou subscrições externas.</li>
                     </ul>
-                    <p style="margin-top: 25px; font-weight: 700; color: var(--accent);" data-i18n="about_model_note">👉 Tecnologia Não Custodial com Custo Zero de API</p>
+                    <p style="margin-top: 25px; font-weight: 700; color: var(--accent);" data-i18n="about_model_note">Tecnologia Não Custodial com Custo Zero de API</p>
                 </div>
             </div>
         </div>
@@ -778,13 +776,13 @@
                 step4_desc: "Após a aprovação (max. 24h), descarregue o bot e comece a operar.",
                 access_title: "Como ter acesso aos Bots?",
                 partner_title: "Porquê ser um Parceiro AuraTrade?",
-                p1_title: "📈 Plano de Rede",
+                p1_title: "Plano de Rede",
                 p1_desc: "Partilhe a tecnologia e ganhe comissões recorrentes sobre as licenças ativadas na sua rede.",
-                p2_title: "🏆 Liderança Global",
+                p2_title: "Liderança Global",
                 p2_desc: "Acesso a mentorias exclusivas e ferramentas de marketing para expandir o seu negócio digital.",
-                p3_title: "💎 Tecnologia Non-Custodial",
+                p3_title: "Tecnologia Non-Custodial",
                 p3_desc: "Recomende com segurança: os fundos dos seus convidados permanecem sempre sob o controlo deles.",
-                feat_title: "🌐 O que é a AURATRADE",
+                feat_title: "O que é a AURATRADE",
                 about_intro: "A AURATRADE posiciona-se como uma empresa <strong>non-custodial</strong>, ou seja:",
                 plan_validity: "Validade",
                 plan_days: "dias",
@@ -805,22 +803,22 @@
                     "Blockchain: A tecnologia que permite a transparência total sem custódia central.",
                     "Gemini AI: A inteligência que processa triliões de pontos de dados em milissegundos."
                 ],
-                about_card1: "👉 Não guarda o dinheiro do utilizador",
-                about_card2: "👉 Não controla os fundos",
-                about_card3: "👉 Não interfere na posse dos ativos",
-                about_phil_title: "🔐 Filosofia Non-Custodial",
-                about_phil_desc: "Inspirada pela tecnologia Blockchain: <strong>“Not your keys, not your money.”</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.",
-                about_inst_title: "🤖 Inteligência Institucional",
+                about_card1: "Não guarda o dinheiro do utilizador",
+                about_card2: "Não controla os fundos",
+                about_card3: "Não interfere na posse dos ativos",
+                about_phil_title: "Filosofia Non-Custodial",
+                about_phil_desc: "Inspirada pela tecnologia Blockchain: <strong>Not your keys, not your money.</strong> O utilizador mantém controlo total via carteira própria ou conta de trading (MT5). A AURATRADE apenas executa estratégias autorizadas.",
+                about_inst_title: "Inteligência Institucional",
                 about_inst_desc: "Sistemas inspirados em fundos hedge e bancos de investimento, baseados em análise quantitativa e machine learning para redução de erro humano.",
-                about_defi_title: "🔗 Conexão Forex & DeFi",
+                about_defi_title: "Conexão Forex & DeFi",
                 about_defi_desc: "Um ecossistema híbrido que une a liquidez do Forex tradicional com a inovação dos Smart Contracts e staking do mundo DeFi.",
-                about_model_title: "🚀 AuraForex V8.1 Institutional",
+                about_model_title: "AuraForex V8.1 Institutional",
                 about_model_intro: "AuraForex V8.1 Institutional oferece a máxima sofisticação tecnológica sem os custos ocultos de serviços de terceiros. Através do nosso sistema de <strong>Conexão Direta via Licença</strong>, o investidor elimina taxas de APIs mensais, mantendo a performance institucional e a soberania total do seu capital.",
-                about_model_sub: "🔑 Conexão Direta: Sem Taxas Extras de API",
+                about_model_sub: "Conexão Direta: Sem Taxas Extras de API",
                 about_model_step1: "<strong>Ativação Instantânea via Licença</strong>: Basta inserir a sua chave de licença no MetaTrader 5 e o sistema liga-se diretamente ao nosso cérebro analítico.",
                 about_model_step2: "<strong>Custo de Manutenção Zero</strong>: Economize centenas de dólares anuais em taxas de conexão. Toda a infraestrutura de comunicação já está incluída no sistema.",
                 about_model_step3: "<strong>Simplicidade Institucional</strong>: Configuração rápida, sem necessidade de chaves complexas ou subscrições externas.",
-                about_model_note: "👉 Tecnologia Não Custodial com Custo Zero de API",
+                about_model_note: "Tecnologia Não Custodial com Custo Zero de API",
                 ticker_text: "AURATRADE · FOREX · DEFI · INSTITUCIONAL · BLOCKCHAIN · SMART MONEY",
                 footer_desc: "O ecossistema definitivo para traders institucionais. Tecnologia de ponta, sinais precisos e automação inteligente.",
                 footer_links_title: "Links Rápidos",
@@ -829,7 +827,14 @@
                 footer_rights: "&copy; 2026 AuraTrade. Todos os direitos reservados.",
                 nav_terms: "Termos de Serviço",
                 nav_login_btn: "Login",
-                nav_reg_btn: "Criar Conta"
+                nav_reg_btn: "Criar Conta",
+                terms_title: "Termos de Serviço e Aviso de Risco",
+                terms_p1: "<strong>1. Transparência e Honestidade</strong><br>A AuraTrade tem como pilar fundamental a total transparência. Fornecemos tecnologia de ponta para auxiliar na sua tomada de decisão, mas não fazemos promessas de lucros fáceis nem garantimos retornos financeiros. O mercado é soberano.",
+                terms_p2: "<strong>2. Natureza Não Custodial</strong><br>Somos uma plataforma 100% <em>non-custodial</em>. O seu capital permanece sempre na sua corretora de preferência. A AuraTrade não guarda, não gere e não tem qualquer acesso para movimentar os seus fundos.",
+                terms_p3: "<strong>3. Instrumento Profissional de Negociação</strong><br>O nosso sistema é uma ferramenta institucional que aplica conceitos de <em>Smart Money</em> e análise quantitativa. Ele executa parâmetros pré-definidos para otimizar operações, e não é uma fórmula mágica.",
+                terms_p4: "<strong>4. Aviso de Risco Elevado</strong><br>O trading no mercado Forex e Criptomoedas envolve um <strong>risco substancial</strong> de perda de capital. A alavancagem pode atuar a seu favor ou contra si. Deve ponderar cuidadosamente os seus objetivos de investimento.",
+                terms_p5: "<strong>5. Isenção de Responsabilidade</strong><br>O desempenho passado não é indicativo de resultados futuros. Qualquer perda decorrente do uso da nossa tecnologia ou volatilidade do mercado é da exclusiva responsabilidade do utilizador. Nunca invista dinheiro que não possa perder.",
+                terms_btn_accept: "Entendi e Aceito"
             },
             en: {
                 nav_services: "Bots",
@@ -861,13 +866,13 @@
                 step4_desc: "After approval (max. 24h), download the bot and start trading.",
                 access_title: "How to get access to the Bots?",
                 partner_title: "Why become an AuraTrade Partner?",
-                p1_title: "📈 Network Plan",
+                p1_title: "Network Plan",
                 p1_desc: "Share the technology and earn recurring commissions on activated licenses in your network.",
-                p2_title: "🏆 Global Leadership",
+                p2_title: "Global Leadership",
                 p2_desc: "Access exclusive mentoring and marketing tools to expand your digital business.",
-                p3_title: "💎 Non-Custodial Tech",
+                p3_title: "Non-Custodial Tech",
                 p3_desc: "Recommend with security: your guests' funds always remain under their control.",
-                feat_title: "🌐 What is AURATRADE",
+                feat_title: "What is AURATRADE",
                 about_intro: "AURATRADE positions itself as a <strong>non-custodial</strong> company, meaning:",
                 plan_validity: "Validity",
                 plan_days: "days",
@@ -888,22 +893,22 @@
                     "Blockchain: The technology that allows total transparency without central custody.",
                     "Gemini AI: Intelligence that processes trillions of data points in milliseconds."
                 ],
-                about_card1: "👉 Does not hold user money",
-                about_card2: "👉 Does not control funds",
-                about_card3: "👉 Does not interfere with asset ownership",
-                about_phil_title: "🔐 Non-Custodial Philosophy",
-                about_phil_desc: "Inspired by Blockchain technology: <strong>“Not your keys, not your money.”</strong> The user maintains full control via their own wallet or trading account (MT5). AURATRADE only executes authorized strategies.",
-                about_inst_title: "🤖 Institutional Intelligence",
+                about_card1: "Does not hold user money",
+                about_card2: "Does not control funds",
+                about_card3: "Does not interfere with asset ownership",
+                about_phil_title: "Non-Custodial Philosophy",
+                about_phil_desc: "Inspired by Blockchain technology: <strong>Not your keys, not your money.</strong> The user maintains full control via their own wallet or trading account (MT5). AURATRADE only executes authorized strategies.",
+                about_inst_title: "Institutional Intelligence",
                 about_inst_desc: "Systems inspired by hedge funds and investment banks, based on quantitative analysis and machine learning to reduce human error.",
-                about_defi_title: "🔗 Forex & DeFi Connection",
+                about_defi_title: "Forex & DeFi Connection",
                 about_defi_desc: "A hybrid ecosystem that unites traditional Forex liquidity with the innovation of Smart Contracts and DeFi world staking.",
-                about_model_title: "🚀 AuraForex V8.1 Institutional",
+                about_model_title: "AuraForex V8.1 Institutional",
                 about_model_intro: "AuraForex V8.1 Institutional offers peak technological sophistication without the hidden costs of third-party services. Through our <strong>Direct License Connection</strong> system, investors eliminate monthly API fees while maintaining institutional performance and total capital sovereignty.",
-                about_model_sub: "🔑 Direct Connection: Zero Extra API Fees",
+                about_model_sub: "Direct Connection: Zero Extra API Fees",
                 about_model_step1: "<strong>Instant License Activation</strong>: Just enter your license key in MetaTrader 5 and the system connects directly to our analytical brain.",
                 about_model_step2: "<strong>Zero Maintenance Cost</strong>: Save hundreds of dollars annually in connection fees. All communication infrastructure is already included.",
                 about_model_step3: "<strong>Institutional Simplicity</strong>: Fast setup, no need for complex keys or external subscriptions.",
-                about_model_note: "👉 Non-Custodial Tech with Zero API Cost",
+                about_model_note: "Non-Custodial Tech with Zero API Cost",
                 ticker_text: "AURATRADE · FOREX · DEFI · INSTITUTIONAL · BLOCKCHAIN · SMART MONEY",
                 footer_desc: "The ultimate ecosystem for institutional traders. Cutting-edge technology, precise signals, and intelligent automation.",
                 footer_links_title: "Quick Links",
@@ -912,7 +917,14 @@
                 footer_rights: "&copy; 2026 AuraTrade. All rights reserved.",
                 nav_terms: "Terms of Service",
                 nav_login_btn: "Login",
-                nav_reg_btn: "Sign Up"
+                nav_reg_btn: "Sign Up",
+                terms_title: "Terms of Service and Risk Warning",
+                terms_p1: "<strong>1. Transparency and Honesty</strong><br>AuraTrade is built on absolute transparency. We provide cutting-edge technology to assist your decision-making, but we do not promise easy profits nor guarantee financial returns. The market is sovereign.",
+                terms_p2: "<strong>2. Non-Custodial Nature</strong><br>We are a 100% <em>non-custodial</em> platform. Your capital remains safely with your preferred broker. AuraTrade does not hold, manage, or have any access to withdraw or move your funds.",
+                terms_p3: "<strong>3. Professional Trading Instrument</strong><br>Our system is an institutional trading tool applying <em>Smart Money Concepts</em> and quantitative analysis. It executes pre-defined parameters to optimize operations and is not a magic formula.",
+                terms_p4: "<strong>4. High Risk Warning</strong><br>Trading in Forex and Cryptocurrency markets involves a <strong>substantial risk</strong> of capital loss. Leverage can work for or against you. You must carefully consider your investment objectives and risk appetite.",
+                terms_p5: "<strong>5. Disclaimer</strong><br>Past performance is not indicative of future results. Any loss resulting from the use of our technology or market volatility is the sole responsibility of the user. Never invest money you cannot afford to lose.",
+                terms_btn_accept: "I Understand and Accept"
             },
             fr: {
                 nav_services: "Bots",
@@ -944,13 +956,13 @@
                 step4_desc: "Après approbation (max. 24h), téléchargez le bot et commencez à trader.",
                 access_title: "Comment acessar aos Bots?",
                 partner_title: "Pourquoi devenir partenaire AuraTrade?",
-                p1_title: "📈 Plan de Réseau",
+                p1_title: "Plan de Réseau",
                 p1_desc: "Partagez la technologie et gagnez des commissions récurrentes sur les licences activées dans votre réseau.",
-                p2_title: "🏆 Leadership Mondial",
+                p2_title: "Leadership Mondial",
                 p2_desc: "Accès à des mentorats exclusifs et des outils marketing pour desenvolver votre activité numérique.",
-                p3_title: "💎 Technologie Non-Custodial",
+                p3_title: "Technologie Non-Custodial",
                 p3_desc: "Recommandez en toute sécurité: les fonds de vos invités restent toujours sous leur contrôle.",
-                feat_title: "🌐 Qu'est-ce que l'AURATRADE",
+                feat_title: "Qu'est-ce que l'AURATRADE",
                 about_intro: "AURATRADE se positionne comme une société <strong>non-custodial</strong>, c'est-à-dire:",
                 plan_validity: "Validité",
                 plan_days: "jours",
@@ -971,22 +983,22 @@
                     "Blockchain : La technologie qui permet une transparence totale sans garde centrale.",
                     "Gemini AI : L'intelligence qui traite des billions de points de données en quelques millisecondes."
                 ],
-                about_card1: "👉 Ne garde pas l'argent de l'utilisateur",
-                about_card2: "👉 Ne contrôle pas les fonds",
-                about_card3: "👉 N'interfère pas avec la possession des actifs",
-                about_phil_title: "🔐 Philosophie Non-Custodial",
-                about_phil_desc: "Inspirée par la technologie Blockchain : <strong>“Not your keys, not your money.”</strong> L'utilisateur conserve le contrôle total via son propre portefeuille ou compte de trading (MT5). AURATRADE exécute uniquement les stratégies autorisées.",
-                about_inst_title: "🤖 Intelligence Institutionnelle",
+                about_card1: "Ne garde pas l'argent de l'utilisateur",
+                about_card2: "Ne contrôle pas les fonds",
+                about_card3: "N'interfère pas avec la possession des actifs",
+                about_phil_title: "Philosophie Non-Custodial",
+                about_phil_desc: "Inspirée par la technologie Blockchain : <strong>Not your keys, not your money.</strong> L'utilisateur conserve le contrôle total via son propre portefeuille ou compte de trading (MT5). AURATRADE exécute uniquement les stratégies autorisées.",
+                about_inst_title: "Intelligence Institutionnelle",
                 about_inst_desc: "Systèmes inspirés des fonds spéculatifs et des banques d'investissement, basés sur l'analyse quantitative et le machine learning pour réduire l'erreur humaine.",
-                about_defi_title: "🔗 Connexion Forex & DeFi",
+                about_defi_title: "Connexion Forex & DeFi",
                 about_defi_desc: "Un écosystème hybride qui unit la liquidité du Forex traditionnel avec l'innovation des Smart Contracts et du staking du monde DeFi.",
-                about_model_title: "🚀 AuraForex V8.1 Institutional",
+                about_model_title: "AuraForex V8.1 Institutional",
                 about_model_intro: "AuraForex V8.1 Institutional offre une sophistication technologique maximale sans les coûts cachés des services tiers. Grâce à notre système de <strong>Connexion Directe via Licence</strong>, l'investisseur élimine os frais d'API mensuels tout en conservant des performances institutionnelles et une souveraineté totale du capital.",
-                about_model_sub: "🔑 Connexion Directe : Zéro frais d'API supplémentaires",
+                about_model_sub: "Connexion Directe : Zéro frais d'API supplémentaires",
                 about_model_step1: "<strong>Activation instantanée via licence</strong> : Saisissez simplement votre clé de licence dans MetaTrader 5 et le système se connecte directement à notre cerveau analytique.",
                 about_model_step2: "<strong>Coût de maintenance nul</strong> : Économisez des centaines de dollars par an en frais de connexion. Toute l'infrastructure de communication est déjà incluse.",
                 about_model_step3: "<strong>Simplicité institutionnelle</strong> : Configuration rapide, pas besoin de clés complexes ou d'abonnements externes.",
-                about_model_note: "👉 Technologie non-custodial avec coût d'API nul",
+                about_model_note: "Technologie non-custodial avec coût d'API nul",
                 ticker_text: "AURATRADE · FOREX · DEFI · INSTITUTIONNEL · BLOCKCHAIN · SMART MONEY",
                 footer_desc: "L'écosystème ultime pour les traders institutionnels. Technologie de pointe, signaux précis et automatisation intelligente.",
                 footer_links_title: "Liens Rapides",
@@ -995,7 +1007,14 @@
                 footer_rights: "&copy; 2026 AuraTrade. Tous droits réservés.",
                 nav_terms: "Conditions d'utilisation",
                 nav_login_btn: "Connexion",
-                nav_reg_btn: "S'inscrire"
+                nav_reg_btn: "S'inscrire",
+                terms_title: "Conditions d'utilisation et Avertissement sur les risques",
+                terms_p1: "<strong>1. Transparence et Honnêteté</strong><br>AuraTrade repose sur une transparence absolue. Nous fournissons une technologie de pointe pour vous aider, mais nous ne promettons pas de profits faciles ni ne garantissons de rendements. Le marché est souverain.",
+                terms_p2: "<strong>2. Nature Non-Custodial</strong><br>Nous sommes une plateforme 100% <em>non-custodial</em>. Votre capital reste en sécurité chez votre courtier. AuraTrade ne détient, ne gère et n'a aucun accès pour déplacer vos fonds.",
+                terms_p3: "<strong>3. Instrument de Trading Professionnel</strong><br>Notre système est un outil institutionnel appliquant les concepts de la <em>Smart Money</em> et l'analyse quantitative. Il exécute des paramètres pour optimiser les opérations et n'est pas une formule magique.",
+                terms_p4: "<strong>4. Avertissement de Risque Élevé</strong><br>Le trading sur le Forex et les cryptomonnaies implique un <strong>risque substantiel</strong> de perte de capital. L'effet de levier peut jouer pour ou contre vous.",
+                terms_p5: "<strong>5. Clause de Non-responsabilité</strong><br>Les performances passées ne préjugent pas des résultats futurs. Toute perte résultant de l'utilisation de notre technologie est de la seule responsabilité de l'utilisateur. N'investissez jamais de l'argent que vous ne pouvez pas vous permettre de perdre.",
+                terms_btn_accept: "Je Comprends et J'accepte"
             },
             es: {
                 nav_services: "Bots",
@@ -1027,13 +1046,13 @@
                 step4_desc: "Después de la aprobación (max. 24h), descargue el bot y comience a operar.",
                 access_title: "¿Cómo tener acceso a los Bots?",
                 partner_title: "¿Por qué ser un Socio de AuraTrade?",
-                p1_title: "📈 Plan de Red",
+                p1_title: "Plan de Red",
                 p1_desc: "Comparta la tecnología y gane comisiones recurrentes sobre las licenças activadas en su red.",
-                p2_title: "🏆 Liderazgo Global",
+                p2_title: "Liderazgo Global",
                 p2_desc: "Acceso a mentorías exclusivas y ferramentas de marketing para expandir seu negócio digital.",
-                p3_title: "💎 Tecnologia Non-Custodial",
+                p3_title: "Tecnologia Non-Custodial",
                 p3_desc: "Recomiende con seguridad: los fondos de sus invitados permanecen sempre bajo su control.",
-                feat_title: "🌐 Qué é AURATRADE",
+                feat_title: "Qué é AURATRADE",
                 about_intro: "AURATRADE se posiciona como una empresa <strong>non-custodial</strong>, es decir:",
                 plan_validity: "Validez",
                 plan_days: "días",
@@ -1054,21 +1073,21 @@
                     "Blockchain: La tecnología que permite la transparencia total sin custodia central.",
                     "Gemini AI: La inteligencia que processa triliões de pontos de dados em milissegundos."
                 ],
-                about_card1: "👉 No guarda el dinero del usuario",
-                about_card2: "👉 No controla los fondos",
-                about_card3: "👉 No interfiere en la posesión de los activos",
-                about_phil_title: "🔐 Filosofía Non-Custodial",
-                about_phil_desc: "Inspirada en la tecnología Blockchain: <strong>“Not your keys, not your money.”</strong> El usuario mantiene el control total vía cartera propia o cuenta de trading (MT5). AURATRADE solo ejecuta estrategias autorizadas.",
-                about_inst_title: "🤖 Inteligencia Institucional",
+                about_card1: "No guarda el dinero del usuario",
+                about_card2: "No controla los fondos",
+                about_card3: "No interfiere en la posesión de los activos",
+                about_phil_title: "Filosofía Non-Custodial",
+                about_phil_desc: "Inspirada en la tecnología Blockchain: <strong>Not your keys, not your money.</strong> El usuario mantiene el control total vía cartera propia o cuenta de trading (MT5). AURATRADE solo ejecuta estrategias autorizadas.",
+                about_inst_title: "Inteligencia Institucional",
                 about_inst_desc: "Sistemas inspirados en fondos de cobertura y bancos de inversión, basados en el análisis cuantitativo y el machine learning para reducir el error humano.",
-                about_defi_title: "🔗 Conexión Forex & DeFi",
+                about_defi_title: "Conexión Forex & DeFi",
                 about_defi_desc: "Un ecosistema híbrido que une la liquidez del Forex tradicional con la innovación de los Smart Contracts y el staking del mundo DeFi.",
-                about_model_title: "🚀 Modelo de funcionamiento",
+                about_model_title: "Modelo de funcionamiento",
                 about_model_step1: "El usuario conecta su cuenta (MT5 o Cartera Cripto)",
                 about_model_step2: "Elige la estrategia o bot deseado",
                 about_model_step3: "Autoriza la ejecución vía API/Contrato",
                 about_model_step4: "El bot opera automáticamente con resultados directos en la cuenta del usuario",
-                about_model_note: "👉 Sin intermediarios. Sin retención de fondos.",
+                about_model_note: "Sin intermediarios. Sin retención de fondos.",
                 ticker_text: "AURATRADE · FOREX · DEFI · INSTITUCIONAL · BLOCKCHAIN · SMART MONEY",
                 footer_desc: "El ecosistema definitivo para traders institucionales. Tecnología de punta, señales precisas y automatización inteligente.",
                 footer_links_title: "Enlaces Rápidos",
@@ -1077,7 +1096,14 @@
                 footer_rights: "&copy; 2026 AuraTrade. Todos los derechos reservados.",
                 nav_terms: "Términos de Servicio",
                 nav_login_btn: "Ingresar",
-                nav_reg_btn: "Registrarse"
+                nav_reg_btn: "Registrarse",
+                terms_title: "Términos de Servicio y Advertencia de Riesgo",
+                terms_p1: "<strong>1. Transparencia y Honestidad</strong><br>AuraTrade se basa en la transparencia absoluta. Proveemos tecnología punta para ayudarle, pero no prometemos ganancias fáciles ni garantizamos retornos. El mercado es soberano.",
+                terms_p2: "<strong>2. Naturaleza Non-Custodial</strong><br>Somos una plataforma 100% <em>non-custodial</em>. Su capital permanece seguro con su bróker de preferencia. AuraTrade no guarda, ni gestiona ni tiene acceso para retirar sus fondos.",
+                terms_p3: "<strong>3. Instrumento Profesional de Trading</strong><br>Nuestro sistema es una herramienta institucional que aplica conceptos de <em>Smart Money</em> y análisis cuantitativo. Ejecuta parámetros para optimizar las operaciones y no es una fórmula mágica.",
+                terms_p4: "<strong>4. Advertencia de Alto Riesgo</strong><br>El trading en Forex y Criptomonedas implica un <strong>riesgo sustancial</strong> de pérdida de capital. El apalancamiento puede jugar a su favor o en su contra.",
+                terms_p5: "<strong>5. Descargo de Responsabilidad</strong><br>El rendimiento pasado no es indicativo de resultados futuros. Cualquier pérdida derivada del uso de nuestra tecnología es responsabilidad exclusiva del usuario. Nunca invierta dinero que no pueda permitirse perder.",
+                terms_btn_accept: "Entiendo y Acepto"
             },
         };
 
@@ -1103,10 +1129,10 @@
                             <h3 class="syne" style="font-size: 1.2rem;">${p.name}</h3>
                             <div style="font-size: 2.5rem; font-weight: 800; margin: 20px 0; color: var(--accent);">$${p.price}</div>
                             <ul style="list-style: none; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;">
-                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_validity">Validade</span>: ${p.durationDays} <span data-i18n="plan_days">dias</span></li>
-                                <li style="margin-bottom: 8px;">✅ <span data-i18n="srv_bot_title">Bot SMC Pro Forex</span></li>
-                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_support">Suporte Prioritário</span></li>
-                                <li style="margin-bottom: 8px;">✅ <span data-i18n="plan_guide">Guia de Instalação</span></li>
+                                <li style="margin-bottom: 8px;"> <span data-i18n="plan_validity">Validade</span>: ${p.durationDays} <span data-i18n="plan_days">dias</span></li>
+                                <li style="margin-bottom: 8px;"> <span data-i18n="srv_bot_title">Bot SMC Pro Forex</span></li>
+                                <li style="margin-bottom: 8px;"> <span data-i18n="plan_support">Suporte Prioritário</span></li>
+                                <li style="margin-bottom: 8px;"> <span data-i18n="plan_guide">Guia de Instalação</span></li>
                             </ul>
                             <a href="/login" class="btn-access" style="text-align:center; padding: 12px;" data-i18n="plan_buy">Comprar Agora</a>
                         </div>
@@ -1231,7 +1257,7 @@
             }
         }
 
-        // 🤖 AURA AI CHAT LOGIC
+        // AURA AI CHAT LOGIC
         function toggleAura() {
             const win = document.getElementById("auraWindow");
             win.classList.toggle("active");
@@ -1297,7 +1323,7 @@
             loadPlans();
         };
     </script>
-    <!-- 🌐 FOOTER / REDES SOCIAIS -->
+    <!-- FOOTER / REDES SOCIAIS -->
     <footer class="main-footer" style="background: var(--surface); border-top: 1px solid var(--border); padding: 60px 0 30px; margin-top: 100px; position: relative; z-index: 10;">
         <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 40px; margin-bottom: 40px;">
@@ -1318,7 +1344,7 @@
                         <li><a href="#about" style="color: inherit; text-decoration: none;" data-i18n="nav_about">Sobre Nós</a></li>
                         <li><a href="#plans" style="color: inherit; text-decoration: none;" data-i18n="nav_plans">Planos</a></li>
                         <li><a href="/login" style="color: inherit; text-decoration: none;" data-i18n="nav_members">Área de Membros</a></li>
-                        <li><a href="#" style="color: inherit; text-decoration: none;" data-i18n="nav_terms">Termos de Serviço</a></li>
+                        <li><a href="#" onclick="openTermsModal(event)" style="color: inherit; text-decoration: none;" data-i18n="nav_terms">Termos de Serviço</a></li>
                     </ul>
                 </div>
                 <!-- Social -->
@@ -1340,16 +1366,16 @@
         </div>
     </footer>
 
-    <!-- 🤖 AURA AI CHAT WIDGET -->
+    <!-- AURA AI CHAT WIDGET -->
     <div class="aura-chat-widget">
         <div class="aura-window" id="auraWindow">
             <div class="aura-header">
-                <div class="aura-avatar">🤖</div>
+                <div class="aura-avatar"></div>
                 <div class="aura-info">
                     <h4>Aura AI</h4>
-                    <span>Online • Suporte Inteligente</span>
+                    <span>Online  Suporte Inteligente</span>
                 </div>
-                <div class="aura-close" onclick="toggleAura()">✕</div>
+                <div class="aura-close" onclick="toggleAura()"></div>
             </div>
             <div class="aura-messages" id="auraMessages">
                 <div class="msg bot">Olá! Eu sou a <b>Aura</b>. Estou aqui para te ajudar com tudo sobre a AuraTrade. Como posso ajudar hoje?</div>
@@ -1372,5 +1398,38 @@
         </div>
     </div>
 
+    <!-- MODAL TERMOS DE SERVIÇO -->
+    <div id="termsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(3, 5, 10, 0.9); z-index:9999; justify-content:center; align-items:center; backdrop-filter: blur(5px);">
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:20px; width:90%; max-width:800px; max-height:85vh; overflow-y:auto; padding:40px; position:relative;">
+            <button onclick="closeTermsModal()" style="position:absolute; top:20px; right:20px; background:none; border:none; color:var(--muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            <h2 class="syne" style="color:var(--accent); margin-bottom:20px; font-size:2rem;" data-i18n="terms_title">Termos de Serviço e Aviso de Risco</h2>
+            
+            <div style="color:var(--text-muted); line-height:1.7; font-size:0.95rem; display:flex; flex-direction:column; gap:20px;">
+                <p data-i18n="terms_p1"><strong>1. Transparência e Honestidade</strong><br>A AuraTrade tem como pilar fundamental a total transparência. Fornecemos tecnologia de ponta para auxiliar na sua tomada de decisão, mas não fazemos promessas de lucros fáceis nem garantimos retornos financeiros. O mercado é soberano.</p>
+                
+                <p data-i18n="terms_p2"><strong>2. Natureza Não Custodial</strong><br>Somos uma plataforma 100% <em>non-custodial</em>. O seu capital permanece sempre na sua corretora de preferência (ex: MetaTrader 5). A AuraTrade não guarda, não gere e não tem qualquer tipo de acesso para levantar ou movimentar os seus fundos. O controlo do seu dinheiro é inteiramente seu.</p>
+                
+                <p data-i18n="terms_p3"><strong>3. Instrumento Profissional de Negociação</strong><br>O nosso sistema (SMC APEX EA e AuraForex V8.1) é uma ferramenta institucional de negociação que aplica conceitos de <em>Smart Money</em> e análise quantitativa. Ele executa parâmetros pré-definidos para otimizar operações, funcionando como uma extensão da sua estratégia, e não como uma fórmula mágica.</p>
+                
+                <p data-i18n="terms_p4"><strong>4. Aviso de Risco Elevado</strong><br>O trading no mercado Forex, Criptomoedas e CFDs envolve um <strong>risco substancial</strong> de perda de capital e não é adequado para todos os investidores. A alavancagem pode atuar a seu favor ou contra si. Deve ponderar cuidadosamente os seus objetivos de investimento, nível de experiência e apetite pelo risco antes de utilizar a nossa tecnologia.</p>
+                
+                <p data-i18n="terms_p5"><strong>5. Isenção de Responsabilidade</strong><br>O desempenho passado não é indicativo de resultados futuros. A AuraTrade fornece o software (bot/EA) "tal como está". Qualquer perda decorrente do uso da nossa tecnologia, volatilidade do mercado, ou falhas de conexão com a sua corretora é de exclusiva responsabilidade do utilizador. Nunca invista dinheiro que não possa perder.</p>
+            </div>
+            
+            <div style="margin-top:40px; text-align:center;">
+                <button onclick="closeTermsModal()" class="btn-access" style="padding:15px 40px; font-size:1rem; border:none; cursor:pointer;" data-i18n="terms_btn_accept">Entendi e Aceito</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openTermsModal(e) {
+            if(e) e.preventDefault();
+            document.getElementById('termsModal').style.display = 'flex';
+        }
+        function closeTermsModal() {
+            document.getElementById('termsModal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>

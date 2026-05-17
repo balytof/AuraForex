@@ -1077,6 +1077,12 @@
       </div>
     </div>
     <div class="controls">
+      <select class="lang-switcher" onchange="if(window.forceDashboardLang) window.forceDashboardLang(this.value);" style="padding: 5px; border-radius: 5px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-family: 'Space Mono', monospace; font-size: 0.8rem; cursor: pointer;">
+        <option value="pt">PT</option>
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+        <option value="es">ES</option>
+      </select>
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
     </div>
@@ -3421,4 +3427,7 @@ async function loadSystemConfig() {
     </div> <!-- /wrapper -->
   </main> <!-- /main-content -->
 </div> <!-- /dashboard-container -->
+<!-- i18n Script Dinâmico -->
+<script src="/i18n_dashboard.js"></script>
+</body>
 </html>

@@ -26,7 +26,9 @@ const filesToUpload = [
     { local: './JAson.mqh', remote: '/root/AuraForex/public/JAson.mqh' },
     { local: './public/landing.html', remote: '/root/AuraForex/public/landing.html' },
     { local: './support_api.js', remote: '/root/AuraForex/support_api.js' },
-    { local: './public/bot-human.png', remote: '/root/AuraForex/public/bot-human.png' }
+    { local: './public/i18n_dashboard.js', remote: '/root/AuraForex/public/i18n_dashboard.js' },
+    { local: './public/bot-human.png', remote: '/root/AuraForex/public/bot-human.png' },
+    { local: './update_db_url.js', remote: '/root/AuraForex/update_db_url.js' }
 ];
 
 conn.on('ready', () => {
@@ -51,9 +53,9 @@ conn.on('ready', () => {
                 
                 completed++;
                 if (completed === filesToUpload.length) {
-                    console.log('🔄 Reiniciando servidores no VPS via PM2...');
-                    // Comando para reiniciar o processo principal
-                    conn.exec('cd /root/AuraForex && npx pm2 restart aura-v2-elite || npx pm2 start server.js --name aura-v2-elite', (err, stream) => {
+                    console.log('🔄 Atualizando DB e reiniciando servidores no VPS via PM2...');
+                    // Comando para atualizar o banco e depois reiniciar o PM2
+                    conn.exec('cd /root/AuraForex && node update_db_url.js && npx pm2 restart aura-v2-elite || npx pm2 start server.js --name aura-v2-elite', (err, stream) => {
                         if (err) throw err;
                         stream.on('close', () => {
                             console.log('✨ TUDO ATUALIZADO E REINICIADO NO VPS!');
