@@ -73,6 +73,27 @@ const dashboardTranslations = {
         "P&L Líquido": "Net P&L",
         "Nenhum histórico disponível. Verifique o seu EA no MT5.": "No history available. Check your EA in MT5.",
 
+        // MT5 Setup Guide
+        "Autorizar WebRequest (OBRIGATÓRIO)": "Authorize WebRequest (REQUIRED)",
+        "No MT5: Ferramentas -> Opções -> Especialistas": "In MT5: Tools -> Options -> Expert Advisors",
+        "Permitir WebRequest para os seguintes URLs": "Allow WebRequest for the following URLs",
+        "Clique no \"+\" e adicione o endereço do nosso servidor:": "Click \"+\" and add our server address:",
+        "Sem este passo, o EA não consegue validar a licença e não arrancará.": "Without this step, the EA cannot validate the license and will not start.",
+        "Ativar e Aplicar": "Activate and Apply",
+        "Ativar": "Activate",
+        "Configure os Inputs": "Configure the Inputs",
+        "Sua chave pessoal": "Your personal key",
+        "Endereço do servidor": "Server address",
+        "% do saldo por trade": "% of balance per trade",
+        "Take Profit = 2x o SL": "Take Profit = 2x the SL",
+        "Orientações Importantes:": "Important Guidelines:",
+        "Certifique-se de que o Algotrading está verde no MT5.": "Make sure Algotrading is green in MT5.",
+        "Adicione https://www.auratradebots.com/api na lista de URLs permitidos.": "Add https://www.auratradebots.com/api to the allowed URLs list.",
+        "Utilize o par EURUSD no timeframe H1 para melhores resultados.": "Use the EURUSD pair on H1 timeframe for best results.",
+        "Sua chave de licença deve ser inserida exatamente como aparece no seu Tableau de Bord.": "Your license key must be entered exactly as it appears on your Dashboard.",
+        "Imprimir Guia": "Print Guide",
+        "Fechar Guia": "Close Guide",
+
         // Affiliate Dashboard (affiliate_dashboard.html)
         "Programa de Parceria Profissional": "Professional Partnership Program",
         "Link de afiliação:": "Affiliate Link:",
@@ -214,6 +235,27 @@ const dashboardTranslations = {
         "Direção": "Direction",
         "P&L Líquido": "P&L Net",
         "Nenhum histórico disponível. Verifique o seu EA no MT5.": "Aucun historique disponible. Vérifiez votre EA dans MT5.",
+
+        // MT5 Setup Guide
+        "Autorizar WebRequest (OBRIGATÓRIO)": "Autoriser WebRequest (OBLIGATOIRE)",
+        "No MT5: Ferramentas -> Opções -> Especialistas": "Dans MT5: Outils -> Options -> Experts Advisors",
+        "Permitir WebRequest para os seguintes URLs": "Autoriser WebRequest pour les URL suivantes",
+        "Clique no \"+\" e adicione o endereço do nosso servidor:": "Cliquez sur \"+\" et ajoutez l'adresse de notre serveur :",
+        "Sem este passo, o EA não consegue validar a licença e não arrancará.": "Sans cette étape, l'EA ne peut pas valider la licence et ne démarrera pas.",
+        "Ativar e Aplicar": "Activer et Appliquer",
+        "Ativar": "Activer",
+        "Configure os Inputs": "Configurer les Inputs",
+        "Sua chave pessoal": "Votre clé personnelle",
+        "Endereço do servidor": "Adresse du serveur",
+        "% do saldo por trade": "% du solde par trade",
+        "Take Profit = 2x o SL": "Take Profit = 2x le SL",
+        "Orientações Importantes:": "Orientations Importantes :",
+        "Certifique-se de que o Algotrading está verde no MT5.": "Assurez-vous que l'Algotrading est vert dans MT5.",
+        "Adicione https://www.auratradebots.com/api na lista de URLs permitidos.": "Ajoutez https://www.auratradebots.com/api à la liste des URL autorisées.",
+        "Utilize o par EURUSD no timeframe H1 para melhores resultados.": "Utilisez la paire EURUSD sur l'unité de temps H1 pour de meilleurs résultats.",
+        "Sua chave de licença deve ser inserida exatamente como aparece no seu Tableau de Bord.": "Votre clé de licence doit être saisie exactement telle qu'elle apparaît sur votre Tableau de Bord.",
+        "Imprimir Guia": "Imprimer le Guide",
+        "Fechar Guia": "Fermer le Guide",
 
         // Affiliate Dashboard (affiliate_dashboard.html)
         "Programa de Parceria Profissional": "Programme de Partenariat Professionnel",
@@ -357,6 +399,27 @@ const dashboardTranslations = {
         "P&L Líquido": "P&L Neto",
         "Nenhum histórico disponível. Verifique o seu EA no MT5.": "No hay historial disponible. Verifique su EA en MT5.",
 
+        // MT5 Setup Guide
+        "Autorizar WebRequest (OBRIGATÓRIO)": "Autorizar WebRequest (OBLIGATORIO)",
+        "No MT5: Ferramentas -> Opções -> Especialistas": "En MT5: Herramientas -> Opciones -> Asesores Expertos",
+        "Permitir WebRequest para os seguintes URLs": "Permitir WebRequest para las siguientes URL",
+        "Clique no \"+\" e adicione o endereço do nosso servidor:": "Haga clic en \"+\" y agregue la dirección de nuestro servidor:",
+        "Sem este passo, o EA não consegue validar a licença e não arrancará.": "Sin este paso, el EA no puede validar la licencia y no se iniciará.",
+        "Ativar e Aplicar": "Activar y Aplicar",
+        "Ativar": "Activar",
+        "Configure os Inputs": "Configurar los Inputs",
+        "Sua chave pessoal": "Su clave personal",
+        "Endereço do servidor": "Dirección del servidor",
+        "% do saldo por trade": "% del saldo por operación",
+        "Take Profit = 2x o SL": "Take Profit = 2x el SL",
+        "Orientações Importantes:": "Pautas Importantes:",
+        "Certifique-se de que o Algotrading está verde no MT5.": "Asegúrese de que Algotrading esté verde en MT5.",
+        "Adicione https://www.auratradebots.com/api na lista de URLs permitidos.": "Agregue https://www.auratradebots.com/api a la lista de URL permitidas.",
+        "Utilize o par EURUSD no timeframe H1 para melhores resultados.": "Utilice el par EURUSD en la temporalidad H1 para mejores resultados.",
+        "Sua chave de licença deve ser inserida exatamente como aparece no seu Tableau de Bord.": "Su clave de licencia debe ingresarse exactamente como aparece en su Panel.",
+        "Imprimir Guia": "Imprimir Guía",
+        "Fechar Guia": "Cerrar Guía",
+
         // Affiliate Dashboard (affiliate_dashboard.html)
         "Programa de Parceria Profissional": "Programa de Asociación Profesional",
         "Link de afiliação:": "Enlace de afiliación:",
@@ -463,10 +526,13 @@ window.applyDashboardI18n = function(forceLang) {
             
             for (let m of map) {
                 if (lowerText.includes(m.ptLower)) {
-                    const regex = new RegExp(m.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                    text = text.replace(regex, m.target);
-                    changed = true;
-                    lowerText = text.toLowerCase();
+                    // Modern Unicode-aware whole-word matching using ES2018 properties (\p{L} for letters, \p{N} for numbers)
+                    const regex = new RegExp(`(?<![\\p{L}\\p{N}])${m.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'gui');
+                    if (regex.test(text)) {
+                        text = text.replace(regex, m.target);
+                        changed = true;
+                        lowerText = text.toLowerCase();
+                    }
                 }
             }
             if (changed) node.nodeValue = text;
@@ -481,10 +547,12 @@ window.applyDashboardI18n = function(forceLang) {
                 let lowerText = text.toLowerCase();
                 for (let m of map) {
                     if (lowerText.includes(m.ptLower)) {
-                        const regex = new RegExp(m.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                        text = text.replace(regex, m.target);
-                        changed = true;
-                        lowerText = text.toLowerCase();
+                        const regex = new RegExp(`(?<![\\p{L}\\p{N}])${m.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'gui');
+                        if (regex.test(text)) {
+                            text = text.replace(regex, m.target);
+                            changed = true;
+                            lowerText = text.toLowerCase();
+                        }
                     }
                 }
                 if (changed) node.placeholder = text;
