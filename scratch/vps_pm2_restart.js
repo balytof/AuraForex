@@ -2,12 +2,12 @@ const { Client } = require('ssh2');
 const conn = new Client();
 
 conn.on('ready', () => {
-  console.log('Connected to VPS. Running prisma db push...');
+  console.log('Connected to VPS. Hard-resetting PM2...');
   
-  conn.exec(`cd /root/AuraForex && npx prisma db push`, (err, stream) => {
+  conn.exec(`cd /root/AuraForex && npx pm2 stop aura-v2-elite && npx pm2 delete aura-v2-elite && npx pm2 start server.js --name aura-v2-elite`, (err, stream) => {
     if (err) throw err;
     stream.on('close', () => {
-      console.log('Finished prisma db push.');
+      console.log('PM2 hard-reset completed.');
       conn.end();
     })
     .on('data', (data) => process.stdout.write(data.toString()))

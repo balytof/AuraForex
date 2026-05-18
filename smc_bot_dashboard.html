@@ -52,24 +52,6 @@
   .pos-val { font-size: 0.85rem; font-weight: 700; }
   .pos-pnl { font-family: 'Space Mono', monospace; font-weight: 800; font-size: 0.95rem; }
 
-  /* Print Styles */
-  @media print {
-    body * { visibility: hidden; }
-    #setupModal, #setupModal * { visibility: visible; }
-    #setupModal { position: absolute; left: 0; top: 0; width: 100%; border: none; background: #fff !important; color: #000 !important; }
-    .modal { width: 100% !important; border: none !important; box-shadow: none !important; background: #fff !important; color: #000 !important; }
-    .modal-header, .modal-footer { display: none !important; }
-    .setup-step { border: 1px solid #ddd !important; background: #f9f9f9 !important; color: #000 !important; page-break-inside: avoid; }
-    .step-number { background: #000 !important; color: #fff !important; }
-    .code-block { background: #eee !important; color: #000 !important; border: 1px solid #ccc !important; }
-    .download-area, .btn-primary { display: none !important; }
-    .guide-table { color: #000 !important; }
-    .guide-table th { color: #333 !important; border-bottom: 2px solid #000 !important; }
-    .guide-table td { border-bottom: 1px solid #ddd !important; }
-    h2, h3 { color: #000 !important; }
-    .alert-box { border: 1px solid #000 !important; background: #fff !important; color: #000 !important; }
-  }
-
   * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
@@ -886,6 +868,7 @@
   .modal-close:hover { color: var(--accent); }
   .modal-body { padding: 24px; }
   .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; }
+
     /* 🖨️ PRINT OPTIMIZATION (Fix Duplicated Pages) */
     @media print {
       html, body {
@@ -895,10 +878,8 @@
         padding: 0 !important;
         background: white !important;
         color: black !important;
-      }
-      /* Forçar todos os textos dentro do modal do guia a serem pretos para evitar páginas em branco */
-      #setupModal, #setupModal *, #setupModal p, #setupModal span, #setupModal h2, #setupModal h3, #setupModal th, #setupModal td, #setupModal li, #setupModal div, #setupModal b, #setupModal strong {
-        color: black !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       /* Esconde TUDO na raiz do body, exceto o modal do guia */
       body > *:not(#setupModal) {
@@ -912,7 +893,7 @@
         width: 100% !important;
         height: auto !important;
         background: white !important;
-        padding: 0 !important;
+        padding: 20px !important;
         margin: 0 !important;
       }
       .modal {
@@ -933,40 +914,85 @@
       }
       .modal-header {
         border-bottom: 2px solid #000 !important;
+        padding: 10px 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
         margin-bottom: 20px !important;
       }
-      .modal-header h2 { color: black !important; margin: 0 !important; }
+      .modal-header h2 {
+        color: black !important;
+        font-size: 1.5rem !important;
+        font-weight: bold !important;
+        margin: 0 !important;
+      }
+      .modal-close, .modal-footer {
+        display: none !important;
+      }
       .setup-grid {
         display: block !important;
       }
       .setup-step {
-        border: 1px solid #eee !important;
-        background: #fff !important;
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
         color: black !important;
-        page-break-inside: avoid;
-        margin-bottom: 15px !important;
         padding: 15px !important;
-        border-radius: 0 !important;
+        margin-bottom: 15px !important;
+        page-break-inside: avoid !important;
+        border-radius: 4px !important;
       }
-      .setup-step h3 { color: #333 !important; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+      .step-number {
+        background: black !important;
+        color: white !important;
+        display: inline-block !important;
+        width: 24px !important;
+        height: 24px !important;
+        line-height: 24px !important;
+        text-align: center !important;
+        border-radius: 50% !important;
+        margin-right: 10px !important;
+        font-weight: bold !important;
+      }
       .code-block {
-        background: #f8f8f8 !important;
+        background: #eee !important;
         color: black !important;
-        border: 1px solid #ddd !important;
-        font-family: monospace;
+        border: 1px solid #ccc !important;
+        padding: 10px !important;
+        font-family: monospace !important;
+        margin-top: 10px !important;
+        display: block !important;
       }
-      .modal-footer, .modal-close, .btn-secondary, .download-area, .step-number {
+      .download-area {
         display: none !important;
       }
       .guide-table {
         width: 100% !important;
-        border-collapse: collapse !important;
-      }
-      .guide-table th, .guide-table td {
-        border: 1px solid #ddd !important;
         color: black !important;
+        border-collapse: collapse !important;
+        margin: 15px 0 !important;
+      }
+      .guide-table th {
+        color: black !important;
+        border-bottom: 2px solid black !important;
+        font-weight: bold !important;
         padding: 8px !important;
         text-align: left !important;
+      }
+      .guide-table td {
+        border-bottom: 1px solid #ccc !important;
+        padding: 8px !important;
+        color: black !important;
+      }
+      .alert-box {
+        border: 1px solid #000 !important;
+        background: #fff !important;
+        color: black !important;
+        padding: 10px !important;
+        margin-top: 10px !important;
+      }
+      /* Force all text elements inside the setupModal to be visible and black */
+      #setupModal * {
+        color: black !important;
       }
       #apiUrlDisplay, #eaLicenseKey, #eaApiUrl {
         color: #000 !important;
@@ -2841,6 +2867,7 @@ function startBot() {
     if (typeof updateUptime === 'function') {
       uptimeInterval = setInterval(updateUptime, 1000);
     }
+    saveConfig().catch(console.error);
     
     // Pequeno delay para garantir estabilidade antes do loop
     setTimeout(() => {
@@ -2869,6 +2896,7 @@ function stopBot() {
   if (uptimeDot) uptimeDot.classList.remove("active");
   
   addLog("⏹ Bot parado.");
+  saveConfig().catch(console.error);
 }
 
 function resetBot() {

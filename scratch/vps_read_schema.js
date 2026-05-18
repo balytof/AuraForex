@@ -2,12 +2,11 @@ const { Client } = require('ssh2');
 const conn = new Client();
 
 conn.on('ready', () => {
-  console.log('Connected to VPS. Running prisma db push...');
+  console.log('Connected to VPS. Reading schema...');
   
-  conn.exec(`cd /root/AuraForex && npx prisma db push`, (err, stream) => {
+  conn.exec(`cat /root/AuraForex/prisma/schema.prisma`, (err, stream) => {
     if (err) throw err;
     stream.on('close', () => {
-      console.log('Finished prisma db push.');
       conn.end();
     })
     .on('data', (data) => process.stdout.write(data.toString()))

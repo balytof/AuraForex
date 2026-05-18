@@ -1573,6 +1573,10 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
         data: { userId: req.user.id }
       });
     }
+    // Add botRunning for backward compatibility in the dashboard
+    if (settings) {
+      settings.botRunning = settings.botStatus === "running";
+    }
     res.json({ success: true, settings });
   } catch (err) {
     console.error("[SETTINGS-ERROR]", err);
@@ -1581,7 +1585,15 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
 });
 
 app.post("/api/user/settings", requireAuth, async (req, res) => {
-  const { risk, score, interval, activePairs, geminiKey } = req.body;
+  const { risk, score, interval, activePairs, geminiKey, botRunning, botStatus } = req.body;
+  
+  let targetStatus = undefined;
+  if (botStatus !== undefined) {
+    targetStatus = botStatus;
+  } else if (botRunning !== undefined) {
+    targetStatus = (botRunning === true || botRunning === "true") ? "running" : "stopped";
+  }
+
   try {
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },
@@ -1590,7 +1602,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: score !== undefined ? parseInt(score) : undefined,
         interval: interval !== undefined ? parseInt(interval) : undefined,
         activePairs: activePairs || undefined,
-        geminiKey: geminiKey || undefined
+        geminiKey: geminiKey || undefined,
+        botStatus: targetStatus !== undefined ? targetStatus : undefined
       },
       create: {
         userId: req.user.id,
@@ -1598,9 +1611,14 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: parseInt(score) || 55,
         interval: parseInt(interval) || 60,
         activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
-        geminiKey: geminiKey || null
+        geminiKey: geminiKey || null,
+        botStatus: targetStatus || "stopped"
       }
     });
+    // Add botRunning for backward compatibility in the dashboard
+    if (settings) {
+      settings.botRunning = settings.botStatus === "running";
+    }
     res.json({ success: true, settings });
   } catch (err) {
     console.error("Save settings error:", err);
