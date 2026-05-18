@@ -1,16 +1,26 @@
 const { Client } = require('ssh2');
+const fs = require('fs');
+const path = require('path');
 
 const conn = new Client();
 conn.on('ready', () => {
-    console.log('🚀 Conectado ao VPS. Executando teste do RiskManager no VPS...');
-    const cmd = "node -e 'const { getRiskManager } = require(\"/root/AuraForex/risk/store\"); const risk = getRiskManager(\"5782b472-0ff0-4761-bf38-9fc149705574\"); console.log(\"dailyStartBalance:\", risk.dailyStartBalance); console.log(\"dailyProfitTarget:\", risk.dailyProfitTarget); console.log(\"balance:\", risk.balance); console.log(\"equity:\", risk.equity);'";
-    conn.exec(cmd, (err, stream) => {
+    console.log('🚀 Conectado ao VPS. Enviando test_time_reset.js...');
+    conn.sftp((err, sftp) => {
         if (err) throw err;
-        stream.on('close', () => {
-            conn.end();
-            process.exit(0);
-        }).on('data', (data) => {
-            console.log(data.toString());
+        const local = path.join(__dirname, 'test_time_reset.js');
+        const remote = '/root/test_time_reset.js';
+        
+        sftp.fastPut(local, remote, (err) => {
+            if (err) throw err;
+            console.log('📤 Arquivo enviado. Executando...');
+            conn.exec('node /root/test_time_reset.js', (err, stream) => {
+                if (err) throw err;
+                stream.on('close', () => {
+                    conn.end();
+                }).on('data', (data) => {
+                    console.log('STDOUT FROM VPS:\n' + data.toString());
+                });
+            });
         });
     });
 }).connect({

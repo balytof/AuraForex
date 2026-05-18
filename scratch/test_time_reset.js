@@ -1,0 +1,11 @@
+const now = new Date();
+const midnight = new Date();
+midnight.setHours(24, 0, 0, 0);
+const timeUntilReset = Math.floor((midnight - now) / 1000);
+console.log("=== TIME CALCULATIONS ===");
+console.log("Current System Time (now):", now.toString());
+console.log("Current UTC Time (now.toISOString()):", now.toISOString());
+console.log("Midnight Object Time (midnight):", midnight.toString());
+console.log("Midnight UTC Time (midnight.toISOString()):", midnight.toISOString());
+console.log("Time Until Reset (seconds):", timeUntilReset);
+console.log("Time Until Reset (hours):", (timeUntilReset / 3600).toFixed(2));
