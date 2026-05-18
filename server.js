@@ -411,11 +411,10 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
 
     const risk = getRiskManager(req.user.id);
 
-    // Reset forçado se solicitado (apenas para debug)
+    // Reset forçado se solicitado (apenas para debug ou manual)
     if (req.query.forceReset === "true") {
-       risk.dailyProfitLocked = false;
-       risk.circuitBreaker = false;
-       console.log(`[FORCE-RESET] Bloqueios limpos para o usuário: ${req.user.id}`);
+       risk.forceDailyReset(lastBalance, lastEquity);
+       console.log(`[FORCE-RESET] Bloqueios limpos e saldo inicial redefinido para o usuário: ${req.user.id}`);
     }
 
     // Reset Proativo (Caso seja meia-noite)
@@ -648,8 +647,17 @@ app.get("/api/broker/account", requireAuth, requireBrokerAuth, async (req, res) 
 
 app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
-    if (!req.broker) return res.json({ success: true, positions: [] });
-    const positions = await req.broker.getOpenPositions();
+    let activeBroker = req.broker;
+    
+    if (!activeBroker) {
+      const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+      if (userSettings && userSettings.executionMode === "PAMM") {
+        activeBroker = await getGlobalBroker();
+      }
+    }
+
+    if (!activeBroker) return res.json({ success: true, positions: [] });
+    const positions = await activeBroker.getOpenPositions();
     res.json({ success: true, positions });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -658,8 +666,17 @@ app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res
 
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
-    if (!req.broker) return res.json({ success: true, history: [] });
-    res.json({ history: await req.broker.getTradeHistory() });
+    let activeBroker = req.broker;
+    
+    if (!activeBroker) {
+      const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+      if (userSettings && userSettings.executionMode === "PAMM") {
+        activeBroker = await getGlobalBroker();
+      }
+    }
+
+    if (!activeBroker) return res.json({ success: true, history: [] });
+    res.json({ history: await activeBroker.getTradeHistory() });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -980,24 +997,25 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     const {
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
-      cryptoBotEnabled, cryptoBotUrl
+      cryptoBotEnabled, cryptoBotUrl, pammEnabled, pammManagerLink, pammMasterAccount
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
+
+    const dataObj = {
+      geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+      installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
+      pammEnabled: pammEnabled !== undefined ? (pammEnabled === true || pammEnabled === "true") : undefined,
+      pammManagerLink, pammMasterAccount
+    };
 
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: {
-          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
-        }
+        data: dataObj
       });
     } else {
       settings = await prisma.systemSettings.create({
-        data: {
-          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
-        }
+        data: dataObj
       });
     }
     res.json({ success: true, settings });
@@ -1017,14 +1035,18 @@ app.get("/api/public/settings", async (req, res) => {
         instagramUrl: true,
         youtubeUrl: true,
         cryptoBotEnabled: true,
-        cryptoBotUrl: true
+        cryptoBotUrl: true,
+        pammEnabled: true,
+        pammManagerLink: true
       }
     });
     res.json({
       success: true,
       settings: settings || {
         cryptoBotEnabled: true,
-        cryptoBotUrl: ""
+        cryptoBotUrl: "",
+        pammEnabled: true,
+        pammManagerLink: "https://www.auratradebots.com/join-pamm"
       }
     });
   } catch (e) {
@@ -1606,7 +1628,7 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
 });
 
 app.post("/api/user/settings", requireAuth, async (req, res) => {
-  const { risk, score, interval, activePairs, geminiKey, botRunning, botStatus } = req.body;
+  const { risk, score, interval, activePairs, geminiKey, botRunning, botStatus, executionMode } = req.body;
   
   let targetStatus = undefined;
   if (botStatus !== undefined) {
@@ -1624,7 +1646,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         interval: interval !== undefined ? parseInt(interval) : undefined,
         activePairs: activePairs || undefined,
         geminiKey: geminiKey || undefined,
-        botStatus: targetStatus !== undefined ? targetStatus : undefined
+        botStatus: targetStatus !== undefined ? targetStatus : undefined,
+        executionMode: executionMode !== undefined ? executionMode : undefined
       },
       create: {
         userId: req.user.id,
@@ -1633,7 +1656,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         interval: parseInt(interval) || 60,
         activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
         geminiKey: geminiKey || null,
-        botStatus: targetStatus || "stopped"
+        botStatus: targetStatus || "stopped",
+        executionMode: executionMode || "VPS"
       }
     });
     // Add botRunning for backward compatibility in the dashboard

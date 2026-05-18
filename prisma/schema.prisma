@@ -179,6 +179,7 @@ model UserSettings {
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   botStatus   String   @default("stopped")
+  executionMode String   @default("VPS") // "VPS" ou "PAMM"
 }
 
 model SystemSettings {
@@ -200,6 +201,11 @@ model SystemSettings {
   // Card Crypto Bot
   cryptoBotEnabled  Boolean  @default(true)
   cryptoBotUrl      String?
+
+  // PAMM / MAM Configs
+  pammEnabled       Boolean  @default(true)
+  pammManagerLink   String?  @default("https://www.auratradebots.com/join-pamm")
+  pammMasterAccount String?
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

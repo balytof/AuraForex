@@ -1314,6 +1314,44 @@
         </div>
         <div class="config-panel">
 
+          <!-- MODO DE EXECUÇÃO (VPS vs PAMM) -->
+          <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+              <span>🚀 Modo de Funcionamento</span>
+              <span id="currentModeBadge" style="font-size:0.65rem; background:rgba(124,58,237,0.15); color:var(--accent); padding:2px 6px; border-radius:4px; font-weight:700;">VPS LOCAL</span>
+            </label>
+            <div style="display:flex; gap:8px;">
+              <button id="modeVPSBtn" onclick="setExecutionMode('VPS')" style="
+                flex:1; padding:9px; border-radius:8px; border:1px solid var(--border);
+                background:var(--surface2); color:var(--muted); font-size:0.7rem; font-weight:700;
+                cursor:pointer; transition:all 0.2s; font-family:inherit;
+              ">💻 Robô VPS</button>
+              <button id="modePAMMBtn" onclick="setExecutionMode('PAMM')" style="
+                flex:1; padding:9px; border-radius:8px; border:1px solid var(--border);
+                background:var(--surface2); color:var(--muted); font-size:0.7rem; font-weight:700;
+                cursor:pointer; transition:all 0.2s; font-family:inherit;
+              ">☁️ Copy PAMM</button>
+            </div>
+            <p id="modeDescription" style="font-size:0.65rem; color:var(--muted); margin-top:6px; line-height:1.4;">
+              💻 <b>Robô VPS</b>: Executa na sua conta local. Requer MT5 ligada.<br>
+              ☁ <b>Copy PAMM</b>: Executa 100% na nuvem no nosso servidor Master.
+            </p>
+          </div>
+          
+          <!-- PAMM / MAM JOIN CARD -->
+          <div id="pammJoinCard" style="display:none; margin-bottom:15px; padding:12px; border-radius:10px; background:rgba(0,188,212,0.08); border:1px solid rgba(0,188,212,0.2); text-align:center;">
+            <div style="font-size:1.2rem; margin-bottom:6px;">🛡️</div>
+            <div style="font-size:0.8rem; font-weight:bold; color:#00bcd4; margin-bottom:4px;">Copy Trading Ativo</div>
+            <p style="font-size:0.68rem; color:var(--muted); margin-bottom:10px; line-height:1.4;">
+              Os trades da conta Master são copiados automaticamente. A Senha de Investidor é 100% segura e apenas para leitura de saldo e histórico.
+            </p>
+            <a href="#" id="pammJoinLink" target="_blank" style="
+              display:inline-block; width:100%; box-sizing:border-box; background:linear-gradient(135deg, #00bcd4, #00acc1);
+              color:#000; border:none; border-radius:6px; padding:8px; font-size:0.72rem; font-weight:bold;
+              text-align:center; text-decoration:none; cursor:pointer; transition:all 0.2s;
+            ">🔗 Aderir ao PAMM na Corretora</a>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Gemini API Key</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -1702,7 +1740,8 @@ async function saveConfig() {
     orderLimit: document.getElementById("limitSlider").value,
     botRunning: isRunning,
     activePairs: Array.from(activePairs).join(","),
-    geminiKey: localStorage.getItem("aura_gemini_key")
+    geminiKey: localStorage.getItem("aura_gemini_key"),
+    executionMode: currentExecutionMode || "VPS"
   };
   
   // Backup local e Monitor de Estado
@@ -1719,12 +1758,116 @@ async function saveConfig() {
   }
 }
 
+let currentExecutionMode = "VPS";
+
+function setExecutionMode(mode) {
+  currentExecutionMode = mode;
+  setExecutionModeUI(mode);
+  saveConfig().catch(console.error);
+}
+
+function setExecutionModeUI(mode) {
+  currentExecutionMode = mode;
+  const vpsBtn = document.getElementById("modeVPSBtn");
+  const pammBtn = document.getElementById("modePAMMBtn");
+  const pammCard = document.getElementById("pammJoinCard");
+  const setupBtn = document.getElementById("setupEABtn");
+  const eaBadgeText = document.getElementById("eaStatusText");
+  const eaBadge = document.getElementById("eaBadge");
+  const eaDot = document.getElementById("eaDot");
+  const badgeVal = document.getElementById("currentModeBadge");
+
+  if (badgeVal) {
+    badgeVal.textContent = mode === "PAMM" ? "CLOUD PAMM" : "VPS LOCAL";
+    badgeVal.style.background = mode === "PAMM" ? "rgba(0,188,212,0.15)" : "rgba(124,58,237,0.15)";
+    badgeVal.style.color = mode === "PAMM" ? "#00bcd4" : "var(--accent)";
+  }
+
+  if (mode === "PAMM") {
+    if (vpsBtn) {
+      vpsBtn.style.border = "1px solid var(--border)";
+      vpsBtn.style.background = "var(--surface2)";
+      vpsBtn.style.color = "var(--muted)";
+    }
+
+    if (pammBtn) {
+      pammBtn.style.border = "1px solid rgba(0,188,212,0.4)";
+      pammBtn.style.background = "rgba(0,188,212,0.1)";
+      pammBtn.style.color = "#00bcd4";
+    }
+
+    if (pammCard) pammCard.style.display = "block";
+    if (setupBtn) {
+      setupBtn.innerHTML = '<i class="fas fa-cloud"></i> PAMM Cloud: Sincronizado';
+      setupBtn.style.background = "rgba(0,188,212,0.15)";
+      setupBtn.style.borderColor = "#00bcd4";
+      setupBtn.style.color = "#00bcd4";
+      setupBtn.onclick = () => alert("SMC Copy Trading (PAMM/MAM): O seu robô está a correr 100% na Nuvem na nossa conta Master VPS AuraTrade. Não precisa de ter o PC ou MT5 ligados no seu lado!");
+    }
+    
+    if (eaBadgeText) eaBadgeText.innerHTML = `PAMM: Ativo`;
+    if (eaBadge) eaBadge.className = "status-badge connected";
+    if (eaDot) {
+      eaDot.className = "dot active";
+      eaDot.style.background = "#00bcd4";
+    }
+    
+    const mainBtn = document.getElementById("mainBtn");
+    if (mainBtn) {
+      mainBtn.innerHTML = "▶ Cloud Auto Trading";
+      mainBtn.disabled = true;
+      mainBtn.style.opacity = "0.7";
+    }
+  } else {
+    if (vpsBtn) {
+      vpsBtn.style.border = "1px solid rgba(124,58,237,0.4)";
+      vpsBtn.style.background = "rgba(124,58,237,0.1)";
+      vpsBtn.style.color = "var(--accent)";
+    }
+
+    if (pammBtn) {
+      pammBtn.style.border = "1px solid var(--border)";
+      pammBtn.style.background = "var(--surface2)";
+      pammBtn.style.color = "var(--muted)";
+    }
+
+    if (pammCard) pammCard.style.display = "none";
+    if (setupBtn) {
+      setupBtn.innerHTML = '<i class="fas fa-download"></i> Configurar EA no MT5';
+      setupBtn.style.background = "";
+      setupBtn.style.borderColor = "";
+      setupBtn.style.color = "";
+      setupBtn.onclick = () => openSetupModal();
+    }
+    
+    if (eaBadgeText) eaBadgeText.innerHTML = brokerConnected ? `MT5: ${brokerInfo.broker}` : "EA: Offline";
+    if (eaBadge) eaBadge.className = brokerConnected ? "status-badge connected" : "status-badge disconnected";
+    if (eaDot) {
+      eaDot.className = brokerConnected ? "dot active" : "dot";
+      eaDot.style.background = "";
+    }
+
+    const mainBtn = document.getElementById("mainBtn");
+    if (mainBtn) {
+      mainBtn.innerHTML = isRunning ? "⏹ Parar Bot" : "▶ Iniciar Bot";
+      mainBtn.disabled = false;
+      mainBtn.style.opacity = "1";
+    }
+  }
+}
+
 async function loadConfig() {
   // 1. Tentar carregar do servidor (Nuvem)
   try {
     const data = await apiFetch("/api/user/settings");
     if (data.success && data.settings) {
       const s = data.settings;
+      if (s.executionMode) {
+        currentExecutionMode = s.executionMode;
+        setExecutionModeUI(s.executionMode);
+      } else {
+        setExecutionModeUI("VPS");
+      }
       document.getElementById("riskSlider").value = s.risk;
       document.getElementById("riskVal").textContent = s.risk;
       document.getElementById("scoreSlider").value = s.score;

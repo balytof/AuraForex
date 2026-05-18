@@ -15,13 +15,12 @@ lines.forEach(line => {
     if (line.includes('"step_index":358') || line.includes('"step_index":361')) {
         const obj = JSON.parse(line);
         console.log(`\n==========================================`);
-        console.log(`=== STEP INDEX: ${obj.step_index} (${obj.source}) ===`);
+        console.log(`=== STEP INDEX: ${obj.step_index} ===`);
         console.log(`==========================================`);
         
-        // Print paragraph by paragraph to avoid huge contiguous blocks
         const paragraphs = obj.content.split('\n');
         paragraphs.forEach(p => {
-            if (p.trim()) {
+            if (p.includes('Mecanismo') || p.includes('PAMM') || p.includes('Investidor') || p.includes('investidor') || p.includes('Copiador') || p.includes('copiador') || p.includes('Opção')) {
                 console.log(p.trim());
                 console.log("");
             }

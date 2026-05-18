@@ -224,10 +224,18 @@ router.post("/report-balance", async (req, res) => {
 
     // Sincroniza estados de trava vindo do EA
     if (isLocked !== undefined) {
-      risk.dailyProfitLocked = isProfitLocked || false;
-      risk.circuitBreaker = isLossLocked || false;
+      const wasLocked = risk.dailyProfitLocked || risk.circuitBreaker;
+      const nowLocked = (isLocked === true || isLocked === "true");
       
-      if (isLocked) {
+      if (wasLocked && !nowLocked) {
+        console.log(`[EA-RESET-DETECTED] EA reportou destravamento (meia-noite broker). Sincronizando reset diário.`);
+        risk.forceDailyReset(parseFloat(balance), parseFloat(equity));
+      } else {
+        risk.dailyProfitLocked = (isProfitLocked === true || isProfitLocked === "true");
+        risk.circuitBreaker = (isLossLocked === true || isLossLocked === "true");
+      }
+      
+      if (nowLocked) {
          console.log(`[EA-LOCK-DETECTED] Bloqueio aplicado para o User: ${lic.userId}`);
       }
     }

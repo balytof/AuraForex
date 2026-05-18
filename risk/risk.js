@@ -66,6 +66,19 @@ class RiskManager {
     return false;
   }
 
+  forceDailyReset(balance, equity) {
+    const today = new Date().toDateString();
+    log.info(`[RISK-RESET-FORCED] [User: ${this.userId}] Reset diário sincronizado forçado. Novo saldo inicial: $${balance || this.balance || 0}`);
+    this.dailyDate = today;
+    this.dailyStartBalance = balance || this.balance || 0;
+    this.dailyStartEquity = equity || this.equity || this.balance || 0;
+    this.dailyPnl = 0;
+    this.circuitBreaker = false;
+    this.dailyProfitLocked = false;
+    this._saveState();
+  }
+
+
   setBalance(balance, equity) {
     this.balance = balance;
     if (equity !== undefined) {
