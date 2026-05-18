@@ -435,25 +435,46 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     // Priorizar saldo em tempo real do RiskManager (MT5) sobre a base de dados
     let lastBalance = (risk.balance && risk.balance > 0) ? risk.balance : (license ? license.balance : 0);
     if (lastBalance === null || lastBalance === undefined) lastBalance = 0;
+
+    // 🛡️ CORREÇÃO CRÍTICA DE SINAL: Priorizar capital líquido (equity) em tempo real para evitar dessincronização com o balance!
+    let lastEquity = (risk.equity && risk.equity > 0) ? risk.equity : (license ? license.equity : lastBalance);
+    if (lastEquity === null || lastEquity === undefined) lastEquity = lastBalance;
     
-    // Usar a meta configurada no EA (ou 5% como fallback)
-    let dailyTargetMoney = lastBalance * targetPercent;
+    // 🛡️ LÓGICA INSTITUCIONAL: Usar APENAS o Saldo Inicial do Dia (dailyStartBalance) como base da Meta Diária!
+    // NUNCA usar dailyStartEquity ou equity, pois o floating inicial distorce a meta diária.
+    let startCapital = (risk.dailyStartBalance && risk.dailyStartBalance > 0) 
+      ? risk.dailyStartBalance 
+      : lastBalance;
+
+    // A meta do dia fica 100% fixa ao longo das negociações baseada no balance de início do dia
+    let dailyTargetMoney = startCapital * targetPercent;
     if (isNaN(dailyTargetMoney)) dailyTargetMoney = 0;
+
+    // Evolução Líquida = Equity Atual - Saldo Inicial
+    let netEvolution = lastEquity - startCapital;
+
+    // Sincroniza estado de trava se já bateu a meta baseada na Evolução Líquida (Equity - StartBalance)
+    let isProfitLocked = risk.dailyProfitLocked;
+    if (!isProfitLocked && dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
+      isProfitLocked = true;
+      risk.dailyProfitLocked = true;
+      risk._safeSaveState();
+    }
 
     const responseData = {
       success: true,
       balance: lastBalance,
-      equity: license ? license.equity : lastBalance,
-      dailyPnl: risk.dailyPnl,
-      dailyTargetMoney: dailyTargetMoney,
-      isLocked: risk.dailyProfitLocked || risk.circuitBreaker,
-      isProfitLocked: risk.dailyProfitLocked,
+      equity: lastEquity, // Prioriza a equity em tempo real para evitar sinais invertidos!
+      dailyPnl: netEvolution, // Retorna a evolução total do P&L (Equity - Saldo Inicial)
+      dailyTargetMoney: dailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
+      isLocked: isProfitLocked || risk.circuitBreaker,
+      isProfitLocked: isProfitLocked,
       isLossLocked: risk.circuitBreaker,
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null
     };
     
-    log.info(`[JSON-OUT] User: ${req.user.email} | TargetMoney: ${dailyTargetMoney} | Pnl: ${risk.dailyPnl}`);
+    log.info(`[JSON-OUT] User: ${req.user.email} | TargetMoney: ${dailyTargetMoney} | Pnl: ${netEvolution}`);
     res.json(responseData);
   } catch (err) {
     log.info(`[HMI-ERROR] ${err.message} \n ${err.stack}`);
@@ -1975,7 +1996,7 @@ server.listen(PORT, () => {
 
         // 1. Obter dados da conta e posições
         const accountInfo = await broker.getAccountInfo();
-        if (accountInfo) risk.setBalance(accountInfo.balance);
+        if (accountInfo) risk.setBalance(accountInfo.balance, accountInfo.equity);
 
         const positions = await broker.getOpenPositions();
         

@@ -2446,7 +2446,8 @@ async function updateStats() {
       
       const progressEl = document.getElementById("statDailyProgress");
       if (progressEl) {
-          progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
+          const falta = Math.max(0, status.dailyTargetMoney - status.dailyPnl);
+          progressEl.textContent = `Evolução: ${formatCurrency(status.dailyPnl, "USD")} | Falta: ${formatCurrency(falta, "USD")}`;
           progressEl.style.color = (status.dailyPnl || 0) >= 0 ? "var(--bull)" : "var(--bear)";
       }
 

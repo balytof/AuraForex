@@ -2341,7 +2341,7 @@ async function updateStats() {
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
-      const pnlVal = status.equity - status.balance;
+      const pnlVal = status.dailyPnl || 0;
       const pnlEl = document.getElementById("statPnl");
       pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
       pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
@@ -2349,7 +2349,8 @@ async function updateStats() {
       // Meta Diária
       document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
       const progressEl = document.getElementById("statDailyProgress");
-      progressEl.textContent = `P&L Hoje: ${formatCurrency(status.dailyPnl, "USD")}`;
+          const falta = Math.max(0, status.dailyTargetMoney - status.dailyPnl);
+          progressEl.textContent = `Evolução: ${formatCurrency(status.dailyPnl, "USD")} | Falta: ${formatCurrency(falta, "USD")}`;
       progressEl.style.color = status.dailyPnl >= 0 ? "var(--bull)" : "var(--bear)";
 
       // HMI Lock Management

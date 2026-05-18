@@ -1441,8 +1441,9 @@ void ProtectManualOrders()
 
 void ReportBalance()
 {
+   int interval = (PositionsTotal() > 0) ? 5 : 60;
    static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < 60) return; // Reportar a cada 60 segundos (1 minuto)
+   if(TimeCurrent() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
    lastReport = TimeCurrent();
 
    double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -1480,6 +1481,36 @@ void ReportBalance()
 
    if(response == "") {
       Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
+      return;
+   }
+   
+   // --- SINCRONIZAÇÃO INSTITUCIONAL DE TRAVAS DO SERVIDOR ---
+   CJAVal root;
+   if(root.Deserialize(response))
+   {
+      bool isProfitLocked = root["isProfitLocked"].ToBool();
+      bool isLossLocked   = root["isLossLocked"].ToBool();
+      double serverStartBalance = root["dailyStartBalance"].ToDouble();
+      
+      if(serverStartBalance > 10)
+      {
+         DailyStartBalance = serverStartBalance;
+         if(DailyStartEquity <= 0) DailyStartEquity = serverStartBalance;
+      }
+      
+      if(isProfitLocked && !DailyTargetReached)
+      {
+         DailyTargetReached = true;
+         Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
+         CloseAllPositions();
+      }
+      
+      if(isLossLocked && !DailyLossLock)
+      {
+         DailyLossLock = true;
+         Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
+         CloseAllPositions();
+      }
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)

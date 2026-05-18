@@ -210,7 +210,7 @@ router.post("/report-balance", async (req, res) => {
 
     if (lic) {
       const risk = getRiskManager(lic.userId);
-      risk.setBalance(parseFloat(balance));
+      risk.setBalance(parseFloat(balance), parseFloat(equity));
       risk.dailyPnl = parseFloat(dailyPnl || 0);
       
       // Sincroniza configurações de meta dinâmicas
@@ -233,7 +233,13 @@ router.post("/report-balance", async (req, res) => {
       risk.checkDailyProfitTarget([]); 
     }
 
-    return res.json({ success: true });
+    return res.json({ 
+      success: true,
+      isLocked: risk.dailyProfitLocked || risk.circuitBreaker,
+      isProfitLocked: risk.dailyProfitLocked,
+      isLossLocked: risk.circuitBreaker,
+      dailyStartBalance: risk.dailyStartBalance
+    });
   } catch (err) {
     console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);
     return res.status(500).json({ error: "Erro interno no servidor." });

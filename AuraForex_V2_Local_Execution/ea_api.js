@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("./db");
+const { getRiskManager } = require("./risk/store");
 
 /**
  * ── ENDPOINT: VALIDATE ──────────────────────────────────────────────
@@ -159,7 +160,11 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
-  const { licenseKey, balance, equity } = req.body;
+  const { 
+    licenseKey, balance, equity, dailyPnl, 
+    dailyProfitTarget, dailyLossLimit,
+    isLocked, isProfitLocked, isLossLocked 
+  } = req.body;
 
   if (!licenseKey || balance === undefined || equity === undefined) {
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
@@ -175,7 +180,43 @@ router.post("/report-balance", async (req, res) => {
       }
     });
 
-    return res.json({ success: true });
+    // 🛡️ SINCRONIA INSTITUCIONAL: Atualizar RiskManager do servidor
+    const lic = await prisma.license.findUnique({
+      where: { id: licenseKey }
+    });
+
+    if (lic) {
+      const risk = getRiskManager(lic.userId);
+      risk.setBalance(parseFloat(balance), parseFloat(equity));
+      risk.dailyPnl = parseFloat(dailyPnl || 0);
+      
+      // Sincroniza configurações de meta dinâmicas
+      if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
+      if (dailyLossLimit !== undefined) risk.dailyLossLimit = parseFloat(dailyLossLimit);
+      
+      console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
+
+      // Sincroniza estados de trava vindo do EA
+      if (isLocked !== undefined) {
+        risk.dailyProfitLocked = isProfitLocked || false;
+        risk.circuitBreaker = isLossLocked || false;
+        
+        if (isLocked) {
+           console.log(`[EA-LOCK-DETECTED] Bloqueio aplicado para o User: ${lic.userId}`);
+        }
+      }
+
+      // Verificar se bateu meta ou drawdown com os novos valores
+      risk.checkDailyProfitTarget([]); 
+    }
+
+    return res.json({ 
+      success: true,
+      isLocked: risk.dailyProfitLocked || risk.circuitBreaker,
+      isProfitLocked: risk.dailyProfitLocked,
+      isLossLocked: risk.circuitBreaker,
+      dailyStartBalance: risk.dailyStartBalance
+    });
   } catch (err) {
     console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);
     return res.status(500).json({ error: "Erro interno no servidor." });
