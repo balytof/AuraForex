@@ -1488,7 +1488,7 @@ void ReportBalance()
    {
       bool isProfitLocked = root["isProfitLocked"].ToBool();
       bool isLossLocked   = root["isLossLocked"].ToBool();
-      double serverStartBalance = root["dailyStartBalance"].ToDouble();
+      double serverStartBalance = root["dailyStartBalance"].ToDbl();
       
       if(serverStartBalance > 10)
       {
@@ -1497,28 +1497,28 @@ void ReportBalance()
       }
       
       if(isProfitLocked && !DailyTargetReached)
-      {
-         DailyTargetReached = true;
-         Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
-         CloseAllPositions();
-      }
-      else if(!isProfitLocked && DailyTargetReached)
-      {
-         DailyTargetReached = false;
-         Print("🌅 [SERVER-SYNC] Reset de Meta Diária no Servidor detectado. Desbloqueando...");
-      }
-      
-      if(isLossLocked && !DailyLossLock)
-      {
-         DailyLossLock = true;
-         Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
-         CloseAllPositions();
-      }
-      else if(!isLossLocked && DailyLossLock)
-      {
-         DailyLossLock = false;
-         Print("🌅 [SERVER-SYNC] Reset de Perda Diária no Servidor detectado. Desbloqueando...");
-      }
+       {
+          DailyTargetReached = true;
+          Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
+          CloseAllPositions();
+       }
+       else if(!isProfitLocked && DailyTargetReached)
+       {
+          DailyTargetReached = false;
+          Print("🌅 [SERVER-SYNC] Reset de Meta Diária no Servidor detectado. Desbloqueando...");
+       }
+       
+       if(isLossLocked && !DailyLossLock)
+       {
+          DailyLossLock = true;
+          Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
+          CloseAllPositions();
+       }
+       else if(!isLossLocked && DailyLossLock)
+       {
+          DailyLossLock = false;
+          Print("🌅 [SERVER-SYNC] Reset de Perda Diária no Servidor detectado. Desbloqueando...");
+       }
    }
    
    UpdateChartVisuals(); // Visual Gráfico (Real-time)
