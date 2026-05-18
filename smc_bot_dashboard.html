@@ -1906,6 +1906,12 @@ async function loadConfig() {
   if (saved) {
     try {
       const config = JSON.parse(saved);
+      if (config.executionMode) {
+        currentExecutionMode = config.executionMode;
+        setExecutionModeUI(config.executionMode);
+      } else {
+        setExecutionModeUI("VPS");
+      }
       document.getElementById("riskSlider").value = config.risk;
       document.getElementById("riskVal").textContent = config.risk;
       document.getElementById("scoreSlider").value = config.score;
@@ -3403,6 +3409,7 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 loadSystemConfig(); 
+loadPammConfig(); 
 
 // ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
 (function auraEngineMonitor() {
@@ -3429,6 +3436,24 @@ setInterval(() => {
 }, 5000);
 
 let systemConfig = { apiUrl: window.location.origin, installationGuide: "" };
+
+async function loadPammConfig() {
+  try {
+    const pammRes = await fetch("/api/public/settings");
+    const pammData = await pammRes.json();
+    if (pammData.success && pammData.settings) {
+      const ps = pammData.settings;
+      if (ps.pammEnabled) {
+        document.getElementById("pammJoinLink").href = ps.pammManagerLink || "https://www.auratradebots.com/join-pamm";
+        document.getElementById("modePAMMBtn").style.display = "block";
+      } else {
+        document.getElementById("modePAMMBtn").style.display = "none";
+      }
+    }
+  } catch (e) {
+    console.warn("Falha ao carregar configurações públicas do PAMM:", e);
+  }
+}
 
 async function loadSystemConfig() {
   try {
