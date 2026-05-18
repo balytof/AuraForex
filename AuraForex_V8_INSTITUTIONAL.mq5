@@ -1502,12 +1502,22 @@ void ReportBalance()
          Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
          CloseAllPositions();
       }
+      else if(!isProfitLocked && DailyTargetReached)
+      {
+         DailyTargetReached = false;
+         Print("🌅 [SERVER-SYNC] Reset de Meta Diária no Servidor detectado. Desbloqueando...");
+      }
       
       if(isLossLocked && !DailyLossLock)
       {
          DailyLossLock = true;
          Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
          CloseAllPositions();
+      }
+      else if(!isLossLocked && DailyLossLock)
+      {
+         DailyLossLock = false;
+         Print("🌅 [SERVER-SYNC] Reset de Perda Diária no Servidor detectado. Desbloqueando...");
       }
    }
    

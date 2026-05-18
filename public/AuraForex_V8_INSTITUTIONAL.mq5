@@ -339,21 +339,33 @@ void CheckDailyTarget()
 
    if(tm.day != LastTradingDay)
    {
-      LastTradingDay = tm.day;
-      DailyTargetReached = false;
-      DailyLossLock      = false;
-      DailyStartBalance  = AccountInfoDouble(ACCOUNT_BALANCE);
-      DailyStartEquity   = AccountInfoDouble(ACCOUNT_EQUITY);
-      Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
+      double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
+      double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
+      if(currentBal > 10 && currentEq > 10)
+      {
+         LastTradingDay = tm.day;
+         DailyTargetReached = false;
+         DailyLossLock      = false;
+         DailyStartBalance  = currentBal;
+         DailyStartEquity   = currentEq;
+         Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
+      }
    }
 
    // Fallback inicialização (Primeiro run do bot no dia)
-   if(DailyStartEquity <= 0)
+   if(DailyStartEquity <= 10)
    {
-      DailyStartBalance  = AccountInfoDouble(ACCOUNT_BALANCE);
-      DailyStartEquity   = AccountInfoDouble(ACCOUNT_EQUITY);
+      double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
+      double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
+      if(currentBal > 10 && currentEq > 10)
+      {
+         DailyStartBalance  = currentBal;
+         DailyStartEquity   = currentEq;
+         Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2));
+      }
    }
 
+   if(DailyStartEquity <= 10) return; // Não calcular meta se saldo inicial não foi definido
    if(DailyTargetReached) return;
 
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -374,6 +386,7 @@ void CheckDailyTarget()
 void CheckDailyLoss()
 {
    if(DailyLossLock) return;
+   if(DailyStartEquity <= 10) return; // Não calcular perda se saldo inicial não foi definido
 
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
    
@@ -381,11 +394,6 @@ void CheckDailyLoss()
    static datetime bootTime = 0;
    if(bootTime == 0) bootTime = TimeCurrent();
    if(TimeCurrent() - bootTime < 10) return;
-
-   if(DailyStartEquity <= 0) {
-      DailyStartEquity = equity;
-      return;
-   }
 
    double lossPct = ((DailyStartEquity - equity) / DailyStartEquity) * 100.0;
 
@@ -1504,12 +1512,22 @@ void ReportBalance()
          Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
          CloseAllPositions();
       }
+      else if(!isProfitLocked && DailyTargetReached)
+      {
+         DailyTargetReached = false;
+         Print("🌅 [SERVER-SYNC] Reset de Meta Diária no Servidor detectado. Desbloqueando...");
+      }
       
       if(isLossLocked && !DailyLossLock)
       {
          DailyLossLock = true;
          Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
          CloseAllPositions();
+      }
+      else if(!isLossLocked && DailyLossLock)
+      {
+         DailyLossLock = false;
+         Print("🌅 [SERVER-SYNC] Reset de Perda Diária no Servidor detectado. Desbloqueando...");
       }
    }
    
