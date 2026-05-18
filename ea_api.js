@@ -208,30 +208,32 @@ router.post("/report-balance", async (req, res) => {
       where: { id: licenseKey }
     });
 
-    if (lic) {
-      const risk = getRiskManager(lic.userId);
-      risk.setBalance(parseFloat(balance), parseFloat(equity));
-      risk.dailyPnl = parseFloat(dailyPnl || 0);
-      
-      // Sincroniza configurações de meta dinâmicas
-      if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
-      if (dailyLossLimit !== undefined) risk.dailyLossLimit = parseFloat(dailyLossLimit);
-      
-      console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
-
-      // Sincroniza estados de trava vindo do EA
-      if (isLocked !== undefined) {
-        risk.dailyProfitLocked = isProfitLocked || false;
-        risk.circuitBreaker = isLossLocked || false;
-        
-        if (isLocked) {
-           console.log(`[EA-LOCK-DETECTED] Bloqueio aplicado para o User: ${lic.userId}`);
-        }
-      }
-
-      // Verificar se bateu meta ou drawdown com os novos valores (servidor também monitora)
-      risk.checkDailyProfitTarget([]); 
+    if (!lic) {
+      return res.status(404).json({ error: "Licença não encontrada." });
     }
+
+    const risk = getRiskManager(lic.userId);
+    risk.setBalance(parseFloat(balance), parseFloat(equity));
+    risk.dailyPnl = parseFloat(dailyPnl || 0);
+    
+    // Sincroniza configurações de meta dinâmicas
+    if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
+    if (dailyLossLimit !== undefined) risk.dailyLossLimit = parseFloat(dailyLossLimit);
+    
+    console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
+
+    // Sincroniza estados de trava vindo do EA
+    if (isLocked !== undefined) {
+      risk.dailyProfitLocked = isProfitLocked || false;
+      risk.circuitBreaker = isLossLocked || false;
+      
+      if (isLocked) {
+         console.log(`[EA-LOCK-DETECTED] Bloqueio aplicado para o User: ${lic.userId}`);
+      }
+    }
+
+    // Verificar se bateu meta ou drawdown com os novos valores (servidor também monitora)
+    risk.checkDailyProfitTarget([]); 
 
     return res.json({ 
       success: true,
