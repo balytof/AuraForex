@@ -628,6 +628,27 @@
                 </div>
             </div>
 
+            <!-- NOVA SECÇÃO: PAMM / MAM CLOUD -->
+            <div class="stat-card" style="background:var(--surface2); border-color:#00bcd4; margin-top:20px;">
+                <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase; color:#00bcd4;">☁️ Gestão PAMM / MAM Cloud</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div class="form-group" style="display:flex; align-items:center; height:100%;">
+                        <label class="form-label" style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0;">
+                            <input type="checkbox" id="sysPammEnabled" style="width:20px; height:20px;">
+                            Habilitar Adesão Copy PAMM/MAM
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Link de Adesão na Corretora (PAMM/MAM Link)</label>
+                        <input type="text" id="sysPammManagerLink" class="form-input" placeholder="https://corretora.com/pamm/join/12345">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ID da Conta Master (Apenas Informativo)</label>
+                        <input type="text" id="sysPammMasterAccount" class="form-input" placeholder="Ex: 5002932">
+                    </div>
+                </div>
+            </div>
+
             <!-- NOVA SECÇÃO: BOT CRIPTO -->
             <div class="stat-card" style="background:var(--surface2); border-color:var(--accent2); margin-top:20px;">
                 <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">Configurações do Card Crypto Bot</h4>
@@ -1125,6 +1146,10 @@
             // Crypto Bot
             document.getElementById('sysCryptoEnabled').checked = s.cryptoBotEnabled !== false;
             document.getElementById('sysCryptoUrl').value = s.cryptoBotUrl || '';
+            // PAMM / MAM Cloud
+            document.getElementById('sysPammEnabled').checked = s.pammEnabled !== false;
+            document.getElementById('sysPammManagerLink').value = s.pammManagerLink || '';
+            document.getElementById('sysPammMasterAccount').value = s.pammMasterAccount || '';
         }
     }
 
@@ -1142,7 +1167,10 @@
             facebookUrl: document.getElementById('sysFacebook').value,
             instagramUrl: document.getElementById('sysInstagram').value,
             cryptoBotEnabled: document.getElementById('sysCryptoEnabled').checked,
-            cryptoBotUrl: document.getElementById('sysCryptoUrl').value
+            cryptoBotUrl: document.getElementById('sysCryptoUrl').value,
+            pammEnabled: document.getElementById('sysPammEnabled').checked,
+            pammManagerLink: document.getElementById('sysPammManagerLink').value,
+            pammMasterAccount: document.getElementById('sysPammMasterAccount').value
         };
         const res = await api("/api/admin/settings", "POST", payload);
         if (res.success) {
