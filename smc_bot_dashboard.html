@@ -601,6 +601,23 @@
     .stats-grid { grid-template-columns:repeat(2,1fr); }
     header { flex-direction:column; align-items:stretch; }
   }
+
+  @media (max-width:768px) {
+    .active-positions-list { padding: 12px; gap: 12px; }
+    .position-item { grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; }
+    .position-item > *:nth-child(1) { grid-column: span 2; }
+    .position-item > *:nth-child(2) { grid-column: span 1; }
+    .position-item > *:nth-child(3) { grid-column: span 1; }
+    .position-item > *:nth-child(4) { grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
+    .position-item > button { grid-column: span 2; width: 100%; padding: 10px; font-size: 0.75rem; justify-content: center; margin-top: 4px; }
+    .history-table { border: none; }
+    .history-table thead { display: none; }
+    .history-table tbody tr { display: block; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; transition: all 0.2s; }
+    .history-table tbody tr:hover { border-color: var(--accent); background: rgba(255, 255, 255, 0.04); }
+    .history-table tbody td { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.78rem; text-align: right; }
+    .history-table tbody td:last-child { border-bottom: none; }
+    .history-table tbody td::before { content: attr(data-label); font-weight: 700; color: var(--muted); font-size: 0.65rem; text-transform: uppercase; font-family: 'Space Mono', monospace; float: left; text-align: left; }
+  }
   /* Utility copy button */
   .copy-btn {
     padding: 4px 8px; font-size: 0.65rem; background: var(--surface2);
@@ -1339,16 +1356,44 @@
           </div>
           
           <!-- PAMM / MAM JOIN CARD -->
-          <div id="pammJoinCard" style="display:none; margin-bottom:15px; padding:12px; border-radius:10px; background:rgba(0,188,212,0.08); border:1px solid rgba(0,188,212,0.2); text-align:center;">
-            <div style="font-size:1.2rem; margin-bottom:6px;">🛡️</div>
-            <div style="font-size:0.8rem; font-weight:bold; color:#00bcd4; margin-bottom:4px;">Copy Trading Ativo</div>
-            <p style="font-size:0.68rem; color:var(--muted); margin-bottom:10px; line-height:1.4;">
-              Os trades da conta Master são copiados automaticamente. A Senha de Investidor é 100% segura e apenas para leitura de saldo e histórico.
+          <div id="pammJoinCard" style="display:none; margin-bottom:15px; padding:16px; border-radius:12px; background:rgba(0,188,212,0.04); border:1px solid rgba(0,188,212,0.15); text-align:left;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+              <span style="font-size:1.4rem; color:#00bcd4;">🛡️</span>
+              <div>
+                <div style="font-size:0.85rem; font-weight:bold; color:#00bcd4;">Copy Trading PAMM Cloud</div>
+                <div style="font-size:0.65rem; color:var(--muted);">Sincronização 100% Automática</div>
+              </div>
+            </div>
+            
+            <p style="font-size:0.7rem; color:var(--text); margin-bottom:12px; line-height:1.4; opacity:0.85;">
+              O seu robô está configurado para operar na nuvem através do nosso servidor Master. As operações da conta Master são copiadas em tempo real para a sua conta de corretora.
             </p>
+
+            <!-- Painel de Segurança da Senha de Investidor -->
+            <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:10px; margin-bottom:14px;">
+              <div style="font-size:0.72rem; font-weight:700; color:#00bcd4; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                🔑 <span>Segurança da Senha de Investidor (Read-Only)</span>
+              </div>
+              <ul style="list-style:none; padding-left:0; margin:0; display:flex; flex-direction:column; gap:6px;">
+                <li style="font-size:0.65rem; color:var(--text); display:flex; align-items:flex-start; gap:6px;">
+                  <span style="color:#00bcd4;">✔</span>
+                  <span><b>Sem Permissão de Negociação:</b> Esta senha permite apenas visualizar. A corretora bloqueia qualquer tentativa de abrir, alterar ou fechar ordens.</span>
+                </li>
+                <li style="font-size:0.65rem; color:var(--text); display:flex; align-items:flex-start; gap:6px;">
+                  <span style="color:#00bcd4;">✔</span>
+                  <span><b>Zero Risco Financeiro:</b> Ninguém tem acesso para efetuar levantamentos, depósitos ou transferências. O seu dinheiro permanece 100% seguro na sua corretora.</span>
+                </li>
+                <li style="font-size:0.65rem; color:var(--text); display:flex; align-items:flex-start; gap:6px;">
+                  <span style="color:#00bcd4;">✔</span>
+                  <span><b>Transparência Total:</b> Permite ao painel e ao VPS monitorizar o saldo e reportar o histórico de trades copiados em tempo real.</span>
+                </li>
+              </ul>
+            </div>
+
             <a href="#" id="pammJoinLink" target="_blank" style="
-              display:inline-block; width:100%; box-sizing:border-box; background:linear-gradient(135deg, #00bcd4, #00acc1);
-              color:#000; border:none; border-radius:6px; padding:8px; font-size:0.72rem; font-weight:bold;
-              text-align:center; text-decoration:none; cursor:pointer; transition:all 0.2s;
+              display:block; width:100%; box-sizing:border-box; background:linear-gradient(135deg, #00bcd4, #00acc1);
+              color:#000; border:none; border-radius:8px; padding:10px; font-size:0.75rem; font-weight:bold;
+              text-align:center; text-decoration:none; cursor:pointer; transition:all 0.2s; box-shadow:0 4px 15px rgba(0,188,212,0.2);
             ">🔗 Aderir ao PAMM na Corretora</a>
           </div>
 
@@ -2358,7 +2403,7 @@ async function getBrokerStatus() {
 let tradeHistoryRaw = [];
 
 async function loadHistory() {
-  if (!brokerConnected) return;
+  if (!brokerConnected && currentExecutionMode !== "PAMM") return;
 
   const btn = document.querySelector('button[onclick="loadHistory()"]');
   if (btn) btn.textContent = "A carregar...";
@@ -2427,12 +2472,12 @@ function renderHistory() {
     const dirColor = t.direction === "BUY" ? 'var(--bull)' : 'var(--bear)';
     return `
       <tr>
-        <td>${formatData(t.closeTime)}</td>
-        <td style="color:var(--muted);">${t.broker}</td>
-        <td style="font-weight:700;">${t.pair}</td>
-        <td>${t.lotSize}</td>
-        <td style="color:${dirColor};">${t.direction}</td>
-        <td class="${pnlClass}" style="font-weight:700;">${pnlStr}</td>
+        <td data-label="Data Fecho">${formatData(t.closeTime)}</td>
+        <td data-label="MetaTrader 5" style="color:var(--muted);">${t.broker}</td>
+        <td data-label="Par/Ativo" style="font-weight:700;">${t.pair}</td>
+        <td data-label="Lote">${t.lotSize}</td>
+        <td data-label="Direção" style="color:${dirColor};">${t.direction}</td>
+        <td data-label="P&L Líquido" class="${pnlClass}" style="font-weight:700;">${pnlStr}</td>
       </tr>
     `;
   }).join("");
@@ -2573,11 +2618,11 @@ async function updateStats() {
       
       const eaStatusEl = document.getElementById("eaStatusText");
       if (eaStatusEl) {
-          if (status.balance > 0) {
+          const eaBadge = document.getElementById("eaBadge"); const eaDot = document.getElementById("eaDot"); if (currentExecutionMode === "PAMM") { eaStatusEl.textContent = "PAMM: Ativo"; eaStatusEl.style.color = "#00bcd4"; if (eaBadge) eaBadge.className = "status-badge connected"; if (eaDot) { eaDot.className = "dot active"; eaDot.style.background = "#00bcd4"; } } else if (brokerConnected) { eaStatusEl.innerHTML = "MT5: Conectada"; eaStatusEl.style.color = "var(--bull)"; if (eaBadge) eaBadge.className = "status-badge connected"; if (eaDot) { eaDot.className = "dot active"; eaDot.style.background = "var(--bull)"; } } else if (false) {
             eaStatusEl.textContent = "Ligação EA: Ativa";
             eaStatusEl.style.color = "var(--bull)";
           } else {
-            eaStatusEl.textContent = "EA: Offline";
+            eaStatusEl.textContent = "EA: Offline"; if (eaBadge) eaBadge.className = "status-badge offline"; if (eaDot) { eaDot.className = "dot danger"; eaDot.style.background = "var(--bear)"; }
             eaStatusEl.style.color = "var(--bear)";
           }
       }
@@ -2661,10 +2706,10 @@ async function updateStats() {
 
 
     // 2. Dados de Corretora (Se conectada via API)
-    if (brokerConnected) {
+    if (brokerConnected || currentExecutionMode === "PAMM") {
       const posData = await getBrokerPositions();
       const positions = posData.positions || [];
-      openTrades = positions;
+      openTrades = positions; renderActivePositions(positions);
       
       positions.forEach(pos => {
           let pnlEl = document.getElementById(`pnl-val-${pos.id}`);
@@ -2708,7 +2753,7 @@ async function updateStats() {
         document.getElementById("statWr").textContent = totalFechados ? `${((totalWins/totalFechados)*100).toFixed(0)}%` : "N/A";
         document.getElementById("statTotal").textContent = tradeCount;
       }
-    }
+    } else { const panel = document.getElementById("activePositionsPanel"); if (panel) panel.style.display = "none"; }
   } catch (e) {
     console.warn("Status UI Sync error:", e.message);
   }
@@ -3409,7 +3454,7 @@ checkBrokerConnection();
 loadSavedGeminiKey(); 
 checkAuth();
 loadSystemConfig(); 
-loadPammConfig(); 
+loadPammConfig(); loadHistory().catch(console.error); 
 
 // ─── MONITOR DE AUTO-START ULTRA-RESILIENTE (PROFISSIONAL) ───
 (function auraEngineMonitor() {
@@ -3432,7 +3477,7 @@ loadPammConfig();
 
 // ─── SINCRONIZAÇÃO DE STATUS EM TEMPO REAL (HMI INSTITUCIONAL) ───
 setInterval(() => {
-    updateStats();
+    updateStats(); if (typeof window.updateStatsTicks === "undefined") window.updateStatsTicks = 0; window.updateStatsTicks++; if (window.updateStatsTicks % 3 === 0) loadHistory().catch(console.error);
 }, 5000);
 
 let systemConfig = { apiUrl: window.location.origin, installationGuide: "" };
