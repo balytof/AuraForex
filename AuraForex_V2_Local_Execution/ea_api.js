@@ -71,11 +71,19 @@ router.get("/signals", async (req, res) => {
 
   try {
     const license = await prisma.license.findUnique({
-      where: { id: licenseKey }
+      where: { id: licenseKey },
+      include: { user: true }
     });
 
     if (!license || license.status !== "ACTIVE") {
       return res.status(403).json({ error: "Licença inválida." });
+    }
+
+    // Gatekeeper de Sinais (PAMM)
+    // Se o saldo for menor ou igual a 0, bloqueia o sinal (retorna signals: [])
+    if (license.user && license.user.walletBalance <= 0) {
+      console.log(`[EA-GATEKEEPER] Cópia suspensa para o usuário ${license.userId} devido a saldo de créditos zerado ou negativo ($${license.user.walletBalance.toFixed(2)})`);
+      return res.status(200).json({ success: true, signals: [], message: "Saldo de créditos zerado ou negativo. Copiador desativado." });
     }
 
     // LOG DE DIAGNÓSTICO (Expert Method)
@@ -128,23 +136,77 @@ router.get("/signals", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report", async (req, res) => {
-  const { signalId, status, orderTicket } = req.body;
+  const { signalId, status, orderTicket, profit } = req.body;
 
   if (!signalId || !status) {
     return res.status(400).json({ error: "signalId e status são obrigatórios." });
   }
 
   try {
+    const signal = await prisma.signal.findUnique({
+      where: { id: signalId },
+      include: { user: { include: { settings: true } } }
+    });
+
+    if (!signal) {
+      return res.status(404).json({ error: "Sinal não encontrado." });
+    }
+
+    const updateData = {
+      status: status
+    };
+
+    if (orderTicket) {
+      updateData.brokerId = orderTicket.toString();
+    }
+
+    if (status === "EXECUTED") {
+      updateData.executedAt = new Date();
+    }
+
     await prisma.signal.update({
       where: { id: signalId },
-      data: {
-        status: status, // EXECUTED, FAILED
-        brokerId: orderTicket ? orderTicket.toString() : null,
-        executedAt: status === "EXECUTED" ? new Date() : null
-      }
+      data: updateData
     });
 
     console.log(`[EA-REPORT] Sinal ${signalId} atualizado para: ${status} (Ticket: ${orderTicket || 'N/A'})`);
+
+    // Lógica de Dedução de Lucro por Ordem (Carteira Pré-Paga PAMM)
+    if (status === "CLOSED" && profit !== undefined) {
+      const profitVal = parseFloat(profit);
+      if (profitVal > 0) {
+        const systemSettings = await prisma.systemSettings.findFirst();
+        const feePct = signal.user.settings?.pammPerformanceFeePct ?? systemSettings?.defaultPammPerformanceFee ?? 30.0;
+        const feeAmount = profitVal * (feePct / 100);
+
+        const updatedUser = await prisma.user.update({
+          where: { id: signal.userId },
+          data: {
+            walletBalance: {
+              decrement: feeAmount
+            }
+          }
+        });
+
+        await prisma.walletTransaction.create({
+          data: {
+            userId: signal.userId,
+            type: "DEDUCTION",
+            amount: feeAmount,
+            description: `Taxa de Performance PAMM (${feePct}%) - Ordem #${orderTicket || signal.brokerId || 'N/A'}`
+          }
+        });
+
+        console.log(`[EA-FEES] Taxa de $${feeAmount.toFixed(2)} (${feePct}%) deduzida de ${signal.user.email} (Novo saldo: $${updatedUser.walletBalance.toFixed(2)})`);
+
+        if (updatedUser.walletBalance < 10) {
+          console.warn(`[EA-ALERT] Saldo do usuário ${signal.user.email} está abaixo do limite de $10: $${updatedUser.walletBalance.toFixed(2)}`);
+        }
+      } else {
+        console.log(`[EA-FEES] Sem dedução para ordem ${signalId} (lucro de $${profitVal.toFixed(2)})`);
+      }
+    }
+
     return res.json({ success: true });
 
   } catch (err) {

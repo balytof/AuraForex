@@ -945,27 +945,121 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     const {
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
-      cryptoBotEnabled, cryptoBotUrl
+      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
+
+    const pammFee = defaultPammPerformanceFee !== undefined ? parseFloat(defaultPammPerformanceFee) : 30.0;
 
     if (settings) {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
         data: {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
+          defaultPammPerformanceFee: pammFee
         }
       });
     } else {
       settings = await prisma.systemSettings.create({
         data: {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
-          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl
+          installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
+          defaultPammPerformanceFee: pammFee
         }
       });
     }
     res.json({ success: true, settings });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── ROTAS ADICIONAIS: CARTEIRA PRÉ-PAGA & PAMM ────────────────────────
+app.post("/api/admin/wallet/credit-user", requireAuth, requireAdmin, async (req, res) => {
+  const { userId, amount, description } = req.body;
+  if (!userId || amount === undefined) {
+    return res.status(400).json({ success: false, error: "userId e amount são obrigatórios." });
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "Usuário não encontrado." });
+    }
+    const amt = parseFloat(amount);
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletBalance: {
+          increment: amt
+        }
+      }
+    });
+    const tx = await prisma.walletTransaction.create({
+      data: {
+        userId,
+        type: amt >= 0 ? "DEPOSIT" : "DEDUCTION",
+        amount: Math.abs(amt),
+        description: description || (amt >= 0 ? "Saldo adicionado manualmente pelo administrador" : "Saldo deduzido manualmente pelo administrador")
+      }
+    });
+    res.json({ success: true, walletBalance: updatedUser.walletBalance, transaction: tx });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/user/:id/pamm-settings", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { pammPerformanceFeePct } = req.body;
+  try {
+    const settings = await prisma.userSettings.findUnique({ where: { userId: id } });
+    const feeVal = pammPerformanceFeePct !== undefined && pammPerformanceFeePct !== "" ? parseFloat(pammPerformanceFeePct) : null;
+    
+    if (!settings) {
+      await prisma.userSettings.create({
+        data: {
+          userId: id,
+          pammPerformanceFeePct: feeVal
+        }
+      });
+    } else {
+      await prisma.userSettings.update({
+        where: { userId: id },
+        data: {
+          pammPerformanceFeePct: feeVal
+        }
+      });
+    }
+    res.json({ success: true, message: "Configurações PAMM atualizadas com sucesso." });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get("/api/user/wallet/transactions", requireAuth, async (req, res) => {
+  try {
+    const transactions = await prisma.walletTransaction.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: "desc" }
+    });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { walletBalance: true }
+    });
+    res.json({ success: true, walletBalance: user?.walletBalance || 0, transactions });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get("/api/admin/wallet/transactions", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const transactions = await prisma.walletTransaction.findMany({
+      include: { user: { select: { email: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json({ success: true, transactions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
