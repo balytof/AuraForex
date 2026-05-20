@@ -1045,9 +1045,20 @@ app.get("/api/user/wallet/transactions", requireAuth, async (req, res) => {
     });
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { walletBalance: true }
+      select: { 
+        walletBalance: true,
+        settings: { select: { pammPerformanceFeePct: true } }
+      }
     });
-    res.json({ success: true, walletBalance: user?.walletBalance || 0, transactions });
+    const systemSettings = await prisma.systemSettings.findFirst();
+    const feePct = user?.settings?.pammPerformanceFeePct ?? systemSettings?.defaultPammPerformanceFee ?? 30.0;
+    
+    res.json({ 
+      success: true, 
+      walletBalance: user?.walletBalance || 0, 
+      pammPerformanceFeePct: feePct,
+      transactions 
+    });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

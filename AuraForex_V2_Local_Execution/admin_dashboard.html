@@ -429,6 +429,7 @@
                         <th>Role</th>
                         <th>Registado</th>
                         <th>Licença</th>
+                        <th>Carteira PAMM</th>
                         <th>Expiração</th>
                         <th>Ações</th>
                     </tr>
@@ -509,6 +510,24 @@
                     </tbody>
                 </table>
             </div>
+
+            <h4 style="margin-top:30px; margin-bottom:12px; font-size:0.9rem; color:var(--muted);">Histórico de Transações PAMM (Depósitos & Deduções)</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Valor</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pammTransactionsTable">
+                        <!-- Dynamic -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -572,6 +591,10 @@
                     <div class="form-group">
                         <label class="form-label">Server API URL (Ex: http://seu-ip:3005)</label>
                         <input type="text" id="sysApiUrl" class="form-input" placeholder="http://localhost:3005">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Taxa de Performance PAMM Padrão (%)</label>
+                        <input type="number" id="sysDefaultPammFee" class="form-input" min="0" max="100" placeholder="30">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Guia de Instalação (Markdown/Texto)</label>
@@ -662,6 +685,46 @@
         <div style="display:flex;gap:10px;margin-top:20px;">
             <button class="btn" onclick="closeModal('planModal')">Cancelar</button>
             <button class="btn btn-success" id="savePlanBtn">Salvar Plano</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: WALLET/PAMM [NEW] -->
+<div class="modal-overlay" id="walletModal">
+    <div class="modal" style="width: 520px;">
+        <h3 id="walletModalTitle">Gestão PAMM & Carteira</h3>
+        <p id="walletUserEmail" style="font-size:0.8rem; color:var(--muted); margin:6px 0 16px 0; font-family:'Space Mono', monospace;"></p>
+        
+        <div style="background: var(--surface2); padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="font-size:0.75rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Saldo Atual</span>
+                <div id="walletCurrentBalance" style="font-size:1.6rem; font-weight:800; color:var(--accent);">$0.00</div>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size:0.75rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Taxa Customizada</span>
+                <div id="walletCurrentFee" style="font-size:1.2rem; font-weight:700; color:var(--warn);">Global</div>
+            </div>
+        </div>
+
+        <h4 style="font-size:0.8rem; color:var(--text); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:4px;">1. Ajustar Saldo Administrativo</h4>
+        <div class="form-group">
+            <label class="form-label">Valor do Lançamento ($ USD)</label>
+            <input type="number" step="0.01" id="walletAmount" class="form-input" placeholder="Ex: 50.00 para adicionar, -20.00 para deduzir">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Descrição da Movimentação (Opcional)</label>
+            <input type="text" id="walletDescription" class="form-input" placeholder="Ex: Depósito inicial via USDT">
+        </div>
+
+        <h4 style="font-size:0.8rem; color:var(--text); margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:4px;">2. Configurar Taxa Customizada</h4>
+        <div class="form-group">
+            <label class="form-label">Taxa de Performance PAMM Customizada (%)</label>
+            <input type="number" min="0" max="100" id="walletCustomFee" class="form-input" placeholder="Deixe em branco para usar o padrão global">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:24px; justify-content: flex-end;">
+            <button class="btn" onclick="closeModal('walletModal')">Cancelar</button>
+            <button class="btn btn-success" id="saveWalletBtn">Salvar Alterações</button>
         </div>
     </div>
         </div> <!-- /wrapper -->
@@ -852,6 +915,13 @@
         tbody.innerHTML = users.map(u => {
             const lic = u.licenses?.[0];
             const regDate = new Date(u.createdAt).toLocaleDateString();
+            const balance = u.walletBalance !== undefined ? u.walletBalance : 0.0;
+            const customFee = u.settings?.pammPerformanceFeePct;
+            const feeStr = (customFee !== null && customFee !== undefined) ? `${customFee}%` : 'Padrão';
+            
+            // wallet display with low balance alert styling
+            const balanceStyle = balance <= 0 ? 'color: var(--bear); font-weight: bold;' : balance < 10 ? 'color: var(--warn); font-weight: bold;' : 'color: var(--bull); font-weight: bold;';
+            
             return `
                 <tr>
                     <td>
@@ -863,14 +933,20 @@
                         <div style="font-size:0.85rem;">${regDate}</div>
                     </td>
                     <td>${lic ? `<span class="badge badge-active">${lic.plan ? lic.plan.name : (lic.type || 'Standard')}</span>` : '<span style="color:var(--muted)">Sem licença</span>'}</td>
+                    <td>
+                        <div style="${balanceStyle}">$${balance.toFixed(2)}</div>
+                        <div style="font-size:0.65rem; color:var(--muted);">Taxa: ${feeStr}</div>
+                    </td>
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
                     <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn" style="background:var(--accent);color:#000;border:none;font-size:0.75rem;padding:5px 10px;font-weight:700;" onclick="openWalletModal('${u.id}', '${u.email}', ${balance}, ${customFee !== null && customFee !== undefined ? customFee : 'null'})">💳 PAMM</button>
                         <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset PW</button>
                         <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="deleteUser('${u.id}', '${u.email}')">🗑️ Eliminar</button>
                     </td>
                 </tr>
             `;
-        }).join('') || '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+        }).join('') || '<tr><td colspan="7" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+    }
     }
 
     // Período padrão para usuários
@@ -1003,6 +1079,7 @@
             document.getElementById('sysMetaToken').value = s.metaApiToken || '';
             document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
+            document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
             document.getElementById('sysInstallGuide').value = s.installationGuide || '';
             // Social
             document.getElementById('sysTelegram').value = s.telegramUrl || '';
@@ -1023,6 +1100,7 @@
             metaApiToken: document.getElementById('sysMetaToken').value,
             metaApiAccountId: document.getElementById('sysMetaAccountId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
+            defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
             installationGuide: document.getElementById('sysInstallGuide').value,
             telegramUrl: document.getElementById('sysTelegram').value,
             whatsappNumber: document.getElementById('sysWhatsapp').value,
@@ -1100,6 +1178,25 @@
                     </td>
                 </tr>
             `).join("") || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum pedido de saque pendente.</td></tr>';
+        }
+        
+        const pammTxRes = await api("/api/admin/wallet/transactions");
+        if (pammTxRes.success) {
+            const tbody = document.getElementById("pammTransactionsTable");
+            tbody.innerHTML = pammTxRes.transactions.map(t => {
+                const typeBadge = t.type === 'DEPOSIT' ? '<span class="badge badge-active">DEPOSIT</span>' : '<span class="badge badge-pending" style="background:rgba(255,68,68,0.2); color:var(--bear);">DEDUCTION</span>';
+                const amtColor = t.type === 'DEPOSIT' ? 'var(--bull)' : 'var(--bear)';
+                const sign = t.type === 'DEPOSIT' ? '+' : '-';
+                return `
+                    <tr>
+                        <td>${t.user?.email || 'N/A'}</td>
+                        <td>${new Date(t.createdAt).toLocaleString()}</td>
+                        <td>${typeBadge}</td>
+                        <td style="font-weight:bold; color:${amtColor};">${sign}$${t.amount.toFixed(2)}</td>
+                        <td style="color:var(--muted);">${t.description || '—'}</td>
+                    </tr>
+                `;
+            }).join("") || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhuma transação PAMM registrada.</td></tr>';
         }
     }
     
@@ -1186,6 +1283,64 @@
             btn.disabled = false;
         }
     }
+
+    let currentWalletUserId = null;
+    function openWalletModal(userId, email, balance, customFee) {
+        currentWalletUserId = userId;
+        document.getElementById('walletModalTitle').textContent = 'Gestão PAMM & Carteira';
+        document.getElementById('walletUserEmail').textContent = email;
+        document.getElementById('walletCurrentBalance').textContent = `$${balance.toFixed(2)}`;
+        document.getElementById('walletCurrentFee').textContent = customFee !== null ? `${customFee}%` : 'Global';
+        
+        document.getElementById('walletAmount').value = '';
+        document.getElementById('walletDescription').value = '';
+        document.getElementById('walletCustomFee').value = customFee !== null ? customFee : '';
+        
+        document.getElementById('walletModal').classList.add('active');
+    }
+
+    document.getElementById('saveWalletBtn').onclick = async () => {
+        if (!currentWalletUserId) return;
+        
+        const amountVal = document.getElementById('walletAmount').value;
+        const descriptionVal = document.getElementById('walletDescription').value;
+        const customFeeVal = document.getElementById('walletCustomFee').value;
+        
+        let hasChanges = false;
+        
+        // 1. Process balance change if provided
+        if (amountVal !== '') {
+            const amt = parseFloat(amountVal);
+            if (amt !== 0) {
+                const res = await api('/api/admin/wallet/credit-user', 'POST', {
+                    userId: currentWalletUserId,
+                    amount: amt,
+                    description: descriptionVal
+                });
+                if (!res.success) {
+                    alert('Erro ao atualizar saldo: ' + res.error);
+                    return;
+                }
+                hasChanges = true;
+            }
+        }
+        
+        // 2. Process custom performance fee change
+        const resFee = await api(`/api/admin/user/${currentWalletUserId}/pamm-settings`, 'POST', {
+            pammPerformanceFeePct: customFeeVal !== '' ? parseFloat(customFeeVal) : ''
+        });
+        if (!resFee.success) {
+            alert('Erro ao atualizar taxa PAMM: ' + resFee.error);
+            return;
+        }
+        hasChanges = true;
+        
+        if (hasChanges) {
+            alert('Alterações salvas com sucesso!');
+            closeModal('walletModal');
+            loadUsers();
+        }
+    };
 
     loadStats();
     loadSystemSettings();

@@ -181,11 +181,19 @@ model UserSettings {
 model SystemSettings {
   id                         String   @id @default(uuid())
   geminiApiKey               String?
+  geminiApiUrl               String?
   metaApiToken               String?
   metaApiAccountId           String?
   apiUrl                     String?  @default("http://localhost:3005")
   installationGuide          String?  @db.Text
   defaultPammPerformanceFee  Float    @default(30.0)
+  telegramUrl                String?
+  whatsappNumber             String?
+  facebookUrl                String?
+  instagramUrl               String?
+  youtubeUrl                 String?
+  cryptoBotEnabled           Boolean  @default(true)
+  cryptoBotUrl               String?
   updatedAt                  DateTime @updatedAt
 }
 

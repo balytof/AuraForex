@@ -1234,6 +1234,38 @@
         </div>
       </div>
 
+      <!-- MINHA CARTEIRA AURATRADE [NEW] -->
+      <div class="panel glass-panel" style="margin-bottom: 20px;">
+        <div class="panel-header" style="background: rgba(0, 212, 255, 0.05);">
+          <div class="panel-title"><span class="icon">💳</span> Minha Carteira</div>
+          <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono', monospace;">Créditos Pré-Pagos</span>
+        </div>
+        <div style="padding: 20px;">
+          <!-- Saldo & Taxa Info -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div>
+              <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Saldo Disponível</span>
+              <div id="userWalletBalance" style="font-size:1.8rem; font-weight:800; color:var(--bull);">$0.00</div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Taxa de Performance</span>
+              <div id="userWalletFee" style="font-size:1.1rem; font-weight:700; color:var(--accent);">30%</div>
+            </div>
+          </div>
+
+          <!-- Alert Banner -->
+          <div id="userWalletAlert" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.78rem; margin-bottom: 15px; border: 1px solid transparent; font-family: inherit;">
+            <!-- Dynamic -->
+          </div>
+
+          <!-- Histórico Compacto -->
+          <h4 style="font-size:0.75rem; color:var(--muted); margin-bottom:8px; text-transform:uppercase; font-family:'Space Mono', monospace;">Últimas Movimentações</h4>
+          <div style="max-height: 150px; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 6px;" id="userWalletTransactions">
+            <div style="text-align: center; color: var(--muted); font-size: 0.75rem; padding: 10px 0;">Sem movimentações registradas.</div>
+          </div>
+        </div>
+      </div>
+
       <!-- CONFIG -->
       <div class="panel">
         <div class="panel-header">
@@ -2333,6 +2365,9 @@ function updateLimitUI(val) {
 async function updateStats() {
   console.log("[HMI] Iniciando atualização de estatísticas...");
   try {
+    // Sincronização da Carteira PAMM
+    loadUserWallet().catch(e => {});
+
     // 1. Sincronização Institucional (Status do Cérebro)
     const status = await apiFetch("/api/user/status");
     console.log("[HMI] Status recebido:", status);
@@ -2424,6 +2459,71 @@ async function updateStats() {
     }
   } catch (e) {
     console.warn("Status UI Sync error:", e.message);
+  }
+}
+
+async function loadUserWallet() {
+  const balanceEl = document.getElementById("userWalletBalance");
+  const feeEl = document.getElementById("userWalletFee");
+  const alertEl = document.getElementById("userWalletAlert");
+  const txContainer = document.getElementById("userWalletTransactions");
+  
+  if (!balanceEl) return;
+  
+  try {
+    const res = await apiFetch("/api/user/wallet/transactions");
+    if (res && res.success) {
+      const balance = res.walletBalance || 0;
+      const feePct = res.pammPerformanceFeePct !== undefined ? res.pammPerformanceFeePct : 30;
+      
+      balanceEl.textContent = `$${balance.toFixed(2)}`;
+      feeEl.textContent = `${feePct}%`;
+      
+      if (balance <= 0) {
+        balanceEl.style.color = "var(--bear)";
+      } else if (balance < 10) {
+        balanceEl.style.color = "var(--warn)";
+      } else {
+        balanceEl.style.color = "var(--bull)";
+      }
+      
+      if (balance <= 0) {
+        alertEl.style.display = "block";
+        alertEl.style.background = "rgba(255, 68, 68, 0.15)";
+        alertEl.style.borderColor = "var(--bear)";
+        alertEl.style.color = "var(--bear)";
+        alertEl.innerHTML = `❌ <b>CÓPIA SUSPENSA:</b> O seu saldo de créditos PAMM está zerado ou negativo ($${balance.toFixed(2)}). Entre em contato com o suporte para recarregar.`;
+      } else if (balance < 10) {
+        alertEl.style.display = "block";
+        alertEl.style.background = "rgba(255, 179, 0, 0.15)";
+        alertEl.style.borderColor = "var(--warn)";
+        alertEl.style.color = "var(--warn)";
+        alertEl.innerHTML = `⚠️ <b>SALDO BAIXO:</b> O seu saldo ($${balance.toFixed(2)}) é inferior a $10.00. Recarregue brevemente para evitar a suspensão da cópia.`;
+      } else {
+        alertEl.style.display = "none";
+      }
+      
+      if (res.transactions && res.transactions.length > 0) {
+        txContainer.innerHTML = res.transactions.map(t => {
+          const typeColor = t.type === 'DEPOSIT' ? 'var(--bull)' : 'var(--bear)';
+          const sign = t.type === 'DEPOSIT' ? '+' : '-';
+          const dateStr = new Date(t.createdAt).toLocaleDateString() + ' ' + new Date(t.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          return `
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 8px 10px; border-radius: 6px; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem;">
+                <span style="color: var(--muted);">${dateStr}</span>
+                <span style="font-weight: 700; color: ${typeColor};">${sign}$${t.amount.toFixed(2)}</span>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text);">${t.description || 'Movimentação administrativa'}</div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        txContainer.innerHTML = `<div style="text-align: center; color: var(--muted); font-size: 0.72rem; padding: 10px 0;">Sem movimentações registradas.</div>`;
+      }
+    }
+  } catch (err) {
+    console.warn("Erro ao buscar carteira:", err.message);
   }
 }
 
