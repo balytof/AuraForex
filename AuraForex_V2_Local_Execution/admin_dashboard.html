@@ -588,8 +588,12 @@
                         <input type="password" id="sysMetaToken" class="form-input" placeholder="eyJ...">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">MetaApi Account ID</label>
+                        <label class="form-label">MetaApi Account ID (CopyFactory Master)</label>
                         <input type="text" id="sysMetaAccountId" class="form-input" placeholder="UUID-...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Conta Master PAMM (ID Opcional se for diferente do Master CopyFactory)</label>
+                        <input type="text" id="sysPammMasterId" class="form-input" placeholder="UUID-...">
                     </div>
                 </div>
                 <div class="stat-card" style="background:var(--surface2); border-color:var(--accent2);">
@@ -1122,6 +1126,7 @@
             document.getElementById('sysGeminiUrl').value = s.geminiApiUrl || '';
             document.getElementById('sysMetaToken').value = s.metaApiToken || '';
             document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
+            document.getElementById('sysPammMasterId').value = s.pammMasterAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
             document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 20.0;
@@ -1144,6 +1149,7 @@
             geminiApiUrl: document.getElementById('sysGeminiUrl').value,
             metaApiToken: document.getElementById('sysMetaToken').value,
             metaApiAccountId: document.getElementById('sysMetaAccountId').value,
+            pammMasterAccountId: document.getElementById('sysPammMasterId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
             defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
             minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 20.0,
