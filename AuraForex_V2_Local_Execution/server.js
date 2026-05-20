@@ -1700,6 +1700,102 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
   }
 });
 
+// ─── PAMM Credentials & Stats Endpoints ─────────────────────────
+
+app.get("/api/user/pamm", requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    const pammAccount = await prisma.pammAccount.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    let settings = await prisma.userSettings.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!settings) {
+      settings = await prisma.userSettings.create({
+        data: { userId: req.user.id }
+      });
+    }
+
+    const defaultFeePct = 30.0;
+    const pammPerformanceFeePct = settings?.pammPerformanceFeePct ?? defaultFeePct;
+
+    res.json({
+      success: true,
+      walletBalance: user.walletBalance,
+      pammPerformanceFeePct,
+      pammAccount: pammAccount ? {
+        accountNumber: pammAccount.accountNumber,
+        server: pammAccount.server,
+        investorPassword: "••••••••", // Masked
+        balance: pammAccount.balance,
+        equity: pammAccount.equity,
+        totalProfit: pammAccount.totalProfit,
+        totalLoss: pammAccount.totalLoss,
+        isActive: pammAccount.isActive
+      } : null
+    });
+  } catch (err) {
+    console.error("GET /api/user/pamm error:", err);
+    res.status(500).json({ error: "Erro ao buscar conta PAMM." });
+  }
+});
+
+app.post("/api/user/pamm", requireAuth, async (req, res) => {
+  const { accountNumber, server, investorPassword } = req.body;
+  if (!accountNumber || !server || !investorPassword) {
+    return res.status(400).json({ error: "Todos os campos (Conta, Servidor e Senha) são obrigatórios." });
+  }
+
+  try {
+    const investorPasswordEnc = encrypt(investorPassword);
+
+    const pammAccount = await prisma.pammAccount.upsert({
+      where: { userId: req.user.id },
+      update: {
+        accountNumber,
+        server,
+        investorPasswordEnc,
+        isActive: true
+      },
+      create: {
+        userId: req.user.id,
+        accountNumber,
+        server,
+        investorPasswordEnc,
+        balance: 1000.0,
+        equity: 1000.0,
+        totalProfit: 0.0,
+        totalLoss: 0.0,
+        isActive: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: "Credenciais PAMM salvas com sucesso.",
+      pammAccount: {
+        accountNumber: pammAccount.accountNumber,
+        server: pammAccount.server,
+        investorPassword: "••••••••", // Masked
+        balance: pammAccount.balance,
+        equity: pammAccount.equity,
+        totalProfit: pammAccount.totalProfit,
+        totalLoss: pammAccount.totalLoss,
+        isActive: pammAccount.isActive
+      }
+    });
+  } catch (err) {
+    console.error("POST /api/user/pamm error:", err);
+    res.status(500).json({ error: "Erro ao salvar credenciais PAMM." });
+  }
+});
+
+
 // ─── AI & Signal Engine ───────────────────────────────────────
 
 app.post("/api/bot/analyze", requireAuth, async (req, res) => {
