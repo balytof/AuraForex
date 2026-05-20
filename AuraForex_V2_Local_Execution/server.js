@@ -1662,7 +1662,10 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
 app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      include: { licenses: { include: { plan: true } } },
+      include: { 
+        licenses: { include: { plan: true } },
+        settings: true
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json({ success: true, users });
