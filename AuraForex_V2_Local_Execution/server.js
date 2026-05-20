@@ -975,34 +975,65 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ── ROTAS ADICIONAIS: CARTEIRA PRÉ-PAGA & PAMM ────────────────────────
 app.post("/api/admin/wallet/credit-user", requireAuth, requireAdmin, async (req, res) => {
-  const { userId, amount, description } = req.body;
-  if (!userId || amount === undefined) {
-    return res.status(400).json({ success: false, error: "userId e amount são obrigatórios." });
+  const { userId, amount, description, isDirectSet, newBalance } = req.body;
+  if (!userId) {
+    return res.status(400).json({ success: false, error: "userId é obrigatório." });
   }
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ success: false, error: "Usuário não encontrado." });
     }
-    const amt = parseFloat(amount);
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        walletBalance: {
-          increment: amt
+
+    let updatedUser;
+    let tx;
+
+    if (isDirectSet) {
+      const targetBalance = parseFloat(newBalance);
+      if (isNaN(targetBalance)) {
+        return res.status(400).json({ success: false, error: "newBalance inválido." });
+      }
+      const diff = targetBalance - user.walletBalance;
+
+      updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { walletBalance: targetBalance }
+      });
+
+      if (diff !== 0) {
+        tx = await prisma.walletTransaction.create({
+          data: {
+            userId,
+            type: diff >= 0 ? "DEPOSIT" : "DEDUCTION",
+            amount: Math.abs(diff),
+            description: description || `Ajuste manual de saldo pelo administrador para $${targetBalance.toFixed(2)} (Ajuste: ${diff >= 0 ? '+' : ''}$${diff.toFixed(2)})`
+          }
+        });
+      }
+    } else {
+      if (amount === undefined) {
+        return res.status(400).json({ success: false, error: "amount é obrigatório." });
+      }
+      const amt = parseFloat(amount);
+      updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          walletBalance: {
+            increment: amt
+          }
         }
-      }
-    });
-    const tx = await prisma.walletTransaction.create({
-      data: {
-        userId,
-        type: amt >= 0 ? "DEPOSIT" : "DEDUCTION",
-        amount: Math.abs(amt),
-        description: description || (amt >= 0 ? "Saldo adicionado manualmente pelo administrador" : "Saldo deduzido manualmente pelo administrador")
-      }
-    });
+      });
+      tx = await prisma.walletTransaction.create({
+        data: {
+          userId,
+          type: amt >= 0 ? "DEPOSIT" : "DEDUCTION",
+          amount: Math.abs(amt),
+          description: description || (amt >= 0 ? "Saldo adicionado manualmente pelo administrador" : "Saldo deduzido manualmente pelo administrador")
+        }
+      });
+    }
+
     res.json({ success: true, walletBalance: updatedUser.walletBalance, transaction: tx });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });

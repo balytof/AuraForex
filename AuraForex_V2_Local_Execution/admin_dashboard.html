@@ -707,13 +707,22 @@
         </div>
 
         <h4 style="font-size:0.8rem; color:var(--text); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:4px;">1. Ajustar Saldo Administrativo</h4>
-        <div class="form-group">
-            <label class="form-label">Valor do Lançamento ($ USD)</label>
-            <input type="number" step="0.01" id="walletAmount" class="form-input" placeholder="Ex: 50.00 para adicionar, -20.00 para deduzir">
+        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label class="form-label">Valor do Lançamento ($ USD)</label>
+                <input type="number" step="0.01" id="walletAmount" class="form-input" placeholder="Ex: 50 para somar, -50 para subtrair">
+            </div>
+            <div style="display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--muted); padding-top: 18px; font-size: 0.75rem;">
+                OU
+            </div>
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label class="form-label">Definir Novo Saldo Exato ($ USD)</label>
+                <input type="number" step="0.01" id="walletDirectBalance" class="form-input" placeholder="Ex: 0.00 para zerar ou outro valor exato">
+            </div>
         </div>
         <div class="form-group">
             <label class="form-label">Descrição da Movimentação (Opcional)</label>
-            <input type="text" id="walletDescription" class="form-input" placeholder="Ex: Depósito inicial via USDT">
+            <input type="text" id="walletDescription" class="form-input" placeholder="Ex: Ajuste manual de saldo">
         </div>
 
         <h4 style="font-size:0.8rem; color:var(--text); margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:4px;">2. Configurar Taxa Customizada</h4>
@@ -1292,6 +1301,7 @@
         document.getElementById('walletCurrentFee').textContent = customFee !== null ? `${customFee}%` : 'Global';
         
         document.getElementById('walletAmount').value = '';
+        document.getElementById('walletDirectBalance').value = '';
         document.getElementById('walletDescription').value = '';
         document.getElementById('walletCustomFee').value = customFee !== null ? customFee : '';
         
@@ -1302,13 +1312,27 @@
         if (!currentWalletUserId) return;
         
         const amountVal = document.getElementById('walletAmount').value;
+        const directVal = document.getElementById('walletDirectBalance').value;
         const descriptionVal = document.getElementById('walletDescription').value;
         const customFeeVal = document.getElementById('walletCustomFee').value;
         
         let hasChanges = false;
         
         // 1. Process balance change if provided
-        if (amountVal !== '') {
+        if (directVal !== '') {
+            const newBal = parseFloat(directVal);
+            const res = await api('/api/admin/wallet/credit-user', 'POST', {
+                userId: currentWalletUserId,
+                isDirectSet: true,
+                newBalance: newBal,
+                description: descriptionVal || 'Correção de saldo pelo administrador'
+            });
+            if (!res.success) {
+                alert('Erro ao atualizar saldo: ' + res.error);
+                return;
+            }
+            hasChanges = true;
+        } else if (amountVal !== '') {
             const amt = parseFloat(amountVal);
             if (amt !== 0) {
                 const res = await api('/api/admin/wallet/credit-user', 'POST', {
