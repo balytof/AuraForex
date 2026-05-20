@@ -943,7 +943,7 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
     const {
-      geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+      geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
       cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit
     } = req.body;
@@ -956,7 +956,7 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
         data: {
-          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
           minPammDeposit: minPamm
@@ -965,7 +965,7 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     } else {
       settings = await prisma.systemSettings.create({
         data: {
-          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
+          geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
           minPammDeposit: minPamm
