@@ -3272,6 +3272,8 @@ function updateLicenseUI() {
   const startBtn = document.getElementById("mainBtn");
   const buyBtn = document.getElementById("buyLicenseBtn");
 
+  const currentTab = localStorage.getItem("aura_dashboard_tab") || "vps";
+
   if (userLicense && userLicense.status === "ACTIVE") {
     const expires = new Date(userLicense.expiresAt);
     const now = new Date();
@@ -3280,7 +3282,7 @@ function updateLicenseUI() {
     const hours = Math.floor((diff % (1000 * 3600 * 24)) / (1000 * 3600));
 
     header.textContent = userLicense.type || "PRO";
-    count.textContent = diff > 0 ? `${days}d ${hours}h restantes` : "Expirada";
+    count.textContent = diff > 0 ? days + 'd ' + hours + 'h restantes' : 'Expirada';
     
     if (diff > 0 && days <= 5) {
       alertBar.classList.add("visible");
@@ -3294,8 +3296,14 @@ function updateLicenseUI() {
       startBtn.disabled = true;
       buyBtn.style.display = "block";
     } else {
-      // Licença ativa: Bot pode ser iniciado
-      startBtn.disabled = false;
+      // Licença ativa: Bot pode ser iniciado se estiver no VPS
+      if (currentTab === 'pamm') {
+        startBtn.disabled = true;
+        startBtn.style.opacity = "0.5";
+      } else {
+        startBtn.disabled = false;
+        startBtn.style.opacity = "1";
+      }
       if (buyBtn) buyBtn.style.display = "none";
     }
   } else {
@@ -3304,7 +3312,13 @@ function updateLicenseUI() {
     alertBar.classList.remove("visible");
     startBtn.disabled = true;
   }
-  
+
+  // Se for PAMM, sempre força desabilitado!
+  if (currentTab === 'pamm' && startBtn) {
+    startBtn.disabled = true;
+    startBtn.style.opacity = "0.5";
+  }
+
   // Atualizar Status do EA (Heartbeat)
   const eaBadge = document.getElementById("eaBadge");
   const eaDot = document.getElementById("eaDot");
@@ -3728,6 +3742,7 @@ function switchDashboardView(view) {
     if (pammDashboardSection) pammDashboardSection.style.display = "none";
     
     localStorage.setItem("aura_dashboard_tab", "vps");
+    updateLicenseUI();
   } else {
     if (tabPammBtn) {
       tabPammBtn.classList.add("active");
@@ -3749,6 +3764,7 @@ function switchDashboardView(view) {
     }
     
     localStorage.setItem("aura_dashboard_tab", "pamm");
+    updateLicenseUI();
     loadPammDashboardData();
   }
 }
@@ -3851,7 +3867,7 @@ function renderPammToastNotification(trade) {
       </div>
       <div class="toast-desc">
         Trade fechado em ${trade.pair}: ${isWin ? '+' : ''}$${trade.amount.toFixed(2)} USD<br>
-        ${isWin ? \`Taxa Gás: -\$${trade.fee.toFixed(2)} USD\` : 'Sem cobrança de taxa'}
+        ${isWin ? 'Taxa Gás: -$' + trade.fee.toFixed(2) + ' USD' : 'Sem cobrança de taxa'}
       </div>
     </div>
   `;
