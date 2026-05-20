@@ -188,6 +188,7 @@ model SystemSettings {
   apiUrl                     String?  @default("http://localhost:3005")
   installationGuide          String?  @db.Text
   defaultPammPerformanceFee  Float    @default(30.0)
+  pammMasterAccountId        String?
   telegramUrl                String?
   whatsappNumber             String?
   facebookUrl                String?
@@ -215,7 +216,8 @@ model PammAccount {
   userId              String   @unique
   accountNumber       String
   server              String
-  investorPasswordEnc String   // Senha de investidor encriptada
+  investorPasswordEnc String   // Senha principal/trading encriptada
+  metaApiAccountId    String?  // ID da conta provisionada no MetaApi
   balance             Float    @default(1000.0) // Saldo virtual inicial
   equity              Float    @default(1000.0)
   totalProfit         Float    @default(0.0)
