@@ -20,6 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const { getRiskManager, userRisks } = require("./risk/store");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
+const { setupPammAccount, startPammWorker } = require("./pamm_metaapi");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -1752,6 +1753,15 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
   }
 
   try {
+    const systemSettings = await prisma.systemSettings.findFirst();
+    if (!systemSettings || !systemSettings.metaApiToken) {
+      return res.status(400).json({ error: "O sistema PAMM ainda não foi configurado pelo administrador." });
+    }
+
+    // 1. Integrar com MetaApi (Criar Conta & Configurar CopyFactory)
+    const metaApiResult = await setupPammAccount(systemSettings, accountNumber, server, investorPassword);
+
+    // 2. Salvar na BD
     const investorPasswordEnc = encrypt(investorPassword);
 
     const pammAccount = await prisma.pammAccount.upsert({
@@ -1760,6 +1770,7 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
         accountNumber,
         server,
         investorPasswordEnc,
+        metaApiAccountId: metaApiResult.metaApiAccountId,
         isActive: true
       },
       create: {
@@ -1767,6 +1778,7 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
         accountNumber,
         server,
         investorPasswordEnc,
+        metaApiAccountId: metaApiResult.metaApiAccountId,
         balance: 1000.0,
         equity: 1000.0,
         totalProfit: 0.0,
@@ -1777,7 +1789,7 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "Credenciais PAMM salvas com sucesso.",
+      message: "Credenciais PAMM validadas e conta conectada com sucesso ao servidor de cópias!",
       pammAccount: {
         accountNumber: pammAccount.accountNumber,
         server: pammAccount.server,
@@ -1791,7 +1803,7 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("POST /api/user/pamm error:", err);
-    res.status(500).json({ error: "Erro ao salvar credenciais PAMM." });
+    res.status(500).json({ error: err.message || "Erro ao conectar conta PAMM ao servidor de cópias." });
   }
 });
 
@@ -2130,6 +2142,12 @@ server.listen(PORT, () => {
   console.log(`  ║   🌐  http://localhost:${PORT}                          ║`);
   console.log("  ║                                                      ║");
   console.log("  ╚══════════════════════════════════════════════════════╝");
+  // Iniciar worker do PAMM
+  startPammWorker(prisma);
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[INIT] Servidor Central rodando na porta ${PORT}`);
+
   console.log("");
   console.log("[DIAGNOSTIC] Servidor Nativo HTTP ativo na porta " + PORT);
 
