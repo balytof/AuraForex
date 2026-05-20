@@ -624,6 +624,13 @@
   .copy-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.1); }
   .copy-btn:active { transform: scale(0.95); }
 
+  /* ─── PAMM WORKSPACE GRID ─── */
+  .pamm-workspace-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 20px;
+  }
+
   .aura-window {
       width: 380px; height: 500px; background: var(--surface);
       border-radius: 20px; border: 1px solid var(--border);
@@ -814,11 +821,15 @@
   }
 
   /* 📱 RESPONSIVIDADE ULTRA-PREMIUM (Mobile/Tablet/Desktop) */
+
+  /* ── TABLET LARGO (≤1200px) ── */
   @media (max-width: 1200px) {
       .main-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(3, 1fr); }
+      .pamm-workspace-grid { grid-template-columns: 1fr !important; }
   }
 
+  /* ── TABLET (≤992px) — Sidebar torna-se drawer ── */
   @media (max-width: 992px) {
       .sidebar-nav {
         position: fixed;
@@ -832,8 +843,11 @@
       header { padding: 15px 20px; }
       .status-row { overflow-x: auto; padding-bottom: 8px; width: 100%; justify-content: flex-start; }
       .status-badge, .vps-sentinel, .license-badge { white-space: nowrap; flex-shrink: 0; }
+      .pamm-workspace-grid { grid-template-columns: 1fr !important; }
+      #pammDashboardSection .stats-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
+  /* ── MOBILE (≤768px) ── */
   @media (max-width: 768px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       header { flex-direction: column; align-items: flex-start; gap: 15px; }
@@ -842,14 +856,62 @@
       .controls .btn-primary { grid-column: span 2; }
       .logo-icon { width: 36px; height: 36px; }
       .logo h1 { font-size: 1.1rem; }
+      /* VPS Main Grid — coluna única */
+      .main-grid { grid-template-columns: 1fr !important; }
+      /* PAMM — forçar coluna única em mobile */
+      .pamm-workspace-grid { grid-template-columns: 1fr !important; gap: 14px; }
+      /* Stat cards compactos */
+      .stat-card { padding: 14px 16px; }
+      .stat-value { font-size: 1.2rem; }
+      /* Toast mobile */
+      .toast-container { right: 12px; left: 12px; max-width: none; }
+      /* Panel header ajustado */
+      .panel-header { padding: 12px 16px; gap: 8px; flex-wrap: wrap; }
+      /* Sinal card em mobile */
+      .signal-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      /* Log area menor em mobile */
+      .log-area { height: 220px; font-size: 0.68rem; }
+      /* Config panel */
+      .config-panel { padding: 14px; gap: 12px; }
+      /* PAMM trade card layout mobile */
+      .pamm-trade-card { padding: 12px !important; gap: 10px !important;
+        grid-template-columns: auto 1fr auto !important; }
+      /* PAMM gas alerts stacked */
+      #pammGasCriticalAlert, #pammGasWarningAlert { flex-direction: column; gap: 8px; }
   }
 
+  /* ── MOBILE PEQUENO (≤480px) ── */
   @media (max-width: 480px) {
-      .stats-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
       .wrapper { padding: 10px; }
-      .panel-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
       .history-controls { flex-direction: column; }
-      .stat-value { font-size: 1.3rem; }
+      .stat-value { font-size: 1.1rem; }
+      .stat-card { padding: 12px 14px; border-radius: 10px; }
+      .stat-label { font-size: 0.58rem; }
+      /* Botões de controlo em coluna */
+      .controls { grid-template-columns: 1fr; }
+      .controls .btn-primary { grid-column: span 1; }
+      /* PAMM credenciais */
+      #pammCredentialsForm input { font-size: 0.8rem; padding: 10px; }
+      /* Tab header compacto */
+      .tab-btn { font-size: 0.7rem !important; padding: 7px 10px !important; }
+      /* Sinais */
+      .signal-pair { font-size: 0.9rem; }
+      .signal-grid { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+      .sig-item span:last-child { font-size: 0.8rem; }
+      /* Logo compact */
+      .logo h1 { font-size: 0.9rem; }
+      .logo p { display: none; }
+      /* PAMM trade card pequeno */
+      .pamm-trade-card { gap: 6px !important;
+        grid-template-columns: auto 1fr auto !important; }
+      /* Toast mobile */
+      .toast-neon { padding: 12px; gap: 10px; }
+      .toast-title { font-size: 0.82rem; }
+      .toast-desc { font-size: 0.7rem; }
+      /* VPS stat grid 2 cols */
+      #vpsStatsGrid { grid-template-columns: 1fr 1fr !important; }
   }
 
   /* 💳 Estilos específicos para o Serviço PAMM */
@@ -1598,8 +1660,8 @@
       </div>
     </div>
 
-    <!-- STATS GRID PAMM (Mobile-First) -->
-    <div class="stats-grid" style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <!-- STATS GRID PAMM (Mobile-First 2×cols → 1×col) -->
+    <div class="stats-grid" style="display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
       <div class="stat-card" style="border-left: 4px solid var(--accent);">
         <div class="stat-label">Saldo Conta PAMM</div>
         <div class="stat-value accent" id="pammStatBalance">$1,000.00</div>
@@ -1628,7 +1690,7 @@
     </div>
 
     <!-- WORKSPACE GRID PAMM -->
-    <div class="main-grid" style="display: grid; gap: 20px; grid-template-columns: 1.2fr 0.8fr;">
+    <div class="pamm-workspace-grid">
       
       <!-- ESQUERDA: ATIVIDADE DE TRADING EM TEMPO REAL -->
       <div class="panel glass-panel">
