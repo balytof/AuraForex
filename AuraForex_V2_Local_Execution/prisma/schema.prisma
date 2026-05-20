@@ -194,6 +194,7 @@ model SystemSettings {
   youtubeUrl                 String?
   cryptoBotEnabled           Boolean  @default(true)
   cryptoBotUrl               String?
+  minPammDeposit             Float    @default(20.0)
   updatedAt                  DateTime @updatedAt
 }
 

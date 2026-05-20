@@ -138,6 +138,12 @@
         }
         .btn:hover { border-color: var(--accent); color: var(--accent); }
         .btn-success { background: var(--bull); color: #000; border: none; }
+        .badge-vps { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-pamm { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .btn-vps { background: #3b82f6; color: white; border: none; }
+        .btn-vps:hover { background: #2563eb; color: white; }
+        .btn-pamm { background: #10b981; color: white; border: none; }
+        .btn-pamm:hover { background: #059669; color: white; }
         .btn-success:hover { background: #00c853; }
 
         .modal-overlay {
@@ -597,6 +603,10 @@
                         <input type="number" id="sysDefaultPammFee" class="form-input" min="0" max="100" placeholder="30">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Depósito de Gás Mínimo PAMM ($)</label>
+                        <input type="number" id="sysMinPammDeposit" class="form-input" min="0" placeholder="20">
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Guia de Instalação (Markdown/Texto)</label>
                         <textarea id="sysInstallGuide" class="form-input" style="height:120px; font-family:'Space Mono'; font-size:0.75rem; resize:vertical;"></textarea>
                     </div>
@@ -657,7 +667,7 @@
 <!-- MODAL: APPROVE -->
 <div class="modal-overlay" id="approveModal">
     <div class="modal">
-        <h3>Aprovar Licença</h3>
+        <h3 id="approveModalTitle">Aprovar Licença</h3>
         <p id="approveText" style="font-size:0.8rem;color:var(--muted);margin:10px 0;"></p>
         <div style="display:flex;gap:10px;margin-top:20px;">
             <button class="btn" onclick="closeModal('approveModal')">Cancelar</button>
@@ -823,20 +833,31 @@
         const data = await api("/api/admin/requests");
         if (!data.success) return;
         const tbody = document.getElementById('requestsTable');
-        tbody.innerHTML = data.requests.map(r => `
-            <tr>
-                <td>${r.user.email}</td>
-                <td><span class="badge badge-pro">${r.plan ? r.plan.name : (r.licenseType || 'N/A')}</span></td>
-                <td>$${r.amount}</td>
-                <td style="font-family:'Space Mono';font-size:0.7rem;color:var(--accent);">
-                    ${r.transactionHash ? `<a href="https://bscscan.com/tx/${r.transactionHash}" target="_blank" style="color:var(--accent); text-decoration:none;">${r.transactionHash} 🔗</a>` : '—'}
-                </td>
-                <td>${new Date(r.createdAt).toLocaleDateString()}</td>
-                <td>
-                    <button class="btn btn-success" onclick="openApproveModal('${r.id}', '${r.user.email}', '${r.plan ? r.plan.name : r.licenseType}')">Aprovar Pagamento</button>
-                </td>
-            </tr>
-        `).join('') || '<tr><td colspan="5" style="text-align:center;">Sem pendências.</td></tr>';
+        tbody.innerHTML = data.requests.map(r => {
+            const isPamm = r.licenseType === "PAMM";
+            const serviceLabel = isPamm ? "💳 PAMM (Gás)" : "🤖 Robo VPS";
+            const serviceBadgeClass = isPamm ? "badge-pamm" : "badge-vps";
+            const planLabel = r.plan ? r.plan.name : (isPamm ? "Depósito de Gás" : "Standard VPS");
+            
+            const approveButtonText = isPamm ? "Aprovar PAMM" : "Aprovar VPS";
+            const approveButtonClass = isPamm ? "btn btn-pamm" : "btn btn-vps";
+
+            return `
+                <tr>
+                    <td>${r.user.email}</td>
+                    <td><span class="badge ${serviceBadgeClass}">${serviceLabel}</span></td>
+                    <td><strong>${planLabel}</strong></td>
+                    <td>$${r.amount.toFixed(2)}</td>
+                    <td style="font-family:'Space Mono';font-size:0.7rem;color:var(--accent);">
+                        ${r.transactionHash ? `<a href="https://bscscan.com/tx/${r.transactionHash}" target="_blank" style="color:var(--accent); text-decoration:none;">${r.transactionHash} 🔗</a>` : '—'}
+                    </td>
+                    <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <button class="${approveButtonClass}" onclick="openApproveModal('${r.id}', '${r.user.email}', '${isPamm ? 'PAMM' : 'VPS'}', '${planLabel}', ${r.amount})">${approveButtonText}</button>
+                    </td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="7" style="text-align:center;">Sem pendências.</td></tr>';
     }
 
     async function loadPlans() {
@@ -1048,10 +1069,25 @@
     }
 
     let currentRequestId = null;
-    function openApproveModal(id, email, type) {
+    function openApproveModal(id, email, serviceType, planLabel, amount) {
         currentRequestId = id;
-        document.getElementById('approveText').textContent = `Aprovar plano ${type} para ${email}`;
-        document.getElementById('confirmApproveBtn').onclick = confirmApprove;
+        const isPamm = serviceType === "PAMM";
+        const modalTitle = document.getElementById('approveModalTitle');
+        const approveText = document.getElementById('approveText');
+        const confirmBtn = document.getElementById('confirmApproveBtn');
+        
+        if (isPamm) {
+            modalTitle.textContent = "Aprovar Depósito PAMM (Gás)";
+            approveText.innerHTML = `Tem a certeza que deseja aprovar o Depósito de Gás PAMM no valor de <strong>$${amount.toFixed(2)}</strong> para o cliente <strong>${email}</strong>?<br><br><span style="color:var(--bull);">Este valor será creditado imediatamente na carteira PAMM do usuário.</span>`;
+            confirmBtn.textContent = "Aprovar & Creditar Saldo";
+            confirmBtn.className = "btn btn-pamm";
+        } else {
+            modalTitle.textContent = "Aprovar Licença Robo VPS";
+            approveText.innerHTML = `Tem a certeza que deseja aprovar a licença <strong>${planLabel}</strong> no valor de <strong>$${amount.toFixed(2)}</strong> para o cliente <strong>${email}</strong>?<br><br><span style="color:var(--accent);">Isso ativará ou estenderá o acesso do cliente ao Robô VPS.</span>`;
+            confirmBtn.textContent = "Aprovar & Ativar Acesso";
+            confirmBtn.className = "btn btn-vps";
+        }
+        confirmBtn.onclick = confirmApprove;
         document.getElementById('approveModal').classList.add('active');
     }
 
@@ -1088,6 +1124,7 @@
             document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
+            document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 20.0;
             document.getElementById('sysInstallGuide').value = s.installationGuide || '';
             // Social
             document.getElementById('sysTelegram').value = s.telegramUrl || '';
@@ -1109,6 +1146,7 @@
             metaApiAccountId: document.getElementById('sysMetaAccountId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
             defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
+            minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 20.0,
             installationGuide: document.getElementById('sysInstallGuide').value,
             telegramUrl: document.getElementById('sysTelegram').value,
             whatsappNumber: document.getElementById('sysWhatsapp').value,

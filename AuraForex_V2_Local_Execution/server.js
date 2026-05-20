@@ -945,11 +945,12 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     const {
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
-      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee
+      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
 
     const pammFee = defaultPammPerformanceFee !== undefined ? parseFloat(defaultPammPerformanceFee) : 30.0;
+    const minPamm = minPammDeposit !== undefined ? parseFloat(minPammDeposit) : 20.0;
 
     if (settings) {
       settings = await prisma.systemSettings.update({
@@ -957,7 +958,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
         data: {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
-          defaultPammPerformanceFee: pammFee
+          defaultPammPerformanceFee: pammFee,
+          minPammDeposit: minPamm
         }
       });
     } else {
@@ -965,7 +967,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
         data: {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
-          defaultPammPerformanceFee: pammFee
+          defaultPammPerformanceFee: pammFee,
+          minPammDeposit: minPamm
         }
       });
     }
@@ -1154,10 +1157,11 @@ app.get("/api/system/config", async (req, res) => {
       telegramUrl: settings?.telegramUrl || "",
       whatsappNumber: settings?.whatsappNumber || "",
       facebookUrl: settings?.facebookUrl || "",
-      instagramUrl: settings?.instagramUrl || ""
+      instagramUrl: settings?.instagramUrl || "",
+      minPammDeposit: settings?.minPammDeposit !== undefined ? settings.minPammDeposit : 20.0
     });
   } catch (e) {
-    res.json({ success: true, apiUrl: "http://localhost:3005" });
+    res.json({ success: true, apiUrl: "http://localhost:3005", minPammDeposit: 20.0 });
   }
 });
 
@@ -1265,6 +1269,39 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
       include: { plan: true }
     });
     if (!purchaseRequest) return res.status(404).json({ error: "Solicitação não encontrada." });
+
+    if (purchaseRequest.licenseType === "PAMM") {
+      // 1. Credit balance to user
+      await prisma.user.update({
+        where: { id: purchaseRequest.userId },
+        data: {
+          walletBalance: { increment: purchaseRequest.amount }
+        }
+      });
+
+      // 2. Format description: (data) (valor) (taxa de serviço)
+      const d = new Date();
+      const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      const description = `(${dateStr}) ($${purchaseRequest.amount.toFixed(2)}) (Taxa de Serviço)`;
+
+      // 3. Create WalletTransaction log
+      await prisma.walletTransaction.create({
+        data: {
+          userId: purchaseRequest.userId,
+          type: "DEPOSIT",
+          amount: purchaseRequest.amount,
+          description: description
+        }
+      });
+
+      // 4. Update purchase request status to APPROVED
+      await prisma.purchaseRequest.update({
+        where: { id },
+        data: { status: "APPROVED" }
+      });
+
+      return res.json({ success: true, message: "Depósito de Gás PAMM aprovado com sucesso e saldo creditado." });
+    }
 
     const days = purchaseRequest.plan ? purchaseRequest.plan.durationDays : 30;
 
@@ -1420,28 +1457,61 @@ app.get("/api/plans", requireAuth, async (req, res) => {
 });
 
 app.post("/api/license/request", requireAuth, async (req, res) => {
-  const { planId, hash, amount } = req.body;
+  const { planId, hash, amount, licenseType } = req.body;
 
-  if (!planId || !hash) {
-    return res.status(400).json({ success: false, error: "Dados incompletos." });
-  }
+  if (licenseType === "PAMM") {
+    if (!hash || !amount) {
+      return res.status(400).json({ success: false, error: "Dados incompletos para depósito PAMM." });
+    }
 
-  try {
-    const request = await prisma.purchaseRequest.create({
-      data: {
-        userId: req.user.id,
-        planId: planId,
-        transactionHash: hash,
-        amount: parseFloat(amount) || 0,
-        status: "PENDING"
+    try {
+      const settings = await prisma.systemSettings.findFirst();
+      const minPamm = settings?.minPammDeposit ?? 20.0;
+      const amountVal = parseFloat(amount) || 0;
+      if (amountVal < minPamm) {
+        return res.status(400).json({ success: false, error: `O valor do gás inserido ($${amountVal}) é inferior ao mínimo configurado ($${minPamm}).` });
       }
-    });
 
-    console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
-    res.json({ success: true, request });
-  } catch (err) {
-    console.error("[PAYMENT-REQUEST] Erro:", err);
-    res.status(500).json({ success: false, error: "Erro interno ao processar solicitação." });
+      const request = await prisma.purchaseRequest.create({
+        data: {
+          userId: req.user.id,
+          planId: null,
+          licenseType: "PAMM",
+          transactionHash: hash,
+          amount: amountVal,
+          status: "PENDING"
+        }
+      });
+
+      console.log(`[PAMM-REQUEST] User ${req.user.id} solicitou depósito de gás PAMM de $${amountVal} com Hash ${hash}`);
+      return res.json({ success: true, request });
+    } catch (err) {
+      console.error("[PAMM-REQUEST] Erro:", err);
+      return res.status(500).json({ success: false, error: "Erro interno ao processar solicitação PAMM." });
+    }
+  } else {
+    if (!planId || !hash) {
+      return res.status(400).json({ success: false, error: "Dados incompletos." });
+    }
+
+    try {
+      const request = await prisma.purchaseRequest.create({
+        data: {
+          userId: req.user.id,
+          planId: planId,
+          licenseType: "VPS",
+          transactionHash: hash,
+          amount: parseFloat(amount) || 0,
+          status: "PENDING"
+        }
+      });
+
+      console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
+      res.json({ success: true, request });
+    } catch (err) {
+      console.error("[PAYMENT-REQUEST] Erro:", err);
+      res.status(500).json({ success: false, error: "Erro interno ao processar solicitação." });
+    }
   }
 });
 
