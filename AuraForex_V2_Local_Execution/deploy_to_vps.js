@@ -18,7 +18,10 @@ const filesToUpload = [
     { local: `${localDir}/signals/smc_signal_engine.js`, remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
     { local: `${localDir}/risk/risk.js`, remote: '/root/AuraForex/risk/risk.js' },
-    { local: `${localDir}/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' }
+    { local: `${localDir}/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' },
+    { local: `${localDir}/pamm_metaapi.js`, remote: '/root/AuraForex/pamm_metaapi.js' },
+    { local: `${localDir}/package.json`, remote: '/root/AuraForex/package.json' },
+    { local: `${localDir}/package-lock.json`, remote: '/root/AuraForex/package-lock.json' }
 ];
 
 conn.on('ready', () => {
@@ -42,9 +45,9 @@ conn.on('ready', () => {
                 
                 completed++;
                 if (completed === filesToUpload.length) {
-                    console.log('🔄 Sincronizando banco de dados Prisma e reiniciando VPS via PM2...');
+                    console.log('🔄 Instalando pacotes, sincronizando banco de dados Prisma e reiniciando VPS via PM2...');
                     
-                    const remoteCmd = 'cd /root/AuraForex && npx prisma db push --accept-data-loss && npx prisma generate && (npx pm2 restart server || npx pm2 start server.js --name server)';
+                    const remoteCmd = 'cd /root/AuraForex && npm install && npx prisma db push --accept-data-loss && npx prisma generate && (npx pm2 restart server || npx pm2 start server.js --name server)';
                     
                     conn.exec(remoteCmd, (err, stream) => {
                         if (err) throw err;
