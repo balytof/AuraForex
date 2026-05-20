@@ -21,6 +21,7 @@ model User {
   totalBonusWithdrawn Float              @default(0)
   availableBonus      Float              @default(0)
 
+  walletBalance       Float              @default(0.0)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   
@@ -32,6 +33,7 @@ model User {
   withdrawals         WithdrawalRequest[]
   settings            UserSettings?
   signals             Signal[]
+  walletTransactions  WalletTransaction[]
 }
 
 model LicensePlan {
@@ -163,24 +165,37 @@ model WithdrawalRequest {
 }
 
 model UserSettings {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  risk        Float    @default(1.5)
-  score       Int      @default(55)
-  interval    Int      @default(60)
-  activePairs String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
-  geminiKey   String?
-  botStatus   String   @default("stopped")
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  risk                  Float    @default(1.5)
+  score                 Int      @default(55)
+  interval              Int      @default(60)
+  activePairs           String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
+  geminiKey             String?
+  botStatus             String   @default("stopped")
+  pammPerformanceFeePct Float?
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SystemSettings {
-  id                String   @id @default(uuid())
-  geminiApiKey      String?
-  metaApiToken      String?
-  metaApiAccountId  String?
-  apiUrl            String?  @default("http://localhost:3005")
-  installationGuide String?  @db.Text
-  updatedAt         DateTime @updatedAt
+  id                         String   @id @default(uuid())
+  geminiApiKey               String?
+  metaApiToken               String?
+  metaApiAccountId           String?
+  apiUrl                     String?  @default("http://localhost:3005")
+  installationGuide          String?  @db.Text
+  defaultPammPerformanceFee  Float    @default(30.0)
+  updatedAt                  DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // "DEPOSIT" ou "DEDUCTION"
+  amount      Float
+  description String?
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
