@@ -34,6 +34,7 @@ model User {
   settings            UserSettings?
   signals             Signal[]
   walletTransactions  WalletTransaction[]
+  pammAccount         PammAccount?
 }
 
 model LicensePlan {
@@ -207,4 +208,21 @@ model WalletTransaction {
   createdAt   DateTime @default(now())
   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PammAccount {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  accountNumber       String
+  server              String
+  investorPasswordEnc String   // Senha de investidor encriptada
+  balance             Float    @default(1000.0) // Saldo virtual inicial
+  equity              Float    @default(1000.0)
+  totalProfit         Float    @default(0.0)
+  totalLoss           Float    @default(0.0)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
