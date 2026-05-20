@@ -2145,9 +2145,6 @@ server.listen(PORT, () => {
   // Iniciar worker do PAMM
   startPammWorker(prisma);
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[INIT] Servidor Central rodando na porta ${PORT}`);
-
   console.log("");
   console.log("[DIAGNOSTIC] Servidor Nativo HTTP ativo na porta " + PORT);
 
