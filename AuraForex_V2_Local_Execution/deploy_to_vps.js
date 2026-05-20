@@ -4,14 +4,16 @@ const path = require('path');
 
 const conn = new Client();
 
-// Usar os arquivos da pasta V2 Local que está estável
-const localDir = './AuraForex_V2_Local_Execution';
+// Usar os arquivos da pasta V2 Local que está estável (executado de dentro da pasta)
+const localDir = '.';
 
 const filesToUpload = [
     { local: `${localDir}/server.js`, remote: '/root/AuraForex/server.js' },
+    { local: `${localDir}/admin_dashboard.html`, remote: '/root/AuraForex/admin_dashboard.html' },
     { local: `${localDir}/smc_bot_dashboard.html`, remote: '/root/AuraForex/smc_bot_dashboard.html' },
     { local: `${localDir}/ea_api.js`, remote: '/root/AuraForex/ea_api.js' },
     { local: `${localDir}/db.js`, remote: '/root/AuraForex/db.js' },
+    { local: `${localDir}/prisma/schema.prisma`, remote: '/root/AuraForex/prisma/schema.prisma' },
     { local: `${localDir}/apex_broker.js`, remote: '/root/AuraForex/apex_broker.js' },
     { local: `${localDir}/signals/smc_signal_engine.js`, remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
@@ -29,7 +31,6 @@ conn.on('ready', () => {
         filesToUpload.forEach(file => {
             const localPath = path.resolve(__dirname, file.local);
             
-            // Garantir que o diretório remoto existe (simplificado para este caso)
             console.log(`📤 Enviando: ${file.local} -> ${file.remote}`);
             
             sftp.fastPut(localPath, file.remote, (err) => {
@@ -41,15 +42,18 @@ conn.on('ready', () => {
                 
                 completed++;
                 if (completed === filesToUpload.length) {
-                    console.log('🔄 Reiniciando servidores no VPS via PM2...');
-                    // Comando para reiniciar o processo principal
-                    conn.exec('cd /root/AuraForex && npx pm2 restart server || npx pm2 start server.js --name server', (err, stream) => {
+                    console.log('🔄 Sincronizando banco de dados Prisma e reiniciando VPS via PM2...');
+                    
+                    const remoteCmd = 'cd /root/AuraForex && npx prisma db push --accept-data-loss && npx prisma generate && (npx pm2 restart server || npx pm2 start server.js --name server)';
+                    
+                    conn.exec(remoteCmd, (err, stream) => {
                         if (err) throw err;
                         stream.on('close', () => {
-                            console.log('✨ TUDO ATUALIZADO E REINICIADO NO VPS!');
+                            console.log('✨ TUDO ATUALIZADO, BANCO DE DADOS SINCRONIZADO E SERVIDORES REINICIADOS NO VPS!');
                             conn.end();
                             process.exit(0);
-                        }).on('data', (data) => console.log('STDOUT: ' + data));
+                        }).on('data', (data) => console.log('STDOUT: ' + data))
+                          .on('stderr', (data) => console.error('STDERR: ' + data));
                     });
                 }
             });
