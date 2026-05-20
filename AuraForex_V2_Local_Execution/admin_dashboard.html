@@ -310,8 +310,10 @@
                 <span>Planos</span>
             </a>
             <a href="#" class="nav-item" onclick="showPanel('users')">
-                <i class="fas fa-users"></i>
-                <span>Usuários</span>
+                <i class="fas fa-users"></i> <span>Usuários</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPanel('pamm')">
+                <i class="fas fa-copy"></i> <span>Gestão PAMM</span>
             </a>
             <a href="#" class="nav-item" onclick="showPanel('finance')">
                 <i class="fas fa-wallet"></i>
@@ -538,6 +540,34 @@
     </div>
 
     <!-- PANEL: SETTINGS -->
+    <!-- PAINEL GESTÃO PAMM -->
+    <div id="panel-pamm" class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div class="panel-title">Gestão PAMM / CopyFactory</div>
+            <button class="btn btn-outline" onclick="loadPammUsers()">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Utilizador (Email)</th>
+                        <th>Conta MT4/MT5</th>
+                        <th>Servidor</th>
+                        <th>Saldo / Equidade</th>
+                        <th>Lucro Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="pammTableBody">
+                    <tr><td colspan="6" style="text-align: center; color: var(--muted);">A carregar dados...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div id="panel-settings" class="panel">
         <div class="panel-header">
             <h3>Configurar Métodos de Pagamento</h3>
@@ -810,6 +840,7 @@
         if (id === 'requests') loadRequests();
         if (id === 'plans') loadPlans();
         if (id === 'users') loadUsers();
+        if (id === 'pamm') loadPammUsers();
         if (id === 'finance') loadFinance();
         if (id === 'settings') {
             loadPaymentMethods();
@@ -1406,6 +1437,36 @@
             alert('Alterações salvas com sucesso!');
             closeModal('walletModal');
             loadUsers();
+        }
+    };
+
+    async function loadPammUsers() {
+        const data = await api("/api/admin/pamm-users");
+        const tbody = document.getElementById('pammTableBody');
+        if (data.success) {
+            tbody.innerHTML = '';
+            if (data.pammUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">Nenhum utilizador aderiu ao serviço PAMM ainda.</td></tr>';
+                return;
+            }
+            data.pammUsers.forEach(acc => {
+                const tr = document.createElement('tr');
+                const statusBadge = acc.isActive 
+                    ? `<span class="badge badge-success">Ligado</span>`
+                    : `<span class="badge badge-warning">Pausado</span>`;
+                
+                tr.innerHTML = `
+                    <td>${acc.user?.email || 'N/A'}</td>
+                    <td style="font-family: monospace;">${acc.accountNumber}</td>
+                    <td>${acc.server}</td>
+                    <td style="color: var(--text);">$${acc.balance.toFixed(2)} / $${acc.equity.toFixed(2)}</td>
+                    <td style="color: ${acc.totalProfit >= 0 ? 'var(--bull)' : 'var(--bear)'}; font-weight: bold;">
+                        ${acc.totalProfit >= 0 ? '+' : ''}$${acc.totalProfit.toFixed(2)}
+                    </td>
+                    <td>${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
     };
 
