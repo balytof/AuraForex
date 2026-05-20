@@ -1780,7 +1780,17 @@
       <div class="panel glass-panel">
         <div class="panel-header" style="background: rgba(124, 58, 237, 0.05); padding: 16px 20px;">
           <div class="panel-title" style="font-weight: 800;"><span class="icon">🔑</span> Conexão da Conta PAMM</div>
-          <span id="pammConnStatusBadge" class="account-type-badge demo" style="background: rgba(255,68,68,0.2); color: var(--bear); padding: 3px 8px; border-radius: 4px;">Não Conectado</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="pammConnStatusBadge" class="account-type-badge demo" style="background: rgba(255,68,68,0.2); color: var(--bear); padding: 3px 8px; border-radius: 4px;">Não Conectado</span>
+            
+            <div class="toggle-switch-container" id="pammToggleContainer" style="display: none; align-items: center; gap: 8px;">
+              <span style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">ATIVO</span>
+              <label class="switch">
+                <input type="checkbox" id="pammActiveToggle" onchange="togglePammState()">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
         </div>
         <div style="padding: 20px;">
           <form id="pammCredentialsForm" onsubmit="event.preventDefault(); savePammCredentials();" style="display: flex; flex-direction: column; gap: 16px;">
@@ -4074,6 +4084,50 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     pammConnStatusBadge.textContent = "Sincronizado";
     pammConnStatusBadge.style.background = "rgba(0, 230, 118, 0.15)";
     pammConnStatusBadge.style.color = "var(--bull)";
+  }
+
+  const pammToggleContainer = document.getElementById("pammToggleContainer");
+  const pammActiveToggle = document.getElementById("pammActiveToggle");
+  if (pammToggleContainer && pammActiveToggle) {
+    pammToggleContainer.style.display = "flex";
+    pammActiveToggle.checked = pammAccount.isActive;
+    
+    // Atualizar badge e texto com base no estado isActive
+    if (!pammAccount.isActive && pammConnStatusBadge) {
+      pammConnStatusBadge.textContent = "Pausado";
+      pammConnStatusBadge.style.background = "rgba(255, 171, 0, 0.15)";
+      pammConnStatusBadge.style.color = "#ffab00";
+    }
+  }
+}
+
+async function togglePammState() {
+  const toggle = document.getElementById("pammActiveToggle");
+  if (!toggle) return;
+  const isActive = toggle.checked;
+  const badge = document.getElementById("pammConnStatusBadge");
+  
+  try {
+    const res = await fetch("/api/user/pamm/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_token") },
+      body: JSON.stringify({ isActive })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (badge) {
+        badge.textContent = data.isActive ? "Sincronizado" : "Pausado";
+        badge.style.background = data.isActive ? "rgba(0, 230, 118, 0.15)" : "rgba(255, 171, 0, 0.15)";
+        badge.style.color = data.isActive ? "var(--bull)" : "#ffab00";
+      }
+      showToast(data.message, "success");
+    } else {
+      toggle.checked = !isActive; // revert
+      showToast(data.error || "Erro ao alterar estado.", "error");
+    }
+  } catch (err) {
+    toggle.checked = !isActive; // revert
+    showToast("Erro de rede ao ligar/desligar PAMM.", "error");
   }
 
   // Preenche credenciais se vazias

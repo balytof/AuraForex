@@ -59,6 +59,43 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
   }
 }
 
+async function togglePammConnection(settings, metaApiAccountId, isActive) {
+  if (!settings.metaApiToken) {
+    throw new Error("Token da MetaApi não está configurado no Painel Admin.");
+  }
+  const metaApi = new MetaApi(settings.metaApiToken);
+
+  try {
+    const copyFactory = metaApi.copyFactory;
+    
+    if (isActive) {
+      const masterId = settings.pammMasterAccountId || settings.metaApiAccountId;
+      if (!masterId) throw new Error("Conta Master PAMM não configurada no Admin.");
+      
+      await copyFactory.subscriberApi.updateSubscriber(metaApiAccountId, {
+        subscriptions: [
+          {
+            strategyId: masterId,
+            multiplier: 1.0
+          }
+        ]
+      });
+      console.log(`[PAMM] Cópia LIGADA para a conta ${metaApiAccountId}`);
+    } else {
+      // Para desligar as cópias, removemos as subscrições.
+      // As ordens já abertas seguem normalmente até SL/TP.
+      await copyFactory.subscriberApi.updateSubscriber(metaApiAccountId, {
+        subscriptions: []
+      });
+      console.log(`[PAMM] Cópia DESLIGADA para a conta ${metaApiAccountId}`);
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("[PAMM] Erro ao alterar estado da cópia:", err);
+    throw new Error(err.message || "Erro ao comunicar com MetaApi.");
+  }
+}
+
 /**
  * Worker em background para processar trades fechados e cobrar "Gás"
  */
@@ -112,5 +149,6 @@ function startPammWorker(prisma) {
 
 module.exports = {
   setupPammAccount,
-  startPammWorker
+  startPammWorker,
+  togglePammConnection
 };

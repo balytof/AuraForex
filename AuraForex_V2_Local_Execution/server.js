@@ -20,7 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const { getRiskManager, userRisks } = require("./risk/store");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
-const { setupPammAccount, startPammWorker } = require("./pamm_metaapi");
+const { setupPammAccount, startPammWorker, togglePammConnection } = require("./pamm_metaapi");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -928,6 +928,22 @@ app.get("/api/broker/price", requireAuth, requireBrokerAuth, requireActiveLicens
 
 // ── Admin Endpoints ──────────────────────────────────────────────
 
+app.get("/api/admin/pamm-users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const pammUsers = await prisma.pammAccount.findMany({
+      include: {
+        user: {
+          select: { email: true, walletBalance: true }
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json({ success: true, pammUsers });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Configurações do Sistema (Admin) ──────────────────────────────────
 app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -1804,6 +1820,30 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("POST /api/user/pamm error:", err);
     res.status(500).json({ error: err.message || "Erro ao conectar conta PAMM ao servidor de cópias." });
+  }
+});
+
+app.post("/api/user/pamm/toggle", requireAuth, async (req, res) => {
+  const { isActive } = req.body;
+  if (isActive === undefined) return res.status(400).json({ error: "Parâmetro isActive obrigatório." });
+
+  try {
+    const pammAccount = await prisma.pammAccount.findUnique({ where: { userId: req.user.id } });
+    if (!pammAccount || !pammAccount.metaApiAccountId) {
+      return res.status(400).json({ error: "Conta PAMM não encontrada ou não conectada à MetaApi." });
+    }
+
+    const systemSettings = await prisma.systemSettings.findFirst();
+    await togglePammConnection(systemSettings, pammAccount.metaApiAccountId, isActive);
+
+    const updatedAccount = await prisma.pammAccount.update({
+      where: { id: pammAccount.id },
+      data: { isActive: isActive }
+    });
+
+    res.json({ success: true, isActive: updatedAccount.isActive, message: isActive ? "Serviço PAMM Ligado!" : "Serviço PAMM Desligado!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Erro ao alterar estado do serviço PAMM." });
   }
 });
 
