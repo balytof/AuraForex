@@ -1200,7 +1200,8 @@ app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     const users = await prisma.user.findMany({
       include: {
         licenses: { orderBy: { expiresAt: 'desc' }, take: 1, include: { plan: true } },
-        connections: { take: 1 }
+        connections: { take: 1 },
+        settings: true
       }
     });
     res.json({ success: true, users });

@@ -915,7 +915,7 @@
         tbody.innerHTML = users.map(u => {
             const lic = u.licenses?.[0];
             const regDate = new Date(u.createdAt).toLocaleDateString();
-            const balance = u.walletBalance !== undefined ? u.walletBalance : 0.0;
+            const balance = (u.walletBalance !== null && u.walletBalance !== undefined) ? Number(u.walletBalance) : 0.0;
             const customFee = u.settings?.pammPerformanceFeePct;
             const feeStr = (customFee !== null && customFee !== undefined) ? `${customFee}%` : 'Padrão';
             
