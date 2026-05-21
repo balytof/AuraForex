@@ -1882,7 +1882,7 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
       const isBullish = Math.random() > 0.5;
       marketCandles = Array.from({ length: 250 }, (_, i) => {
         const trend = isBullish ? i * 0.00001 : -i * 0.00001;
-        const base = pair.includes("JPY") ? 150.00 : 1.0850;
+        const base = pair.includes("JPY") ? 150.00 : (pair.includes("XAU") || pair.includes("GOLD")) ? 2300.00 : 1.0850;
         return {
           open: base + trend + Math.random() * 0.0005,
           high: base + trend + 0.0010,
