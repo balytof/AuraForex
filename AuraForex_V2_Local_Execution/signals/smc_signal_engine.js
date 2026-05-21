@@ -43,13 +43,13 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     // ── TRAVA DE SANIDADE DE PREÇO
     if (!validatePriceRange(pair, last.close)) return { signal: null, reason: `Preço corrompido para ${pair}` };
 
-    // 🔧 2. USAR MARGEM MÍNIMA DE SEGURANÇA
+    // 🚀 2. USAR MARGEM MÍNIMA DE SEGURANÇA
     const minStop = atr * 2.0; 
-    const stopDist = Math.max(atr * 4.0, minStop);
+    let stopDist = Math.max(atr * 4.0, minStop);
     
-    // 🔧 5. ⚠️ CORREÇÃO PARA XAUUSD (OBRIGATÓRIO)
+    // 🚀 5. 🚨 CORREÇÃO PARA XAUUSD (OBRIGATÓRIO)
     if (pair.includes("XAU") || pair.includes("GOLD")) {
-      if (stopDist < 1.0) return { signal: null, reason: "Stop muito pequeno para ouro" };
+      if (stopDist < 1.0) stopDist = 1.0; // Em vez de rejeitar, forçamos um stop mínimo de $1 (100 pips)
     }
 
     const entry = normalizePrice(last.close, pair);
