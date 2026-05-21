@@ -18,7 +18,7 @@ const filesToUpload = [
     { local: `${localDir}/signals/smc_signal_engine.js`, remote: '/root/AuraForex/signals/smc_signal_engine.js' },
     { local: `${localDir}/signals/signals.js`, remote: '/root/AuraForex/signals/signals.js' },
     { local: `${localDir}/risk/risk.js`, remote: '/root/AuraForex/risk/risk.js' },
-    { local: `${localDir}/AuraForex_V7_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V7_INSTITUTIONAL.ex5' },
+    { local: `${localDir}/public/AuraForex_V8_INSTITUTIONAL.ex5`, remote: '/root/AuraForex/public/AuraForex_V8_INSTITUTIONAL.ex5' },
     { local: `${localDir}/pamm_metaapi.js`, remote: '/root/AuraForex/pamm_metaapi.js' },
     { local: `${localDir}/package.json`, remote: '/root/AuraForex/package.json' },
     { local: `${localDir}/package-lock.json`, remote: '/root/AuraForex/package-lock.json' }
