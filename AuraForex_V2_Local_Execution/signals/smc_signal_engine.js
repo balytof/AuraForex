@@ -27,7 +27,8 @@ function validatePriceRange(pair, price) {
 const recentSignals = new Map();
 
 function generateSignal(pair, candles, htfBias = "NEUTRAL") {
-  const SIGNAL_COOLDOWN = 4 * 60 * 60 * 1000;
+  // Reduzido para 5 minutos (300000 ms) para permitir mais sinais
+  const SIGNAL_COOLDOWN = 5 * 60 * 1000;
 
   if (!candles || candles.length < 100) return { signal: null, reason: "Velas insuficientes" };
 
