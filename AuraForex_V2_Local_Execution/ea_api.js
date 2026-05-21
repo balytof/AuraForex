@@ -79,12 +79,8 @@ router.get("/signals", async (req, res) => {
       return res.status(403).json({ error: "Licença inválida." });
     }
 
-    // Gatekeeper de Sinais (PAMM)
-    // Se o saldo for menor ou igual a 0, bloqueia o sinal (retorna signals: [])
-    if (license.user && license.user.walletBalance <= 0) {
-      console.log(`[EA-GATEKEEPER] Cópia suspensa para o usuário ${license.userId} devido a saldo de créditos zerado ou negativo ($${license.user.walletBalance.toFixed(2)})`);
-      return res.status(200).json({ success: true, signals: [], message: "Saldo de créditos zerado ou negativo. Copiador desativado." });
-    }
+    // O EA local (MT5) não deve ser bloqueado por falta de saldo PAMM
+    // O bloqueio de saldo (Gás) aplica-se apenas ao serviço PAMM (MetaApi)
 
     // LOG DE DIAGNÓSTICO (Expert Method)
     const pendingCount = await prisma.signal.count({ where: { status: "PENDING" } });
