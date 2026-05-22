@@ -638,7 +638,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Depósito de Gás Mínimo PAMM ($)</label>
-                        <input type="number" id="sysMinPammDeposit" class="form-input" min="0" placeholder="20">
+                        <input type="number" id="sysMinPammDeposit" class="form-input" min="0" placeholder="50">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Guia de Instalação (Markdown/Texto)</label>
@@ -1160,7 +1160,7 @@
             document.getElementById('sysPammMasterId').value = s.pammMasterAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
-            document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 20.0;
+            document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 50.0;
             document.getElementById('sysInstallGuide').value = s.installationGuide || '';
             // Social
             document.getElementById('sysTelegram').value = s.telegramUrl || '';
@@ -1183,7 +1183,7 @@
             pammMasterAccountId: document.getElementById('sysPammMasterId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
             defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
-            minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 20.0,
+            minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 50.0,
             installationGuide: document.getElementById('sysInstallGuide').value,
             telegramUrl: document.getElementById('sysTelegram').value,
             whatsappNumber: document.getElementById('sysWhatsapp').value,

@@ -967,7 +967,7 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     let settings = await prisma.systemSettings.findFirst();
 
     const pammFee = defaultPammPerformanceFee !== undefined ? parseFloat(defaultPammPerformanceFee) : 30.0;
-    const minPamm = minPammDeposit !== undefined ? parseFloat(minPammDeposit) : 20.0;
+    const minPamm = minPammDeposit !== undefined ? parseFloat(minPammDeposit) : 50.0;
 
     if (settings) {
       settings = await prisma.systemSettings.update({
@@ -1175,10 +1175,10 @@ app.get("/api/system/config", async (req, res) => {
       whatsappNumber: settings?.whatsappNumber || "",
       facebookUrl: settings?.facebookUrl || "",
       instagramUrl: settings?.instagramUrl || "",
-      minPammDeposit: settings?.minPammDeposit !== undefined ? settings.minPammDeposit : 20.0
+      minPammDeposit: settings?.minPammDeposit !== undefined ? settings.minPammDeposit : 50.0
     });
   } catch (e) {
-    res.json({ success: true, apiUrl: "http://localhost:3005", minPammDeposit: 20.0 });
+    res.json({ success: true, apiUrl: "http://localhost:3005", minPammDeposit: 50.0 });
   }
 });
 
@@ -1483,7 +1483,7 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
 
     try {
       const settings = await prisma.systemSettings.findFirst();
-      const minPamm = settings?.minPammDeposit ?? 20.0;
+      const minPamm = settings?.minPammDeposit ?? 50.0;
       const amountVal = parseFloat(amount) || 0;
       if (amountVal < minPamm) {
         return res.status(400).json({ success: false, error: `O valor do gás inserido ($${amountVal}) é inferior ao mínimo configurado ($${minPamm}).` });

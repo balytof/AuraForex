@@ -21,7 +21,8 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
       password: password,
       server: serverName,
       platform: platform,
-      magic: 1000
+      magic: 1000,
+      copyFactoryRoles: ['SUBSCRIBER']
     });
     
     console.log(`[PAMM] Conta criada na MetaApi. ID: ${account.id}. A fazer deploy...`);
@@ -40,6 +41,19 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
     console.log(`[PAMM] A configurar CopyFactory (Master: ${masterId}, Subscriber: ${account.id})...`);
     const copyFactory = new CopyFactory(settings.metaApiToken);
     
+    // Verifica se a Master tem o role PROVIDER
+    try {
+      const masterAccount = await metaApi.metatraderAccountApi.getAccount(masterId);
+      const roles = masterAccount.copyFactoryRoles || [];
+      if (!roles.includes('PROVIDER')) {
+        roles.push('PROVIDER');
+        await masterAccount.enableCopyFactoryApi(roles);
+        console.log(`[PAMM] Role PROVIDER ativado para a conta Master ${masterId}`);
+      }
+    } catch (err) {
+      console.log(`[PAMM] Aviso: não foi possível verificar/ativar role na Master: ${err.message}`);
+    }
+
     // Obter o ID da Estratégia correspondente ao masterId (que pode ser um Account ID)
     const strategies = await copyFactory.configurationApi.getStrategiesWithInfiniteScrollPagination();
     let strategy = strategies.find(s => s.accountId === masterId || s._id === masterId);
@@ -51,6 +65,7 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
       strategyId = generated.id;
       await copyFactory.configurationApi.updateStrategy(strategyId, {
         name: `Master Strategy ${masterId}`,
+        description: 'PAMM Strategy for CopyFactory',
         accountId: masterId
       });
     }
@@ -88,6 +103,15 @@ async function togglePammConnection(settings, metaApiAccountId, isActive) {
       const masterId = settings.pammMasterAccountId || settings.metaApiAccountId;
       if (!masterId) throw new Error("Conta Master PAMM não configurada no Admin.");
       
+      try {
+        const masterAccount = await metaApi.metatraderAccountApi.getAccount(masterId);
+        const roles = masterAccount.copyFactoryRoles || [];
+        if (!roles.includes('PROVIDER')) {
+          roles.push('PROVIDER');
+          await masterAccount.enableCopyFactoryApi(roles);
+        }
+      } catch (e) {}
+
       const strategies = await copyFactory.configurationApi.getStrategiesWithInfiniteScrollPagination();
       let strategy = strategies.find(s => s.accountId === masterId || s._id === masterId);
       let strategyId;
@@ -98,6 +122,7 @@ async function togglePammConnection(settings, metaApiAccountId, isActive) {
         strategyId = generated.id;
         await copyFactory.configurationApi.updateStrategy(strategyId, {
           name: `Master Strategy ${masterId}`,
+          description: 'PAMM Strategy for CopyFactory',
           accountId: masterId
         });
       }

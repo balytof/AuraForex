@@ -4405,7 +4405,7 @@ function openPammModal() {
     document.getElementById("pammHash").value = "";
     
     // Update minimum dynamic text
-    const minVal = systemConfig.minPammDeposit !== undefined ? parseFloat(systemConfig.minPammDeposit) : 20.0;
+    const minVal = systemConfig.minPammDeposit !== undefined ? parseFloat(systemConfig.minPammDeposit) : 50.0;
     document.getElementById("pammMinValText").innerHTML = `* Valor do Gás mínimo exigido: <b>$${minVal.toFixed(2)} USD</b>`;
     
     // Load wallets
@@ -4449,7 +4449,7 @@ async function submitPammDeposit(btn) {
   }
   
   const amount = parseFloat(amountInput);
-  const minVal = systemConfig.minPammDeposit !== undefined ? parseFloat(systemConfig.minPammDeposit) : 20.0;
+  const minVal = systemConfig.minPammDeposit !== undefined ? parseFloat(systemConfig.minPammDeposit) : 50.0;
   if (isNaN(amount) || amount < minVal) {
     alert(`O valor mínimo para o depósito do Gás é $${minVal.toFixed(2)} USD. O sistema rejeitou o valor inserido.`);
     return;
@@ -4662,7 +4662,7 @@ async function submitPammDeposit(btn) {
           <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Valor do Gás a ser depositado ($):</label>
           <input type="number" id="pammAmount" placeholder="Ex: 50" min="1" step="any"
             style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
-          <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;" id="pammMinValText">* Valor do Gás mínimo exigido: <b>$20.00 USD</b></p>
+          <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;" id="pammMinValText">* Valor do Gás mínimo exigido: <b>$50.00 USD</b></p>
         </div>
 
         <div style="margin-bottom: 20px;">
