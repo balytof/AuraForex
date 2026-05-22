@@ -1858,7 +1858,7 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("POST /api/user/pamm error:", err);
-    res.status(500).json({ error: err.message || "Erro ao conectar conta PAMM ao servidor de cópias." });
+    res.status(400).json({ error: err.message || "Erro ao conectar conta PAMM ao servidor de cópias." });
   }
 });
 
@@ -1882,7 +1882,7 @@ app.post("/api/user/pamm/toggle", requireAuth, async (req, res) => {
 
     res.json({ success: true, isActive: updatedAccount.isActive, message: isActive ? "Serviço PAMM Ligado!" : "Serviço PAMM Desligado!" });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Erro ao alterar estado do serviço PAMM." });
+    res.status(400).json({ error: err.message || "Erro ao alterar estado do serviço PAMM." });
   }
 });
 
@@ -1904,7 +1904,7 @@ app.post("/api/user/pamm/disconnect", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Serviço PAMM Desconectado!" });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Erro ao desconectar serviço PAMM." });
+    res.status(400).json({ error: err.message || "Erro ao desconectar serviço PAMM." });
   }
 });
 

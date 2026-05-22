@@ -1267,9 +1267,20 @@
         if (pammTxRes.success) {
             const tbody = document.getElementById("pammTransactionsTable");
             tbody.innerHTML = pammTxRes.transactions.map(t => {
-                const typeBadge = t.type === 'DEPOSIT' ? '<span class="badge badge-active">DEPOSIT</span>' : '<span class="badge badge-pending" style="background:rgba(255,68,68,0.2); color:var(--bear);">DEDUCTION</span>';
-                const amtColor = t.type === 'DEPOSIT' ? 'var(--bull)' : 'var(--bear)';
-                const sign = t.type === 'DEPOSIT' ? '+' : '-';
+                let typeBadge = '<span class="badge badge-active">RECEITA</span>';
+                let amtColor = 'var(--bull)';
+                let sign = '+';
+                
+                // Se for um bónus pago, é uma despesa para a AuraTrade
+                if (t.description && t.description.toLowerCase().includes("bónus") || t.type === 'BONUS_PAYOUT') {
+                    typeBadge = '<span class="badge badge-pending" style="background:rgba(255,68,68,0.2); color:var(--bear);">DESPESA (BÓNUS)</span>';
+                    amtColor = 'var(--bear)';
+                    sign = '-';
+                } else if (t.type === 'DEDUCTION') {
+                    typeBadge = '<span class="badge badge-active" style="background:rgba(0,230,118,0.2); color:var(--bull);">GANHO (TAXA)</span>';
+                } else if (t.type === 'DEPOSIT') {
+                    typeBadge = '<span class="badge badge-active">DEPÓSITO</span>';
+                }
                 return `
                     <tr>
                         <td>${t.user?.email || 'N/A'}</td>
