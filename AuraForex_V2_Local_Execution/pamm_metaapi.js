@@ -1,7 +1,7 @@
 const MetaApi = require('metaapi.cloud-sdk').default;
 const CopyFactory = require('metaapi.cloud-sdk').CopyFactory;
 
-async function setupPammAccount(settings, accountNumber, serverName, password) {
+async function setupPammAccount(settings, accountNumber, serverName, password, existingMetaApiAccountId = null) {
   if (!settings.metaApiToken) {
     throw new Error("Token da MetaApi não está configurado no Painel Admin.");
   }
@@ -12,20 +12,35 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
     // Tenta detetar a plataforma com base no nome do servidor
     const platform = (serverName.toLowerCase().includes('mt5') || serverName.toLowerCase().includes('deriv')) ? 'mt5' : 'mt4';
     
-    // 1. Criar a conta na MetaApi
-    console.log(`[PAMM] A criar conta no MetaApi para ${accountNumber} (${platform})...`);
-    const account = await metaApi.metatraderAccountApi.createAccount({
-      name: `Cliente PAMM ${accountNumber}`,
-      type: 'cloud-g2',
-      login: accountNumber,
-      password: password,
-      server: serverName,
-      platform: platform,
-      magic: 1000,
-      copyFactoryRoles: ['SUBSCRIBER']
-    });
-    
-    console.log(`[PAMM] Conta criada na MetaApi. ID: ${account.id}. A fazer deploy...`);
+    let account = null;
+
+    if (existingMetaApiAccountId) {
+      try {
+        account = await metaApi.metatraderAccountApi.getAccount(existingMetaApiAccountId);
+        console.log(`[PAMM] Reutilizando conta MetaApi existente: ${account.id}`);
+      } catch (err) {
+        console.log(`[PAMM] Conta existente (${existingMetaApiAccountId}) não encontrada na MetaApi. A criar nova...`);
+        account = null;
+      }
+    }
+
+    if (!account) {
+      // 1. Criar a conta na MetaApi
+      console.log(`[PAMM] A criar nova conta no MetaApi para ${accountNumber} (${platform})...`);
+      account = await metaApi.metatraderAccountApi.createAccount({
+        name: `Cliente PAMM ${accountNumber}`,
+        type: 'cloud-g2',
+        login: accountNumber,
+        password: password,
+        server: serverName,
+        platform: platform,
+        magic: 1000,
+        copyFactoryRoles: ['SUBSCRIBER']
+      });
+      console.log(`[PAMM] Conta criada na MetaApi. ID: ${account.id}.`);
+    }
+
+    console.log(`[PAMM] A fazer deploy da conta ${account.id}...`);
     await account.deploy();
     
     // Esperar que fique conectada (com timeout de 30s)

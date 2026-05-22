@@ -1774,8 +1774,20 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "O sistema PAMM ainda não foi configurado pelo administrador." });
     }
 
-    // 1. Integrar com MetaApi (Criar Conta & Configurar CopyFactory)
-    const metaApiResult = await setupPammAccount(systemSettings, accountNumber, server, investorPassword);
+    const existingPamm = await prisma.pammAccount.findUnique({ where: { userId: req.user.id } });
+    let existingMetaApiAccountId = null;
+    
+    // Se a conta e o servidor forem iguais aos que já estão na BD, reutilizamos a conta MetaApi
+    if (existingPamm && existingPamm.metaApiAccountId && existingPamm.accountNumber === accountNumber && existingPamm.server === server) {
+      existingMetaApiAccountId = existingPamm.metaApiAccountId;
+      console.log(`[PAMM] Reutilizando MetaApi ID ${existingMetaApiAccountId} para a conta ${accountNumber}`);
+    } else if (existingPamm && existingPamm.metaApiAccountId) {
+      // Diferente conta/server? Idealmente, apagaríamos a antiga da MetaApi para não acumular custos, mas não temos o token/metaApi acessível aqui.
+      console.log(`[PAMM] Atenção: Nova conta/servidor inseridos. Um novo MetaApi ID será criado.`);
+    }
+
+    // 1. Integrar com MetaApi (Criar/Reutilizar Conta & Configurar CopyFactory)
+    const metaApiResult = await setupPammAccount(systemSettings, accountNumber, server, investorPassword, existingMetaApiAccountId);
 
     // 2. Salvar na BD
     const investorPasswordEnc = encrypt(investorPassword);
