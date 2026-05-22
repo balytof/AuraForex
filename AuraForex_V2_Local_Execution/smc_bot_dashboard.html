@@ -4030,7 +4030,29 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     pammStatGasSub.textContent = `Taxa: ${feePct}% · Clique para ver extrato`;
   }
 
+  // Toggles de visibilidade de banners de alerta de Gás
+  const pammGasCriticalAlert = document.getElementById("pammGasCriticalAlert");
+  const pammGasWarningAlert = document.getElementById("pammGasWarningAlert");
+  
   const savePammBtn = document.getElementById("savePammBtn");
+  const disconnectPammBtn = document.getElementById("disconnectPammBtn");
+  
+  if (walletBalance <= 0) {
+    if (pammGasCriticalAlert) pammGasCriticalAlert.style.display = "flex";
+    if (pammGasWarningAlert) pammGasWarningAlert.style.display = "none";
+    if (savePammBtn) {
+      savePammBtn.disabled = true;
+      savePammBtn.style.opacity = "0.5";
+      savePammBtn.style.cursor = "not-allowed";
+      savePammBtn.title = "Adicione saldo de Gás para ligar o serviço PAMM";
+    }
+  } else if (walletBalance < 10.0) {
+    if (pammGasCriticalAlert) pammGasCriticalAlert.style.display = "none";
+    if (pammGasWarningAlert) pammGasWarningAlert.style.display = "flex";
+    if (savePammBtn) {
+      savePammBtn.disabled = false;
+      savePammBtn.style.opacity = "1";
+      savePammBtn.style.cursor = "pointer";
       savePammBtn.removeAttribute("title");
     }
   } else {
@@ -4043,7 +4065,6 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
       savePammBtn.removeAttribute("title");
     }
   }
-
   // Se não houver conta PAMM
   const pammConnStatusBadge = document.getElementById("pammConnStatusBadge");
   if (!pammAccount) {

@@ -20,7 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const { getRiskManager, userRisks } = require("./risk/store");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
-const { setupPammAccount, startPammWorker, togglePammConnection, getPammAccountStats } = require("./pamm_metaapi");
+const { setupPammAccount, startPammWorker, togglePammConnection, getPammAccountStats, removePammAccount } = require("./pamm_metaapi");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -1288,6 +1288,9 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
     if (!purchaseRequest) return res.status(404).json({ error: "Solicitação não encontrada." });
 
     if (purchaseRequest.licenseType === "PAMM") {
+      const user = await prisma.user.findUnique({ where: { id: purchaseRequest.userId } });
+      const currentBalance = user.walletBalance || 0;
+
       // 1. Credit balance to user
       await prisma.user.update({
         where: { id: purchaseRequest.userId },
@@ -1296,20 +1299,28 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
         }
       });
 
-      // 2. Format description: (data) (valor) (taxa de serviço)
-      const d = new Date();
-      const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-      const description = `(${dateStr}) ($${purchaseRequest.amount.toFixed(2)}) (Taxa de Serviço)`;
-
-      // 3. Create WalletTransaction log
+      // 2. Create WalletTransaction log for Deposit
       await prisma.walletTransaction.create({
         data: {
           userId: purchaseRequest.userId,
           type: "DEPOSIT",
           amount: purchaseRequest.amount,
-          description: description
+          description: `Depósito de Gás (Aprovado)`
         }
       });
+
+      // 3. If they were in debt, create an explicit log for debt deduction
+      if (currentBalance < 0) {
+        const debtPaid = Math.min(Math.abs(currentBalance), purchaseRequest.amount);
+        await prisma.walletTransaction.create({
+          data: {
+             userId: purchaseRequest.userId,
+             type: "DEDUCTION",
+             amount: debtPaid,
+             description: `Liquidação de Dívida de Taxas Pendentes`
+          }
+        });
+      }
 
       // 4. Update purchase request status to APPROVED
       await prisma.purchaseRequest.update({
@@ -1872,6 +1883,28 @@ app.post("/api/user/pamm/toggle", requireAuth, async (req, res) => {
     res.json({ success: true, isActive: updatedAccount.isActive, message: isActive ? "Serviço PAMM Ligado!" : "Serviço PAMM Desligado!" });
   } catch (err) {
     res.status(500).json({ error: err.message || "Erro ao alterar estado do serviço PAMM." });
+  }
+});
+
+app.post("/api/user/pamm/disconnect", requireAuth, async (req, res) => {
+  try {
+    const pammAccount = await prisma.pammAccount.findUnique({ where: { userId: req.user.id } });
+    if (!pammAccount) {
+      return res.status(400).json({ error: "Conta PAMM não encontrada." });
+    }
+
+    if (pammAccount.metaApiAccountId) {
+      const systemSettings = await prisma.systemSettings.findFirst();
+      await removePammAccount(systemSettings, pammAccount.metaApiAccountId);
+    }
+
+    await prisma.pammAccount.delete({
+      where: { id: pammAccount.id }
+    });
+
+    res.json({ success: true, message: "Serviço PAMM Desconectado!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Erro ao desconectar serviço PAMM." });
   }
 });
 

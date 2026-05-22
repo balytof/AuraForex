@@ -202,20 +202,93 @@ function startPammWorker(prisma) {
           continue;
         }
 
-        // TODO: Buscar histórico de trades da MetaApi (metatraderAccountApi.getHistoricalTrades)
-        // Calcular lucro (se houver lucro)
-        // const profit = await fetchProfitFromMetaApi(acc.metaApiAccountId);
-        // if (profit > 0) {
-        //    const feePct = acc.user.settings?.pammPerformanceFeePct ?? settings.defaultPammPerformanceFee;
-        //    const fee = profit * (feePct / 100);
-        //    await prisma.user.update({ where: { id: acc.userId }, data: { walletBalance: { decrement: fee } } });
-        //    await prisma.walletTransaction.create({ ... });
-        // }
+        // Sincronização real de trades (Buscar histórico de deals do dia/últimas 24h)
+        const account = await metaApi.metatraderAccountApi.getAccount(acc.metaApiAccountId);
+        if (account.state !== 'DEPLOYED') continue;
+        
+        const connection = account.getRPCConnection();
+        await connection.connect();
+        await connection.waitSynchronized();
+        
+        // Vamos olhar para os últimos 2 dias para não perder trades atrasados
+        const now = new Date();
+        const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+        
+        // Pega History Deals (operações fechadas)
+        const historyDeals = await connection.getHistoryDealsByTimeRange(twoDaysAgo, now);
+        
+        const feePct = acc.user.settings?.pammPerformanceFeePct ?? settings.defaultPammPerformanceFee;
+        
+        let totalProfitSum = 0;
+        let totalLossSum = 0;
+        
+        for (const deal of historyDeals) {
+          // Ignorar depósitos/saques e trades já processados. Vamos assumir que processamos apenas deals com lucro > 0
+          if (deal.type === 'DEAL_TYPE_BUY' || deal.type === 'DEAL_TYPE_SELL') {
+             if (deal.profit > 0) {
+               totalProfitSum += deal.profit;
+               // Verificar se este deal específico já foi descontado
+               const existingTx = await prisma.walletTransaction.findFirst({
+                 where: {
+                   userId: acc.userId,
+                   type: "DEDUCTION",
+                   description: { contains: `(Ticket: ${deal.id})` }
+                 }
+               });
+               
+               if (!existingTx) {
+                 const fee = deal.profit * (feePct / 100);
+                 
+                 // Pode ficar negativo (dívida) se walletBalance < fee
+                 await prisma.user.update({
+                   where: { id: acc.userId },
+                   data: { walletBalance: { decrement: fee } }
+                 });
+                 
+                 await prisma.walletTransaction.create({
+                   data: {
+                     userId: acc.userId,
+                     amount: fee,
+                     type: "DEDUCTION",
+                     description: `Taxa de Serviço PAMM - Lucro de $${deal.profit.toFixed(2)} em ${deal.symbol} (Ticket: ${deal.id})`
+                   }
+                 });
+                 
+                 console.log(`[PAMM] Gás de $${fee.toFixed(2)} cobrado de ${acc.user.email} pelo trade ${deal.id}`);
+               }
+             } else if (deal.profit < 0) {
+               totalLossSum += Math.abs(deal.profit);
+             }
+          }
+        }
+        
+        // Update total profit/loss in DB
+        await prisma.pammAccount.update({
+          where: { id: acc.id },
+          data: { 
+             totalProfit: totalProfitSum, 
+             totalLoss: totalLossSum
+          }
+        });
       }
     } catch (err) {
       console.error("[PAMM] Erro no worker:", err);
     }
-    }, 3600000);
+  }, 3600000);
+}
+
+async function removePammAccount(settings, metaApiAccountId) {
+  if (!settings.metaApiToken || !metaApiAccountId) return;
+  const metaApi = new MetaApi(settings.metaApiToken);
+  try {
+    const account = await metaApi.metatraderAccountApi.getAccount(metaApiAccountId);
+    await account.undeploy();
+    // Apaga a conta da MetaApi para não gerar custos adicionais
+    await metaApi.metatraderAccountApi.deleteAccount(metaApiAccountId);
+    console.log(`[PAMM] Conta ${metaApiAccountId} eliminada da MetaApi com sucesso.`);
+  } catch (err) {
+    console.error(`[PAMM] Erro ao apagar conta ${metaApiAccountId}:`, err.message);
+  }
 }
 
 async function getPammAccountStats(settings, metaApiAccountId) {
@@ -245,5 +318,6 @@ module.exports = {
   setupPammAccount,
   startPammWorker,
   togglePammConnection,
-  getPammAccountStats
+  getPammAccountStats,
+  removePammAccount
 };
