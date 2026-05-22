@@ -20,7 +20,7 @@ const { analyzeAll } = require("./smc/smc");
 const { getRiskManager, userRisks } = require("./risk/store");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
-const { setupPammAccount, startPammWorker, togglePammConnection } = require("./pamm_metaapi");
+const { setupPammAccount, startPammWorker, togglePammConnection, getPammAccountStats } = require("./pamm_metaapi");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -1738,8 +1738,21 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
       });
     }
 
+    const systemSettings = await prisma.systemSettings.findFirst();
     const defaultFeePct = 30.0;
     const pammPerformanceFeePct = settings?.pammPerformanceFeePct ?? defaultFeePct;
+
+    let liveStats = null;
+    if (pammAccount && pammAccount.metaApiAccountId && pammAccount.isActive) {
+      liveStats = await getPammAccountStats(systemSettings, pammAccount.metaApiAccountId);
+      if (liveStats) {
+        // Atualiza na DB silenciosamente
+        await prisma.pammAccount.update({
+          where: { id: pammAccount.id },
+          data: { balance: liveStats.balance, equity: liveStats.equity }
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -1749,8 +1762,8 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
         accountNumber: pammAccount.accountNumber,
         server: pammAccount.server,
         investorPassword: "••••••••", // Masked
-        balance: pammAccount.balance,
-        equity: pammAccount.equity,
+        balance: liveStats ? liveStats.balance : pammAccount.balance,
+        equity: liveStats ? liveStats.equity : pammAccount.equity,
         totalProfit: pammAccount.totalProfit,
         totalLoss: pammAccount.totalLoss,
         isActive: pammAccount.isActive
