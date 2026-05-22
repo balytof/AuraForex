@@ -1776,7 +1776,10 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
 });
 
 app.post("/api/user/pamm", requireAuth, async (req, res) => {
-  const { accountNumber, server, investorPassword } = req.body;
+  let { accountNumber, server, investorPassword } = req.body;
+  accountNumber = String(accountNumber).trim();
+  server = String(server).trim();
+  
   if (!accountNumber || !server || !investorPassword) {
     return res.status(400).json({ error: "Todos os campos (Conta, Servidor e Senha) são obrigatórios." });
   }
