@@ -1832,7 +1832,26 @@
               gap: 8px;
               transition: all 0.2s;
             ">
-              <i class="fas fa-plug"></i> Ligar ao Serviço PAMM
+              <i class="fas fa-plug"></i> <span id="savePammBtnText">Ligar ao Serviço PAMM</span>
+            </button>
+            <button type="button" id="disconnectPammBtn" onclick="disconnectPamm()" class="btn btn-primary" style="
+              width: 100%;
+              background: rgba(255, 68, 68, 0.15);
+              border: 1px solid var(--bear);
+              color: var(--bear);
+              font-family: 'Syne', sans-serif;
+              font-weight: 800;
+              padding: 14px;
+              border-radius: 8px;
+              cursor: pointer;
+              margin-top: 10px;
+              display: none;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+              transition: all 0.2s;
+            ">
+              <i class="fas fa-unlink"></i> Desconectar do Serviço PAMM
             </button>
           </form>
         </div>
@@ -3945,6 +3964,21 @@ async function savePammCredentials() {
   }
 }
 
+async function disconnectPamm() {
+    if (!confirm("Deseja realmente desconectar a sua conta PAMM?")) return;
+    try {
+        const res = await apiFetch("/api/user/pamm/disconnect", "POST");
+        if (res.success) {
+            alert("Desconectado com sucesso.");
+            location.reload();
+        } else {
+            alert("Erro ao desconectar: " + res.error);
+        }
+    } catch (e) {
+        alert("Erro de conexão.");
+    }
+}
+
 async function loadPammDashboardData() {
   try {
     // 1. Buscar estatísticas PAMM & estado de credenciais
@@ -3985,47 +4019,7 @@ function getTradesFromTransactions(transactions, feePct) {
   return trades;
 }
 
-function renderPammToastNotification(trade) {
-  const container = document.getElementById("pammToastContainer");
-  if (!container) return;
-
-  const isWin = trade.type === "WIN";
-  const toast = document.createElement("div");
-  toast.className = `toast-neon ${isWin ? 'profit' : 'loss'}`;
-  
-  toast.innerHTML = `
-    <div class="toast-icon">
-      ${isWin ? '<i class="fas fa-arrow-trend-up"></i>' : '<i class="fas fa-arrow-trend-down"></i>'}
-    </div>
-    <div class="toast-content">
-      <div class="toast-title" style="color: ${isWin ? 'var(--bull)' : 'var(--bear)'};">
-        ${isWin ? 'LUCRO DE COPILOTO PAMM' : 'PREJUÍZO REGISTRADO'}
-      </div>
-      <div class="toast-desc">
-        Trade fechado em ${trade.pair}: ${isWin ? '+' : ''}$${trade.amount.toFixed(2)} USD<br>
-        ${isWin ? 'Taxa Gás: -$' + trade.fee.toFixed(2) + ' USD' : 'Sem cobrança de taxa'}
-      </div>
-    </div>
-  `;
-
-  container.appendChild(toast);
-
-  // Trigger browser animation
-  setTimeout(() => {
-    toast.classList.add("show");
-  }, 50);
-
-  // Auto-remove after 6s
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => {
-      toast.remove();
-    }, 400);
-  }, 6000);
-}
-
 function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
-  // Atualiza saldo de Gás no card correspondente
   const pammStatGas = document.getElementById("pammStatGas");
   if (pammStatGas) {
     pammStatGas.textContent = formatCurrency(walletBalance, "USD");
@@ -4036,28 +4030,7 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     pammStatGasSub.textContent = `Taxa: ${feePct}% · Clique para ver extrato`;
   }
 
-  // Toggles de visibilidade de banners de alerta de Gás
-  const pammGasCriticalAlert = document.getElementById("pammGasCriticalAlert");
-  const pammGasWarningAlert = document.getElementById("pammGasWarningAlert");
-  
   const savePammBtn = document.getElementById("savePammBtn");
-  
-  if (walletBalance <= 0) {
-    if (pammGasCriticalAlert) pammGasCriticalAlert.style.display = "flex";
-    if (pammGasWarningAlert) pammGasWarningAlert.style.display = "none";
-    if (savePammBtn) {
-      savePammBtn.disabled = true;
-      savePammBtn.style.opacity = "0.5";
-      savePammBtn.style.cursor = "not-allowed";
-      savePammBtn.title = "Adicione saldo de Gás para ligar o serviço PAMM";
-    }
-  } else if (walletBalance < 10.0) {
-    if (pammGasCriticalAlert) pammGasCriticalAlert.style.display = "none";
-    if (pammGasWarningAlert) pammGasWarningAlert.style.display = "flex";
-    if (savePammBtn) {
-      savePammBtn.disabled = false;
-      savePammBtn.style.opacity = "1";
-      savePammBtn.style.cursor = "pointer";
       savePammBtn.removeAttribute("title");
     }
   } else {
