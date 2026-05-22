@@ -215,11 +215,35 @@ function startPammWorker(prisma) {
     } catch (err) {
       console.error("[PAMM] Erro no worker:", err);
     }
-  }, 3600000);
+    }, 3600000);
+}
+
+async function getPammAccountStats(settings, metaApiAccountId) {
+  if (!settings.metaApiToken || !metaApiAccountId) return null;
+  const metaApi = new MetaApi(settings.metaApiToken);
+  try {
+    const account = await metaApi.metatraderAccountApi.getAccount(metaApiAccountId);
+    const connection = account.getRPCConnection();
+    await connection.connect();
+    await connection.waitSynchronized();
+    const info = await connection.getAccountInformation();
+    
+    // Podemos também pegar histórico de lucro/perda mais tarde se necessário
+    return {
+      balance: info.balance,
+      equity: info.equity,
+      margin: info.margin,
+      freeMargin: info.freeMargin
+    };
+  } catch (err) {
+    console.error(`[PAMM] Erro ao buscar stats da conta ${metaApiAccountId}:`, err.message);
+    return null;
+  }
 }
 
 module.exports = {
   setupPammAccount,
   startPammWorker,
-  togglePammConnection
+  togglePammConnection,
+  getPammAccountStats
 };
