@@ -4121,35 +4121,6 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
   }
 }
 
-async function togglePammState() {
-  const toggle = document.getElementById("pammActiveToggle");
-  if (!toggle) return;
-  const isActive = toggle.checked;
-  const badge = document.getElementById("pammConnStatusBadge");
-  
-  try {
-    const res = await fetch("/api/user/pamm/toggle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_token") },
-      body: JSON.stringify({ isActive })
-    });
-    const data = await res.json();
-    if (data.success) {
-      if (badge) {
-        badge.textContent = data.isActive ? "Sincronizado" : "Pausado";
-        badge.style.background = data.isActive ? "rgba(0, 230, 118, 0.15)" : "rgba(255, 171, 0, 0.15)";
-        badge.style.color = data.isActive ? "var(--bull)" : "#ffab00";
-      }
-      showToast(data.message, "success");
-    } else {
-      toggle.checked = !isActive; // revert
-      showToast(data.error || "Erro ao alterar estado.", "error");
-    }
-  } catch (err) {
-    toggle.checked = !isActive; // revert
-    showToast("Erro de rede ao ligar/desligar PAMM.", "error");
-  }
-
   // Preenche credenciais se vazias
   const accNumInput = document.getElementById("pammAccNumber");
   const serverInput = document.getElementById("pammServer");
@@ -4388,6 +4359,35 @@ async function togglePammState() {
     }
   }
 }
+
+async function togglePammState() {
+  const toggle = document.getElementById("pammActiveToggle");
+  if (!toggle) return;
+  const isActive = toggle.checked;
+  const badge = document.getElementById("pammConnStatusBadge");
+  
+  try {
+    const res = await fetch("/api/user/pamm/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_token") },
+      body: JSON.stringify({ isActive })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (badge) {
+        badge.textContent = data.isActive ? "Sincronizado" : "Pausado";
+        badge.style.background = data.isActive ? "rgba(0, 230, 118, 0.15)" : "rgba(255, 171, 0, 0.15)";
+        badge.style.color = data.isActive ? "var(--bull)" : "#ffab00";
+      }
+      showToast(data.message, "success");
+    } else {
+      toggle.checked = !isActive; // revert
+      showToast(data.error || "Erro ao alterar estado.", "error");
+    }
+  } catch (err) {
+    toggle.checked = !isActive; // revert
+    showToast("Erro de rede ao ligar/desligar PAMM.", "error");
+  }
 
 // ─── PAMM SYSTEM COUPLING ───
 function openPammModal() {
