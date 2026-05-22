@@ -1,4 +1,5 @@
 const MetaApi = require('metaapi.cloud-sdk').default;
+const CopyFactory = require('metaapi.cloud-sdk').CopyFactory;
 
 async function setupPammAccount(settings, accountNumber, serverName, password) {
   if (!settings.metaApiToken) {
@@ -9,7 +10,7 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
   
   try {
     // Tenta detetar a plataforma com base no nome do servidor
-    const platform = serverName.toLowerCase().includes('mt5') ? 'mt5' : 'mt4';
+    const platform = (serverName.toLowerCase().includes('mt5') || serverName.toLowerCase().includes('deriv')) ? 'mt5' : 'mt4';
     
     // 1. Criar a conta na MetaApi
     console.log(`[PAMM] A criar conta no MetaApi para ${accountNumber} (${platform})...`);
@@ -18,7 +19,7 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
       type: 'cloud-g2',
       login: accountNumber,
       password: password,
-      serverName: serverName,
+      server: serverName,
       platform: platform,
       magic: 1000
     });
@@ -37,14 +38,29 @@ async function setupPammAccount(settings, accountNumber, serverName, password) {
     const masterId = settings.pammMasterAccountId || settings.metaApiAccountId;
     
     console.log(`[PAMM] A configurar CopyFactory (Master: ${masterId}, Subscriber: ${account.id})...`);
-    const copyFactory = metaApi.copyFactory;
+    const copyFactory = new CopyFactory(settings.metaApiToken);
     
+    // Obter o ID da Estratégia correspondente ao masterId (que pode ser um Account ID)
+    const strategies = await copyFactory.configurationApi.getStrategiesWithInfiniteScrollPagination();
+    let strategy = strategies.find(s => s.accountId === masterId || s._id === masterId);
+    let strategyId;
+    if (strategy) {
+      strategyId = strategy._id;
+    } else {
+      const generated = await copyFactory.configurationApi.generateStrategyId();
+      strategyId = generated.id;
+      await copyFactory.configurationApi.updateStrategy(strategyId, {
+        name: `Master Strategy ${masterId}`,
+        accountId: masterId
+      });
+    }
+
     // Adiciona como subscriber se ainda não estiver
-    await copyFactory.subscriberApi.updateSubscriber(account.id, {
+    await copyFactory.configurationApi.updateSubscriber(account.id, {
       name: `Subscriber PAMM ${accountNumber}`,
       subscriptions: [
         {
-          strategyId: masterId,
+          strategyId: strategyId,
           multiplier: 1.0 // Cópias 1:1 baseadas no balance/equity (configurável no CopyFactory UI)
         }
       ]
@@ -66,16 +82,30 @@ async function togglePammConnection(settings, metaApiAccountId, isActive) {
   const metaApi = new MetaApi(settings.metaApiToken);
 
   try {
-    const copyFactory = metaApi.copyFactory;
+    const copyFactory = new CopyFactory(settings.metaApiToken);
     
     if (isActive) {
       const masterId = settings.pammMasterAccountId || settings.metaApiAccountId;
       if (!masterId) throw new Error("Conta Master PAMM não configurada no Admin.");
       
-      await copyFactory.subscriberApi.updateSubscriber(metaApiAccountId, {
+      const strategies = await copyFactory.configurationApi.getStrategiesWithInfiniteScrollPagination();
+      let strategy = strategies.find(s => s.accountId === masterId || s._id === masterId);
+      let strategyId;
+      if (strategy) {
+        strategyId = strategy._id;
+      } else {
+        const generated = await copyFactory.configurationApi.generateStrategyId();
+        strategyId = generated.id;
+        await copyFactory.configurationApi.updateStrategy(strategyId, {
+          name: `Master Strategy ${masterId}`,
+          accountId: masterId
+        });
+      }
+
+      await copyFactory.configurationApi.updateSubscriber(metaApiAccountId, {
         subscriptions: [
           {
-            strategyId: masterId,
+            strategyId: strategyId,
             multiplier: 1.0
           }
         ]
@@ -84,7 +114,7 @@ async function togglePammConnection(settings, metaApiAccountId, isActive) {
     } else {
       // Para desligar as cópias, removemos as subscrições.
       // As ordens já abertas seguem normalmente até SL/TP.
-      await copyFactory.subscriberApi.updateSubscriber(metaApiAccountId, {
+      await copyFactory.configurationApi.updateSubscriber(metaApiAccountId, {
         subscriptions: []
       });
       console.log(`[PAMM] Cópia DESLIGADA para a conta ${metaApiAccountId}`);
@@ -111,6 +141,7 @@ function startPammWorker(prisma) {
       if (!settings || !settings.metaApiToken) return;
 
       const metaApi = new MetaApi(settings.metaApiToken);
+      const copyFactory = new CopyFactory(settings.metaApiToken);
       
       // Buscar todas as contas PAMM ativas que têm MetaApi ID
       const accounts = await prisma.pammAccount.findMany({
@@ -123,7 +154,7 @@ function startPammWorker(prisma) {
           // Gás acabou - Desativar cópia (remover do CopyFactory)
           console.log(`[PAMM] Utilizador ${acc.user.email} sem Gás. A desativar cópia...`);
           try {
-            await metaApi.copyFactory.subscriberApi.updateSubscriber(acc.metaApiAccountId, { subscriptions: [] });
+            await copyFactory.configurationApi.updateSubscriber(acc.metaApiAccountId, { subscriptions: [] });
             await prisma.pammAccount.update({ where: { id: acc.id }, data: { isActive: false } });
           } catch (e) {
             console.error(`Erro ao desativar cópia para ${acc.accountNumber}:`, e.message);
