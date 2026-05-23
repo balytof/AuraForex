@@ -1278,7 +1278,32 @@
         <span>Alterar Senha</span>
       </a>
       
-      <div id="google_translate_element" style="margin-top: 20px; padding: 0 20px;"></div>
+      
+
+      
+      <div class="nav-item lang-selector" style="padding: 0 20px; margin-top: 10px;">
+        <i class="fas fa-globe"></i>
+        <select id="langSelect" onchange="changeLanguage(this.value)" style="background: transparent; color: inherit; border: none; outline: none; margin-left: 10px; cursor: pointer;">
+          <option value="pt" style="color: #000;">Português</option>
+          <option value="en" style="color: #000;">English</option>
+          <option value="es" style="color: #000;">Español</option>
+        </select>
+      </div>
+
+      <script>
+        function changeLanguage(langCode) {
+          document.cookie = "googtrans=/pt/" + langCode + "; path=/; domain=" + window.location.hostname;
+          document.cookie = "googtrans=/pt/" + langCode + "; path=/";
+          window.location.reload();
+        }
+        document.addEventListener("DOMContentLoaded", () => {
+          const match = document.cookie.match(/googtrans=\/pt\/([a-z]{2})/);
+          if (match && match[1]) {
+            const sel = document.getElementById("langSelect");
+            if(sel) sel.value = match[1];
+          }
+        });
+      </script>
 
       <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
         <i class="fas fa-sign-out-alt"></i>
@@ -4031,8 +4056,24 @@ async function loadPammDashboardData() {
     // 2. Buscar todas as transações da carteira (Gás)
     const txRes = await apiFetch("/api/user/wallet/transactions");
 
-    if (pammRes.success && txRes.success) {
-      updatePammUI(pammRes.pammAccount, txRes.walletBalance, pammRes.pammPerformanceFeePct, txRes.transactions);
+        updatePammUI(
+      pammRes.pammAccount || null,
+      txRes.walletBalance || 0,
+      pammRes.pammPerformanceFeePct || 30,
+      txRes.transactions || []
+    );
+    
+    if (pammRes.pammChangeApproved) {
+      alert("A sua conta antiga foi removida pelo suporte. Já pode conectar uma nova conta!");
+    }
+    
+    if (pammRes.changeRequested) {
+      const pammConnStatusBadge = document.getElementById("pammConnStatusBadge");
+      if (pammConnStatusBadge) {
+        pammConnStatusBadge.textContent = "Troca Solicitada";
+        pammConnStatusBadge.style.background = "rgba(255, 171, 0, 0.15)";
+        pammConnStatusBadge.style.color = "#ffab00";
+      }
     }
   } catch (err) {
     console.error("Erro loadPammDashboardData:", err);
@@ -4754,12 +4795,7 @@ async function submitPammDeposit(btn) {
 <div class="toast-container" id="pammToastContainer"></div>
 
 
-<script type="text/javascript">
-function googleTranslateElementInit() {
-  new google.translate.TranslateElement({pageLanguage: 'pt', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
-}
-</script>
-<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
 </body>
 </html>
 

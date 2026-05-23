@@ -25,6 +25,20 @@ async function setupPammAccount(settings, accountNumber, serverName, password, e
     }
 
     if (!account) {
+      // Procurar se já existe uma conta na MetaApi com este login para evitar duplicações
+      try {
+        const accounts = await metaApi.metatraderAccountApi.getAccounts();
+        const existing = accounts.find(a => a.login === accountNumber);
+        if (existing) {
+          console.log(`[PAMM] Conta já existente na MetaApi encontrada! Reutilizando ID: ${existing.id}`);
+          account = existing;
+        }
+      } catch (e) {
+        console.log("[PAMM] Aviso ao procurar contas existentes na MetaApi:", e.message);
+      }
+    }
+
+    if (!account) {
       // 1. Criar a conta na MetaApi
       console.log(`[PAMM] A criar nova conta no MetaApi para ${accountNumber} (${platform})...`);
       account = await metaApi.metatraderAccountApi.createAccount({
@@ -285,10 +299,10 @@ async function removePammAccount(settings, metaApiAccountId) {
   const metaApi = new MetaApi(settings.metaApiToken);
   try {
     const account = await metaApi.metatraderAccountApi.getAccount(metaApiAccountId);
+    console.log(`[PAMM] A interromper internamente a comunicação (undeploy) para ${metaApiAccountId}...`);
     await account.undeploy();
-    // Apaga a conta da MetaApi para não gerar custos adicionais
-    await metaApi.metatraderAccountApi.deleteAccount(metaApiAccountId);
-    console.log(`[PAMM] Conta ${metaApiAccountId} eliminada da MetaApi com sucesso.`);
+    // A pedido do cliente, NÃO apagamos a conta da MetaApi para evitar duplicações futuras.
+    console.log(`[PAMM] Conta ${metaApiAccountId} desconectada (undeploy) com sucesso, mas mantida no servidor.`);
   } catch (err) {
     console.error(`[PAMM] Erro ao apagar conta ${metaApiAccountId}:`, err.message);
   }
