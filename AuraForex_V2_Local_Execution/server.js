@@ -1836,6 +1836,12 @@ app.post("/api/user/pamm", requireAuth, async (req, res) => {
   if (!accountNumber || !server || !investorPassword) {
     return res.status(400).json({ error: "Todos os campos (Conta, Servidor e Senha) são obrigatórios." });
   }
+  
+  // Bloquear contas Demo e Contest
+  const lowerServer = server.toLowerCase();
+  if (lowerServer.includes("demo") || lowerServer.includes("contest")) {
+    return res.status(400).json({ error: "Contas demo ou Contest não são permitidas. Use apenas uma conta Live (Real)." });
+  }
 
   try {
     const systemSettings = await prisma.systemSettings.findFirst();

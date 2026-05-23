@@ -1287,7 +1287,7 @@
   <!-- MAIN CONTENT -->
   <main class="main-content">
     <div id="licenseAlert" class="license-alert-bar">
-        ⚠️ Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
+        Atenção: A sua licença expira em <span id="licenseDaysLeft">...</span> dias. <a href="#" onclick="openBuyModal()" style="color:#000; text-decoration:underline;">Renove agora para manter o acesso ao bot.</a>
     </div>
 
     <div class="wrapper">
@@ -1408,26 +1408,26 @@
   <!-- MODAL: CHANGE PASSWORD -->
   <div id="changePwModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:400px; margin:20px;">
-      <h3 style="margin-bottom:20px; font-size:1rem;">🔑 Alterar Password</h3>
+      <h3 style="margin-bottom:20px; font-size:1rem;">Alterar Password</h3>
       <div style="margin-bottom:14px;">
         <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Password Atual</label>
         <div style="position:relative;">
           <input type="password" id="cpCurrentPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
-          <button type="button" onclick="dashTogglePass('cpCurrentPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+          <button type="button" onclick="dashTogglePass('cpCurrentPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">Ver</button>
         </div>
       </div>
       <div style="margin-bottom:14px;">
         <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Nova Password (mín. 6 caracteres)</label>
         <div style="position:relative;">
           <input type="password" id="cpNewPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
-          <button type="button" onclick="dashTogglePass('cpNewPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+          <button type="button" onclick="dashTogglePass('cpNewPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">Ver</button>
         </div>
       </div>
       <div style="margin-bottom:20px;">
         <label style="font-size:0.78rem; color:var(--muted); display:block; margin-bottom:6px;">Confirmar Nova Password</label>
         <div style="position:relative;">
           <input type="password" id="cpConfirmPw" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 40px 10px 12px; color:var(--text); font-size:0.85rem; box-sizing:border-box;" placeholder="••••••••">
-          <button type="button" onclick="dashTogglePass('cpConfirmPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">👁️</button>
+          <button type="button" onclick="dashTogglePass('cpConfirmPw',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;">Ver</button>
         </div>
       </div>
       <div id="cpMsg" style="display:none; margin-bottom:12px; font-size:0.8rem; padding:8px 12px; border-radius:6px;"></div>
@@ -1469,7 +1469,7 @@
 
   <!-- AVISO META BATIDA (HMI) -->
   <div id="dailyLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,212,255,0.1)); border: 2px solid var(--bull); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
-     <div style="font-size: 2.5rem; margin-bottom: 10px;">🏆</div>
+     <div style="font-size: 2.5rem; margin-bottom: 10px; display: none;"></div>
      <h2 style="color: var(--bull); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">META DIÁRIA BATIDA</h2>
      <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O sistema protegeu os teus lucros e encerrou as operações por hoje.</p>
      <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
@@ -1479,7 +1479,7 @@
   </div>
 
   <div id="weekendLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(255,82,82,0.1), rgba(255,152,0,0.1)); border: 2px solid var(--bear); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
-     <div style="font-size: 2.5rem; margin-bottom: 10px;">💤</div>
+     <div style="font-size: 2.5rem; margin-bottom: 10px; display: none;"></div>
      <h2 style="color: var(--bear); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">MERCADO FECHADO</h2>
      <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O mercado encontra-se fechado. As operações do robô foram suspensas pelo servidor para proteger o seu saldo de flutuações e Gaps de fim de semana.</p>
      <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
@@ -1497,7 +1497,7 @@
       <!-- POSIÇÕES ATIVAS -->
       <div class="panel glass-panel" id="activePositionsPanel" style="display:none; margin-bottom: 20px;">
         <div class="panel-header" style="background: rgba(0,212,255,0.05);">
-          <div class="panel-title"><span class="icon">💼</span> Posições em Aberto</div>
+          <div class="panel-title"><span class="icon"></span> Posições em Aberto</div>
           <div class="status-badge" style="background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2);">
             <div class="dot active"></div>
             <span id="activePositionsCount">0 Ativas</span>
@@ -1511,7 +1511,7 @@
       <!-- SIGNALS -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><span class="icon">🎯</span> Sinais & Execuções</div>
+          <div class="panel-title"><span class="icon"></span> Sinais & Execuções</div>
           <div style="display:flex;gap:10px;align-items:center;">
              <div class="nav-controls" id="signalNav" style="display:none; gap:6px;">
                 <button class="btn-nav" onclick="prevSignal()">◀</button>
@@ -1523,7 +1523,7 @@
         </div>
         <div class="signals-list" id="signalsList">
           <div class="empty-state" id="signalsEmptyState">
-            <div class="em-icon">📊</div>
+            <div class="em-icon" style="display:none;"></div>
             <p>Aguardando sinais do mercado...</p>
             <p style="font-size:0.7rem; color:var(--muted);">Certifique-se de que o seu EA está conectado no MT5.</p>
           </div>
@@ -1533,7 +1533,7 @@
       <!-- LOG -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><span class="icon">📋</span> Log do Sistema</div>
+          <div class="panel-title"><span class="icon"></span> Log do Sistema</div>
           <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="auraClearSystemLogs()">Limpar</button>
         </div>
         <div class="log-area" id="logArea">
@@ -1544,7 +1544,7 @@
       <!-- HISTÓRICO -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><span class="icon">📜</span> Histórico de Negociações</div>
+          <div class="panel-title"><span class="icon"></span> Histórico de Negociações</div>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadHistory()">Atualizar</button>
             <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;border-color:var(--bear);color:var(--bear);" onclick="clearHistory()">Limpar</button>
@@ -1592,7 +1592,7 @@
       <!-- AI STUDIO -->
       <div class="ai-status-card">
         <div class="ai-header">
-          <div class="ai-icon">🤖</div>
+          <div class="ai-icon" style="display:none;"></div>
           <div>
             <div class="ai-title">AI Studio · Gemini</div>
             <div class="ai-subtitle">Bias de mercado por IA</div>
@@ -1606,7 +1606,7 @@
       <!-- MINHA CARTEIRA AURATRADE [NEW] -->
       <div class="panel glass-panel" style="margin-bottom: 20px;">
         <div class="panel-header" style="background: rgba(0, 212, 255, 0.05);">
-          <div class="panel-title"><span class="icon">💳</span> Minha Carteira</div>
+          <div class="panel-title"><span class="icon"></span> Minha Carteira</div>
           <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono', monospace;">Créditos Pré-Pagos</span>
         </div>
         <div style="padding: 20px;">
@@ -1637,7 +1637,7 @@
       <!-- CONFIG -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><span class="icon">⚙️</span> Configuração</div>
+          <div class="panel-title"><span class="icon"></span> Configuração</div>
         </div>
         <div class="config-panel">
 
@@ -1651,9 +1651,9 @@
                 padding: 9px 14px; font-size: 0.75rem; font-weight: 700;
                 cursor: pointer; white-space: nowrap; transition: all 0.2s;
                 font-family: inherit;
-              ">💾 Guardar</button>
+              ">Guardar</button>
             </div>
-            <span id="apiKeySaveMsg" style="font-size:0.68rem;color:var(--bull);display:none;margin-top:4px;">✅ API Key guardada!</span>
+            <span id="apiKeySaveMsg" style="font-size:0.68rem;color:var(--bull);display:none;margin-top:4px;">API Key guardada!</span>
           </div>
 
           <div class="form-group">
@@ -1710,7 +1710,7 @@
       align-items: center;
       gap: 16px;
     ">
-      <div style="font-size: 1.8rem;">🚨</div>
+      
       <div>
         <h4 style="font-weight: 800; color: var(--bear); margin-bottom: 2px;">CÓPIA DE TRADING SUSPENSA</h4>
         <p style="font-size: 0.82rem; opacity: 0.9;">O teu saldo de Gás na Auratrade está esgotado ($0.00). Adiciona saldo Gás no botão correspondente para retomar as operações automáticas.</p>
@@ -1727,7 +1727,7 @@
       align-items: center;
       gap: 16px;
     ">
-      <div style="font-size: 1.8rem;">⚠️</div>
+      
       <div>
         <h4 style="font-weight: 800; color: var(--warn); margin-bottom: 2px;">SALDO DE GÁS BAIXO (ALERTA)</h4>
         <p style="font-size: 0.82rem; opacity: 0.9;">O teu saldo de Gás está abaixo do limite de $10.00. Carrega a tua carteira para evitar a suspensão da cópia de sinais.</p>
@@ -1769,7 +1769,7 @@
       <!-- ESQUERDA: ATIVIDADE DE TRADING EM TEMPO REAL -->
       <div class="panel glass-panel">
         <div class="panel-header" style="background: rgba(0, 212, 255, 0.05); padding: 16px 20px;">
-          <div class="panel-title" style="font-weight: 800;"><span class="icon">📈</span> Atividade de Trading PAMM</div>
+          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Atividade de Trading PAMM</div>
           <div class="status-badge" style="background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.2);">
             <div class="dot active"></div>
             <span>Tempo Real</span>
@@ -1778,7 +1778,7 @@
         <div style="padding: 20px;">
           <div class="pamm-trade-list" id="pammTradeActivity">
             <div class="empty-state" style="text-align: center; padding: 40px 20px; color: var(--muted);">
-              <div class="em-icon" style="font-size: 2.5rem; margin-bottom: 12px;">📊</div>
+              
               <p style="font-weight: 700; margin-bottom: 4px;">Nenhum sinal copiado ainda</p>
               <p style="font-size: 0.72rem; line-height: 1.4;">Configure as suas credenciais principais de trading à direita e garanta saldo de Gás superior a $20.00 na carteira.</p>
             </div>
@@ -1789,7 +1789,7 @@
       <!-- DIREITA: CREDENCIAIS DE ACESSO -->
       <div class="panel glass-panel">
         <div class="panel-header" style="background: rgba(124, 58, 237, 0.05); padding: 16px 20px;">
-          <div class="panel-title" style="font-weight: 800;"><span class="icon">🔑</span> Conexão da Conta PAMM</div>
+          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Conexão da Conta PAMM</div>
           <div style="display: flex; align-items: center; gap: 12px;">
             <span id="pammConnStatusBadge" class="account-type-badge demo" style="background: rgba(255,68,68,0.2); color: var(--bear); padding: 3px 8px; border-radius: 4px;">Não Conectado</span>
             
@@ -1818,10 +1818,10 @@
               <label class="form-label" style="font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; text-transform: uppercase;">Senha Principal/Trading</label>
               <div style="position: relative; width: 100%;">
                 <input type="password" class="form-input" id="pammInvestorPw" required placeholder="Insira a senha principal de trading" style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 40px 12px 12px; color: var(--text); font-family: inherit; font-size: 0.85rem; width: 100%;">
-                <button type="button" onclick="dashTogglePass('pammInvestorPw',this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--muted);">👁️</button>
+                <button type="button" onclick="dashTogglePass('pammInvestorPw',this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--muted);">Ver</button>
               </div>
               <span style="font-size: 0.68rem; color: var(--muted); display: block; margin-top: 4px; line-height: 1.4;">
-                🔒 A sua senha é guardada com criptografia militar AES-256 de forma 100% segura. O robô nunca efetuará saques.
+                A sua senha é guardada com criptografia militar AES-256 de forma 100% segura. O robô nunca efetuará saques.
               </span>
             </div>
 
@@ -1895,10 +1895,10 @@ function saveGeminiApiKey() {
   const msg = document.getElementById("apiKeySaveMsg");
   const btn = document.getElementById("saveApiKeyBtn");
   msg.style.display = "block";
-  btn.textContent = "✅ Guardado!";
+  btn.textContent = "Guardado!";
   setTimeout(() => {
     msg.style.display = "none";
-    btn.textContent = "💾 Guardar";
+    btn.textContent = "Guardar";
   }, 2500);
 }
 
@@ -2005,7 +2005,7 @@ function injectAdminButton() {
   const adminBtn = document.createElement("button");
   adminBtn.className = "btn btn-secondary";
   adminBtn.id = "adminPanelBtn";
-  adminBtn.innerHTML = "🛡️ PAINEL ADMIN";
+  adminBtn.innerHTML = "PAINEL ADMIN";
   adminBtn.style.marginRight = "10px";
   adminBtn.style.border = "2px solid #00d4ff";
   adminBtn.style.boxShadow = "0 0 15px rgba(0,212,255,0.4)";
@@ -2026,7 +2026,7 @@ function injectAffiliateButton() {
   const affiliateBtn = document.createElement("button");
   affiliateBtn.className = "btn btn-secondary";
   affiliateBtn.id = "affiliatePanelBtn";
-  affiliateBtn.innerHTML = "👥 AFILIADOS";
+  affiliateBtn.innerHTML = "AFILIADOS";
   affiliateBtn.style.marginRight = "10px";
   affiliateBtn.style.border = "2px solid var(--accent2)";
   affiliateBtn.style.boxShadow = "0 0 15px rgba(124,58,237,0.4)";
@@ -2061,7 +2061,7 @@ function dashTogglePass(inputId, btn) {
   const input = document.getElementById(inputId);
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁️';
+  btn.textContent = show ? 'Ocultar' : 'Mostrar';
 }
 
 function openChangePwModal() {
@@ -2110,12 +2110,12 @@ async function doChangePassword() {
   if (data.success) {
     msg.style.background = 'rgba(0,230,118,0.1)';
     msg.style.color = 'var(--bull)';
-    msg.textContent = '✅ Password alterada com sucesso!';
+    msg.textContent = 'Password alterada com sucesso!';
     setTimeout(closeChangePwModal, 1500);
   } else {
     msg.style.background = 'rgba(255,68,68,0.1)';
     msg.style.color = 'var(--bear)';
-    msg.textContent = '❌ ' + (data.error || 'Erro desconhecido.');
+    msg.textContent = '' + (data.error || 'Erro desconhecido.');
   }
 }
 // ─── UTILITÁRIOS E SIMULADORES ────────────────
@@ -2956,7 +2956,7 @@ async function updateStats() {
         document.getElementById("weekendLockTimer").textContent = `Domingo às ${sundayHour}h00`;
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "🚫 Mercado Fechado (Fim de Semana)";
+            mainBtn.textContent = "Mercado Fechado (Fim de Semana)";
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
@@ -2965,7 +2965,7 @@ async function updateStats() {
         lockOverlay.style.display = "block";
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "🔒 Meta Atingida";
+            mainBtn.textContent = "Meta Atingida";
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
@@ -3060,13 +3060,13 @@ async function loadUserWallet() {
         alertEl.style.background = "rgba(255, 68, 68, 0.15)";
         alertEl.style.borderColor = "var(--bear)";
         alertEl.style.color = "var(--bear)";
-        alertEl.innerHTML = `❌ <b>CÓPIA SUSPENSA:</b> O seu saldo de créditos PAMM está zerado ou negativo ($${balance.toFixed(2)}). Entre em contato com o suporte para recarregar.`;
+        alertEl.innerHTML = `<b>CÓPIA SUSPENSA:</b> O seu saldo de créditos PAMM está zerado ou negativo ($${balance.toFixed(2)}). Entre em contato com o suporte para recarregar.`;
       } else if (balance < 10) {
         alertEl.style.display = "block";
         alertEl.style.background = "rgba(255, 179, 0, 0.15)";
         alertEl.style.borderColor = "var(--warn)";
         alertEl.style.color = "var(--warn)";
-        alertEl.innerHTML = `⚠️ <b>SALDO BAIXO:</b> O seu saldo ($${balance.toFixed(2)}) é inferior a $10.00. Recarregue brevemente para evitar a suspensão da cópia.`;
+        alertEl.innerHTML = `<b>SALDO BAIXO:</b> O seu saldo ($${balance.toFixed(2)}) é inferior a $10.00. Recarregue brevemente para evitar a suspensão da cópia.`;
       } else {
         alertEl.style.display = "none";
       }
@@ -3443,7 +3443,7 @@ function resetBot() {
   PAIRS.forEach(p => { BIASES[p] = { bias:"NEUTRAL", confidence:0 }; });
   document.getElementById("signalsList").innerHTML = `
     <div class="empty-state">
-      <div class="em-icon">${brokerConnected ? '🔍' : '🔗'}</div>
+      
       <p>${brokerConnected ? 'Aguardando análise de mercado.<br>Inicie o bot para receber sinais SMC.' : 'Conecte uma MetaTrader 5 e inicie o bot<br>para receber sinais SMC com execução automática.'}</p>
     </div>`;
   auraClearSystemLogs();
@@ -3630,7 +3630,7 @@ async function loadPlans() {
   if (data.success && data.plans) {
     container.innerHTML = data.plans.map(p => `
       <div class="broker-card" onclick="selectPlan('${p.id}', '${p.name}', ${p.price})">
-        <div class="broker-logo">💎</div>
+        
         <div class="broker-card-info">
           <h4>${p.name}</h4>
           <p>${p.durationDays} dias de acesso ilimitado</p>
@@ -3791,7 +3791,7 @@ async function confirmPayment() {
 // ─── INFRASTRUCTURE RESET ─────────────────────
 async function resetInfrastructure() {
   const btn = document.getElementById("resetInfraBtn");
-  if (!confirm("⚠️ ATENÇÃO: Isto irá apagar todas as conexões da base de dados e desligar as sessões ativas para garantir uma limpeza total. Deseja continuar?")) return;
+  if (!confirm("ATENÇÃO: Isto irá apagar todas as conexões da base de dados e desligar as sessões ativas para garantir uma limpeza total. Deseja continuar?")) return;
   
   btn.textContent = "A limpar...";
   btn.disabled = true;
@@ -3810,7 +3810,7 @@ async function resetInfrastructure() {
   } catch(e) {
     alert("Erro de conexão: " + e.message);
   } finally {
-    btn.textContent = "🧹 Limpar Infra";
+    btn.textContent = "Limpar Infra";
     btn.disabled = false;
   }
 }
@@ -3970,6 +3970,12 @@ async function savePammCredentials() {
     return;
   }
 
+  const lowerServer = server.toLowerCase();
+  if (lowerServer.includes("demo") || lowerServer.includes("contest")) {
+    alert("Contas demo ou Contest não são permitidas. Use apenas uma conta Live (Real).");
+    return;
+  }
+
   const originalText = saveBtn.innerHTML;
   saveBtn.disabled = true;
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A Ligar...';
@@ -4119,7 +4125,7 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     if (pammTradeActivity) {
       pammTradeActivity.innerHTML = `
         <div class="empty-state" style="text-align: center; padding: 40px 20px; color: var(--muted);">
-          <div class="em-icon" style="font-size: 2.5rem; margin-bottom: 12px;">🔑</div>
+          
           <p style="font-weight: 700; margin-bottom: 4px;">Por favor, ligue a sua conta PAMM</p>
           <p style="font-size: 0.72rem; line-height: 1.4;">Preencha o formulário de conexão à direita para começar a sincronizar as estatísticas e as ordens copiadas.</p>
         </div>
@@ -4285,7 +4291,7 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     if (allPammTrades.length === 0) {
       pammTradeActivity.innerHTML = `
         <div class="empty-state" style="text-align: center; padding: 40px 20px; color: var(--muted);">
-          <div class="em-icon" style="font-size: 2.5rem; margin-bottom: 12px;">📊</div>
+          
           <p style="font-weight: 700; margin-bottom: 4px;">Aguardando o primeiro trade...</p>
           <p style="font-size: 0.72rem; line-height: 1.4;">Assim que o fornecedor PAMM abrir ou fechar ordens, elas aparecerão listadas em tempo real nesta seção.</p>
         </div>
@@ -4546,7 +4552,7 @@ async function submitPammDeposit(btn) {
     </div>
     <div class="modal-body">
       <div class="download-area">
-        <h3 style="margin-bottom: 10px;">🚀 Passo Inicial: Baixe o seu Robô</h3>
+        <h3 style="margin-bottom: 10px;">Passo Inicial: Baixe o seu Robô</h3>
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v3.0 Profissional - Compilada para MetaTrader 5</p>
         <a href="/AuraForex_V8_INSTITUTIONAL.ex5" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
           <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
@@ -4638,7 +4644,7 @@ async function submitPammDeposit(btn) {
 <div class="modal-overlay" id="buyModal">
   <div class="modal" style="width:550px;">
     <div class="modal-header">
-      <h2>💎 Planos de Licença</h2>
+      <h2>Planos de Licença</h2>
       <button class="modal-close" onclick="closeBuyModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -4680,7 +4686,7 @@ async function submitPammDeposit(btn) {
       </div>
 
       <div id="buyStep4" class="buy-step" style="display:none;text-align:center;padding:20px;">
-        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
+        
         <h3>Solicitação Enviada!</h3>
         <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">O administrador foi notificado. Assim que o pagamento for confirmado, seu acesso será liberado.</p>
       </div>
@@ -4697,7 +4703,7 @@ async function submitPammDeposit(btn) {
 <div class="modal-overlay" id="pammModal">
   <div class="modal" style="width:550px;">
     <div class="modal-header">
-      <h2>💳 Adesão ao PAMM (Gás)</h2>
+      <h2>Adesão ao PAMM (Gás)</h2>
       <button class="modal-close" onclick="closePammModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -4729,7 +4735,7 @@ async function submitPammDeposit(btn) {
       </div>
 
       <div id="pammStep2" class="buy-step" style="display:none;text-align:center;padding:20px;">
-        <div style="font-size:3rem;margin-bottom:15px;">🚀</div>
+        
         <h3>Solicitação PAMM Enviada!</h3>
         <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">O administrador foi notificado. Assim que o pagamento for confirmado, os fundos serão creditados na sua conta PAMM.</p>
         <button class="btn btn-secondary" onclick="closePammModal()" style="margin-top:15px;">Fechar</button>
