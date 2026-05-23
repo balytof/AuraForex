@@ -399,6 +399,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
 
     const settings = await prisma.systemSettings.findFirst();
     const fridayBlockHour = settings ? settings.fridayBlockHour : 12;
+    const sundayOpenHour = settings ? settings.sundayOpenHour : 22;
 
     const risk = getRiskManager(req.user.id);
 
@@ -458,7 +459,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       isLocked: isProfitLocked || risk.circuitBreaker,
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null,
-      fridayBlockHour: fridayBlockHour
+      fridayBlockHour: fridayBlockHour,
+      sundayOpenHour: sundayOpenHour
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
@@ -810,6 +812,23 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
   const direction = req.body.direction?.toUpperCase();
   if (!pair || !direction || !risk) return res.status(400).json({ error: "Faltam parametros (pair, direction, risk)" });
   try {
+    const settings = await prisma.systemSettings.findFirst();
+    const fridayHour = settings ? settings.fridayBlockHour : 12;
+    const sundayHour = settings ? settings.sundayOpenHour : 22;
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+
+    // Lógica completa de Fim de Semana
+    const isWeekendBlocked = 
+      (day === 5 && hour >= fridayHour) || // Sexta-feira após a hora de bloqueio
+      (day === 6) || // Sábado inteiro
+      (day === 0 && hour < sundayHour); // Domingo antes da hora de abertura
+
+    if (isWeekendBlocked) {
+      console.warn(`[WEEKEND-BLOCK] Sinal rejeitado para ${pair}: Fim de Semana ativo.`);
+      return res.status(400).json({ success: false, error: `Operações suspensas. Mercado fechado ou em proteção de Fim de Semana.` });
+    }
 
     // 1. VALIDAÇÃO SMC PRO (INTEGRADA)
     console.log(`[VALIDATION] Iniciando crivo SMC para ${pair} ${direction}...`);
@@ -979,13 +998,14 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     const {
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
-      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit, fridayBlockHour
+      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit, fridayBlockHour, sundayOpenHour
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
 
     const pammFee = defaultPammPerformanceFee !== undefined ? parseFloat(defaultPammPerformanceFee) : 30.0;
     const minPamm = minPammDeposit !== undefined ? parseFloat(minPammDeposit) : 50.0;
     const blockHour = fridayBlockHour !== undefined ? parseInt(fridayBlockHour) : 12;
+    const openHour = sundayOpenHour !== undefined ? parseInt(sundayOpenHour) : 22;
 
     if (settings) {
       settings = await prisma.systemSettings.update({
@@ -995,7 +1015,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
           minPammDeposit: minPamm,
-          fridayBlockHour: blockHour
+          fridayBlockHour: blockHour,
+          sundayOpenHour: openHour
         }
       });
     } else {
@@ -1005,7 +1026,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
           minPammDeposit: minPamm,
-          fridayBlockHour: blockHour
+          fridayBlockHour: blockHour,
+          sundayOpenHour: openHour
         }
       });
     }

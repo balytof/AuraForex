@@ -637,8 +637,16 @@
                         <input type="number" id="sysDefaultPammFee" class="form-input" min="0" max="100" placeholder="30">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Depósito de Gás Mínimo PAMM ($)</label>
+                        <label class="form-label">Depósito Mín. PAMM ($)</label>
                         <input type="number" id="sysMinPammDeposit" class="form-input" min="0" placeholder="50">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="color:var(--danger)">Hora de Bloqueio à Sexta-feira (0-23)</label>
+                        <input type="number" id="sysFridayBlockHour" class="form-input" min="0" max="23" placeholder="12">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="color:var(--bull)">Hora de Abertura ao Domingo (0-23)</label>
+                        <input type="number" id="sysSundayOpenHour" class="form-input" min="0" max="23" placeholder="22">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Guia de Instalação (Markdown/Texto)</label>
@@ -1161,6 +1169,8 @@
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
             document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 50.0;
+            document.getElementById('sysFridayBlockHour').value = s.fridayBlockHour !== undefined ? s.fridayBlockHour : 12;
+            document.getElementById('sysSundayOpenHour').value = s.sundayOpenHour !== undefined ? s.sundayOpenHour : 22;
             document.getElementById('sysInstallGuide').value = s.installationGuide || '';
             // Social
             document.getElementById('sysTelegram').value = s.telegramUrl || '';
@@ -1184,6 +1194,8 @@
             apiUrl: document.getElementById('sysApiUrl').value,
             defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
             minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 50.0,
+            fridayBlockHour: document.getElementById('sysFridayBlockHour').value ? parseInt(document.getElementById('sysFridayBlockHour').value) : 12,
+            sundayOpenHour: document.getElementById('sysSundayOpenHour').value ? parseInt(document.getElementById('sysSundayOpenHour').value) : 22,
             installationGuide: document.getElementById('sysInstallGuide').value,
             telegramUrl: document.getElementById('sysTelegram').value,
             whatsappNumber: document.getElementById('sysWhatsapp').value,

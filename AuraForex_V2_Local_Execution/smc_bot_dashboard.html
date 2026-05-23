@@ -1478,6 +1478,16 @@
      </div>
   </div>
 
+  <div id="weekendLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(255,82,82,0.1), rgba(255,152,0,0.1)); border: 2px solid var(--bear); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
+     <div style="font-size: 2.5rem; margin-bottom: 10px;">💤</div>
+     <h2 style="color: var(--bear); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">MERCADO FECHADO</h2>
+     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O mercado encontra-se fechado. As operações do robô foram suspensas pelo servidor para proteger o seu saldo de flutuações e Gaps de fim de semana.</p>
+     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">RETOMA DAS OPERAÇÕES EM:</span>
+        <span id="weekendLockTimer" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--warn);">Domingo às 22h00</span>
+     </div>
+  </div>
+
   <!-- MAIN GRID -->
   <div class="pamm-workspace-grid" id="vpsMainGrid">
 
@@ -2923,11 +2933,35 @@ async function updateStats() {
 
       // HMI Lock Management
       const lockOverlay = document.getElementById("dailyLockOverlay");
+      const weekendOverlay = document.getElementById("weekendLockOverlay");
       const mainBtn = document.getElementById("mainBtn");
       
       isDailyLocked = status.isLocked;
 
-      if (status.isLocked) {
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      
+      const fridayHour = status.fridayBlockHour !== undefined ? status.fridayBlockHour : 12;
+      const sundayHour = status.sundayOpenHour !== undefined ? status.sundayOpenHour : 22;
+
+      const isWeekendBlocked = 
+        (day === 5 && hour >= fridayHour) || 
+        (day === 6) || 
+        (day === 0 && hour < sundayHour);
+
+      if (isWeekendBlocked) {
+        lockOverlay.style.display = "none";
+        weekendOverlay.style.display = "block";
+        document.getElementById("weekendLockTimer").textContent = `Domingo às ${sundayHour}h00`;
+        if (mainBtn) {
+            mainBtn.disabled = true;
+            mainBtn.textContent = "🚫 Mercado Fechado (Fim de Semana)";
+            mainBtn.style.opacity = "0.5";
+            if (isRunning) stopBot();
+        }
+      } else if (status.isLocked) {
+        weekendOverlay.style.display = "none";
         lockOverlay.style.display = "block";
         if (mainBtn) {
             mainBtn.disabled = true;
@@ -2938,6 +2972,7 @@ async function updateStats() {
         updateLockCountdown(status.timeUntilReset);
       } else {
         lockOverlay.style.display = "none";
+        weekendOverlay.style.display = "none";
       }
     }
 
