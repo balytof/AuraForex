@@ -197,6 +197,7 @@ model SystemSettings {
   cryptoBotEnabled           Boolean  @default(true)
   cryptoBotUrl               String?
   minPammDeposit             Float    @default(20.0)
+  fridayBlockHour            Int      @default(12)
   updatedAt                  DateTime @updatedAt
 }
 

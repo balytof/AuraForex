@@ -397,6 +397,9 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       orderBy: { updatedAt: 'desc' }
     });
 
+    const settings = await prisma.systemSettings.findFirst();
+    const fridayBlockHour = settings ? settings.fridayBlockHour : 12;
+
     const risk = getRiskManager(req.user.id);
 
     const now = new Date();
@@ -454,7 +457,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       dailyTargetMoney: dailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
       isLocked: isProfitLocked || risk.circuitBreaker,
       timeUntilReset: timeUntilReset,
-      updatedAt: license ? license.updatedAt : null
+      updatedAt: license ? license.updatedAt : null,
+      fridayBlockHour: fridayBlockHour
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
@@ -975,12 +979,13 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
     const {
       geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
       installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl,
-      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit
+      cryptoBotEnabled, cryptoBotUrl, defaultPammPerformanceFee, minPammDeposit, fridayBlockHour
     } = req.body;
     let settings = await prisma.systemSettings.findFirst();
 
     const pammFee = defaultPammPerformanceFee !== undefined ? parseFloat(defaultPammPerformanceFee) : 30.0;
     const minPamm = minPammDeposit !== undefined ? parseFloat(minPammDeposit) : 50.0;
+    const blockHour = fridayBlockHour !== undefined ? parseInt(fridayBlockHour) : 12;
 
     if (settings) {
       settings = await prisma.systemSettings.update({
@@ -989,7 +994,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
-          minPammDeposit: minPamm
+          minPammDeposit: minPamm,
+          fridayBlockHour: blockHour
         }
       });
     } else {
@@ -998,7 +1004,8 @@ app.post("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
           geminiApiKey, geminiApiUrl, metaApiToken, metaApiAccountId, pammMasterAccountId, apiUrl,
           installationGuide, telegramUrl, whatsappNumber, facebookUrl, instagramUrl, youtubeUrl, cryptoBotEnabled, cryptoBotUrl,
           defaultPammPerformanceFee: pammFee,
-          minPammDeposit: minPamm
+          minPammDeposit: minPamm,
+          fridayBlockHour: blockHour
         }
       });
     }
