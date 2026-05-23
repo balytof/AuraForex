@@ -1810,8 +1810,19 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
       console.error("Erro interno ao buscar liveStats:", innerErr);
     }
 
+    let showChangeApproved = false;
+    if (settings && settings.pammChangeApproved) {
+      showChangeApproved = true;
+      await prisma.userSettings.update({
+        where: { userId: req.user.id },
+        data: { pammChangeApproved: false }
+      });
+    }
+
     res.json({
       success: true,
+      pammChangeApproved: showChangeApproved,
+      changeRequested: pammAccount ? pammAccount.changeRequested : false,
       walletBalance: user ? user.walletBalance : 0,
       pammPerformanceFeePct,
       pammAccount: pammAccount ? {

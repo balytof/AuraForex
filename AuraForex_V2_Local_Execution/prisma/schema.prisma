@@ -175,6 +175,7 @@ model UserSettings {
   geminiKey             String?
   botStatus             String   @default("stopped")
   pammPerformanceFeePct Float?
+  pammChangeApproved    Boolean  @default(false)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -219,7 +220,8 @@ model PammAccount {
   accountNumber       String
   server              String
   investorPasswordEnc String   // Senha principal/trading encriptada
-  metaApiAccountId    String?  // ID da conta provisionada no MetaApi
+  metaApiAccountId    String?
+  changeRequested     Boolean  @default(false)  // ID da conta provisionada no MetaApi
   balance             Float    @default(1000.0) // Saldo virtual inicial
   equity              Float    @default(1000.0)
   totalProfit         Float    @default(0.0)
