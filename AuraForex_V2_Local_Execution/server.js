@@ -1796,20 +1796,23 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
     const pammPerformanceFeePct = settings?.pammPerformanceFeePct ?? defaultFeePct;
 
     let liveStats = null;
-    if (pammAccount && pammAccount.metaApiAccountId && pammAccount.isActive) {
-      liveStats = await getPammAccountStats(systemSettings, pammAccount.metaApiAccountId);
-      if (liveStats) {
-        // Atualiza na DB silenciosamente
-        await prisma.pammAccount.update({
-          where: { id: pammAccount.id },
-          data: { balance: liveStats.balance, equity: liveStats.equity }
-        });
+    try {
+      if (pammAccount && pammAccount.metaApiAccountId && pammAccount.isActive && systemSettings) {
+        liveStats = await getPammAccountStats(systemSettings, pammAccount.metaApiAccountId);
+        if (liveStats) {
+          await prisma.pammAccount.update({
+            where: { id: pammAccount.id },
+            data: { balance: liveStats.balance, equity: liveStats.equity }
+          });
+        }
       }
+    } catch (innerErr) {
+      console.error("Erro interno ao buscar liveStats:", innerErr);
     }
 
     res.json({
       success: true,
-      walletBalance: user.walletBalance,
+      walletBalance: user ? user.walletBalance : 0,
       pammPerformanceFeePct,
       pammAccount: pammAccount ? {
         accountNumber: pammAccount.accountNumber,
@@ -1824,7 +1827,7 @@ app.get("/api/user/pamm", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("GET /api/user/pamm error:", err);
-    res.status(500).json({ error: "Erro ao buscar conta PAMM." });
+    res.json({ success: false, error: "Erro ao buscar conta PAMM." });
   }
 });
 
