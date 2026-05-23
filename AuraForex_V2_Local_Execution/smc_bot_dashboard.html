@@ -1277,6 +1277,9 @@
         <i class="fas fa-key"></i>
         <span>Alterar Senha</span>
       </a>
+      
+      <div id="google_translate_element" style="margin-top: 20px; padding: 0 20px;"></div>
+
       <a href="#" class="nav-item" onclick="logout()" style="color: var(--bear);">
         <i class="fas fa-sign-out-alt"></i>
         <span>Sair</span>
@@ -2953,10 +2956,10 @@ async function updateStats() {
       if (isWeekendBlocked) {
         lockOverlay.style.display = "none";
         weekendOverlay.style.display = "block";
-        document.getElementById("weekendLockTimer").textContent = `Domingo às ${sundayHour}h00`;
+        const wlt = document.getElementById("weekendLockTimer"); if (wlt.dataset.val !== String(sundayHour)) { wlt.textContent = `Domingo às ${sundayHour}h00`; wlt.dataset.val = String(sundayHour); }
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "Mercado Fechado (Fim de Semana)";
+            if (mainBtn.dataset.state !== "weekend") { mainBtn.textContent = "Mercado Fechado (Fim de Semana)"; mainBtn.dataset.state = "weekend"; }
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
@@ -2965,7 +2968,7 @@ async function updateStats() {
         lockOverlay.style.display = "block";
         if (mainBtn) {
             mainBtn.disabled = true;
-            mainBtn.textContent = "Meta Atingida";
+            if (mainBtn.dataset.state !== "locked") { mainBtn.textContent = "Meta Atingida"; mainBtn.dataset.state = "locked"; }
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
