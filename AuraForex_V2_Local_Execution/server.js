@@ -411,6 +411,14 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let lastEquity = (risk.equity && risk.equity > 0) ? risk.equity : (license ? license.equity : lastBalance);
     if (lastEquity === null || lastEquity === undefined) lastEquity = lastBalance;
     
+    // 🛡️ LIMPEZA DE GHOST EQUITY: Se não houver trades abertos, o equity TEM que ser o balance.
+    if (!risk.openTrades || risk.openTrades.length === 0) {
+      lastEquity = lastBalance;
+      if (risk.equity !== lastBalance) {
+        risk.equity = lastBalance; // Limpa o estado preso no risk manager
+      }
+    }
+
     // 🛡️ LÓGICA INSTITUCIONAL: Usar APENAS o Saldo Inicial do Dia (dailyStartBalance) como base da Meta Diária!
     // NUNCA usar dailyStartEquity ou equity, pois o floating inicial distorce a meta diária.
     let startCapital = (risk.dailyStartBalance && risk.dailyStartBalance > 0) 
@@ -430,6 +438,11 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     if (!isProfitLocked && dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
       isProfitLocked = true;
       risk.dailyProfitLocked = true;
+      risk._safeSaveState();
+    } else if (isProfitLocked && dailyTargetMoney > 0 && netEvolution < dailyTargetMoney) {
+      // 🛡️ CORREÇÃO DE BUG: Se a evolução caiu abaixo da meta (ex: correção de ghost equity), destrava o bot.
+      isProfitLocked = false;
+      risk.dailyProfitLocked = false;
       risk._safeSaveState();
     }
 

@@ -191,13 +191,16 @@ function startPammWorker(prisma) {
 
       for (const acc of accounts) {
         if (acc.user.walletBalance <= 0) {
-          // Gás acabou - Desativar cópia (remover do CopyFactory)
-          console.log(`[PAMM] Utilizador ${acc.user.email} sem Gás. A desativar cópia...`);
+          // Gás acabou - Desconectar completamente a conta PAMM
+          console.log(`[PAMM] Utilizador ${acc.user.email} sem Gás. A desconectar a conta PAMM...`);
           try {
-            await copyFactory.configurationApi.updateSubscriber(acc.metaApiAccountId, { subscriptions: [] });
-            await prisma.pammAccount.update({ where: { id: acc.id }, data: { isActive: false } });
+            // Remove da MetaApi para poupar custos e desconecta o CopyFactory
+            await removePammAccount(settings, acc.metaApiAccountId);
+            
+            // Eliminar o registo da base de dados para forçar nova conexão
+            await prisma.pammAccount.delete({ where: { id: acc.id } });
           } catch (e) {
-            console.error(`Erro ao desativar cópia para ${acc.accountNumber}:`, e.message);
+            console.error(`Erro ao desconectar conta PAMM para ${acc.accountNumber}:`, e.message);
           }
           continue;
         }

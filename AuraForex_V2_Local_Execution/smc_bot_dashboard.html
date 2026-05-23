@@ -2909,10 +2909,10 @@ async function updateStats() {
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
-      const pnlVal = status.dailyPnl || 0;
+      const floatingPnl = status.floatingPnl !== undefined ? status.floatingPnl : 0;
       const pnlEl = document.getElementById("statPnl");
-      pnlEl.textContent = (pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, "USD");
-      pnlEl.className = "stat-value " + (pnlVal >= 0 ? "bull" : "bear");
+      pnlEl.textContent = (floatingPnl >= 0 ? "+" : "") + formatCurrency(floatingPnl, "USD");
+      pnlEl.className = "stat-value " + (floatingPnl >= 0 ? "bull" : "bear");
 
       // Meta Diária
       document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
@@ -4090,6 +4090,17 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
         </div>
       `;
     }
+
+    // RESET BUTTON TO CONNECT
+    const savePammBtnText = document.getElementById("savePammBtnText");
+    if (savePammBtnText) savePammBtnText.textContent = "Ligar ao Serviço PAMM";
+    if (savePammBtn) {
+      savePammBtn.style.background = "";
+      savePammBtn.style.borderColor = "";
+      savePammBtn.type = "submit";
+      savePammBtn.onclick = null;
+    }
+
     return;
   }
 
@@ -4098,6 +4109,17 @@ function updatePammUI(pammAccount, walletBalance, feePct, transactions) {
     pammConnStatusBadge.textContent = "Sincronizado";
     pammConnStatusBadge.style.background = "rgba(0, 230, 118, 0.15)";
     pammConnStatusBadge.style.color = "var(--bull)";
+  }
+
+  // SET BUTTON TO DISCONNECT
+  const savePammBtnText_connected = document.getElementById("savePammBtnText");
+  const savePammBtn_connected = document.getElementById("savePammBtn");
+  if (savePammBtnText_connected) savePammBtnText_connected.textContent = "Desconectar do Serviço PAMM";
+  if (savePammBtn_connected) {
+    savePammBtn_connected.style.background = "var(--bear)";
+    savePammBtn_connected.style.borderColor = "var(--bear)";
+    savePammBtn_connected.type = "button";
+    savePammBtn_connected.onclick = disconnectPamm;
   }
 
   const pammToggleContainer = document.getElementById("pammToggleContainer");
