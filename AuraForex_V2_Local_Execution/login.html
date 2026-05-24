@@ -195,22 +195,39 @@
     </div>
 
     <div id="registerForm" style="display:none;">
-      <div class="form-group">
-        <label data-i18n="label_new_email">Novo Email</label>
-        <input type="email" id="regEmail" class="form-input" placeholder="exemplo@auraforex.com">
-      </div>
-      <div class="form-group">
-        <label data-i18n="label_pass_min">Password (Mín. 6 careteres)</label>
-        <div class="pass-wrapper">
-          <input type="password" id="regPass" class="form-input" placeholder="••••••••">
-          <button type="button" class="pass-toggle" onclick="togglePass('regPass', this)" tabindex="-1">👁️</button>
+      <!-- STEP 0: SELECTION -->
+      <div id="sponsorSelection" style="text-align:center; margin-bottom:20px;">
+        <h3 style="margin-bottom:15px; font-size:1.1rem; color:var(--accent);" data-i18n="quest_sponsor">Tem um Patrocinador?</h3>
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;" data-i18n="quest_sponsor_desc">Para garantir suporte e acesso ao ecossistema, selecione uma opção:</p>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <button class="btn" style="background:var(--surface2); border:1px solid var(--accent); color:var(--accent); font-size:0.85rem;" onclick="setOfficialSponsor()" data-i18n="btn_no_sponsor">Não tenho Patrocinador</button>
+          <button class="btn" style="background:transparent; border:1px solid var(--border); font-size:0.85rem;" onclick="showRegFields()" data-i18n="btn_has_sponsor">Tenho um Patrocinador</button>
         </div>
       </div>
-      <div class="form-group">
-        <label data-i18n="label_ref">Código de Indicação (Obrigatório)</label>
-        <input type="text" id="regRef" class="form-input" placeholder="O seu código de indicação" required>
+
+      <!-- STEP 1: ACTUAL FIELDS -->
+      <div id="regFields" style="display:none;">
+        <div class="form-group">
+          <label data-i18n="label_new_email">Novo Email</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="exemplo@auraforex.com">
+        </div>
+        <div class="form-group">
+          <label data-i18n="label_pass_min">Password (Mín. 6 careteres)</label>
+          <div class="pass-wrapper">
+            <input type="password" id="regPass" class="form-input" placeholder="••••••••">
+            <button type="button" class="pass-toggle" onclick="togglePass('regPass', this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="label_ref">Código de Indicação (Obrigatório)</label>
+          <input type="text" id="regRef" class="form-input" placeholder="O seu código de indicação" required>
+        </div>
+        <button class="btn" onclick="doRegister(this)" style="background:#10b981;" data-i18n="btn_register">Criar Conta</button>
+        <div style="text-align:center; margin-top:15px;">
+            <a onclick="resetReg()" style="color:var(--muted); font-size:0.75rem; text-decoration:none; cursor:pointer;" data-i18n="btn_back_sponsor">← Alterar escolha de patrocinador</a>
+        </div>
       </div>
-      <button class="btn" onclick="doRegister(this)" style="background:#10b981;" data-i18n="btn_register">Criar Conta</button>
+      
       <div class="toggle-text"><span data-i18n="has_account">Já tem conta?</span> <a onclick="toggleMode()" data-i18n="btn_toggle_login">Voltar ao Login</a></div>
     </div>
   </div>
@@ -237,7 +254,12 @@
         err_ref: "O código de indicação é obrigatório.",
         msg_loading: "A processar...",
         msg_succ_reg: "Conta criada de forma segura! Por favor faça Login.",
-        ticker_text: "AURATRADE · BOTS INSTITUCIONAIS · ECOSSISTEMA GLOBAL"
+        ticker_text: "AURATRADE · BOTS INSTITUCIONAIS · ECOSSISTEMA GLOBAL",
+        quest_sponsor: "Tem um Patrocinador?",
+        quest_sponsor_desc: "Para garantir suporte e acesso ao ecossistema, selecione uma opção:",
+        btn_no_sponsor: "Não tenho Patrocinador",
+        btn_has_sponsor: "Tenho um Patrocinador",
+        btn_back_sponsor: "← Alterar escolha"
       },
       en: {
         back_home: "Back Home",
@@ -259,7 +281,12 @@
         err_ref: "Referral code is required.",
         msg_loading: "Processing...",
         msg_succ_reg: "Account created securely! Please Login.",
-        ticker_text: "AURATRADE · INSTITUTIONAL BOTS · GLOBAL ECOSYSTEM"
+        ticker_text: "AURATRADE · INSTITUTIONAL BOTS · GLOBAL ECOSYSTEM",
+        quest_sponsor: "Do you have a Sponsor?",
+        quest_sponsor_desc: "To ensure support and access, select an option:",
+        btn_no_sponsor: "I don't have a Sponsor",
+        btn_has_sponsor: "I have a Sponsor",
+        btn_back_sponsor: "← Change selection"
       },
       es: {
         back_home: "Volver al Inicio",
@@ -281,7 +308,12 @@
         err_ref: "El código de referencia es obligatorio.",
         msg_loading: "Procesando...",
         msg_succ_reg: "¡Cuenta creada con éxito! Por favor inicie sesión.",
-        ticker_text: "AURATRADE · BOTS INSTITUCIONALES · ECOSISTEMA GLOBAL"
+        ticker_text: "AURATRADE · BOTS INSTITUCIONALES · ECOSISTEMA GLOBAL",
+        quest_sponsor: "¿Tienes un Patrocinador?",
+        quest_sponsor_desc: "Para garantizar soporte y acceso, seleccione una opción:",
+        btn_no_sponsor: "No tengo Patrocinador",
+        btn_has_sponsor: "Tengo un Patrocinador",
+        btn_back_sponsor: "← Cambiar elección"
       },
       fr: {
         back_home: "Retour à l'accueil",
@@ -303,7 +335,12 @@
         err_ref: "Le code de parrainage est obligatoire.",
         msg_loading: "Traitement...",
         msg_succ_reg: "Compte créé avec succès! Veuillez vous connecter.",
-        ticker_text: "AURATRADE · BOTS INSTITUTIONNELS · ÉCOSYSTÈME MONDIAL"
+        ticker_text: "AURATRADE · BOTS INSTITUTIONNELS · ÉCOSYSTÈME MONDIAL",
+        quest_sponsor: "Avez-vous um Parrain?",
+        quest_sponsor_desc: "Pour garantir le support et l'accès, choisissez une option:",
+        btn_no_sponsor: "Je n'ai pas de Parrain",
+        btn_has_sponsor: "J'ai um Parrain",
+        btn_back_sponsor: "← Changer de choix"
       }
     };
 
@@ -330,13 +367,38 @@
     // Check referral link
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
+    const startMode = urlParams.get('mode');
+
     if (refCode) {
       setTimeout(() => {
         document.getElementById('regRef').value = refCode;
         document.getElementById('regRef').readOnly = true;
         document.getElementById('regRef').style.opacity = '0.7';
         if (mode === 'login') toggleMode();
+        showRegFields(); // Skip selection if they have a ref link
       }, 100);
+    } else if (startMode === 'register') {
+      setTimeout(() => {
+        if (mode === 'login') toggleMode();
+      }, 100);
+    }
+
+    function setOfficialSponsor() {
+      document.getElementById('regRef').value = 'C6D1F1F9';
+      showRegFields();
+    }
+
+    function showRegFields() {
+      document.getElementById('sponsorSelection').style.display = 'none';
+      document.getElementById('regFields').style.display = 'block';
+    }
+
+    function resetReg() {
+      document.getElementById('regRef').value = '';
+      document.getElementById('regRef').readOnly = false;
+      document.getElementById('regRef').style.opacity = '1';
+      document.getElementById('sponsorSelection').style.display = 'block';
+      document.getElementById('regFields').style.display = 'none';
     }
     
     // Check if already logged in
