@@ -9,6 +9,14 @@ const path = require("path");
 const crypto = require("crypto");
 require("dotenv").config();
 
+// Global Error Handlers para prevenir crashs do servidor causados por Timeouts assincronos (ex: MetaApi SDK)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught Exception:', err);
+});
+
 const prisma = require("./db");
 const { encrypt, decrypt } = require("./utils/encryption");
 
