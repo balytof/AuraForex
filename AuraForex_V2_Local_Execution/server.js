@@ -816,8 +816,8 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     const fridayHour = settings ? settings.fridayBlockHour : 12;
     const sundayHour = settings ? settings.sundayOpenHour : 22;
     const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
+    const day = now.getUTCDay();
+    const hour = now.getUTCHours();
 
     // Lógica completa de Fim de Semana
     const isWeekendBlocked = 
