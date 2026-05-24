@@ -1,0 +1,643 @@
+// ============================================================
+// APEX SMC — Production Multi-Broker Layer (EXPERT EDITION - STABLE)
+// ============================================================
+
+const https = require('https');
+const fetch = require('node-fetch');
+const MetaApi = require('metaapi.cloud-sdk').default;
+
+// --- EXPERT UTILS ---
+const SYMBOL_MAP = {
+  "XAUUSD": ["GOLD", "XAUUSD", "XAUUSD.m", "XAUUSDm", "XAUUSD.pro", "XAUUSD.ecn", "XAUUSD.raw", "XAUUSD.x", "GOLD.m", "GOLD.pro"],
+  "EURUSD": ["EURUSD", "EURUSD.m", "EURUSDm", "EURUSD.pro", "EURUSD.ecn", "EURUSD.raw", "EURUSD.x"],
+  "GBPUSD": ["GBPUSD", "GBPUSD.m", "GBPUSDm", "GBPUSD.pro", "GBPUSD.ecn", "GBPUSD.raw", "GBPUSD.x"],
+  "USDJPY": ["USDJPY", "USDJPY.m", "USDJPYm", "USDJPY.pro", "USDJPY.ecn", "USDJPY.raw", "USDJPY.x"],
+  "GBPJPY": ["GBPJPY", "GBPJPY.m", "GBPJPYm", "GBPJPY.pro", "GBPJPY.ecn", "GBPJPY.raw", "GBPJPY.x"],
+  "EURGBP": ["EURGBP", "EURGBP.m", "EURGBPm", "EURGBP.pro", "EURGBP.ecn", "EURGBP.raw", "EURGBP.x"]
+};
+
+function normalizeToTick(price, tickSize = 0.00001) {
+  if (!price) return 0;
+  const inv = 1.0 / tickSize;
+  return Math.round(price * inv) / inv;
+}
+
+class BrokerBase {
+  constructor(config = {}) {
+    this.config = config;
+    this.connected = false;
+    this.accountInfo = null;
+  }
+  async connect() { throw new Error('Not implemented'); }
+  async getBalance() { throw new Error('Not implemented'); }
+  async getPrice(pair) { throw new Error('Not implemented'); }
+  async placeOrder(signal, lotSize) { throw new Error('Not implemented'); }
+  async closePosition(positionId) { throw new Error('Not implemented'); }
+  async modifySL(positionId, newSl) { throw new Error('Not implemented'); }
+  async getOpenPositions() { throw new Error('Not implemented'); }
+  async getCandles(symbol, timeframe, limit) {
+    console.warn(`[FALLBACK] getCandles called for ${symbol}`);
+    return [];
+  }
+  async getStatus() { return { success: true, connected: this.connected, accountInfo: this.accountInfo }; }
+  async disconnect() { this.connected = false; return { success: true }; }
+}
+
+function validateSignal(signal) {
+  if (!signal || !signal.pair || !signal.direction) throw new Error('Invalid signal data');
+}
+
+// ============================================================
+// OandaAdapter
+// ============================================================
+class OandaAdapter extends BrokerBase {
+  constructor(config) {
+    super(config);
+    this.accountId = config.oandaAccountId || config.accountId;
+    this.apiKey = config.oandaApiKey || config.apiToken;
+    this.environment = config.environment || 'demo';
+    this.baseUrl = (this.environment === 'live') ? 'api-fxtrade.oanda.com' : 'api-fxpractice.oanda.com';
+    this.name = "OANDA";
+    this.type = "oanda";
+  }
+
+  async request(method, endpoint, body = null) {
+    const opts = {
+      method,
+      hostname: this.baseUrl,
+      path: endpoint,
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    };
+    return new Promise((resolve, reject) => {
+      const req = https.request(opts, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => {
+          try {
+            const j = JSON.parse(d);
+            if (res.statusCode >= 400) reject(new Error(`OANDA Error: ${d}`));
+            else resolve(j);
+          } catch (e) { reject(e); }
+        });
+      });
+      if (body) req.write(JSON.stringify(body));
+      req.end();
+    });
+  }
+
+  async connect() {
+    try {
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/summary`);
+      this.connected = true;
+      this.accountInfo = {
+        balance: parseFloat(res.account.balance),
+        broker: "OANDA",
+        brokerName: "OANDA",
+        brokerType: "oanda",
+        currency: res.account.currency || "USD",
+        accountType: this.environment === 'live' ? "LIVE" : "DEMO",
+        region: "🌎"
+      };
+      return { success: true, accountInfo: this.accountInfo };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async placeOrder(signal, lotSize) {
+    const units = signal.direction === 'BUY' ? Math.round(lotSize * 100000) : -Math.round(lotSize * 100000);
+    const instrument = signal.pair.replace(/([A-Z]{3})([A-Z]{3})/, "$1_$2");
+    try {
+      const res = await this.request('POST', `/v3/accounts/${this.accountId}/orders`, {
+        order: {
+          type: 'MARKET', instrument, units: String(units), timeInForce: 'FOK',
+          stopLossOnFill: { price: signal.sl.toFixed(5) },
+          takeProfitOnFill: { price: signal.tp.toFixed(5) }
+        }
+      });
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async getOpenPositions() {
+    try {
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/openPositions`);
+      return (res.positions || []).map(p => ({
+        id: p.instrument, pair: p.instrument,
+        direction: (parseFloat(p.long.units) > 0) ? "BUY" : "SELL",
+        lotSize: Math.abs(parseFloat(p.long.units) || parseFloat(p.short.units)),
+        pnl: parseFloat(p.unrealizedPL)
+      }));
+    } catch (e) { return []; }
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    const tfMap = {
+      '1m': 'M1',
+      '5m': 'M5',
+      '15m': 'M15',
+      '1h': 'H1',
+      '4h': 'H4',
+      '1d': 'D'
+    };
+
+    const res = await this.request(
+      'GET',
+      `/v3/instruments/${symbol}/candles?granularity=${tfMap[timeframe] || 'M1'}&count=${limit}`
+    );
+
+    return (res.candles || []).map(c => ({
+      time: c.time,
+      open: Number(c.mid.o),
+      high: Number(c.mid.h),
+      low: Number(c.mid.l),
+      close: Number(c.mid.c),
+      volume: c.volume
+    }));
+  }
+
+  async getHistory() {
+    try {
+      const res = await this.request('GET', `/v3/accounts/${this.accountId}/trades?state=CLOSED&count=50`);
+      return (res.trades || []).map(t => ({
+        id: t.id, broker: "OANDA", pair: t.instrument.replace("_", ""),
+        direction: Number(t.initialUnits) > 0 ? "BUY" : "SELL",
+        lotSize: Math.abs(Number(t.initialUnits)) / 100000,
+        pnl: Number(t.realizedPL), closeTime: t.closeTime
+      }));
+    } catch (e) { return []; }
+  }
+}
+
+// ============================================================
+// MetaApiAdapter
+// ============================================================
+class MetaApiAdapter extends BrokerBase {
+  constructor(config) {
+    super(config);
+    this.api = new MetaApi(config.metaApiToken || config.apiToken);
+    this.accountId = config.metaApiAccountId || config.accountId;
+    this.name = "MetaTrader";
+    this.type = "metaapi";
+  }
+
+  async connect() {
+    try {
+      if (this.connected && this.connection) return { success: true };
+
+      console.log(`[EXPERT-MA] 🔌 Ligando à conta MetaApi ${this.accountId}...`);
+      this.account = await this.api.metatraderAccountApi.getAccount(this.accountId);
+      
+      if (this.account.state !== 'DEPLOYED') {
+        console.log(`[EXPERT-MA] 🚀 Fazendo deploy da conta...`);
+        await this.account.deploy();
+      }
+
+      // Timeout de segurança para não travar o bot se a conta estiver offline
+      console.log(`[EXPERT-MA] ⏳ Aguardando sincronização (Max 15s)...`);
+      await Promise.race([
+        this.account.waitConnected(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de conexão MetaApi")), 15000))
+      ]);
+
+      this.connection = this.account.getRPCConnection();
+      await this.connection.connect();
+      
+      const info = await this.connection.getAccountInformation();
+      console.log(`[EXPERT-MA] ✅ Conectado! Saldo: ${info.balance} ${info.currency}`);
+      
+      this.connected = true;
+
+      // PRIORIDADE: Usa o ambiente que o utilizador selecionou no modal
+      const selectedEnv = (this.config.environment || "").toUpperCase();
+      const isLive = selectedEnv === "LIVE" || this.account.type === 'CLOUD-LIVE' || this.account.type === 'SELF-HOSTED';
+
+      this.accountInfo = {
+        balance: info.balance,
+        broker: "MetaTrader",
+        brokerName: "MetaTrader",
+        brokerType: "metaapi",
+        currency: info.currency || "USD",
+        platform: "MT4/MT5",
+        accountType: isLive ? "LIVE" : "DEMO",
+        region: "🌐"
+      };
+      return { success: true, accountInfo: this.accountInfo };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+
+  async getAccountInfo() {
+    try {
+      if (!this.connection) await this.connect();
+      const info = await this.connection.getAccountInformation();
+      this.accountInfo = {
+        ...this.accountInfo,
+        balance: info.balance,
+        equity: info.equity,
+        margin: info.margin,
+        freeMargin: info.freeMargin,
+        unrealizedPL: info.profit
+      };
+      return this.accountInfo;
+    } catch (e) {
+      console.error(`[EXPERT-MA] Erro ao obter info da conta: ${e.message}`);
+      return this.accountInfo || { balance: 0, broker: "MetaTrader" };
+    }
+  }
+
+  async getBalance() {
+    const info = await this.getAccountInfo();
+    return info.balance;
+  }
+
+  async resolveSymbol(requestedSymbol) {
+    try {
+      if (!this.connection) await this.connect();
+      const allSymbols = await this.connection.getSymbols();
+      const upper = requestedSymbol.toUpperCase();
+
+      // Prioridade de busca: Direta -> Prefixo -> Variantes MetaTrader
+      const found = allSymbols.find(s => 
+        s === upper || 
+        s.startsWith(upper) ||
+        (upper === "XAUUSD" && (s.includes("GOLD") || s.includes("XAU")))
+      );
+
+      if (found) {
+        console.log(`[EXPERT-MA] ✅ Símbolo Resolvido: ${found}`);
+        return found;
+      }
+
+      const fbsVariants = [
+        upper, 
+        upper + ".m", 
+        upper + ".pro", 
+        upper + ".ecn", 
+        upper + ".raw", 
+        upper + ".x",
+        upper + ".s",
+        upper + "m",
+        upper + "_i"
+      ];
+
+      // 1. Tentar variantes diretas primeiro
+      for (const variant of fbsVariants) {
+        if (allSymbols.includes(variant)) {
+          try {
+            const price = await this.connection.getSymbolPrice(variant);
+            if (price && (price.ask || price.bid)) {
+              console.log(`[EXPERT-MA] ✅ Símbolo Encontrado (Variante Direta): ${variant}`);
+              return variant;
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 2. Busca fuzzy se não encontrou direta
+      const candidates = allSymbols
+        .filter(s => s.toUpperCase().startsWith(upper))
+        .sort((a, b) => b.length - a.length);
+
+      for (const symbol of candidates) {
+        try {
+          const price = await this.connection.getSymbolPrice(symbol);
+          if (price && (price.ask || price.bid)) {
+            console.log(`[EXPERT-MA] ✅ Símbolo Validado com Preço: ${symbol}`);
+            return symbol;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Fallback Ouro
+      if (upper.includes("XAU") || upper.includes("GOLD")) {
+        const gold = allSymbols.find(s => s.includes("GOLD") || s.includes("XAU"));
+        if (gold) return gold;
+      }
+
+      console.error(`[EXPERT-MA] ❌ Falha crítica ao resolver símbolo: ${requestedSymbol}`);
+      console.log(`[EXPERT-MA] 🔍 Símbolos disponíveis no Broker:`, allSymbols.slice(0, 20).join(", ") + (allSymbols.length > 20 ? "..." : ""));
+      return requestedSymbol;
+    } catch (e) {
+      return requestedSymbol.toUpperCase();
+    }
+  }
+
+  calculateSafeLot(balance, freeMargin, riskPercent, entry, sl, symbol) {
+    const riskAmount = balance * (riskPercent / 100);
+    const distance = Math.abs(entry - sl);
+
+    if (distance <= 0) return 0.01;
+
+    // 🔥 cálculo realista (Forex padrão)
+    let lot = riskAmount / (distance * 100000);
+
+    // 🛡️ PROTEÇÃO FBS (Conservador)
+    if (symbol.includes("XAU") || symbol.includes("GOLD")) {
+      lot = Math.min(lot, 0.02);
+    } else {
+      lot = Math.min(lot, 0.05);
+    }
+
+    // 🔒 Margem Real (Relação Segura 1:2000)
+    const maxLotByMargin = freeMargin / 2000;
+    lot = Math.min(lot, maxLotByMargin);
+
+    // 🛡️ Bloqueio Rígido Final
+    if (lot > 0.05) {
+      console.warn("[EXPERT-MA] ⚠️ Lote alto demais, reduzido automaticamente para 0.01");
+      lot = 0.01;
+    }
+
+    return Math.max(0.01, Number(lot.toFixed(2)));
+  }
+
+  async placeOrder(signal, riskPercent = 1) {
+    try {
+      if (!this.connection) await this.connect();
+
+      // 🔍 Resolver símbolo automaticamente (Expert Logic)
+      const symbol = await this.resolveSymbol(signal.pair);
+
+      // 📊 Dados da conta com limpeza de símbolos ($, etc)
+      const account = await this.connection.getAccountInformation();
+      let balance = parseFloat(String(account.balance).replace(/[^0-9.]/g, ''));
+
+      console.log(`[EXPERT-MA] DIAGNÓSTICO: Saldo=${balance} | Símbolo=${symbol}`);
+
+       // 📊 Preço em tempo real
+       const tick = await this.connection.getSymbolPrice(symbol);
+       const entry = signal.direction === 'BUY' ? tick.ask : tick.bid;
+       
+       // EXPERT FIX: Inferir TickSize (MetaApi getSymbol não existe)
+       let tickSize = 0.00001; 
+       if (symbol.includes("JPY") || symbol.includes("HUF")) tickSize = 0.001;
+       if (symbol.includes("XAU") || symbol.includes("GOLD") || symbol.includes("BTC") || symbol.includes("ETH")) tickSize = 0.01;
+       if (symbol.includes("US30") || symbol.includes("NAS100") || symbol.includes("DE40")) tickSize = 0.1;
+
+      // 💰 Calcular lote com a nova regra de segurança profissional (Expert Logic)
+      const lot = this.calculateSafeLot(
+        balance,
+        account.freeMargin,
+        riskPercent,
+        entry,
+        signal.sl,
+        symbol
+      );
+
+      console.log(`[EXPERT-MA] 📊 DEBUG: Balance=${balance} | FreeMargin=${account.freeMargin} | Lot=${lot}`);
+      console.log(`[EXPERT-MA] 📊 DEBUG: Entry=${entry} | SL=${signal.sl} | Pair=${symbol}`);
+
+      console.log(`[EXPERT-MA] Executando ${signal.direction} em ${symbol} | Lote: ${lot}`);
+
+      // 🚀 EXECUÇÃO CORRETA (Sugestão Expert)
+      let result;
+      const options = { comment: 'AURA FIX ' + signal.direction, magic: 202604 };
+      
+      // Normalizar SL/TP para o tick size do broker
+      let sl = normalizeToTick(signal.sl, tickSize);
+      let tp = normalizeToTick(signal.tp, tickSize);
+
+      // 🛡️ VIGIA DE ÚLTIMA INSTÂNCIA: Garante distância mínima contra o preço REAL (Tick)
+      // FBS/Exness são rápidos, o preço move-se. Re-calculamos se estiver perto demais.
+      const minDistance = (symbol.includes("XAU") || symbol.includes("GOLD")) ? 6.0 : (tickSize * 150); 
+      
+      if (signal.direction === 'BUY') {
+        if (sl > 0 && (entry - sl) < minDistance) sl = normalizeToTick(entry - minDistance, tickSize);
+        if (tp > 0 && (tp - entry) < minDistance) tp = normalizeToTick(entry + minDistance, tickSize);
+      } else {
+        if (sl > 0 && (sl - entry) < minDistance) sl = normalizeToTick(entry + minDistance, tickSize);
+        if (tp > 0 && (entry - tp) < minDistance) tp = normalizeToTick(entry - minDistance, tickSize);
+      }
+
+      // ⚠️ SANITY CHECK: Se o SL/TP estiver a mais de 50% do preço, algo está errado com a escala (ex: GOLD vs #GOLD)
+      const maxDist = entry * 0.5;
+      if (sl > 0 && Math.abs(entry - sl) > maxDist) {
+        console.warn(`[EXPERT-MA] 🚨 SL fora de escala (${sl}). Corrigindo para MinDist.`);
+        sl = signal.direction === 'BUY' ? normalizeToTick(entry - minDistance, tickSize) : normalizeToTick(entry + minDistance, tickSize);
+      }
+      if (tp > 0 && Math.abs(entry - tp) > maxDist) {
+        tp = signal.direction === 'BUY' ? normalizeToTick(entry + minDistance, tickSize) : normalizeToTick(entry - minDistance, tickSize);
+      }
+
+      console.log(`[EXPERT-MA] 🛡️ Ordem Final para ${symbol}: Entry=${entry}, SL=${sl}, TP=${tp} (MinDist=${minDistance})`);
+
+      if (signal.direction === 'BUY') {
+        result = await this.connection.createMarketBuyOrder(
+          symbol,
+          lot,
+          sl,
+          tp,
+          options
+        );
+      } else {
+        result = await this.connection.createMarketSellOrder(
+          symbol,
+          lot,
+          sl,
+          tp,
+          options
+        );
+      }
+
+      console.log(`[EXPERT-MA] ✅ Ordem enviada! Result:`, JSON.stringify(result));
+      return { success: true, orderId: result.orderId || result.stringCode, fillPrice: entry, appliedSl: sl, appliedTp: tp };
+
+    } catch (e) {
+      const msg = e.message || String(e);
+      
+      // AUTO-CURA: Se o servidor der resposta inválida, força reconexão total
+      if (msg.includes("Market is closed")) {
+        console.warn(`[EXPERT-MA] ⚠️ Mercado fechado para ${signal.pair} — sinal ignorado.`);
+        return { success: false, error: "Market is closed" };
+      }
+      
+      if (msg.includes("Resposta inválida") || msg.includes("Invalid response") || msg.includes("not connected")) {
+        console.warn(`[EXPERT-MA] 🔄 Detetada instabilidade na corretora. Resetando conexão...`);
+        this.connected = false;
+        this.connection = null;
+      }
+
+      console.error(`[EXPERT-MA] ❌ Erro de Execução: ${msg}`);
+      return { success: false, error: msg };
+    }
+  }
+
+  async getPrice(pair) {
+    const requestedSymbol = pair.toUpperCase();
+    try {
+      if (!this.connection) await this.connect();
+      const allSymbols = await this.connection.getSymbols();
+      const symbol = allSymbols.find(s => s === requestedSymbol || s.startsWith(requestedSymbol) || (requestedSymbol === "XAUUSD" && s.startsWith("GOLD"))) || requestedSymbol;
+
+      const tick = await this.connection.getSymbolPrice(symbol);
+      console.log(`[EXPERT-MA] Preço obtido para ${symbol}: Bid=${tick.bid} Ask=${tick.ask}`);
+      return { bid: tick.bid, ask: tick.ask, symbol };
+    } catch (e) {
+      console.error(`[EXPERT-MA] Erro ao obter preço para ${pair}: ${e.message}`);
+      return null;
+    }
+  }
+
+  async getOpenPositions() {
+    try {
+      await this.connect();
+      const positions = await this.connection.getPositions();
+      return (positions || []).map(p => ({
+        id: p.id,
+        pair: p.symbol,
+        direction: p.type === "POSITION_TYPE_BUY" ? "BUY" : "SELL",
+        lotSize: p.volume,
+        openPrice: p.openPrice,
+        pnl: p.profit,
+        sl: p.stopLoss || 0,
+        tp: p.takeProfit || 0
+      }));
+    } catch (e) {
+      console.error("MetaApi getOpenPositions error:", e);
+      return [];
+    }
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    try {
+      if (!this.connection) await this.connect();
+
+      const tfMap = {
+        '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'
+      };
+
+      const candles = await this.connection.getCandles(
+        symbol,
+        tfMap[timeframe] || '1m',
+        { limit }
+      );
+
+      return (candles || []).map(c => ({
+        time: c.time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.tickVolume
+      }));
+    } catch (e) {
+      console.error(`[EXPERT-MA] Error getCandles: ${e.message}`);
+      return [];
+    }
+  }
+
+  async getHistory() {
+    try {
+      if (!this.connection) await this.connect();
+      const startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias
+      const deals = await this.connection.getDealsByTimeRange(startTime, new Date());
+
+      // MetaApi pode retornar array direto ou objeto { deals: [] }
+      const dealList = Array.isArray(deals) ? deals : (deals.deals || []);
+
+      return dealList.map(d => ({
+        id: d.id, broker: "MetaTrader", pair: d.symbol,
+        direction: d.type === "DEAL_TYPE_BUY" ? "BUY" : "SELL",
+        lotSize: d.volume, pnl: (d.profit || 0) + (d.commission || 0) + (d.swap || 0),
+        closeTime: d.time
+      })).filter(d => d.pair && d.pnl !== 0).reverse();
+    } catch (e) {
+      console.error("MetaApi History Error:", e);
+      return [];
+    }
+  }
+  async closePosition(positionId) {
+    try {
+      if (!this.connection) await this.connect();
+      // MetaApi closePosition returns a promise that resolves on success
+      await this.connection.closePosition(positionId);
+      console.log(`[EXPERT-MA] ✅ Posição ${positionId} fechada com sucesso.`);
+      return { success: true, message: "Posição fechada" };
+    } catch (e) {
+      console.error(`[EXPERT-MA] ❌ Erro ao fechar posição ${positionId}: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  }
+}
+
+// ============================================================
+// CapitalAdapter
+// ============================================================
+class CapitalAdapter extends BrokerBase {
+  constructor(config) {
+    super(config);
+    this.apiKey = config.capitalApiKey || config.apiKey;
+    this.baseUrl = config.environment === 'live' ? "https://api-capital.backend-capital.com/api/v1" : "https://demo-api-capital.backend-capital.com/api/v1";
+    this.name = "Capital.com";
+    this.type = "capital";
+  }
+
+  async connect() {
+    try {
+      const res = await fetch(`${this.baseUrl}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey },
+        body: JSON.stringify({ identifier: this.config.capitalIdentifier || this.config.identifier, password: this.config.capitalPassword || this.config.password })
+      });
+      this.cst = res.headers.get("CST");
+      this.securityToken = res.headers.get("X-SECURITY-TOKEN");
+      this.connected = true;
+      this.accountInfo = {
+        balance: 0,
+        broker: "Capital.com",
+        brokerName: "Capital.com",
+        brokerType: "capital",
+        currency: "USD",
+        accountType: (this.config.environment || "demo") === "live" ? "LIVE" : "DEMO",
+        region: "🇪🇺"
+      };
+      return { success: true, accountInfo: this.accountInfo };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async placeOrder(signal, risk = 1) {
+    const epic = signal.pair.includes("XAU") ? "GOLD" : signal.pair;
+    try {
+      const res = await fetch(`${this.baseUrl}/positions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CAP-API-KEY": this.apiKey, "CST": this.cst, "X-SECURITY-TOKEN": this.securityToken },
+        body: JSON.stringify({ epic, direction: signal.direction, size: 0.1, stopLevel: signal.sl, profitLevel: signal.tp, guaranteedStop: false, forceOpen: true })
+      });
+      const data = await res.json();
+      return { success: !!data.dealReference, orderId: data.dealReference };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    const tfMap = { '1m': 'MINUTE', '5m': 'MINUTE_5', '15m': 'MINUTE_15', '1h': 'HOUR', '4h': 'HOUR_4', '1d': 'DAY' };
+    try {
+      const epic = symbol.includes("XAU") ? "GOLD" : symbol;
+      const res = await fetch(`${this.baseUrl}/prices/${epic}?resolution=${tfMap[timeframe] || 'MINUTE'}&max=${limit}`, {
+        method: "GET",
+        headers: { "X-CAP-API-KEY": this.apiKey, "CST": this.cst, "X-SECURITY-TOKEN": this.securityToken }
+      });
+      const data = await res.json();
+      return (data.prices || []).map(p => ({
+        time: p.snapshotTime,
+        open: p.openPrice.bid,
+        high: p.highPrice.bid,
+        low: p.lowPrice.bid,
+        close: p.closePrice.bid,
+        volume: 0
+      }));
+    } catch (e) { return []; }
+  }
+}
+
+function createBroker(config) {
+  const p = (config.provider || config.brokerType || '').toLowerCase();
+  if (p === 'oanda') return new OandaAdapter(config);
+  if (p === 'metaapi') return new MetaApiAdapter(config);
+  if (p === 'capital') return new CapitalAdapter(config);
+  throw new Error(`Provider ${p} not supported`);
+}
+
+module.exports = { createBroker };
