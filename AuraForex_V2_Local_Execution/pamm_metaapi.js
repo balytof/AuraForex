@@ -28,7 +28,7 @@ async function setupPammAccount(settings, accountNumber, serverName, password, e
       // Procurar se já existe uma conta na MetaApi com este login para evitar duplicações
       try {
         const accounts = await metaApi.metatraderAccountApi.getAccounts();
-        const existing = accounts.find(a => a.login === accountNumber);
+        const existing = accounts.find(a => String(a.login) === String(accountNumber) && a.server === serverName);
         if (existing) {
           console.log(`[PAMM] Conta já existente na MetaApi encontrada! Reutilizando ID: ${existing.id}`);
           account = existing;
