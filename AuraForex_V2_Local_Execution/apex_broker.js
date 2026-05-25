@@ -203,7 +203,10 @@ class MetaApiAdapter extends BrokerBase {
       this.connection = this.account.getRPCConnection();
       await this.connection.connect();
       
-      const info = await this.connection.getAccountInformation();
+      const info = await Promise.race([
+        this.connection.getAccountInformation(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (15s) getAccountInformation")), 15000))
+      ]);
       console.log(`[EXPERT-MA] ✅ Conectado! Saldo: ${info.balance} ${info.currency}`);
       
       this.connected = true;

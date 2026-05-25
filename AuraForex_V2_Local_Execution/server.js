@@ -2000,9 +2000,12 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
         try {
           console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name || 'Global Admin'}...`);
           
-          marketCandles = await broker.getCandles(pair, "1m", 250);
-          
-          console.log(`[BOT] ✅ ${marketCandles ? marketCandles.length : 0} velas obtidas.`);
+          // Adicionamos um timeout de 10s para impedir o bloqueio
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (10s) na corretora")), 10000));
+          marketCandles = await Promise.race([
+            broker.getCandles(pair, "1m", 250),
+            timeoutPromise
+          ]);
         } catch (e) {
           console.warn(`[BOT] ⚠️ Falha ao buscar velas reais: ${e.message}`);
         }
