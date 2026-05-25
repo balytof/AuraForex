@@ -468,7 +468,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null,
       fridayBlockHour: fridayBlockHour,
-      sundayOpenHour: sundayOpenHour
+      sundayOpenHour: sundayOpenHour,
+      openTrades: risk.openTrades || [] // Retorna as trades abertas sincronizadas pelo EA
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
