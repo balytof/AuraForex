@@ -1290,9 +1290,15 @@ app.put("/api/admin/plans/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { name, price, durationDays, isActive } = req.body;
   try {
+    const dataToUpdate = {};
+    if (name !== undefined) dataToUpdate.name = name;
+    if (price !== undefined) dataToUpdate.price = parseFloat(price);
+    if (durationDays !== undefined) dataToUpdate.durationDays = parseInt(durationDays);
+    if (isActive !== undefined) dataToUpdate.isActive = isActive;
+
     const plan = await prisma.licensePlan.update({
       where: { id },
-      data: { name, price, durationDays, isActive }
+      data: dataToUpdate
     });
     res.json({ success: true, plan });
   } catch (err) {

@@ -914,6 +914,7 @@
                 <td>${p.durationDays} dias</td>
                 <td><span class="badge ${p.isActive ? 'badge-active' : ''}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
                 <td>
+                    <button class="btn" style="color: ${p.isActive ? 'var(--warn)' : 'var(--success)'}" onclick="togglePlan('${p.id}', ${p.isActive})">${p.isActive ? 'Desativar' : 'Ativar'}</button>
                     <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays})">✏️</button>
                     <button class="btn" style="color:var(--bear)" onclick="deletePlan('${p.id}')">🗑️</button>
                 </td>
@@ -945,6 +946,13 @@
             closeModal('planModal');
             loadPlans();
         } else alert(res.error);
+    }
+
+    async function togglePlan(id, isActive) {
+        if (!confirm(`Tem certeza que deseja ${isActive ? 'desativar' : 'ativar'} este plano?`)) return;
+        const res = await api(`/api/admin/plans/${id}`, "PUT", { isActive: !isActive });
+        if (res.success) loadPlans();
+        else alert(res.error);
     }
 
     async function deletePlan(id) {
