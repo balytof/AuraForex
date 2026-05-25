@@ -3442,6 +3442,7 @@ function startBot() {
 
     isRunning = true;
     localStorage.setItem("aura_bot_state", "running"); // Chave nova e mais robusta
+    saveConfig(); // Garante sincronização imediata
     currentLoopId++;
     document.getElementById("botDot").classList.add("active");
     document.getElementById("botStatus").textContent = "Rodando";
@@ -3474,6 +3475,7 @@ function startBot() {
 function stopBot() {
   isRunning = false;
   localStorage.setItem("aura_bot_state", "stopped");
+  saveConfig();
   if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
   if (typeof botWorker !== 'undefined') botWorker.postMessage({ cmd: 'stop' });
   document.getElementById("botDot").classList.remove("active");
