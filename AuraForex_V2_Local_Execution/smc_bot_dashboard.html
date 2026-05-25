@@ -3209,6 +3209,30 @@ function updateSessionStatus() {
   el.textContent = "Londres / NY Ativa";
 }
 
+// --- WORKER DE BACKGROUND PARA HIBERNAÇÃO ---
+let botWorker;
+function scheduleNextBotLoop(loopId, ms) {
+    if (!botWorker) {
+        const code = `
+            let t;
+            self.onmessage = function(e) {
+                if (e.data.cmd === 'start') {
+                    clearTimeout(t);
+                    t = setTimeout(() => postMessage('tick'), e.data.ms);
+                } else if (e.data.cmd === 'stop') {
+                    clearTimeout(t);
+                }
+            };
+        `;
+        const blob = new Blob([code], { type: 'application/javascript' });
+        botWorker = new Worker(URL.createObjectURL(blob));
+        botWorker.onmessage = function() {
+            if (isRunning) botLoop(currentLoopId);
+        };
+    }
+    botWorker.postMessage({ cmd: 'start', ms: ms });
+}
+
 async function botLoop(loopId) {
   if (!isRunning || loopId !== currentLoopId) return;
   
@@ -3232,7 +3256,7 @@ async function botLoop(loopId) {
     if (Date.now() - botStartTime < 10000) {
        addLog("⏳ AuraBot em aquecimento... Analisando fluxo de ordens.");
        if (isRunning && loopId === currentLoopId) {
-         loopTimer = setTimeout(() => botLoop(loopId), ms);
+         scheduleNextBotLoop(loopId, ms);
        }
        return;
     }
@@ -3390,7 +3414,7 @@ async function botLoop(loopId) {
   // Agendamento Garantido (Expert Resilience)
   const ms = parseInt(document.getElementById("interval").value) * 1000 || 60000;
   if (isRunning && loopId === currentLoopId) {
-    loopTimer = setTimeout(() => botLoop(loopId), ms);
+    scheduleNextBotLoop(loopId, ms);
   }
 }
 
@@ -3451,6 +3475,7 @@ function stopBot() {
   isRunning = false;
   localStorage.setItem("aura_bot_state", "stopped");
   if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
+  if (typeof botWorker !== 'undefined') botWorker.postMessage({ cmd: 'stop' });
   document.getElementById("botDot").classList.remove("active");
   document.getElementById("botStatus").textContent = "Parado";
   document.getElementById("mainBtn").textContent = "▶ Iniciar Bot";
@@ -3815,6 +3840,13 @@ async function confirmPayment() {
     // Redundant now, but kept for compatibility or updated to finish later
     finishPurchase();
 }
+
+// ─── WEB WORKER PARA BYPASS DE THROTTLING ─────────────────────
+const workerBlob = new Blob([`
+  setInterval(() => { postMessage("tick"); }, 1000);
+`], { type: "application/javascript" });
+const worker = new Worker(URL.createObjectURL(workerBlob));
+worker.onmessage = () => { if (typeof botLoop === 'function') botLoop(); };
 
 // ─── INFRASTRUCTURE RESET ─────────────────────
 async function resetInfrastructure() {
