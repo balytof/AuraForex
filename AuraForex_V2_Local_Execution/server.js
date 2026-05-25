@@ -459,8 +459,13 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     }
 
     // 🛡️ CORREÇÃO CRÍTICA: Buscar as ordens em execução (abertas pelo EA) na BD
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const executedSignals = await prisma.signal.findMany({
-      where: { userId: req.user.id, status: "EXECUTED" }
+      where: { 
+        userId: req.user.id, 
+        status: { in: ["EXECUTED", "PENDING"] },
+        createdAt: { gte: oneDayAgo }
+      }
     });
     const trueOpenTrades = executedSignals.length > 0 ? executedSignals : (risk.openTrades || []);
 
