@@ -4,7 +4,7 @@ const path = require('path');
 const conn = new Client();
 
 const filesToUpload = [
-    { local: './prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' }
+    { local: './prisma/schema.prisma', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/prisma/schema.prisma' }
 ];
 
 conn.on('ready', () => {
@@ -23,7 +23,7 @@ conn.on('ready', () => {
                 completed++;
                 if (completed === filesToUpload.length) {
                     console.log('🚀 Executando Prisma Generate e DB Push...');
-                    conn.exec('cd /root/AuraForex && npx prisma generate && npx prisma db push --accept-data-loss && pm2 restart all', (err, stream) => {
+                    conn.exec('cd /root/AuraForex/AuraForex_V2_Local_Execution && npx prisma generate && npx prisma db push --accept-data-loss && pm2 restart all', (err, stream) => {
                         if (err) throw err;
                         
                         stream.on('close', (code, signal) => {
