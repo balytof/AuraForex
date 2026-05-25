@@ -2805,6 +2805,16 @@ async function botLoop(loopId) {
        return;
     }
 
+    // 3.5. Trava de Limite de Ordens (Poupança de Custos API)
+    const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 3;
+    if (openTrades.length >= maxTradesLimit) {
+       addLog(`⏳ Limite de ordens atingido (${openTrades.length}/${maxTradesLimit}). AuraBot em standby/aquecimento (Poupando API)...`, "warn");
+       if (isRunning && loopId === currentLoopId) {
+         loopTimer = setTimeout(() => botLoop(loopId), ms);
+       }
+       return;
+    }
+
     addLog(`📈 Analisando ${activePairs.size} ativos (Motor APEX Pro)...`);
 
     for (const pair of activePairs) {
