@@ -2943,6 +2943,11 @@ async function updateStats() {
     const status = await apiFetch("/api/user/status");
     console.log("[HMI] Status recebido:", status);
     if (status && status.success) {
+      // 🛡️ CORREÇÃO CRÍTICA: Atualizar as openTrades globais com os dados do EA/Servidor!
+      if (status.openTrades && Array.isArray(status.openTrades)) {
+         openTrades = status.openTrades;
+      }
+
       // Saldo e Equity (Sincronizado via EA)
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
