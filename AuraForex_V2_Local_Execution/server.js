@@ -2000,13 +2000,7 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
         try {
           console.log(`[BOT] 📥 Buscando velas reais para ${pair} via ${broker.name || 'Global Admin'}...`);
           
-          // Adicionamos um timeout de 10s para impedir o bloqueio (erro "Resposta inválida do servidor")
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de 10s atingido ao buscar velas reais")), 10000));
-          
-          marketCandles = await Promise.race([
-            broker.getCandles(pair, "1m", 250),
-            timeoutPromise
-          ]);
+          marketCandles = await broker.getCandles(pair, "1m", 250);
           
           console.log(`[BOT] ✅ ${marketCandles ? marketCandles.length : 0} velas obtidas.`);
         } catch (e) {

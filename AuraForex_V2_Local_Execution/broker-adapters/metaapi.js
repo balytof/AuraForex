@@ -269,6 +269,7 @@ class MetaApiAdapter extends BrokerAdapter {
         "auth-token": this.metaApiToken,
         "Content-Type": "application/json",
       },
+      timeout: 8000
     };
     if (body) opts.body = JSON.stringify(body);
 
@@ -289,6 +290,7 @@ class MetaApiAdapter extends BrokerAdapter {
         "auth-token": this.metaApiToken,
         "Content-Type": "application/json",
       },
+      timeout: 8000
     };
     if (body) opts.body = JSON.stringify(body);
 
