@@ -5,7 +5,8 @@ const conn = new Client();
 
 const filesToUpload = [
     { local: './server.js', remote: '/root/AuraForex/server.js' },
-    { local: './fix_db.js', remote: '/root/AuraForex/fix_db_vps.js' }
+    { local: './fix_db.js', remote: '/root/AuraForex/fix_db_vps.js' },
+    { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard_v2.html' }
 ];
 
 conn.on('ready', () => {
