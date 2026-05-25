@@ -1479,9 +1479,9 @@
       <div class="stat-sub" id="statDailyProgress">P&L Hoje: $0.00</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
-      <div class="stat-label">P&L Não Realizado (Floating)</div>
+      <div class="stat-label">P&L Realizado (Hoje)</div>
       <div class="stat-value" id="statPnl">$0.00</div>
-      <div class="stat-sub">Flutuação do mercado</div>
+      <div class="stat-sub">Ganhos/Perdas Totais</div>
     </div>
     <div class="stat-card" onclick="document.getElementById('limitSlider').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">Trades Abertos</div>
@@ -2947,10 +2947,10 @@ async function updateStats() {
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
-      const floatingPnl = status.floatingPnl !== undefined ? status.floatingPnl : 0;
+      const realizedPnl = status.dailyPnl !== undefined ? status.dailyPnl : 0;
       const pnlEl = document.getElementById("statPnl");
-      pnlEl.textContent = (floatingPnl >= 0 ? "+" : "") + formatCurrency(floatingPnl, "USD");
-      pnlEl.className = "stat-value " + (floatingPnl >= 0 ? "bull" : "bear");
+      pnlEl.textContent = (realizedPnl >= 0 ? "+" : "") + formatCurrency(realizedPnl, "USD");
+      pnlEl.className = "stat-value " + (realizedPnl >= 0 ? "bull" : "bear");
 
       // Meta Diária
       document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
