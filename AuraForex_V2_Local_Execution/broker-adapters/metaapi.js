@@ -7,10 +7,10 @@
  */
 
 const BrokerAdapter = require("./base");
-const fetch = require("node-fetch");
+// Native fetch in Node 18+
 
-const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
-const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
+const METAAPI_BASE = "https://mt-client-api-v1.agiliumtrade.ai";
+const METAAPI_PROVISIONING = "https://mt-provisioning-api-v1.agiliumtrade.ai";
 
 const TF_MAP = {
   M1: "1m", M5: "5m", M15: "15m", M30: "30m",
@@ -269,7 +269,7 @@ class MetaApiAdapter extends BrokerAdapter {
         "auth-token": this.metaApiToken,
         "Content-Type": "application/json",
       },
-      timeout: 8000
+      signal: AbortSignal.timeout(8000)
     };
     if (body) opts.body = JSON.stringify(body);
 
@@ -290,7 +290,7 @@ class MetaApiAdapter extends BrokerAdapter {
         "auth-token": this.metaApiToken,
         "Content-Type": "application/json",
       },
-      timeout: 8000
+      signal: AbortSignal.timeout(8000)
     };
     if (body) opts.body = JSON.stringify(body);
 
