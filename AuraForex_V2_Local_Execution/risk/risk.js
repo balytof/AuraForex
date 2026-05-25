@@ -304,6 +304,7 @@ class RiskManager {
         equity: this.equity || this.balance || 0,
         circuitBreaker: this.circuitBreaker,
         dailyProfitLocked: this.dailyProfitLocked,
+        dailyDate: this.dailyDate,
         lastUpdate: new Date().toISOString()
       };
       
@@ -326,6 +327,7 @@ class RiskManager {
         this.equity = state.equity || state.balance || 0;
         this.circuitBreaker = state.circuitBreaker || false;
         this.dailyProfitLocked = state.dailyProfitLocked || false;
+        this.dailyDate = state.dailyDate || null;
       }
     } catch (e) { this.openTrades = []; }
   }
