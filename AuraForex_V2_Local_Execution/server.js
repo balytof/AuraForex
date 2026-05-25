@@ -458,6 +458,12 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       risk._safeSaveState();
     }
 
+    // 🛡️ CORREÇÃO CRÍTICA: Buscar as ordens em execução (abertas pelo EA) na BD
+    const executedSignals = await prisma.signal.findMany({
+      where: { userId: req.user.id, status: "EXECUTED" }
+    });
+    const trueOpenTrades = executedSignals.length > 0 ? executedSignals : (risk.openTrades || []);
+
     res.json({
       success: true,
       balance: lastBalance,
@@ -469,7 +475,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       updatedAt: license ? license.updatedAt : null,
       fridayBlockHour: fridayBlockHour,
       sundayOpenHour: sundayOpenHour,
-      openTrades: risk.openTrades || [] // Retorna as trades abertas sincronizadas pelo EA
+      openTrades: trueOpenTrades // Retorna as trades abertas sincronizadas pelo EA/BD
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
