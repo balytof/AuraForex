@@ -670,6 +670,24 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
   }
 });
 
+app.get("/api/user/performance", requireAuth, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const perfFile = path.join(__dirname, "logs/users", req.user.id, "performance_history.json");
+    if (fs.existsSync(perfFile)) {
+      const history = JSON.parse(fs.readFileSync(perfFile, "utf8"));
+      // Sort by newest first
+      history.reverse();
+      res.json({ success: true, performance: history });
+    } else {
+      res.json({ success: true, performance: [] });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Helpers SL/TP dinâmico ──────────────────────────────────────
 // ── SMC VALIDATION LOGIC (Ported from Expert Python Snippet) ──────────────────
 

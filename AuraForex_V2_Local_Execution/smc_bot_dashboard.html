@@ -1266,6 +1266,10 @@
         <i class="fas fa-users"></i>
         <span>Afiliados</span>
       </a>
+      <a href="#" class="nav-item" onclick="openTradingHistoryModal()">
+        <i class="fas fa-chart-pie"></i>
+        <span>Histórico</span>
+      </a>
       <a href="/admin_dashboard.html" class="nav-item" id="adminLink" style="display: none;">
         <i class="fas fa-user-shield"></i>
         <span>Admin Panel</span>
@@ -1569,48 +1573,7 @@
         </div>
       </div>
 
-      <!-- HISTÓRICO -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title"><span class="icon"></span> Histórico de Negociações</div>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="loadHistory()">Atualizar</button>
-            <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;border-color:var(--bear);color:var(--bear);" onclick="clearHistory()">Limpar</button>
-          </div>
-        </div>
-        <div class="history-controls">
-          <input type="text" id="histFilterPair" placeholder="Par (ex: EURUSD)" oninput="renderHistory()">
-          <select id="histFilterResult" onchange="renderHistory()">
-            <option value="ALL">Todos os Resultados</option>
-            <option value="WIN">Lucro</option>
-            <option value="LOSS">Prejuízo</option>
-          </select>
-          <select id="histFilterPeriod" onchange="renderHistory()">
-            <option value="ALL">Todo Histórico (30 dias)</option>
-            <option value="TODAY">Hoje</option>
-            <option value="WEEK">Esta Semana</option>
-          </select>
-        </div>
-        <div class="history-wrapper">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Data Fecho</th>
-                <th>MetaTrader 5</th>
-                <th>Par/Ativo</th>
-                <th>Lote</th>
-                <th>Direção</th>
-                <th>P&L Líquido</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody">
-              <tr>
-                <td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-family:'Syne',sans-serif;">Nenhum histórico disponível. Verifique o seu EA no MT5.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+
 
     </div>
 
@@ -4853,6 +4816,158 @@ async function submitPammDeposit(btn) {
 <div class="toast-container" id="pammToastContainer"></div>
 
 
+
+<!-- MODAL DE HISTÓRICO E PERFORMANCE -->
+<div class="modal-overlay" id="tradingHistoryModal">
+  <div class="modal" style="width: 850px; max-width: 95%;">
+    <div class="modal-header">
+      <h2><i class="fas fa-chart-pie"></i> Histórico & Performance</h2>
+      <button class="modal-close" onclick="closeTradingHistoryModal()">&times;</button>
+    </div>
+    
+    <div class="modal-tabs" style="display:flex; border-bottom: 1px solid var(--border); margin-bottom: 15px;">
+      <button class="tab-btn active" id="tabHistNegociacoes" onclick="switchHistoryTab('negociacoes')" style="padding:10px 20px; background:none; border:none; color:var(--text); cursor:pointer; font-weight:bold; border-bottom: 2px solid var(--accent);">Histórico de Negociações</button>
+      <button class="tab-btn" id="tabHistPerformance" onclick="switchHistoryTab('performance')" style="padding:10px 20px; background:none; border:none; color:var(--muted); cursor:pointer; font-weight:bold; border-bottom: 2px solid transparent;">Performance Diária</button>
+    </div>
+
+    <div class="modal-body" style="padding: 10px 20px 20px 20px;">
+      
+      <!-- ABA A: NEGOCIAÇÕES -->
+      <div id="contentHistNegociacoes" style="display:block;">
+        <div class="history-controls" style="margin-bottom: 15px; display:flex; gap:10px;">
+          <input type="text" id="histFilterPair" placeholder="Par (ex: EURUSD)" oninput="renderHistory()" style="flex:1; padding:8px; border-radius:5px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white;">
+          <select id="histFilterResult" onchange="renderHistory()" style="padding:8px; border-radius:5px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white;">
+            <option value="ALL" style="color:#000;">Todos os Resultados</option>
+            <option value="WIN" style="color:#000;">Lucro</option>
+            <option value="LOSS" style="color:#000;">Prejuízo</option>
+          </select>
+          <select id="histFilterPeriod" onchange="renderHistory()" style="padding:8px; border-radius:5px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white;">
+            <option value="ALL" style="color:#000;">Todo Histórico (30 dias)</option>
+            <option value="TODAY" style="color:#000;">Hoje</option>
+            <option value="WEEK" style="color:#000;">Esta Semana</option>
+          </select>
+        </div>
+        <div class="history-wrapper" style="max-height: 400px; overflow-y: auto; scrollbar-width: thin;">
+          <table class="history-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border); text-align: left; color:var(--muted); font-size:0.8rem;">
+                <th style="padding:10px;">Data Fecho</th>
+                <th style="padding:10px;">MetaTrader 5</th>
+                <th style="padding:10px;">Par/Ativo</th>
+                <th style="padding:10px;">Lote</th>
+                <th style="padding:10px;">Direção</th>
+                <th style="padding:10px;">P&L Líquido</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center;padding:20px;color:var(--muted);">A carregar histórico...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:6px; margin-top:15px; justify-content: flex-end;">
+          <button class="btn btn-secondary" style="font-size:0.8rem;padding:8px 15px;" onclick="loadHistory()">Atualizar</button>
+          <button class="btn btn-secondary" style="font-size:0.8rem;padding:8px 15px;border-color:var(--bear);color:var(--bear);" onclick="clearHistory()">Limpar</button>
+        </div>
+      </div>
+
+      <!-- ABA B: PERFORMANCE -->
+      <div id="contentHistPerformance" style="display:none;">
+         <div class="history-wrapper" style="max-height: 400px; overflow-y: auto; scrollbar-width: thin;">
+          <table class="history-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border); text-align: left; color:var(--muted); font-size:0.8rem;">
+                <th style="padding:10px;">Data</th>
+                <th style="padding:10px;">Saldo Inicial</th>
+                <th style="padding:10px;">Lucro Realizado</th>
+                <th style="padding:10px;">Status Meta</th>
+              </tr>
+            </thead>
+            <tbody id="performanceTableBody">
+              <tr>
+                <td colspan="4" style="text-align:center;padding:20px;color:var(--muted);">A carregar performance...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:6px; margin-top:15px; justify-content: flex-end;">
+          <button class="btn btn-secondary" style="font-size:0.8rem;padding:8px 15px;" onclick="loadPerformanceHistory()">Atualizar Performance</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function openTradingHistoryModal() {
+  document.getElementById('tradingHistoryModal').style.display = 'flex';
+  loadHistory();
+  loadPerformanceHistory();
+}
+
+function closeTradingHistoryModal() {
+  document.getElementById('tradingHistoryModal').style.display = 'none';
+}
+
+function switchHistoryTab(tab) {
+  const btnNeg = document.getElementById('tabHistNegociacoes');
+  const btnPerf = document.getElementById('tabHistPerformance');
+  const contentNeg = document.getElementById('contentHistNegociacoes');
+  const contentPerf = document.getElementById('contentHistPerformance');
+  
+  if(tab === 'negociacoes') {
+    btnNeg.style.color = 'var(--text)';
+    btnNeg.style.borderBottom = '2px solid var(--accent)';
+    btnPerf.style.color = 'var(--muted)';
+    btnPerf.style.borderBottom = '2px solid transparent';
+    contentNeg.style.display = 'block';
+    contentPerf.style.display = 'none';
+  } else {
+    btnPerf.style.color = 'var(--text)';
+    btnPerf.style.borderBottom = '2px solid var(--accent)';
+    btnNeg.style.color = 'var(--muted)';
+    btnNeg.style.borderBottom = '2px solid transparent';
+    contentPerf.style.display = 'block';
+    contentNeg.style.display = 'none';
+  }
+}
+
+async function loadPerformanceHistory() {
+  try {
+    const response = await fetch('/api/user/performance', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('aura_token')}` }
+    });
+    const result = await response.json();
+    const tbody = document.getElementById('performanceTableBody');
+    if (!result.success || !result.performance || result.performance.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted);">Nenhum histórico de performance disponível.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = '';
+    result.performance.forEach(perf => {
+      const isProfit = perf.realizedProfit >= 0;
+      const profitColor = isProfit ? 'var(--bull)' : 'var(--bear)';
+      const targetColor = perf.targetReached ? 'var(--bull)' : 'var(--muted)';
+      const targetText = perf.targetReached ? '<i class="fas fa-check-circle"></i> Atingida' : 'Não Atingida';
+      
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      tr.innerHTML = `
+        <td style="padding:10px;">${perf.date}</td>
+        <td style="padding:10px;">$${Number(perf.startBalance).toFixed(2)}</td>
+        <td style="padding:10px; color:${profitColor}; font-weight:bold;">${isProfit ? '+' : ''}$${Number(perf.realizedProfit).toFixed(2)}</td>
+        <td style="padding:10px; color:${targetColor}; font-weight:bold;">${targetText}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Falha ao carregar performance', e);
+  }
+}
+</script>
 
 </body>
 </html>

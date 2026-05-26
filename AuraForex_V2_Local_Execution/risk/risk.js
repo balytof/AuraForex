@@ -53,6 +53,9 @@ class RiskManager {
     }
     const today = new Date().toDateString();
     if (this.dailyDate !== today) {
+      if (this.dailyDate) {
+        this._saveDailyPerformance();
+      }
       this.dailyDate = today;
       this.dailyStartBalance = balance;
       this.dailyStartEquity = equity || balance;
@@ -267,6 +270,30 @@ class RiskManager {
   }
 
   // ── PERSISTÊNCIA ─────────────────────────────────────
+  _saveDailyPerformance() {
+    try {
+      const perfFile = path.join(path.dirname(this.stateFile), "performance_history.json");
+      let history = [];
+      if (fs.existsSync(perfFile)) {
+        history = JSON.parse(fs.readFileSync(perfFile, "utf8"));
+      }
+      const currentCapital = (this.equity && this.equity > 0) ? this.equity : this.balance;
+      const realizedProfit = currentCapital - this.dailyStartBalance;
+      
+      history.push({
+        date: this.dailyDate,
+        startBalance: this.dailyStartBalance,
+        realizedProfit: realizedProfit,
+        targetReached: this.dailyProfitLocked
+      });
+      
+      fs.writeFileSync(perfFile, JSON.stringify(history, null, 2));
+      log.info(`[RISK-PERF] Performance diária de ${this.dailyDate} salva com sucesso.`);
+    } catch (e) {
+      log.error(`[RISK-PERF-ERROR] Falha ao salvar performance diária: ${e.message}`);
+    }
+  }
+
   _saveHistory() {
     try {
       if (!fs.existsSync(path.dirname(this.historyFile))) fs.mkdirSync(path.dirname(this.historyFile), { recursive: true });
