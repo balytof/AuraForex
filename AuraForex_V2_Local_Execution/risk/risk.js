@@ -78,6 +78,22 @@ class RiskManager {
     if (this.openTrades.length >= cfg.maxOpenTrades) {
       return { allowed: false, reason: `Máx. ${cfg.maxOpenTrades} trades simultâneos atingido` };
     }
+
+    // NOVA TRAVA: Máximo 2 ordens por par
+    if (pair) {
+      const normalize = (p) => {
+        if (!p) return "";
+        return p.toUpperCase().replace(/(\.m|\.raw|_ecn|\.i|\.pro)$/i, "").replace(/[^A-Z0-9]/g, "");
+      };
+      
+      const targetPair = normalize(pair);
+      const tradesForPair = this.openTrades.filter(t => normalize(t.pair) === targetPair).length;
+      
+      if (tradesForPair >= 2) {
+        return { allowed: false, reason: `Limite de 2 ordens atingido para o par ${pair}` };
+      }
+    }
+
     return { allowed: true };
   }
 

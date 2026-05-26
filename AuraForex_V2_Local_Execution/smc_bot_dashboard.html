@@ -1524,7 +1524,7 @@
   <div class="pamm-workspace-grid" id="vpsMainGrid">
 
     <!-- LEFT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;flex-direction:column;gap:20px;height:100%;">
 
       <!-- POSIÇÕES ATIVAS -->
       <div class="panel glass-panel" id="activePositionsPanel" style="display:none; margin-bottom: 20px;">
@@ -1563,12 +1563,12 @@
       </div>
 
       <!-- LOG -->
-      <div class="panel">
+      <div class="panel" style="flex-grow:1; display:flex; flex-direction:column;">
         <div class="panel-header">
           <div class="panel-title"><span class="icon"></span> Log do Sistema</div>
           <button class="btn btn-secondary" style="font-size:0.7rem;padding:5px 10px;" onclick="auraClearSystemLogs()">Limpar</button>
         </div>
-        <div class="log-area" id="logArea">
+        <div class="log-area" id="logArea" style="flex-grow:1;">
           <div class="log-line"><span class="log-time">[SISTEMA]</span><span class="log-msg">AuraForex pronto. Aguardando sinais do EA local.</span></div>
         </div>
       </div>
