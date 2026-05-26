@@ -3259,6 +3259,13 @@ async function botLoop(loopId) {
           const openSellsCount = openTrades.filter(t => t.direction === 'SELL').length;
           const maxSimultaneousDirection = Math.floor(maxTradesLimit / 2);
 
+          // 🛡️ NOVA TRAVA: Limite isolado de 2 ordens para o mesmo par
+          const tradesForThisPair = openTrades.filter(t => t.pair === pair).length;
+          if (tradesForThisPair >= 2) {
+             addLog(`⏳ ${pair}: Sinal ${sig.direction} ignorado (Limite de 2 ordens no mesmo par atingido).`, "warn");
+             continue;
+          }
+
           if (openTrades.length >= maxTradesLimit) {
              addLog(`⏳ ${pair}: Sinal ${sig.direction} ignorado (Limite Global de TODAS as ${maxTradesLimit} ordens atingido).`, "warn");
              continue;
@@ -3895,12 +3902,13 @@ setInterval(() => {
     const desiredState = localStorage.getItem("aura_bot_state");
     
     if (desiredState === "running" && !isRunning) {
-        if (brokerConnected && userLicense) {
+        if (userLicense) {
             console.log("%c[AuraEngine] ✅ CONDIÇÕES REUNIDAS! Forçando início do bot...", "color: #00ff00; font-weight: bold; background: #113311; padding: 5px; border-radius: 4px;");
             addLog("🔄 Retomando sessão de trading automaticamente...", "buy");
             startBot();
+            setTimeout(auraEngineMonitor, 5000); // Mantém-se vivo
         } else {
-            // Tenta novamente a cada 1.5s enquanto as condições não forem ideais
+            // Tenta novamente a cada 1.5s enquanto a licença não carrega
             setTimeout(auraEngineMonitor, 1500);
         }
     } else {

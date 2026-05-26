@@ -2311,7 +2311,7 @@ app.use((req, res) => {
   if (urlPath === "/" || urlPath === "" || urlPath === "/login") {
     urlPath = "/login.html";
   } else if (urlPath === "/dashboard") {
-    urlPath = "/smc_bot_dashboard_v3.html";
+    urlPath = "/smc_bot_dashboard.html";
   } else if (urlPath === "/affiliate") {
     urlPath = "/affiliate_dashboard.html";
   }
@@ -2319,7 +2319,7 @@ app.use((req, res) => {
   const filePath = path.join(ROOT, urlPath);
 
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    if (urlPath !== "/smc_bot_dashboard_v3.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
+    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
     return res.status(404).send("Arquivo não encontrado.");
   }
 
