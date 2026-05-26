@@ -1764,6 +1764,28 @@ void ReportBalance()
 
    double dailyPnl = GetDailyPnL();
    
+   string openTradesJson = "[";
+   int count = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket)) {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0)) {
+            string sym = PositionGetString(POSITION_SYMBOL);
+            long type = PositionGetInteger(POSITION_TYPE);
+            string dir = (type == POSITION_TYPE_BUY) ? "BUY" : "SELL";
+            double profit = PositionGetDouble(POSITION_PROFIT);
+            double lot = PositionGetDouble(POSITION_VOLUME);
+            double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+            
+            if(count > 0) openTradesJson += ",";
+            openTradesJson += "{\\\"id\\\":\\\"" + IntegerToString(ticket) + "\\\",\\\"pair\\\":\\\"" + sym + "\\\",\\\"direction\\\":\\\"" + dir + "\\\",\\\"profit\\\":" + DoubleToString(profit, 2) + ",\\\"lotSize\\\":" + DoubleToString(lot, 2) + ",\\\"openPrice\\\":" + DoubleToString(openPrice, 5) + "}";
+            count++;
+         }
+      }
+   }
+   openTradesJson += "]";
+   
    string payload = "{"
       "\"licenseKey\":\"" + InpLicenseKey + "\","
       "\"balance\":" + DoubleToString(balance, 2) + ","
@@ -1777,7 +1799,8 @@ void ReportBalance()
       "\"dailyLossLimit\":" + DoubleToString(InpMaxDailyLossPct, 2) + ","
       "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
       "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
-      "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") +
+      "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") + ","
+      "\"openTrades\":" + openTradesJson +
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";

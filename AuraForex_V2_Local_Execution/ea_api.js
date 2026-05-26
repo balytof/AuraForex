@@ -87,10 +87,14 @@ router.get("/signals", async (req, res) => {
     console.log(`[EA-DEBUG] Licença: ${licenseKey} | Dono: ${license.userId} | Sinais Pendentes na DB: ${pendingCount}`);
 
     // Busca sinais PENDENTES para o usuário dono da licença
+    // 🛡️ CORREÇÃO CRÍTICA (FANTASMAS): Ignorar sinais pendentes criados há mais de 2 minutos!
+    const timeLimit = new Date(Date.now() - 2 * 60000); 
+
     const signals = await prisma.signal.findMany({
       where: {
         userId: license.userId,
-        status: "PENDING"
+        status: "PENDING",
+        createdAt: { gte: timeLimit }
       },
       orderBy: { createdAt: "asc" }
     });
@@ -255,7 +259,22 @@ router.post("/report-balance", async (req, res) => {
     if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
     if (dailyLossLimit !== undefined) risk.dailyLossLimit = parseFloat(dailyLossLimit);
     
-    console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
+    // 🛡️ SINCRONIA INSTITUCIONAL DE OPEN TRADES: Receber diretamente do EA
+    if (req.body.openTrades && Array.isArray(req.body.openTrades)) {
+       risk.openTrades = req.body.openTrades.map(t => ({
+         id: t.id,
+         brokerId: t.id,
+         pair: t.pair,
+         direction: t.direction,
+         profit: t.profit,
+         lotSize: t.lotSize,
+         openPrice: t.openPrice
+       }));
+    } else {
+       risk.openTrades = [];
+    }
+
+    console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | OpenTrades: ${risk.openTrades.length} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
 
     // Sincroniza estados de trava vindo do EA
     if (isLocked !== undefined) {
