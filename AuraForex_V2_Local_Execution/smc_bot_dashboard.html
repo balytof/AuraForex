@@ -3291,7 +3291,11 @@ async function botLoop(loopId) {
         const sig = analyzeRes.signal;
         
         const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 8;
-        if (sig && openTrades.length < maxTradesLimit) {
+        if (sig) {
+          if (openTrades.length >= maxTradesLimit) {
+            addLog(`⏳ ${pair}: Sinal ${sig.direction} detetado mas ignorado (Limite de ${maxTradesLimit} ordens atingido).`, "warn");
+            continue;
+          }
           // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
           if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
              addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
@@ -3318,7 +3322,6 @@ async function botLoop(loopId) {
           let lotSize = (balance * (riskPercent / 100)) / (slPips * pipValuePerLot);
           
           // EXPERT: Ajuste de Margem Dinâmico baseada no Limite de Ordens
-          const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 8;
           let safeMaxLot = (pair.includes("XAU") || pair.includes("GOLD")) ? 0.30 : 0.15; // Forex é mais pesado em margem
           
           if (maxTradesLimit > 5) safeMaxLot = safeMaxLot * 0.7;

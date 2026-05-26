@@ -7,10 +7,10 @@ conn.on('ready', () => {
     conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const localPath = './server.js';
-        const remotePath = '/root/AuraForex/AuraForex_V2_Local_Execution/server.js';
+        const localPath = './smc_bot_dashboard.html';
+        const remotePath = '/root/AuraForex/AuraForex_V2_Local_Execution/smc_bot_dashboard_v3.html';
         
-        console.log('Uploading server.js...');
+        console.log('Uploading smc_bot_dashboard.html...');
         sftp.fastPut(localPath, remotePath, (err) => {
             if (err) throw err;
             console.log('Upload success.');
