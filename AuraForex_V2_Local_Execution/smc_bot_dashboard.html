@@ -3292,9 +3292,23 @@ async function botLoop(loopId) {
         
         const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 8;
         if (sig) {
+          const openBuysCount = openTrades.filter(t => t.direction === 'BUY').length;
+          const openSellsCount = openTrades.filter(t => t.direction === 'SELL').length;
+          const maxSimultaneousDirection = Math.floor(maxTradesLimit / 2);
+
           if (openTrades.length >= maxTradesLimit) {
-            addLog(`⏳ ${pair}: Sinal ${sig.direction} detetado mas ignorado (Limite de ${maxTradesLimit} ordens atingido).`, "warn");
-            continue;
+             addLog(`⏳ ${pair}: Sinal ${sig.direction} ignorado (Limite Global de ${maxTradesLimit} ordens atingido).`, "warn");
+             continue;
+          }
+
+          if (sig.direction === 'BUY' && openBuysCount >= maxSimultaneousDirection) {
+             addLog(`⏳ ${pair}: Sinal BUY ignorado (Máximo de ${maxSimultaneousDirection} Compras Simultâneas atingido).`, "warn");
+             continue;
+          }
+
+          if (sig.direction === 'SELL' && openSellsCount >= maxSimultaneousDirection) {
+             addLog(`⏳ ${pair}: Sinal SELL ignorado (Máximo de ${maxSimultaneousDirection} Vendas Simultâneas atingido).`, "warn");
+             continue;
           }
           // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
           if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
