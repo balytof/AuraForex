@@ -3274,7 +3274,9 @@ async function botLoop(loopId) {
              continue;
           }
           // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
-          if (sig.direction !== aiResult.bias && aiResult.bias !== "NEUTRAL") {
+          const isOpposite = (sig.direction === "BUY" && aiResult.bias === "BEARISH") || 
+                             (sig.direction === "SELL" && aiResult.bias === "BULLISH");
+          if (isOpposite) {
              addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
              continue;
           }
