@@ -14,5 +14,5 @@ conn.on('ready', () => {
     host: '139.59.159.48',
     port: 22,
     username: 'root',
-    password: process.env.SSH_PASSWORD || 'O+Fq508492O'
+    password: '@Infomoi2023'
 });

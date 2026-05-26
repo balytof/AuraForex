@@ -512,10 +512,11 @@ class MetaApiAdapter extends BrokerBase {
         '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'
       };
 
-      const candles = await this.connection.getCandles(
+      const candles = await this.account.getHistoricalCandles(
         symbol,
         tfMap[timeframe] || '1m',
-        { limit }
+        undefined,
+        limit
       );
 
       return (candles || []).map(c => ({
