@@ -2050,6 +2050,7 @@ app.post("/api/bot/analyze", requireAuth, async (req, res) => {
     console.log(`[BOT] Analisando ${pair} (HTF: ${htfBias})...`);
 
     const { signal, reason } = generateSignal(pair, marketCandles, htfBias || "NEUTRAL");
+    console.log(`[BOT-DEBUG] Pair: ${pair} | Candles: ${marketCandles?.length} | Signal: ${signal ? signal.direction : 'NULL'} | Reason: ${reason}`);
     const analysis = analyzeAll(marketCandles);
 
     const responseData = {
