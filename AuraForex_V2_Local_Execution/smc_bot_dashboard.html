@@ -3483,6 +3483,13 @@ function stopBot() {
   const uptimeDot = document.getElementById("uptimeDot");
   if (uptimeDot) uptimeDot.classList.remove("active");
   
+  // Limpar a fila de espera do servidor
+  apiFetch("/api/broker/clear-signals", "POST").then(res => {
+     if (res && res.success) {
+         addLog(`🧹 Fila de sinais pendentes apagada (${res.count} removidos).`, "info");
+     }
+  }).catch(e => console.warn("Erro ao limpar sinais:", e));
+  
   addLog("⏹ Bot parado.");
 }
 

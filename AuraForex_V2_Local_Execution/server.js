@@ -965,6 +965,25 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/api/broker/clear-signals", requireAuth, async (req, res) => {
+  try {
+    const updated = await prisma.signal.updateMany({
+      where: {
+        userId: req.user.id,
+        status: "PENDING"
+      },
+      data: {
+        status: "CANCELLED"
+      }
+    });
+    console.log(`[CLEAR-SIGNALS] ${updated.count} sinais pendentes cancelados para o user ${req.user.id}.`);
+    return res.status(200).json({ success: true, count: updated.count });
+  } catch (e) {
+    console.error("Clear Signals Error:", e);
+    res.status(500).json({ error: "Erro ao limpar sinais: " + e.message });
+  }
+});
+
 app.delete("/api/broker/position/:id", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
     const result = await req.broker.closePosition(req.params.id);
