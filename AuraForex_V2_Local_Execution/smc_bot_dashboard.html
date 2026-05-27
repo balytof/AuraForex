@@ -1502,11 +1502,21 @@
   <!-- AVISO META BATIDA (HMI) -->
   <div id="dailyLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,212,255,0.1)); border: 2px solid var(--bull); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
      <div style="font-size: 2.5rem; margin-bottom: 10px; display: none;"></div>
-     <h2 style="color: var(--bull); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">META DIÁRIA BATIDA</h2>
-     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O sistema protegeu os teus lucros e encerrou as operações por hoje.</p>
+     <h2 style="color: var(--bull); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">LUCRO DIÁRIO GARANTIDO</h2>
+     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O AuraForex_V8_INSTITUTIONAL fechou TODAS as posições para garantir lucro diário. Trading bloqueado até amanhã às 00h.</p>
      <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
         <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">PRÓXIMA SESSÃO EM:</span>
         <span id="lockCountdown" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--accent);">00:00:00</span>
+     </div>
+  </div>
+
+  <!-- AVISO CIRCUIT BREAKER (PERDA) -->
+  <div id="lossLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(255,82,82,0.1), rgba(255,0,0,0.2)); border: 2px solid var(--bear); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
+     <h2 style="color: var(--bear); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">CIRCUIT BREAKER ATIVADO</h2>
+     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O limite máximo de perda diária foi atingido. O sistema bloqueou operações para proteger o capital.</p>
+     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
+        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">PRÓXIMA SESSÃO EM:</span>
+        <span id="lossCountdown" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--warn);">00:00:00</span>
      </div>
   </div>
 
@@ -2929,6 +2939,7 @@ async function updateStats() {
 
       // HMI Lock Management
       const lockOverlay = document.getElementById("dailyLockOverlay");
+      const lossLockOverlay = document.getElementById("lossLockOverlay");
       const weekendOverlay = document.getElementById("weekendLockOverlay");
       const mainBtn = document.getElementById("mainBtn");
       
@@ -2948,6 +2959,7 @@ async function updateStats() {
 
       if (isWeekendBlocked) {
         lockOverlay.style.display = "none";
+        if(lossLockOverlay) lossLockOverlay.style.display = "none";
         weekendOverlay.style.display = "block";
         const wlt = document.getElementById("weekendLockTimer"); if (wlt.dataset.val !== String(sundayHour)) { wlt.textContent = `Domingo às ${sundayHour}h00`; wlt.dataset.val = String(sundayHour); }
         if (mainBtn) {
@@ -2956,8 +2968,20 @@ async function updateStats() {
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
-      } else if (status.isLocked) {
+      } else if (status.isLossLocked) {
         weekendOverlay.style.display = "none";
+        lockOverlay.style.display = "none";
+        if(lossLockOverlay) lossLockOverlay.style.display = "block";
+        if (mainBtn) {
+            mainBtn.disabled = true;
+            if (mainBtn.dataset.state !== "losslocked") { mainBtn.textContent = "Circuit Breaker Ativo"; mainBtn.dataset.state = "losslocked"; }
+            mainBtn.style.opacity = "0.5";
+            if (isRunning) stopBot();
+        }
+        updateLockCountdown(status.timeUntilReset);
+      } else if (status.isProfitLocked) {
+        weekendOverlay.style.display = "none";
+        if(lossLockOverlay) lossLockOverlay.style.display = "none";
         lockOverlay.style.display = "block";
         if (mainBtn) {
             mainBtn.disabled = true;
@@ -2968,6 +2992,7 @@ async function updateStats() {
         updateLockCountdown(status.timeUntilReset);
       } else {
         lockOverlay.style.display = "none";
+        if(lossLockOverlay) lossLockOverlay.style.display = "none";
         weekendOverlay.style.display = "none";
       }
     }
