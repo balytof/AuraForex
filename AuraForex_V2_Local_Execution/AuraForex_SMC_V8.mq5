@@ -81,6 +81,7 @@ ProfitLockData    ProfitLocks[];   // Array de monitoramento
 PortfolioProfitLock GlobalProfitLockState = {false, 0, 0}; // Estado do ProfitLock Global
 double            DailyStartBalance  = 0;
 double            DailyStartEquity   = 0; 
+double            DailyTargetProfit  = 0; // Meta fixa calculada apenas uma vez
 bool              DailyTargetReached = false;
 bool              DailyLossLock      = false; // Bloqueio por perda diária
 double            DailyPeakPnL       = 0;     // Pico de lucro diário atingido
@@ -380,35 +381,58 @@ void CheckDailyTarget()
          DailyLossLock      = false;
          DailyStartBalance  = currentBal;
          DailyStartEquity   = currentEq;
-         Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2));
+         DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
+         
+         GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
+         GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
+         GlobalVariableSet("Aura_TradingDay", tm.day);
+         
+         Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
       }
    }
 
-   // Fallback inicialização (Primeiro run do bot no dia)
-   if(DailyStartEquity <= 10)
+   // Fallback inicialização (Primeiro run do bot no dia ou após reboot)
+   if(DailyTargetProfit <= 0 && DailyStartEquity <= 10)
    {
-      double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
-      double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
-      if(currentBal > 10 && currentEq > 10)
+      if(GlobalVariableCheck("Aura_DailyTarget") && GlobalVariableCheck("Aura_TradingDay") && GlobalVariableGet("Aura_TradingDay") == tm.day)
       {
-         DailyStartBalance  = currentBal;
-         DailyStartEquity   = currentEq;
-         Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2));
+         DailyTargetProfit = GlobalVariableGet("Aura_DailyTarget");
+         DailyStartEquity  = GlobalVariableGet("Aura_DailyEquity");
+         DailyStartBalance = DailyStartEquity;
+         LastTradingDay    = tm.day;
+         Print("🔄 [RESTORE] Meta Diária recuperada da memória global: $", DoubleToString(DailyTargetProfit, 2));
+      }
+      else
+      {
+         double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
+         double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
+         if(currentBal > 10 && currentEq > 10)
+         {
+            DailyStartBalance  = currentBal;
+            DailyStartEquity   = currentEq;
+            DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
+            
+            GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
+            GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
+            GlobalVariableSet("Aura_TradingDay", tm.day);
+            
+            Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
+         }
       }
    }
 
    if(DailyStartEquity <= 10) return; // Não calcular meta se saldo inicial não foi definido
    if(DailyTargetReached) return;
 
-   // CÁLCULO PRECISO DO LUCRO DIÁRIO DO PRÓPRIO BOT (Closed + Open)
-   double dailyPnL = GetDailyPnL();
-   double targetProfit = DailyStartEquity * (InpDailyTargetPct / 100.0);
+   // CÁLCULO PRECISO DO LUCRO DIÁRIO (Evolução Líquida Real do Capital)
+   double currentEq = AccountInfoDouble(ACCOUNT_EQUITY);
+   double dailyPnL = currentEq - DailyStartEquity;
 
    // 1. Meta 100% atingida de imediato
-   if(dailyPnL >= targetProfit)
+   if(dailyPnL >= DailyTargetProfit && DailyTargetProfit > 0)
    {
       DailyTargetReached = true;
-      Print("🏆 [DAILY] META ATINGIDA PELO BOT: $", DoubleToString(dailyPnL, 2), " >= Meta: $", DoubleToString(targetProfit, 2), " | Fechando posições...");
+      Print("🏆 [DAILY] META ATINGIDA PELO BOT: $", DoubleToString(dailyPnL, 2), " >= Meta: $", DoubleToString(DailyTargetProfit, 2), " | Fechando posições...");
       
       CloseAllPositions();
       DailyTargetLockActive = false;
@@ -419,11 +443,11 @@ void CheckDailyTarget()
    // 2. Lógica da Trava de Segurança Diária (Daily Target Profit Lock)
    if(InpDailyTargetLockActive)
    {
-      double activationThreshold = targetProfit * (InpDailyTargetLockPct / 100.0);
-      double floorProfit         = targetProfit * (InpDailyTargetFloorPct / 100.0);
+      double activationThreshold = DailyTargetProfit * (InpDailyTargetLockPct / 100.0);
+      double floorProfit         = DailyTargetProfit * (InpDailyTargetFloorPct / 100.0);
 
       // Ativar trava ao alcançar o gatilho (ex: 80% da meta)
-      if(!DailyTargetLockActive && dailyPnL >= activationThreshold)
+      if(!DailyTargetLockActive && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
       {
          DailyTargetLockActive = true;
          DailyPeakPnL = dailyPnL;
@@ -618,8 +642,20 @@ double GetBreakevenPrice(ulong ticket, double openPrice, int posType, double vol
    if(point <= 0 || tickSize <= 0 || tickVal <= 0 || volume <= 0) 
       return openPrice;
       
-   double commission = PositionGetDouble(POSITION_COMMISSION);
-   double swap       = PositionGetDouble(POSITION_SWAP);
+   double commission = 0;
+   long pos_id = PositionGetInteger(POSITION_IDENTIFIER);
+   if(HistorySelectByPosition(pos_id))
+   {
+      int deals = HistoryDealsTotal();
+      for(int d = 0; d < deals; d++)
+      {
+         ulong deal_ticket = HistoryDealGetTicket(d);
+         if(deal_ticket > 0)
+            commission += HistoryDealGetDouble(deal_ticket, DEAL_COMMISSION);
+      }
+   }
+   
+   double swap = PositionGetDouble(POSITION_SWAP);
    
    double totalCost = 0;
    if(commission < 0) totalCost += MathAbs(commission);
@@ -1762,7 +1798,8 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
-   double dailyPnl = GetDailyPnL();
+   // 🛡️ CONSISTÊNCIA VISUAL ABSOLUTA: O Dashboard deve mostrar exatamente o PnL calculado para a Trava (Equity Atual - Start Equity)
+   double dailyPnl = (DailyStartEquity > 0) ? (equity - DailyStartEquity) : 0;
    
    string openTradesJson = "[";
    int count = 0;
