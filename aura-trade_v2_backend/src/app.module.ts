@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TronModule } from './tron/tron.module';
+import { WalletsModule } from './wallets/wallets.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TronModule } from './tron/tron.module';
     AuthModule,
     UsersModule,
     TronModule,
+    WalletsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
