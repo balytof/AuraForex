@@ -1,13 +1,92 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String?
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  licenses      License[]
+  wallets       Wallet[]
+  transactions  Transaction[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model License {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  licenseKey      String         @unique
+  
+  // Detalhes MT5
+  accountId       String?
+  broker          String?
+  balance         Float          @default(0)
+  equity          Float          @default(0)
+  
+  // Estado e Segurança da Licença
+  isActive        Boolean        @default(false)
+  expiresAt       DateTime?
+  dailyProfitLocked Boolean      @default(false)
+  circuitBreaker  Boolean        @default(false)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Wallet {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  
+  addressBase58   String         @unique // Endereço público TRC20 gerado para o cliente depositar
+  privateKeyHash  String         // Chave privada encriptada (usada apenas pelo servidor para assinar a transferência Sweep)
+  
+  balanceUSDT     Float          @default(0)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Transaction {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  
+  txid            String         @unique // Hash da transação na Tron
+  type            TxType
+  amountUSDT      Float
+  status          TxStatus       @default(PENDING)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+enum TxType {
+  DEPOSIT        // Cliente enviou fundos para a Wallet gerada
+  SWEEP          // Servidor varreu fundos da Wallet gerada para a Hardware Wallet (Cold)
+  MANUAL_WITHDRAW // Levantamento manual aprovado pelo Admin
+}
+
+enum TxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
 }
