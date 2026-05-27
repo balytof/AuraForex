@@ -1,62 +1,96 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as TronWeb from 'tronweb';
+import TronWeb from 'tronweb';
+
+// Endereço do Smart Contract oficial do USDT na rede Tron (TRC20)
+const USDT_CONTRACT_MAINNET = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+const USDT_CONTRACT_TESTNET = 'TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs'; // Shasta
 
 @Injectable()
 export class TronService {
   private readonly logger = new Logger(TronService.name);
   private tronWeb: any;
+  private usdtContractAddress: string;
 
   constructor() {
-    // Inicializar na Shasta Testnet (Ambiente de Testes Seguro)
-    const fullNode = 'https://api.shasta.trongrid.io';
-    const solidityNode = 'https://api.shasta.trongrid.io';
-    const eventServer = 'https://api.shasta.trongrid.io';
-    
-    // Opcional: Para produção necessitamos de uma API Key da TronGrid
+    const isProduction = process.env.NODE_ENV === 'production';
+
     this.tronWeb = new TronWeb({
-      fullHost: fullNode,
-      // privateKey central (Gas Wallet) virá do .env futuramente
+      fullHost: isProduction
+        ? 'https://api.trongrid.io'
+        : 'https://api.shasta.trongrid.io',
+      headers: process.env.TRON_API_KEY
+        ? { 'TRON-PRO-API-KEY': process.env.TRON_API_KEY }
+        : {},
     });
 
-    this.logger.log('🚀 TronWeb inicializado na rede Shasta (Testnet). Nenhum fundo real em risco.');
+    this.usdtContractAddress = isProduction
+      ? USDT_CONTRACT_MAINNET
+      : USDT_CONTRACT_TESTNET;
+
+    this.logger.log(
+      isProduction
+        ? '🏦 TronWeb em modo PRODUÇÃO (Mainnet). Fundos REAIS em operação.'
+        : '🧪 TronWeb em modo TESTE (Shasta Testnet). Nenhum fundo real em risco.',
+    );
   }
 
   /**
-   * Gera uma nova carteira TRC20 (Par de Chaves: Pública e Privada)
-   * A chave privada deve ser IMEDIATAMENTE encriptada antes de ir para a base de dados.
+   * Gera um novo par de chaves TRC20 (Endereço Público + Chave Privada)
    */
   async generateWallet(): Promise<{ addressBase58: string; privateKey: string }> {
+    const account = await this.tronWeb.createAccount();
+    this.logger.log(`Nova carteira gerada: ${account.address.base58}`);
+    return {
+      addressBase58: account.address.base58,
+      privateKey: account.privateKey,
+    };
+  }
+
+  /**
+   * Consulta o saldo de USDT (TRC20) de um endereço na blockchain
+   */
+  async getUSDTBalance(addressBase58: string): Promise<number> {
     try {
-      const account = await this.tronWeb.createAccount();
-      
-      this.logger.log(`Nova carteira gerada com sucesso: ${account.address.base58}`);
-      
-      return {
-        addressBase58: account.address.base58,
-        privateKey: account.privateKey,
-      };
+      const contract = await this.tronWeb.contract().at(this.usdtContractAddress);
+      const result = await contract.balanceOf(addressBase58).call();
+      // USDT tem 6 casas decimais na rede Tron
+      return Number(result) / 1_000_000;
     } catch (error) {
-      this.logger.error('Falha ao gerar nova carteira TRC20', error);
-      throw new Error('Não foi possível gerar carteira de depósito.');
+      this.logger.error(`Erro ao consultar saldo de ${addressBase58}: ${error.message}`);
+      return 0;
     }
   }
 
   /**
-   * (Placeholder) Função Sweep: Vai transferir USDT da carteira do cliente para a Cold Wallet
+   * SWEEP: Transfere USDT da carteira temporária do cliente para a Cold Wallet (Hardware Wallet)
+   * Esta função nunca persiste a chave privada — apenas a usa em memória para assinar.
    */
-  async sweepToColdWallet(userPrivateKey: string, amountUSDT: number): Promise<string> {
+  async sweepToColdWallet(decryptedPrivateKey: string, amountUSDT: number): Promise<string> {
     const coldWalletAddress = process.env.COLD_WALLET_ADDRESS;
+
     if (!coldWalletAddress) {
-      throw new Error('Endereço da Cold Wallet não está configurado no sistema.');
+      throw new Error('COLD_WALLET_ADDRESS não configurado no ficheiro .env do servidor.');
     }
 
-    this.logger.log(`A iniciar SWEEP de ${amountUSDT} USDT para a Cold Wallet: ${coldWalletAddress}...`);
-    
-    // Lógica futura de Smart Contract USDT
-    // 1. Instanciar contrato USDT
-    // 2. Assinar transação com userPrivateKey
-    // 3. Executar envio
-    
-    return "MOCK_TX_HASH_12345";
+    try {
+      // Criar instância temporária com a chave privada da carteira do cliente
+      const tempTronWeb = new TronWeb({
+        fullHost: this.tronWeb.fullNode.host,
+        privateKey: decryptedPrivateKey,
+      });
+
+      const contract = await tempTronWeb.contract().at(this.usdtContractAddress);
+      const amountSun = Math.floor(amountUSDT * 1_000_000); // Converter para unidades mínimas
+
+      const tx = await contract
+        .transfer(coldWalletAddress, amountSun)
+        .send({ feeLimit: 10_000_000 }); // 10 TRX de limite de taxa
+
+      this.logger.log(`✅ SWEEP concluído! ${amountUSDT} USDT → Cold Wallet. TxHash: ${tx}`);
+      return tx;
+    } catch (error) {
+      this.logger.error(`❌ SWEEP falhado: ${error.message}`);
+      throw error;
+    }
   }
 }
