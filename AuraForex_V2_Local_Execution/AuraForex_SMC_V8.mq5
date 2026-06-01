@@ -370,13 +370,13 @@ void CheckDailyTarget()
    MqlDateTime tm;
    TimeCurrent(tm);
 
-   if(tm.day != LastTradingDay)
+   if(tm.day_of_year != LastTradingDay)
    {
       double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
       double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
       if(currentBal > 10 && currentEq > 10)
       {
-         LastTradingDay = tm.day;
+         LastTradingDay = tm.day_of_year;
          DailyTargetReached = false;
          DailyLossLock      = false;
          DailyStartBalance  = currentBal;
@@ -385,7 +385,7 @@ void CheckDailyTarget()
          
          GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
          GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
-         GlobalVariableSet("Aura_TradingDay", tm.day);
+         GlobalVariableSet("Aura_TradingDay", tm.day_of_year);
          
          Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
       }
@@ -394,12 +394,12 @@ void CheckDailyTarget()
    // Fallback inicialização (Primeiro run do bot no dia ou após reboot)
    if(DailyTargetProfit <= 0 && DailyStartEquity <= 10)
    {
-      if(GlobalVariableCheck("Aura_DailyTarget") && GlobalVariableCheck("Aura_TradingDay") && GlobalVariableGet("Aura_TradingDay") == tm.day)
+      if(GlobalVariableCheck("Aura_DailyTarget") && GlobalVariableCheck("Aura_TradingDay") && GlobalVariableGet("Aura_TradingDay") == tm.day_of_year)
       {
          DailyTargetProfit = GlobalVariableGet("Aura_DailyTarget");
          DailyStartEquity  = GlobalVariableGet("Aura_DailyEquity");
          DailyStartBalance = DailyStartEquity;
-         LastTradingDay    = tm.day;
+         LastTradingDay    = tm.day_of_year;
          Print("🔄 [RESTORE] Meta Diária recuperada da memória global: $", DoubleToString(DailyTargetProfit, 2));
       }
       else
@@ -414,7 +414,7 @@ void CheckDailyTarget()
             
             GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
             GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
-            GlobalVariableSet("Aura_TradingDay", tm.day);
+            GlobalVariableSet("Aura_TradingDay", tm.day_of_year);
             
             Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
          }
@@ -424,9 +424,8 @@ void CheckDailyTarget()
    if(DailyStartEquity <= 10) return; // Não calcular meta se saldo inicial não foi definido
    if(DailyTargetReached) return;
 
-   // CÁLCULO PRECISO DO LUCRO DIÁRIO (Evolução Líquida Real do Capital)
-   double currentEq = AccountInfoDouble(ACCOUNT_EQUITY);
-   double dailyPnL = currentEq - DailyStartEquity;
+   // CÁLCULO PRECISO DO LUCRO DIÁRIO (Evolução Líquida Real do Capital via Histórico e Flutuante)
+   double dailyPnL = GetDailyPnL();
 
    // 1. Meta 100% atingida de imediato
    if(dailyPnL >= DailyTargetProfit && DailyTargetProfit > 0)
@@ -481,14 +480,15 @@ void CheckDailyLoss()
    if(DailyLossLock) return;
    if(DailyStartEquity <= 10) return; // Não calcular perda se saldo inicial não foi definido
 
-   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-   
    // Buffer de inicialização: Não actua nos primeiros 10 segundos para evitar spikes de boot
    static datetime bootTime = 0;
    if(bootTime == 0) bootTime = TimeCurrent();
    if(TimeCurrent() - bootTime < 10) return;
 
-   double lossPct = ((DailyStartEquity - equity) / DailyStartEquity) * 100.0;
+   double dailyPnL = GetDailyPnL();
+   double lossPct = (dailyPnL < 0) ? (MathAbs(dailyPnL) / DailyStartEquity) * 100.0 : 0.0;
+
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    // Só bloqueia se houver uma perda REAL de 10%
    if(lossPct >= InpMaxDailyLossPct)

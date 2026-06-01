@@ -465,9 +465,11 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       success: true,
       balance: lastBalance,
       equity: lastEquity, // Prioriza a equity em tempo real para evitar sinais invertidos!
-      dailyPnl: netEvolution, // Retorna a evolução total do P&L (Equity - Saldo Inicial)
+      dailyPnl: risk.dailyPnl, // Correção: Usar o PnL fechado+flutuante exacto vindo do MT5!
       dailyTargetMoney: dailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
       isLocked: isProfitLocked || risk.circuitBreaker,
+      isProfitLocked: isProfitLocked, // Correção: Passar flag específica para o Card Verde
+      isLossLocked: risk.circuitBreaker, // Correção: Passar flag específica para o Card Vermelho
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null,
       fridayBlockHour: fridayBlockHour,
