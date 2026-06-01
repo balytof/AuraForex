@@ -2708,8 +2708,6 @@ async function getBrokerStatus() {
 let tradeHistoryRaw = [];
 
 async function loadHistory() {
-  if (!brokerConnected) return;
-
   const btn = document.querySelector('button[onclick="loadHistory()"]');
   if (btn) btn.textContent = "A carregar...";
 
