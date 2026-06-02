@@ -1525,6 +1525,23 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
   }
 });
 
+app.post("/api/admin/requests/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const purchaseRequest = await prisma.purchaseRequest.findUnique({ where: { id } });
+    if (!purchaseRequest) return res.status(404).json({ error: "Solicitação não encontrada." });
+
+    await prisma.purchaseRequest.update({
+      where: { id },
+      data: { status: "REJECTED" }
+    });
+    res.json({ success: true, message: "Solicitação rejeitada com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao rejeitar solicitação." });
+  }
+});
+
 app.patch("/api/admin/licenses/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { expiresAt, status } = req.body;
