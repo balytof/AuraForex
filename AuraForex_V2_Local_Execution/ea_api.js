@@ -152,10 +152,11 @@ router.post("/report", async (req, res) => {
       return res.status(404).json({ error: "Sinal não encontrado." });
     }
 
+    // Atualizar sinal
     const updateData = {
       status: status
     };
-
+    
     if (orderTicket) {
       updateData.brokerId = orderTicket.toString();
     }
@@ -168,6 +169,30 @@ router.post("/report", async (req, res) => {
       where: { id: signalId },
       data: updateData
     });
+
+    // 🛡️ SINCRONIA: Se o trade for FECHADO, adicioná-lo ao Histórico local para exibição na UI
+    if (status === "CLOSED" && profit !== undefined) {
+      const risk = getRiskManager(signal.userId);
+      const closeTimeIso = new Date().toISOString();
+      const tradeObj = {
+         id: signalId,
+         pair: signal.pair,
+         direction: signal.direction,
+         lotSize: signal.lotSize || 0.01,
+         pnl: parseFloat(profit),
+         closeTime: closeTimeIso,
+         closedAt: closeTimeIso
+      };
+      
+      if (!risk.tradeHistory) risk.tradeHistory = [];
+      risk.tradeHistory.unshift(tradeObj);
+      if (risk.tradeHistory.length > 100) risk.tradeHistory.pop(); // manter últimos 100
+      
+      // Salvar disco em background
+      if (typeof risk._saveHistory === 'function') {
+         setTimeout(() => risk._saveHistory(), 1000);
+      }
+    }
 
     console.log(`[EA-REPORT] Sinal ${signalId} atualizado para: ${status} (Ticket: ${orderTicket || 'N/A'})`);
 

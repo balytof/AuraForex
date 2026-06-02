@@ -176,6 +176,7 @@ model UserSettings {
   botStatus             String   @default("stopped")
   pammPerformanceFeePct Float?
   pammChangeApproved    Boolean  @default(false)
+  isCentAccount         Boolean  @default(false)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

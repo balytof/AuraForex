@@ -397,6 +397,20 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 
 
+app.post("/api/user/cent-toggle", requireAuth, async (req, res) => {
+  try {
+    const { isCentAccount } = req.body;
+    await prisma.userSettings.upsert({
+      where: { userId: req.user.id },
+      update: { isCentAccount: Boolean(isCentAccount) },
+      create: { userId: req.user.id, isCentAccount: Boolean(isCentAccount) }
+    });
+    res.json({ success: true, isCentAccount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Erro ao atualizar configuração de conta Cent." });
+  }
+});
+
 // ── NOVO: Endpoint de Status HMI (Institucional) ──────────────────
 app.get("/api/user/status", requireAuth, async (req, res) => {
   try {
@@ -461,12 +475,28 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     // Removida a busca cega à base de dados para evitar ordens fantasmas somarem até ao limite global.
     const trueOpenTrades = risk.openTrades || [];
 
+    // Lógica Conta Cent
+    const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+    const isCentAccount = userSettings?.isCentAccount || false;
+
+    let finalBalance = lastBalance;
+    let finalEquity = lastEquity;
+    let finalDailyPnl = risk.dailyPnl;
+    let finalDailyTargetMoney = dailyTargetMoney;
+
+    if (isCentAccount) {
+      finalBalance = finalBalance / 100;
+      finalEquity = finalEquity / 100;
+      finalDailyPnl = finalDailyPnl / 100;
+      finalDailyTargetMoney = finalDailyTargetMoney / 100;
+    }
+
     res.json({
       success: true,
-      balance: lastBalance,
-      equity: lastEquity, // Prioriza a equity em tempo real para evitar sinais invertidos!
-      dailyPnl: risk.dailyPnl, // Correção: Usar o PnL fechado+flutuante exacto vindo do MT5!
-      dailyTargetMoney: dailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
+      balance: finalBalance,
+      equity: finalEquity, // Prioriza a equity em tempo real para evitar sinais invertidos!
+      dailyPnl: finalDailyPnl, // Correção: Usar o PnL fechado+flutuante exacto vindo do MT5!
+      dailyTargetMoney: finalDailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
       isLocked: isProfitLocked || risk.circuitBreaker,
       isProfitLocked: isProfitLocked, // Correção: Passar flag específica para o Card Verde
       isLossLocked: risk.circuitBreaker, // Correção: Passar flag específica para o Card Vermelho
@@ -660,9 +690,35 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
     if (!req.broker) {
       const { getRiskManager } = require("./risk/store");
       const risk = getRiskManager(req.user.id);
-      return res.json({ success: true, history: risk.closedTrades || [] });
+      
+      let pammHist = risk.tradeHistory || [];
+      const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+      const isCentAccount = userSettings?.isCentAccount || false;
+      
+      if (isCentAccount && pammHist.length > 0) {
+        pammHist = pammHist.map(t => ({
+           ...t,
+           pnl: t.pnl / 100,
+           lotSize: t.lotSize / 100
+        }));
+      }
+      return res.json({ success: true, history: pammHist });
     }
-    res.json({ history: await req.broker.getTradeHistory() });
+    const brokerHist = await req.broker.getHistory() || [];
+    
+    // Cent account logic for MT5 direct connection
+    const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+    const isCentAccount = userSettings?.isCentAccount || false;
+    let finalHist = brokerHist;
+    if (isCentAccount && brokerHist.length > 0) {
+      finalHist = brokerHist.map(t => ({
+         ...t,
+         pnl: t.pnl / 100,
+         lotSize: t.lotSize / 100
+      }));
+    }
+    
+    res.json({ history: finalHist });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -2755,7 +2755,8 @@ function renderHistory() {
 
     // Time filter
     if (filterPeriod !== "ALL") {
-      const closeDate = new Date(t.closeTime);
+      const cTime = t.closeTime || t.closedAt || new Date();
+      const closeDate = new Date(cTime);
       const diffDays = (now - closeDate) / (1000 * 3600 * 24);
       if (filterPeriod === "TODAY" && closeDate.toDateString() !== now.toDateString()) return false;
       if (filterPeriod === "WEEK" && diffDays > 7) return false;
@@ -2772,12 +2773,19 @@ function renderHistory() {
   };
 
   tbody.innerHTML = filtered.map(t => {
-    const pnlClass = t.pnl > 0 ? 'bull' : (t.pnl < 0 ? 'bear' : '');
-    const pnlStr = t.pnl > 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
+    // Dividir os resultados por 100 se for uma conta Cent
+    const isCent = t.isCent || (t.accountCurrency && t.accountCurrency.toLowerCase() === 'usc') || (window.brokerInfo && window.brokerInfo.currency === 'USC') || false;
+    const divider = isCent ? 100 : 1;
+    const realPnl = (t.pnl || t.profit || 0) / divider;
+
+    const pnlClass = realPnl > 0 ? 'bull' : (realPnl < 0 ? 'bear' : '');
+    const pnlStr = realPnl > 0 ? `+$${realPnl.toFixed(2)}` : `-$${Math.abs(realPnl).toFixed(2)}`;
     const dirColor = t.direction === "BUY" ? 'var(--bull)' : 'var(--bear)';
+    const cTime = t.closeTime || t.closedAt;
+    
     return `
       <tr>
-        <td>${formatData(t.closeTime)}</td>
+        <td>${cTime ? formatData(cTime) : '—'}</td>
         <td style="color:var(--muted);">${t.broker}</td>
         <td style="font-weight:700;">${t.pair}</td>
         <td>${t.lotSize}</td>
