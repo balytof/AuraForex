@@ -274,6 +274,22 @@ router.post("/report-balance", async (req, res) => {
        risk.openTrades = [];
     }
 
+    // 🛡️ SINCRONIA INSTITUCIONAL DE CLOSED TRADES (Histórico)
+    if (req.body.closedTrades && Array.isArray(req.body.closedTrades)) {
+       risk.closedTrades = req.body.closedTrades.map(t => ({
+         id: t.id,
+         brokerId: t.id,
+         pair: t.pair,
+         direction: t.direction,
+         pnl: t.profit,
+         lotSize: t.lotSize,
+         closePrice: t.closePrice,
+         closeTime: new Date(t.closeTime * 1000).toISOString()
+       }));
+    } else {
+       if(!risk.closedTrades) risk.closedTrades = []; // Preserva se o EA não enviar
+    }
+
     console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | OpenTrades: ${risk.openTrades.length} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
 
     // Sincroniza estados de trava vindo do EA

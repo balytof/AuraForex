@@ -1802,11 +1802,16 @@ void ReportBalance()
    if(TimeCurrent() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
    lastReport = TimeCurrent();
 
-   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
-   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
-   double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
-   double margin      = AccountInfoDouble(ACCOUNT_MARGIN);
-   double floatingPnL = CalculateAuraFloatingPnL();
+   double mult = InpIsCentAccount ? 0.01 : 1.0;
+
+   double rawBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double rawEquity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   
+   double balance     = rawBalance * mult;
+   double equity      = rawEquity * mult;
+   double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE) * mult;
+   double margin      = AccountInfoDouble(ACCOUNT_MARGIN) * mult;
+   double floatingPnL = CalculateAuraFloatingPnL() * mult;
 
    double marginLevel = 0;
    if(margin > 0) marginLevel = (equity / margin) * 100.0;
@@ -1815,7 +1820,7 @@ void ReportBalance()
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
    // 🛡️ CONSISTÊNCIA VISUAL ABSOLUTA: O Dashboard deve mostrar exatamente o PnL calculado para a Trava (Equity Atual - Start Equity)
-   double dailyPnl = (DailyStartEquity > 0) ? (equity - DailyStartEquity) : 0;
+   double dailyPnl = (DailyStartEquity > 0) ? ((rawEquity - DailyStartEquity) * mult) : 0;
    
    string openTradesJson = "[";
    int count = 0;
@@ -1827,7 +1832,7 @@ void ReportBalance()
             string sym = PositionGetString(POSITION_SYMBOL);
             long type = PositionGetInteger(POSITION_TYPE);
             string dir = (type == POSITION_TYPE_BUY) ? "BUY" : "SELL";
-            double profit = PositionGetDouble(POSITION_PROFIT);
+            double profit = PositionGetDouble(POSITION_PROFIT) * mult;
             double lot = PositionGetDouble(POSITION_VOLUME);
             double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
             
@@ -1838,6 +1843,32 @@ void ReportBalance()
       }
    }
    openTradesJson += "]";
+   
+   HistorySelect(0, TimeCurrent());
+   string closedTradesJson = "[";
+   int closedCount = 0;
+   int totalHistory = HistoryDealsTotal();
+   for(int i = totalHistory - 1; i >= MathMax(0, totalHistory - 30); i--) {
+      ulong dealTicket = HistoryDealGetTicket(i);
+      if(dealTicket > 0) {
+         if(HistoryDealGetInteger(dealTicket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
+         long magic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
+         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0)) {
+            string sym = HistoryDealGetString(dealTicket, DEAL_SYMBOL);
+            long dealType = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+            string dir = (dealType == DEAL_TYPE_BUY) ? "BUY" : "SELL";
+            double dealProfit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT) * mult;
+            double dealLot = HistoryDealGetDouble(dealTicket, DEAL_VOLUME);
+            double dealClosePrice = HistoryDealGetDouble(dealTicket, DEAL_PRICE);
+            long closeTime = HistoryDealGetInteger(dealTicket, DEAL_TIME);
+            
+            if(closedCount > 0) closedTradesJson += ",";
+            closedTradesJson += "{\\\"id\\\":\\\"" + IntegerToString(dealTicket) + "\\\",\\\"pair\\\":\\\"" + sym + "\\\",\\\"direction\\\":\\\"" + dir + "\\\",\\\"profit\\\":" + DoubleToString(dealProfit, 2) + ",\\\"lotSize\\\":" + DoubleToString(dealLot, 2) + ",\\\"closePrice\\\":" + DoubleToString(dealClosePrice, 5) + ",\\\"closeTime\\\":" + IntegerToString((int)closeTime) + "}";
+            closedCount++;
+         }
+      }
+   }
+   closedTradesJson += "]";
    
    string payload = "{"
       "\"licenseKey\":\"" + InpLicenseKey + "\","
@@ -1853,7 +1884,8 @@ void ReportBalance()
       "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
       "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
       "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") + ","
-      "\"openTrades\":" + openTradesJson +
+      "\"openTrades\":" + openTradesJson + ","
+      "\"closedTrades\":" + closedTradesJson +
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";

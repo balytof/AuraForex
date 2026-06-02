@@ -657,7 +657,11 @@ app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res
 
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
-    if (!req.broker) return res.json({ success: true, history: [] });
+    if (!req.broker) {
+      const { getRiskManager } = require("./risk/store");
+      const risk = getRiskManager(req.user.id);
+      return res.json({ success: true, history: risk.closedTrades || [] });
+    }
     res.json({ history: await req.broker.getTradeHistory() });
   } catch (e) {
     res.status(500).json({ error: e.message });
