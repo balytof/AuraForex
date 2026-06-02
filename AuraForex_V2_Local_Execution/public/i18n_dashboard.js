@@ -535,7 +535,7 @@ window.applyDashboardI18n = function(forceLang) {
                     }
                 }
             }
-            if (changed) node.nodeValue = text;
+            if (changed && node.nodeValue !== text) node.nodeValue = text;
         } else if (node.nodeType === 1) {
             if (['SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA'].includes(node.nodeName)) return;
             for (let child of Array.from(node.childNodes)) {
@@ -547,7 +547,7 @@ window.applyDashboardI18n = function(forceLang) {
                 let lowerText = text.toLowerCase();
                 for (let m of map) {
                     if (lowerText.includes(m.ptLower)) {
-                        const regex = new RegExp(`(?<![\\p{L}\\p{N}])${m.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'gui');
+                        const regex = new RegExp(`(?<![\\p{L}\\p{N}])${m.original.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}(?![\\p{L}\\p{N}])`, 'gui');
                         if (regex.test(text)) {
                             text = text.replace(regex, m.target);
                             changed = true;
@@ -555,7 +555,7 @@ window.applyDashboardI18n = function(forceLang) {
                         }
                     }
                 }
-                if (changed) node.placeholder = text;
+                if (changed && node.placeholder !== text) node.placeholder = text;
             }
         }
     }
