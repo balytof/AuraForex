@@ -16,11 +16,12 @@
 //--- INPUT PARAMETERS ---
 input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
 input string   InpServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
+input bool     InpIsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
 input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
 input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
 input int      InpTimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
 input int      InpMaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
-input int      InpMaxSLJPY          = 5000;                    // Limite SL JPY/Ouro (Pontos)
+input int      InpMaxSLJPY          = 3000;                    // Limite SL JPY/Ouro (Pontos)
 input int      InpMaxOrders         = 4;                       // Limite Global de Ordens
 input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
 input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
@@ -74,6 +75,7 @@ struct PortfolioProfitLock {
 };
 
 //--- GLOBAL VARIABLES ---
+double            g_MonetaryMultiplier = 1.0; // Multiplicador para Contas Cent
 CTrade            trade;
 bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
@@ -231,6 +233,20 @@ int OnInit()
    
    ValidateLicense();
    RecoverState(); 
+   
+   // --- AUTO DETEÇÃO CONTA CENT ---
+   g_MonetaryMultiplier = 1.0;
+   if(InpIsCentAccount) {
+      g_MonetaryMultiplier = 100.0;
+      Print("✅ Conta Cent (Forçada pelo Utilizador). Multiplicador = 100x");
+   } else {
+      string currency = AccountInfoString(ACCOUNT_CURRENCY);
+      if(StringFind(currency, "USC") >= 0 || StringFind(currency, "USX") >= 0 || StringFind(currency, "EUC") >= 0 || StringFind(currency, "GBX") >= 0) {
+         g_MonetaryMultiplier = 100.0;
+         Print("✅ Conta Cent Autodetectada (Moeda: ", currency, "). Multiplicador = 100x");
+      }
+   }
+   
    EventSetTimer(InpTimerSeconds);
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetAsyncMode(false);
@@ -539,7 +555,7 @@ void MonitorProfitLock()
       // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
-         double minProfitActivation = InpProfitLockMin;
+         double minProfitActivation = InpProfitLockMin * g_MonetaryMultiplier;
          
          if(profit >= minProfitActivation)
          {
@@ -819,7 +835,7 @@ void MonitorGlobalProfitLock()
    // FASE 1: Activação do Profit Lock Global
    if(!GlobalProfitLockState.active)
    {
-      double minGlobalActivation = InpProfitLockMin;
+      double minGlobalActivation = InpProfitLockMin * g_MonetaryMultiplier;
       
       if(currentNetProfit >= minGlobalActivation)
       {
@@ -919,7 +935,7 @@ void MonitorPartialTP()
       double vol = PositionGetDouble(POSITION_VOLUME);
       
       // Meta para Fecho Parcial: $25 para Ouro, $10 para Forex
-      double partialTarget = IsXAU(sym) ? 25.0 : 10.0;
+      double partialTarget = (IsXAU(sym) ? 25.0 : 10.0) * g_MonetaryMultiplier;
 
       // Verificar se já fechamos parcialmente este ticket via array dinâmico
       bool alreadyClosed = false;
@@ -1471,7 +1487,7 @@ bool ExecuteSignal(string json)
           slDist = MathAbs(entry - structureSL);
        } else {
           double atr = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
-          slDist = (atr > 0) ? (atr * 2.2) : (300 * point); 
+          slDist = (atr > 0) ? (atr * 1.5) : (300 * point); 
        }
     }
     if(tpDist <= 0) {
@@ -1483,7 +1499,7 @@ bool ExecuteSignal(string json)
     int slPoints = (int)(slDist / point);
     
     double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
-    int atrLimitPoints = (int)((currentATR * 3.5) / point);
+    int atrLimitPoints = (int)((currentATR * 2.0) / point);
     
     if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
        slPoints = atrLimitPoints;
