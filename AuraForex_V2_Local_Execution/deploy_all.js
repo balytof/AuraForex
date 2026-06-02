@@ -9,6 +9,7 @@ conn.on('ready', () => {
         
         const filesToUpload = [
             { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/smc_bot_dashboard.html' },
+            { local: './admin_dashboard.html', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/admin_dashboard.html' },
             { local: './server.js', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/server.js' },
             { local: './risk/risk.js', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/risk/risk.js' },
             { local: './ea_api.js', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/ea_api.js' }
