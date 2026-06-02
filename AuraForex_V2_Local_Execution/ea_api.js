@@ -276,8 +276,12 @@ router.post("/report-balance", async (req, res) => {
       return res.status(404).json({ error: "Licença não encontrada." });
     }
 
-    const risk = getRiskManager(lic.userId);
-    risk.setBalance(parseFloat(balance), parseFloat(equity));
+    const { getRiskManager } = require("./risk/store");
+    const risk = getRiskManager(licenseKey); // Usa a licença para ter gestão de risco independente por conta
+
+    // 🛡️ Sincronia Rápida de Equidade e Balance no Gestor de Risco
+    risk.balance = parseFloat(balance);
+    risk.equity = parseFloat(equity);
     risk.dailyPnl = parseFloat(dailyPnl || 0);
     
     // Sincroniza configurações de meta dinâmicas
