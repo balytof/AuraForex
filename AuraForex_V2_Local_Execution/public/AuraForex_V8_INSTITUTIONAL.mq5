@@ -1501,9 +1501,7 @@ bool ExecuteSignal(string json)
     double currentATR = GetATR(pair, IsXAU(pair) ? PERIOD_H1 : PERIOD_M15);
     int atrLimitPoints = (int)((currentATR * 2.0) / point);
     
-    if(slPoints > atrLimitPoints && atrLimitPoints > 0) {
-       slPoints = atrLimitPoints;
-    }
+    // Removido o esmagamento do SL baseado no ATR que causava SL curto e lote alto
     
     if(slPoints > hardMaxSL) {
        slPoints = hardMaxSL;
@@ -1603,8 +1601,8 @@ bool ExecuteSignal(string json)
          if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
          else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair);
-         else             success = trade.Sell(lot, pair);
+         if(dir == "BUY") success = trade.Buy(lot, pair, entry, nSL, nTP);
+         else             success = trade.Sell(lot, pair, entry, nSL, nTP);
       }
 
       if(success) {
