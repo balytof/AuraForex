@@ -423,7 +423,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     const fridayBlockHour = settings ? settings.fridayBlockHour : 12;
     const sundayOpenHour = settings ? settings.sundayOpenHour : 22;
 
-    const risk = getRiskManager(req.user.id);
+    const risk = getRiskManager(license ? license.id : req.user.id);
 
     const now = new Date();
     const midnight = new Date();
@@ -688,8 +688,12 @@ app.get("/api/broker/positions", requireAuth, requireBrokerAuth, async (req, res
 app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) => {
   try {
     if (!req.broker) {
+      const license = await prisma.license.findFirst({
+        where: { userId: req.user.id },
+        orderBy: { updatedAt: 'desc' }
+      });
       const { getRiskManager } = require("./risk/store");
-      const risk = getRiskManager(req.user.id);
+      const risk = getRiskManager(license ? license.id : req.user.id);
       
       let pammHist = risk.tradeHistory || [];
       const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });

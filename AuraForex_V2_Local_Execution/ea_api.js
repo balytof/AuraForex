@@ -247,11 +247,17 @@ router.post("/report", async (req, res) => {
  * ─────────────────────────────────────────────────────────────────────
  */
 router.post("/report-balance", async (req, res) => {
+  if (!req.body) {
+    return res.status(400).json({ error: "No body" });
+  }
+
   const { 
     licenseKey, balance, equity, dailyPnl, 
     dailyProfitTarget, dailyLossLimit,
     isLocked, isProfitLocked, isLossLocked 
   } = req.body;
+
+  console.log(`[REPORT-BALANCE-DEBUG] Received from EA: License=${licenseKey}, Balance=${balance}, Equity=${equity}`);
 
   if (!licenseKey || balance === undefined || equity === undefined) {
     return res.status(400).json({ error: "Dados incompletos (licenseKey, balance, equity)." });
