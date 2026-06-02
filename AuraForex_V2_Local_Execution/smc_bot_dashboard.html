@@ -3140,8 +3140,9 @@ async function loadUserWallet() {
 let countdownActive = false;
 function updateLockCountdown(seconds) {
     if (countdownActive) return;
-    const el = document.getElementById("lockCountdown");
-    if (!el) return;
+    const el1 = document.getElementById("lockCountdown");
+    const el2 = document.getElementById("lossCountdown");
+    if (!el1 && !el2) return;
     
     countdownActive = true;
     let remaining = seconds;
@@ -3156,7 +3157,9 @@ function updateLockCountdown(seconds) {
         const h = Math.floor(remaining / 3600);
         const m = Math.floor((remaining % 3600) / 60);
         const s = remaining % 60;
-        el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        if (el1) el1.textContent = timeStr;
+        if (el2) el2.textContent = timeStr;
     }, 1000);
 }
 
