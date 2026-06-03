@@ -1406,7 +1406,7 @@
       </div>
       <div class="status-badge" onclick="openPammModal()" style="cursor:pointer; border: 1px solid var(--bull); background: rgba(0,230,118,0.1);">
         <div class="dot" style="background: var(--bull);"></div>
-        <span>Aderir ao PAMM</span>
+        <span>Aderir ao Copy Trading</span>
       </div>
       <button class="btn-setup-ea" id="setupEABtn" onclick="openSetupModal()">
         <i class="fas fa-download"></i> Configurar EA no MT5
@@ -1474,7 +1474,7 @@
       cursor: pointer;
       white-space: nowrap;
     ">
-      <i class="fas fa-wallet" style="color: var(--accent2);"></i> Serviço PAMM
+      <i class="fas fa-network-wired" style="color: var(--accent2);"></i> Copy Trading
     </button>
   </div>
 
@@ -1779,7 +1779,7 @@
     <!-- STATS GRID PAMM (Mobile-First 2×cols → 1×col) -->
     <div class="stats-grid" style="display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
       <div class="stat-card" style="border-left: 4px solid var(--accent);">
-        <div class="stat-label">Saldo Conta PAMM</div>
+        <div class="stat-label">Saldo Copy Trading</div>
         <div class="stat-value accent" id="pammStatBalance">$1,000.00</div>
         <div class="stat-sub" id="pammStatServer">MetaTrader — AuraTrade-Live</div>
       </div>
@@ -1811,7 +1811,7 @@
       <!-- ESQUERDA: ATIVIDADE DE TRADING EM TEMPO REAL -->
       <div class="panel glass-panel">
         <div class="panel-header" style="background: rgba(0, 212, 255, 0.05); padding: 16px 20px;">
-          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Atividade de Trading PAMM</div>
+          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Sinais Copiados em Tempo Real</div>
           <div class="status-badge" style="background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.2);">
             <div class="dot active"></div>
             <span>Tempo Real</span>
@@ -1831,81 +1831,27 @@
       <!-- DIREITA: CREDENCIAIS DE ACESSO -->
       <div class="panel glass-panel">
         <div class="panel-header" style="background: rgba(124, 58, 237, 0.05); padding: 16px 20px;">
-          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Conexão da Conta PAMM</div>
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span id="pammConnStatusBadge" class="account-type-badge demo" style="background: rgba(255,68,68,0.2); color: var(--bear); padding: 3px 8px; border-radius: 4px;">Não Conectado</span>
-            
-            <div class="toggle-switch-container" id="pammToggleContainer" style="display: none; align-items: center; gap: 8px;">
-              <span style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">ATIVO</span>
-              <label class="switch">
-                <input type="checkbox" id="pammActiveToggle" onchange="togglePammState()">
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
+          <div class="panel-title" style="font-weight: 800;"><span class="icon"></span> Como Conectar ao Copy Trading?</div>
         </div>
         <div style="padding: 20px;">
-          <form id="pammCredentialsForm" onsubmit="event.preventDefault(); savePammCredentials();" style="display: flex; flex-direction: column; gap: 16px;">
-            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-              <label class="form-label" style="font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; text-transform: uppercase;">Número da Conta MT4/MT5</label>
-              <input type="text" class="form-input" id="pammAccNumber" required placeholder="Ex: 8529104" style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-family: inherit; font-size: 0.85rem; width: 100%;">
-            </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
             
-            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-              <label class="form-label" style="font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; text-transform: uppercase;">Servidor MetaTrader</label>
-              <input type="text" class="form-input" id="pammServer" required placeholder="Ex: AuraTrade-Live" style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-family: inherit; font-size: 0.85rem; width: 100%;">
+            <div style="background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.2); padding: 15px; border-radius: 8px;">
+              <h4 style="color: var(--accent); margin-bottom: 5px; font-size: 0.9rem;"><i class="fas fa-download"></i> Passo 1: Baixe o Robô</h4>
+              <p style="font-size: 0.8rem; color: var(--muted); line-height: 1.5;">Clique no botão "Configurar EA no MT5" lá em cima, e faça o download do <b>AuraCopier_Client.ex5</b>.</p>
             </div>
 
-            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-              <label class="form-label" style="font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; text-transform: uppercase;">Senha Principal/Trading</label>
-              <div style="position: relative; width: 100%;">
-                <input type="password" class="form-input" id="pammInvestorPw" required placeholder="Insira a senha principal de trading" style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 40px 12px 12px; color: var(--text); font-family: inherit; font-size: 0.85rem; width: 100%;">
-                <button type="button" onclick="dashTogglePass('pammInvestorPw',this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--muted);">Ver</button>
-              </div>
-              <span style="font-size: 0.68rem; color: var(--muted); display: block; margin-top: 4px; line-height: 1.4;">
-                A sua senha é guardada com criptografia militar AES-256 de forma 100% segura. O robô nunca efetuará saques.
-              </span>
+            <div style="background: rgba(0, 230, 118, 0.05); border: 1px solid rgba(0, 230, 118, 0.2); padding: 15px; border-radius: 8px;">
+              <h4 style="color: var(--bull); margin-bottom: 5px; font-size: 0.9rem;"><i class="fas fa-key"></i> Passo 2: Token do Provedor</h4>
+              <p style="font-size: 0.8rem; color: var(--muted); line-height: 1.5;">Abra o robô no seu MetaTrader e insira o Token que o seu Provedor de Sinal lhe deu, juntamente com o seu e-mail da AuraTrade.</p>
             </div>
 
-            <button type="submit" id="savePammBtn" class="btn btn-primary" style="
-              width: 100%;
-              background: linear-gradient(135deg, var(--accent), var(--accent2));
-              border: none;
-              color: #000;
-              font-family: 'Syne', sans-serif;
-              font-weight: 800;
-              padding: 14px;
-              border-radius: 8px;
-              cursor: pointer;
-              margin-top: 10px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-              transition: all 0.2s;
-            ">
-              <i class="fas fa-plug"></i> <span id="savePammBtnText">Ligar ao Serviço PAMM</span>
-            </button>
-            <button type="button" id="disconnectPammBtn" onclick="disconnectPamm()" class="btn btn-primary" style="
-              width: 100%;
-              background: rgba(255, 68, 68, 0.15);
-              border: 1px solid var(--bear);
-              color: var(--bear);
-              font-family: 'Syne', sans-serif;
-              font-weight: 800;
-              padding: 14px;
-              border-radius: 8px;
-              cursor: pointer;
-              margin-top: 10px;
-              display: none;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-              transition: all 0.2s;
-            ">
-              <i class="fas fa-unlink"></i> Desconectar do Serviço PAMM
-            </button>
-          </form>
+            <div style="background: rgba(255, 171, 0, 0.05); border: 1px solid rgba(255, 171, 0, 0.2); padding: 15px; border-radius: 8px;">
+              <h4 style="color: #ffab00; margin-bottom: 5px; font-size: 0.9rem;"><i class="fas fa-gas-pump"></i> Passo 3: Gás</h4>
+              <p style="font-size: 0.8rem; color: var(--muted); line-height: 1.5;">Certifique-se que adicionou Saldo de Gás (no botão verde lá no topo). Sem Gás, o robô não executará os sinais copiados.</p>
+            </div>
+
+          </div>
         </div>
       </div>
 
@@ -3784,12 +3730,22 @@ async function selectPlan(id, name, price) {
   document.getElementById("selectedPlanName").textContent = name;
   document.getElementById("selectedPlanPrice").textContent = `$${price.toFixed(2)}`;
   
-  // Show next step
-  document.getElementById("buyStep1").style.display = "none";
-  document.getElementById("buyStep2").style.display = "block";
-  document.getElementById("buyBackBtn").style.display = "block";
-  // document.getElementById("buyConfirmBtn").style.display = "block"; // Removido botão antigo
-  loadWallets();
+  const hasWallets = await loadWallets();
+
+  if (hasWallets) {
+    // Show next step
+    document.getElementById("buyStep1").style.display = "none";
+    document.getElementById("buyStep2").style.display = "block";
+    document.getElementById("buyBackBtn").style.display = "block";
+  } else {
+    // Skip manual payment screen and go directly to crypto invoice
+    document.getElementById("buyStep1").style.display = "none";
+    document.getElementById("buyStep2").style.display = "none";
+    
+    const dummyBtn = document.createElement("button");
+    dummyBtn.innerHTML = "Processing...";
+    generateCryptoInvoice(dummyBtn);
+  }
 }
 
 async function submitPaymentRequest(btn) {
@@ -3893,7 +3849,7 @@ async function generateCryptoInvoice(btn) {
 async function loadWallets() {
   const container = document.getElementById("walletsContainer");
   const data = await apiFetch("/api/payment-methods");
-  if (data.success && data.methods) {
+  if (data.success && data.methods && data.methods.length > 0) {
     container.innerHTML = data.methods.map(m => `
       <div style="background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div style="flex:1;min-width:0;">
@@ -3902,7 +3858,11 @@ async function loadWallets() {
         </div>
         <button class="copy-btn" onclick="copyToClipboard('${m.details}', this)">Copiar</button>
       </div>
-    `).join("") || '<p>Contate o suporte para pagamento.</p>';
+    `).join("");
+    return true;
+  } else {
+    container.innerHTML = '<p>Contate o suporte para pagamento.</p>';
+    return false;
   }
 }
 
@@ -4715,7 +4675,8 @@ async function loadPammWallets() {
 
 async function submitPammDeposit(btn) {
   const amountInput = document.getElementById("pammAmount").value.trim();
-  const hash = document.getElementById("pammHash").value.trim();
+  let hash = document.getElementById("pammHash").value.trim();
+  const providerToken = document.getElementById("pammProviderToken")?.value.trim() || "";
   
   if (!amountInput) {
     alert("Por favor, digite o valor do gás a ser depositado.");
@@ -4732,6 +4693,10 @@ async function submitPammDeposit(btn) {
   if (!hash) {
     alert("Por favor, cole a Hash da transação para confirmar o depósito do gás.");
     return;
+  }
+
+  if (providerToken) {
+    hash = hash + " | Token: " + providerToken;
   }
 
   const originalText = btn.innerHTML;
@@ -4771,9 +4736,17 @@ async function submitPammDeposit(btn) {
       <div class="download-area">
         <h3 style="margin-bottom: 10px;">Passo Inicial: Baixe o seu Robô</h3>
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.5 Institucional (Novo Painel Gráfico Flat Design) - Compilada para MetaTrader 5</p>
-        <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=8" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
-          <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
-        </a>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=8" download class="btn btn-primary" style="padding: 12px 20px; font-size: 0.9rem;">
+            <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
+          </a>
+          <a href="/AuraCopier_Client.ex5" download class="btn" style="padding: 12px 20px; font-size: 0.9rem; background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid var(--accent);">
+            <i class="fas fa-network-wired"></i> DOWNLOAD AURA COPIER CLIENT (.ex5)
+          </a>
+          <a href="/AuraMaster_Signal.ex5" download class="btn" style="padding: 12px 20px; font-size: 0.9rem; background:rgba(124,58,237,0.1); color:var(--accent2); border:1px solid var(--accent2);">
+            <i class="fas fa-broadcast-tower"></i> DOWNLOAD AURA MASTER SIGNAL (.ex5)
+          </a>
+        </div>
       </div>
 
       <div class="setup-grid">
@@ -4963,7 +4936,7 @@ async function submitPammDeposit(btn) {
 <div class="modal-overlay" id="pammModal">
   <div class="modal" style="width:550px;">
     <div class="modal-header">
-      <h2>Adesão ao PAMM (Gás)</h2>
+      <h2>Adesão ao Copy Trading</h2>
       <button class="modal-close" onclick="closePammModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -4980,6 +4953,12 @@ async function submitPammDeposit(btn) {
           <input type="number" id="pammAmount" placeholder="Ex: 50" min="1" step="any"
             style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
           <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;" id="pammMinValText">* Valor do Gás mínimo exigido: <b>$50.00 USD</b></p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Token do Provedor de Sinal:</label>
+          <input type="text" id="pammProviderToken" placeholder="Ex: AURA-PRV-123456" 
+            style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
         </div>
 
         <div style="margin-bottom: 20px;">

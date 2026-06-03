@@ -35,6 +35,9 @@ model User {
   signals             Signal[]
   walletTransactions  WalletTransaction[]
   pammAccount         PammAccount?
+  
+  subscription        ClientSubscription?
+  commissionsPaid     CommissionLog[]
 }
 
 model LicensePlan {
@@ -250,4 +253,65 @@ model PammAccount {
   updatedAt           DateTime @updatedAt
 
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Copy Trading SaaS Models ────────────────────────────────────
+
+model Provider {
+  id              String   @id @default(uuid())
+  token           String   @unique // ex: AURA-PRV-XYZ
+  name            String
+  commissionPct   Float    @default(30.0)
+  totalGasEarned  Float    @default(0.0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clients         ClientSubscription[]
+  commissions     CommissionLog[]
+  signals         CopySignal[]
+}
+
+model ClientSubscription {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  providerId      String
+  status          String   @default("ACTIVE") // ACTIVE, SUSPENDED
+  totalGasPaid    Float    @default(0.0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+}
+
+model CommissionLog {
+  id              String   @id @default(uuid())
+  providerId      String
+  clientId        String
+  amount          Float    // Gas total descontado do cliente
+  platformFee     Float    // Valor retido pela plataforma
+  providerEarned  Float    // Valor destinado ao provedor
+  status          String   @default("UNPAID") // UNPAID, PAID
+  createdAt       DateTime @default(now())
+
+  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  client          User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model CopySignal {
+  id          String   @id @default(uuid())
+  providerId  String
+  ticket      String   // Ticket original da Master
+  symbol      String
+  type        String   // BUY, SELL
+  lot         Float
+  price       Float
+  sl          Float
+  tp          Float
+  action      String   // OPEN, MODIFY, CLOSE
+  profit      Float?   // Lucro/Prejuízo se for CLOSE
+  createdAt   DateTime @default(now())
+
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 }

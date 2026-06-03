@@ -319,6 +319,9 @@
             <a href="#" class="nav-item" onclick="showPanel('pamm')">
                 <i class="fas fa-copy"></i> <span>Gestão PAMM</span>
             </a>
+            <a href="#" class="nav-item" onclick="showPanel('providers')">
+                <i class="fas fa-network-wired"></i> <span style="color:var(--accent);">Provedores (SaaS)</span>
+            </a>
             <a href="#" class="nav-item" onclick="showPanel('finance')">
                 <i class="fas fa-wallet"></i>
                 <span>Financeiro</span>
@@ -430,6 +433,31 @@
                     </tr>
                 </thead>
                 <tbody id="paymentsTable">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: PROVIDERS -->
+    <div id="panel-providers" class="panel">
+        <div class="panel-header">
+            <h3>Gestão de Provedores de Sinal</h3>
+            <button class="btn btn-success" onclick="createProvider()">+ Novo Provedor</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome do Trader</th>
+                        <th>Token Único</th>
+                        <th>Comissão (%)</th>
+                        <th>Clientes</th>
+                        <th>Gás Acumulado</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="providersTable">
                     <!-- Dynamic -->
                 </tbody>
             </table>
@@ -1332,7 +1360,7 @@
     }
 
     async function loadPaymentMethods() {
-        const data = await api("/api/payment-methods"); 
+        const data = await api("/api/admin/payment-methods"); 
         const tbody = document.getElementById('pmsTable');
         tbody.innerHTML = data.methods.map(m => `
             <tr>
@@ -1340,6 +1368,7 @@
                 <td style="font-family:'Space Mono';font-size:0.75rem;">${m.details}</td>
                 <td><span class="badge ${m.isActive ? 'badge-active' : ''}">${m.isActive ? 'Ativo' : 'Inativo'}</span></td>
                 <td style="display:flex; gap:8px;">
+                    <button class="btn" style="color:var(--info)" onclick="togglePaymentMethod('${m.id}', '${m.name}', '${m.details}', ${!m.isActive})" title="${m.isActive ? 'Ocultar aos Clientes' : 'Mostrar aos Clientes'}">${m.isActive ? '👁️' : '🙈'}</button>
                     <button class="btn" onclick="editPaymentMethod('${m.id}', '${m.name}', '${m.details}', ${m.isActive})">✏️</button>
                     <button class="btn" style="color:var(--bear)" onclick="deletePaymentMethod('${m.id}')">🗑️</button>
                 </td>
@@ -1355,7 +1384,17 @@
         const res = await api(`/api/admin/payment-methods/${id}`, "PUT", { 
             name: newName, 
             details: newDetails,
-            isActive: true 
+            isActive: isActive // mantém o estado atual ao editar o texto
+        });
+        if (res.success) loadPaymentMethods();
+        else alert(res.error);
+    }
+
+    async function togglePaymentMethod(id, name, details, newStatus) {
+        const res = await api(`/api/admin/payment-methods/${id}`, "PUT", { 
+            name: name, 
+            details: details,
+            isActive: newStatus 
         });
         if (res.success) loadPaymentMethods();
         else alert(res.error);
@@ -1692,6 +1731,61 @@
             alert("Erro de rede.");
         }
     }
+
+    async function createProvider() {
+        const name = prompt("Nome do Trader/Provedor:");
+        if (!name) return;
+        const comm = prompt("Taxa de Comissão (ex: 30 para 30%):", "30");
+        
+        try {
+            const res = await fetch("/api/admin/providers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") },
+                body: JSON.stringify({ name, commissionPct: comm })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Provedor criado!\n\nTOKEN SECRETO: ${data.provider.token}\n\nEntregue este token ao provedor para ele colocar no robô Master.`);
+                loadProviders();
+            } else alert(data.error);
+        } catch (err) { alert("Erro de rede."); }
+    }
+
+    async function loadProviders() {
+        try {
+            const res = await fetch("/api/admin/providers", {
+                headers: { "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") }
+            });
+            const data = await res.json();
+            if (data.success) {
+                const tbody = document.getElementById("providersTable");
+                tbody.innerHTML = "";
+                if (data.providers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);">Nenhum provedor registado.</td></tr>';
+                    return;
+                }
+                data.providers.forEach(p => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${p.name}</strong></td>
+                            <td style="font-family:monospace; color:var(--accent);">${p.token}</td>
+                            <td>${p.commissionPct}%</td>
+                            <td>${p._count.clients}</td>
+                            <td style="color:var(--bull);">$${p.totalGasEarned.toFixed(2)}</td>
+                            <td><span class="badge ${p.isActive ? 'badge-success' : 'badge-warning'}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    // Override showPanel to load specific data
+    const originalShowPanel = showPanel;
+    showPanel = function(panelId) {
+        originalShowPanel(panelId);
+        if (panelId === 'providers') loadProviders();
+    };
 
     loadStats();
     loadSystemSettings();

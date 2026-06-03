@@ -8,8 +8,11 @@ const filesToUpload = [
     { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.ex5` },
     { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.mq5` },
     { local: './public/AuraGUI.mqh', remote: `${remoteBaseDir}/public/AuraGUI.mqh` },
+    { local: './public/AuraMaster_Signal.ex5', remote: `${remoteBaseDir}/public/AuraMaster_Signal.ex5` },
+    { local: './public/AuraCopier_Client.ex5', remote: `${remoteBaseDir}/public/AuraCopier_Client.ex5` },
     { local: './server.js', remote: `${remoteBaseDir}/server.js` },
-    { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` }
+    { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` },
+    { local: './admin_dashboard.html', remote: `${remoteBaseDir}/admin_dashboard.html` }
 ];
 
 conn.on('ready', () => {

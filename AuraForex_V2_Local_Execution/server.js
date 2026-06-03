@@ -1615,7 +1615,21 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
         data: { status: "APPROVED" }
       });
 
-      return res.json({ success: true, message: "Depósito de Gás PAMM aprovado com sucesso e saldo creditado." });
+      // 5. Vincular Cliente ao Provedor se o Token estiver na Hash
+      const hashData = purchaseRequest.transactionHash || "";
+      if (hashData.includes("| Token:")) {
+        const tokenStr = hashData.split("| Token:")[1].trim();
+        const provider = await prisma.provider.findUnique({ where: { token: tokenStr } });
+        if (provider) {
+           await prisma.clientSubscription.upsert({
+             where: { userId: purchaseRequest.userId },
+             update: { providerId: provider.id, status: "ACTIVE" },
+             create: { userId: purchaseRequest.userId, providerId: provider.id, status: "ACTIVE" }
+           });
+        }
+      }
+
+      return res.json({ success: true, message: "Depósito de Gás aprovado. Cliente vinculado ao Copy Trading se forneceu Token." });
     }
 
     const days = purchaseRequest.plan ? purchaseRequest.plan.durationDays : 30;
@@ -1757,6 +1771,16 @@ app.patch("/api/admin/licenses/:id", requireAuth, requireAdmin, async (req, res)
     res.json({ success: true, license: updated });
   } catch (err) {
     res.status(500).json({ error: "Erro ao atualizar licença." });
+  }
+});
+
+// Admin Route to fetch all payment methods (including inactive)
+app.get("/api/admin/payment-methods", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const methods = await prisma.paymentMethod.findMany();
+    res.json({ success: true, methods });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar métodos de pagamento." });
   }
 });
 
@@ -2703,6 +2727,187 @@ app.use((req, res) => {
 // ── Startup ───────────────────────────────────────────────────────
 const http = require("http");
 const server = http.createServer(app);
+
+// ─────────────────────────────────────────────────────────────────
+// ── COPY TRADING SAAS ROUTES (NATIVE LOCAL COPIER) ──────────────
+// ─────────────────────────────────────────────────────────────────
+
+// Admin: Criar Provedor
+app.post("/api/admin/providers", requireAuth, requireAdmin, async (req, res) => {
+  const { name, commissionPct } = req.body;
+  try {
+    const token = "AURA-PRV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const provider = await prisma.provider.create({
+      data: { name, token, commissionPct: parseFloat(commissionPct) || 30.0 }
+    });
+    res.json({ success: true, provider });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: Listar Provedores
+app.get("/api/admin/providers", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const providers = await prisma.provider.findMany({
+      include: {
+        _count: { select: { clients: true } }
+      }
+    });
+    res.json({ success: true, providers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Master EA: Enviar Sinais (POST /api/copytrade/signal)
+app.post("/api/copytrade/signal", async (req, res) => {
+  const { token, ticket, symbol, type, lot, price, sl, tp, action, profit } = req.body;
+  if (!token || !ticket || !action) return res.status(400).json({ error: "Missing parameters" });
+
+  try {
+    const provider = await prisma.provider.findUnique({ where: { token } });
+    if (!provider || !provider.isActive) return res.status(401).json({ error: "Invalid or inactive provider" });
+
+    // Registar o sinal
+    const signal = await prisma.copySignal.create({
+      data: {
+        providerId: provider.id,
+        ticket: ticket.toString(),
+        symbol,
+        type,
+        lot: parseFloat(lot) || 0,
+        price: parseFloat(price) || 0,
+        sl: parseFloat(sl) || 0,
+        tp: parseFloat(tp) || 0,
+        action,
+        profit: profit ? parseFloat(profit) : null
+      }
+    });
+
+    res.json({ success: true, signalId: signal.id });
+  } catch (err) {
+    console.error("Signal error:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// Copier EA: Receber Sinais (GET /api/copytrade/signals)
+app.get("/api/copytrade/signals", async (req, res) => {
+  const { token, lastId } = req.query; // EA sends last known signal ID
+  if (!token) return res.status(400).json({ error: "Missing token" });
+
+  try {
+    const provider = await prisma.provider.findUnique({ where: { token } });
+    if (!provider || !provider.isActive) return res.status(401).json({ error: "Invalid provider" });
+
+    let whereClause = { providerId: provider.id };
+    
+    // Se tivermos lastId, procuramos sinais criados DEPOIS desse
+    if (lastId && lastId !== "0") {
+      const lastSignal = await prisma.copySignal.findUnique({ where: { id: lastId } });
+      if (lastSignal) {
+        whereClause.createdAt = { gt: lastSignal.createdAt };
+      }
+    } else {
+      // Se for a primeira vez (lastId=0), mandamos apenas os sinais dos últimos 5 minutos para evitar abrir trades muito antigas
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60000);
+      whereClause.createdAt = { gt: fiveMinsAgo };
+    }
+
+    const signals = await prisma.copySignal.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'asc' },
+      take: 50 // Limit to 50 at a time
+    });
+
+    res.json({ success: true, signals });
+  } catch (err) {
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// Copier EA: Reportar fecho de trade com lucro e deduzir Gás (POST /api/copytrade/profit)
+app.post("/api/copytrade/profit", async (req, res) => {
+  const { token, email, profit } = req.body;
+  if (!token || !email || !profit || profit <= 0) return res.status(400).json({ error: "Invalid parameters" });
+
+  try {
+    const provider = await prisma.provider.findUnique({ where: { token } });
+    if (!provider || !provider.isActive) return res.status(401).json({ error: "Invalid provider" });
+
+    const user = await prisma.user.findUnique({ where: { email }, include: { subscription: true } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Ensure the user is linked to this provider (optional, but good for validation)
+    // if (!user.subscription || user.subscription.providerId !== provider.id) ...
+
+    const gasToDeduct = parseFloat(profit) * (provider.commissionPct / 100);
+
+    if (user.walletBalance < gasToDeduct) {
+      // Suspend subscription if out of gas
+      if (user.subscription) {
+         await prisma.clientSubscription.update({
+           where: { id: user.subscription.id },
+           data: { status: "SUSPENDED" }
+         });
+      }
+      return res.status(402).json({ error: "Insufficient Gas", gasDeducted: 0 });
+    }
+
+    // Deduct gas from user
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { walletBalance: { decrement: gasToDeduct } }
+    });
+
+    // Record the commission log
+    const platformFeePct = 10.0; // Fixed platform fee percentage
+    const platformFee = gasToDeduct * (platformFeePct / 100);
+    const providerEarned = gasToDeduct - platformFee;
+
+    await prisma.commissionLog.create({
+      data: {
+        providerId: provider.id,
+        clientId: user.id,
+        amount: gasToDeduct,
+        platformFee,
+        providerEarned,
+        status: "UNPAID"
+      }
+    });
+
+    // Add to Provider's total generated gas
+    await prisma.provider.update({
+      where: { id: provider.id },
+      data: { totalGasEarned: { increment: gasToDeduct } }
+    });
+
+    if (user.subscription) {
+       await prisma.clientSubscription.update({
+         where: { id: user.subscription.id },
+         data: { totalGasPaid: { increment: gasToDeduct } }
+       });
+    }
+
+    // Record wallet transaction for user history
+    await prisma.walletTransaction.create({
+      data: {
+        userId: user.id,
+        type: "DEDUCTION",
+        amount: gasToDeduct,
+        description: `Copy Trading Fee: ${provider.commissionPct}% of $${parseFloat(profit).toFixed(2)} profit (Provider: ${provider.name})`
+      }
+    });
+
+    res.json({ success: true, gasDeducted: gasToDeduct, remainingGas: user.walletBalance - gasToDeduct });
+  } catch (err) {
+    console.error("Profit report error:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {
   console.log("");
