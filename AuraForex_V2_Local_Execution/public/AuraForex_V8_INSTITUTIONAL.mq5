@@ -226,6 +226,7 @@ int CountAuraPositions()
 int OnInit()
 {
    // --- AURA GUI INIT ---
+   ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
    g_Panel = new CAuraPanel();
    if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 420)) {
        Print("Falha ao criar o painel Aura GUI.");

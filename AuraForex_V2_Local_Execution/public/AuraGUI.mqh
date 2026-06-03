@@ -74,6 +74,11 @@ private:
 
    // Posições base
    int m_x, m_y, m_w, m_h;
+   
+   // Dragging variables
+   bool   m_dragging;
+   int    m_dragOffsetX;
+   int    m_dragOffsetY;
 
 public:
                      CAuraPanel(void);
@@ -91,6 +96,7 @@ private:
    void              DrawLimites(void);
    void              DrawTrailing(void);
    void              ClearContent(void);
+   void              MoveAll(int dx, int dy);
    
    void              SaveConfig(void);
    void              LoadConfig(void);
@@ -108,7 +114,7 @@ private:
 //+------------------------------------------------------------------+
 //| Implementação                                                    |
 //+------------------------------------------------------------------+
-CAuraPanel::CAuraPanel(void) : m_tab(1), m_isCreated(false), m_prefix("AuraGUI_") {}
+CAuraPanel::CAuraPanel(void) : m_tab(1), m_isCreated(false), m_prefix("AuraGUI_"), m_dragging(false) {}
 CAuraPanel::~CAuraPanel(void) { Destroy(); }
 
 bool CAuraPanel::Create(const long chart, const string name, const int subwin, const int x1, const int y1, const int x2, const int y2)
@@ -184,6 +190,22 @@ void CAuraPanel::ClearContent(void)
          ObjectDelete(m_chart, objName);
       }
    }
+}
+
+void CAuraPanel::MoveAll(int dx, int dy)
+{
+   int total = ObjectsTotal(m_chart);
+   for(int i = 0; i < total; i++) {
+      string objName = ObjectName(m_chart, i);
+      if(StringFind(objName, m_prefix) == 0) {
+         int ox = (int)ObjectGetInteger(m_chart, objName, OBJPROP_XDISTANCE);
+         int oy = (int)ObjectGetInteger(m_chart, objName, OBJPROP_YDISTANCE);
+         ObjectSetInteger(m_chart, objName, OBJPROP_XDISTANCE, ox + dx);
+         ObjectSetInteger(m_chart, objName, OBJPROP_YDISTANCE, oy + dy);
+      }
+   }
+   m_x += dx;
+   m_y += dy;
 }
 
 void CAuraPanel::DrawContent(void)
@@ -359,6 +381,35 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
 {
    if(!m_isCreated) return;
    
+   if(id == CHARTEVENT_MOUSE_MOVE) {
+      int x = (int)lparam;
+      int y = (int)dparam;
+      int state = (int)StringToInteger(sparam);
+      bool leftClick = (state & 1) == 1;
+
+      if(leftClick) {
+         if(!m_dragging) {
+            // Verificar clique na barra de título (40px de altura)
+            if(x >= m_x && x <= m_x + m_w && y >= m_y && y <= m_y + 40) {
+               m_dragging = true;
+               m_dragOffsetX = x - m_x;
+               m_dragOffsetY = y - m_y;
+            }
+         } else {
+            int new_x = x - m_dragOffsetX;
+            int new_y = y - m_dragOffsetY;
+            int dx = new_x - m_x;
+            int dy = new_y - m_y;
+            if(dx != 0 || dy != 0) {
+               MoveAll(dx, dy);
+               ChartRedraw(m_chart);
+            }
+         }
+      } else {
+         m_dragging = false;
+      }
+   }
+   
    if(id == CHARTEVENT_OBJECT_CLICK) {
       string objName = sparam;
       if(StringFind(objName, m_prefix) != 0) return;
@@ -454,7 +505,7 @@ void CAuraPanel::CreateEdit(string name, int x, int y, int w, int h, string text
    ObjectSetInteger(m_chart, id, OBJPROP_ALIGN, ALIGN_LEFT);
    ObjectSetInteger(m_chart, id, OBJPROP_ZORDER, 5);
    ObjectSetInteger(m_chart, id, OBJPROP_READONLY, false);
-   ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, true);
+   ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, false);
 }
 
 void CAuraPanel::CreateButton(string name, int x, int y, int w, int h, string text, color bg, color fg, int size=10)
