@@ -18,53 +18,53 @@ CAuraPanel *g_Panel;
 
 
 //--- INPUT PARAMETERS ---
-input string   Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
-input bool     Tester_IsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
-input double   Tester_RiskPercent       = 1.0;                     // % de Risco por Trade
-input int      Tester_MagicNumber       = 888222;                  // Magic Number das Ordens
-input int      Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
-input int      Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
-input int      Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
-input int      Tester_MaxSLOuro         = 500;                     // Limite SL Ouro (Pontos)
-input int      Tester_MaxOrders         = 4;                       // Limite Global de Ordens
-input int      Tester_MaxBuys           = 2;                       // Máximo de Compras Simultâneas
-input int      Tester_MaxSells          = 2;                       // Máximo de Vendas Simultâneas
-input int      Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+string Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
+string Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
+bool Tester_IsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
+double Tester_RiskPercent       = 1.0;                     // % de Risco por Trade
+int Tester_MagicNumber       = 888222;                  // Magic Number das Ordens
+int Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
+int Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
+int Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
+int Tester_MaxSLOuro         = 500;                     // Limite SL Ouro (Pontos)
+int Tester_MaxOrders         = 4;                       // Limite Global de Ordens
+int Tester_MaxBuys           = 2;                       // Máximo de Compras Simultâneas
+int Tester_MaxSells          = 2;                       // Máximo de Vendas Simultâneas
+int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
 
 // --- PROFIT LOCK PARAMETERS ---
-input double   Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
-input double   Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
+double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
+double Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
 
 // --- TRAILING STOP PARAMETERS ---
-input bool   Tester_TrailingEnabled   = true;      // Trailing Stop Activo
-input int    Tester_TrailingStart     = 50;        // Trailing Start (5.0 pips)
-input int    Tester_TrailingDistance  = 80;        // Trailing Distance (8.0 pips)
-input int    Tester_TrailingStep      = 10;        // Trailing Step (1.0 pip)
+bool Tester_TrailingEnabled   = true;      // Trailing Stop Activo
+int Tester_TrailingStart     = 50;        // Trailing Start (5.0 pips)
+int Tester_TrailingDistance  = 80;        // Trailing Distance (8.0 pips)
+int Tester_TrailingStep      = 10;        // Trailing Step (1.0 pip)
 
-input bool   Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
-input double Tester_DailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
-input double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
+bool Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
+double Tester_DailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
 
 // --- TRAVA DE META DIÁRIA (DAILY TARGET PROFIT LOCK) ---
-input bool   Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta Diária
-input double Tester_DailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
-input double Tester_DailyTargetFloorPct  = 50.0;  // Lucro Mínimo Garantido ao reverter % (ex: 50%)
+bool Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta Diária
+double Tester_DailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
+double Tester_DailyTargetFloorPct  = 50.0;  // Lucro Mínimo Garantido ao reverter % (ex: 50%)
 
 // --- BE INTELIGENTE + CUSTOS (BREAKEVEN PLUS COSTS) ---
-input bool   Tester_BreakevenEnabled     = true;   // Ativar Breakeven Inteligente
-input int    Tester_BreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de lucro)
-input int    Tester_BreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
+bool Tester_BreakevenEnabled     = true;   // Ativar Breakeven Inteligente
+int Tester_BreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de lucro)
+int Tester_BreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
 
 // --- SEXTA-FEIRA SEGURA (FRIDAY SAFE LOCK) ---
-input bool   Tester_FridaySafeLock       = true;   // Fechar Sexta-feira Fim do Dia
-input int    Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
-input int    Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
+bool Tester_FridaySafeLock       = true;   // Fechar Sexta-feira Fim do Dia
+int Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
+int Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
 
 // --- FILTRO DE SPREAD (SPREAD SPIKE GUARDIAN) ---
-input bool   Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
-input double Tester_MaxSpreadPips        = 5.0;    // Spread Máximo Permitido para Modificações (Pips)
-input bool   Tester_SessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
+bool Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
+double Tester_MaxSpreadPips        = 5.0;    // Spread Máximo Permitido para Modificações (Pips)
+bool Tester_SessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
    ulong    ticket;
