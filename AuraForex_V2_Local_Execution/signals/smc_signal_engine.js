@@ -54,8 +54,11 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
     const entry = normalizePrice(last.close, pair);
 
+    const isBullishStructure = last.close > last.emaFast; // Exige momento de alta
+    const isBearishStructure = last.close < last.emaFast; // Exige momento de baixa
+
     // ================= BUY =================
-    if ((htfBias === "BULLISH" || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow))) {
+    if ((htfBias === "BULLISH" && isBullishStructure) || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow && isBullishStructure)) {
       const sl = normalizePrice(entry - stopDist, pair);
       const tp = normalizePrice(entry + (stopDist * 1.5), pair);
 
@@ -79,7 +82,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     }
 
     // ================= SELL =================
-    if ((htfBias === "BEARISH" || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow))) {
+    if ((htfBias === "BEARISH" && isBearishStructure) || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow && isBearishStructure)) {
       const sl = normalizePrice(entry + stopDist, pair);
       const tp = normalizePrice(entry - (stopDist * 1.5), pair);
 

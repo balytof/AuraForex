@@ -86,13 +86,13 @@ app.get("/smc-forex", (req, res) => {
 });
 
 // Download do Robô
-app.get("/SMC_APEX_EA.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'SMC_APEX_EA.ex5');
+app.get("/AuraForex_V8_INSTITUTIONAL.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V8_INSTITUTIONAL.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
 
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="SMC_APEX_EA.ex5"');
+    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V8_INSTITUTIONAL.ex5"');
     res.sendFile(filePath, (err) => {
       if (err) {
         console.error("[DOWNLOAD-ERROR]", err);
@@ -978,8 +978,10 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
         console.warn(`[ORDER] Falha no ATR Dinâmico, usando Fallback Técnico: ${e.message}`);
         const pip = getPipValue(pair);
         const isBuy = direction === "BUY";
-        if (!sl || Math.abs(sl) < 1.0) sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
-        if (!tp || Math.abs(tp) < 1.0) tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270));
+        let fallSl = 180; let fallTp = 270;
+        if (pair.includes("XAU") || pair.includes("GOLD")) { fallSl = 40; fallTp = 60; }
+        if (!sl || Math.abs(sl) < 1.0) sl = isBuy ? (entryPrice - (pip * fallSl)) : (entryPrice + (pip * fallSl));
+        if (!tp || Math.abs(tp) < 1.0) tp = isBuy ? (entryPrice + (pip * fallTp)) : (entryPrice - (pip * fallTp));
       }
     }
 
@@ -988,8 +990,10 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
     if (invalidSl) {
       const pip = getPipValue(pair);
-      sl = isBuy ? (entryPrice - (pip * 180)) : (entryPrice + (pip * 180));
-      tp = isBuy ? (entryPrice + (pip * 270)) : (entryPrice - (pip * 270)); // Garante consistência
+      let fallSl = 180; let fallTp = 270;
+      if (pair.includes("XAU") || pair.includes("GOLD")) { fallSl = 40; fallTp = 60; }
+      sl = isBuy ? (entryPrice - (pip * fallSl)) : (entryPrice + (pip * fallSl));
+      tp = isBuy ? (entryPrice + (pip * fallTp)) : (entryPrice - (pip * fallTp)); // Garante consistência
     }
 
     // 3. Garantir distância mínima e normalização
@@ -1001,7 +1005,9 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
     if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
       console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
       const pip = getPipValue(pair);
-      const fallbackDist = pip * 300; // 300 pips de segurança
+      let fallbackDist = pip * 300; // 300 pips de segurança padrão
+      if (pair.includes("XAU") || pair.includes("GOLD")) fallbackDist = pip * 40; // 40 pips de segurança para Ouro (4 pontos = $4 num lote 0.01)
+      
       if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
       if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
     }

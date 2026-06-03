@@ -12,54 +12,59 @@
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
 #include "JAson.mqh"
+#include "AuraGUI.mqh"
+
+CAuraPanel *g_Panel;
+
 
 //--- INPUT PARAMETERS ---
-input string   InpLicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
-input string   InpServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
-input bool     InpIsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
-input double   InpRiskPercent       = 1.0;                     // % de Risco por Trade
-input int      InpMagicNumber       = 888222;                  // Magic Number das Ordens
-input int      InpTimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
-input int      InpMaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
-input int      InpMaxSLJPY          = 3000;                    // Limite SL JPY/Ouro (Pontos)
-input int      InpMaxOrders         = 4;                       // Limite Global de Ordens
-input int      InpMaxBuys           = 2;                       // Máximo de Compras Simultâneas
-input int      InpMaxSells          = 2;                       // Máximo de Vendas Simultâneas
-input int      InpTradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+input string   Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
+input string   Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
+input bool     Tester_IsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
+input double   Tester_RiskPercent       = 1.0;                     // % de Risco por Trade
+input int      Tester_MagicNumber       = 888222;                  // Magic Number das Ordens
+input int      Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
+input int      Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
+input int      Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
+input int      Tester_MaxSLOuro         = 500;                     // Limite SL Ouro (Pontos)
+input int      Tester_MaxOrders         = 4;                       // Limite Global de Ordens
+input int      Tester_MaxBuys           = 2;                       // Máximo de Compras Simultâneas
+input int      Tester_MaxSells          = 2;                       // Máximo de Vendas Simultâneas
+input int      Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
 
 // --- PROFIT LOCK PARAMETERS ---
-input double   InpProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
-input double   InpProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
+input double   Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
+input double   Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
 
 // --- TRAILING STOP PARAMETERS ---
-input bool   InpTrailingEnabled   = true;      // Trailing Stop Activo
-input int    InpTrailingStart     = 50;        // Trailing Start (5.0 pips)
-input int    InpTrailingDistance  = 80;        // Trailing Distance (8.0 pips)
-input int    InpTrailingStep      = 10;        // Trailing Step (1.0 pip)
+input bool   Tester_TrailingEnabled   = true;      // Trailing Stop Activo
+input int    Tester_TrailingStart     = 50;        // Trailing Start (5.0 pips)
+input int    Tester_TrailingDistance  = 80;        // Trailing Distance (8.0 pips)
+input int    Tester_TrailingStep      = 10;        // Trailing Step (1.0 pip)
 
-input bool   InpManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
-input double InpDailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
-input double InpMaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
+input bool   Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
+input double Tester_DailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
+input double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
 
 // --- TRAVA DE META DIÁRIA (DAILY TARGET PROFIT LOCK) ---
-input bool   InpDailyTargetLockActive = true;  // Ativar Trava de Meta Diária
-input double InpDailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
-input double InpDailyTargetFloorPct  = 50.0;  // Lucro Mínimo Garantido ao reverter % (ex: 50%)
+input bool   Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta Diária
+input double Tester_DailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
+input double Tester_DailyTargetFloorPct  = 50.0;  // Lucro Mínimo Garantido ao reverter % (ex: 50%)
 
 // --- BE INTELIGENTE + CUSTOS (BREAKEVEN PLUS COSTS) ---
-input bool   InpBreakevenEnabled     = true;   // Ativar Breakeven Inteligente
-input int    InpBreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de lucro)
-input int    InpBreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
+input bool   Tester_BreakevenEnabled     = true;   // Ativar Breakeven Inteligente
+input int    Tester_BreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de lucro)
+input int    Tester_BreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
 
 // --- SEXTA-FEIRA SEGURA (FRIDAY SAFE LOCK) ---
-input bool   InpFridaySafeLock       = true;   // Fechar Sexta-feira Fim do Dia
-input int    InpFridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
-input int    InpFridayMinute         = 0;      // Minuto de fecho na Sexta-feira
+input bool   Tester_FridaySafeLock       = true;   // Fechar Sexta-feira Fim do Dia
+input int    Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
+input int    Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
 
 // --- FILTRO DE SPREAD (SPREAD SPIKE GUARDIAN) ---
-input bool   InpSpreadGuardianActive = true;   // Ativar Spread Spike Guardian
-input double InpMaxSpreadPips        = 5.0;    // Spread Máximo Permitido para Modificações (Pips)
-input bool   InpSessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
+input bool   Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
+input double Tester_MaxSpreadPips        = 5.0;    // Spread Máximo Permitido para Modificações (Pips)
+input bool   Tester_SessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
 
 struct ProfitLockData {
    ulong    ticket;
@@ -131,7 +136,7 @@ bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, 
 
 bool IsTradingSession()
 {
-   if(!InpSessionFilter) return true; // Se o filtro estiver desligado, autoriza sempre
+   if(!g_SessionFilter) return true; // Se o filtro estiver desligado, autoriza sempre
 
    MqlDateTime tm;
    TimeToStruct(TimeCurrent(), tm);
@@ -197,7 +202,7 @@ bool IsVolatilityAbnormal(string sym)
 
 long GetAuraMagic()
 {
-   return InpMagicNumber; // Magic fixo para garantir persistência entre timeframes
+   return g_MagicNumber; // Magic fixo para garantir persistência entre timeframes
 }
 
 int CountAuraPositions()
@@ -220,6 +225,22 @@ int CountAuraPositions()
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   // --- AURA GUI INIT ---
+   g_Panel = new CAuraPanel();
+   if(!g_Panel.Create(0, "AuraDashboard", 0, 10, 10, 420, 320)) {
+       Print("Falha ao criar o painel Aura GUI.");
+       return INIT_FAILED;
+   }
+   // Copiar valores do Tester para as globais caso o ficheiro txt não exista (Fallback)
+   if(!FileIsExist("AuraForexConfig.txt", FILE_COMMON)) {
+       g_LicenseKey = Tester_LicenseKey;
+       g_ServerUrl = Tester_ServerUrl;
+       g_IsCentAccount = Tester_IsCentAccount;
+       g_RiskPercent = Tester_RiskPercent;
+       g_MagicNumber = Tester_MagicNumber;
+   }
+   // ---------------------
+
    Print("🚀 AURA V8 INSTITUCIONAL v8.3 - Execution Engine");
    
    // Configurações Visuais de Gráfico (Nível Institucional)
@@ -236,7 +257,7 @@ int OnInit()
    
    // --- AUTO DETEÇÃO CONTA CENT ---
    g_MonetaryMultiplier = 1.0;
-   if(InpIsCentAccount) {
+   if(g_IsCentAccount) {
       g_MonetaryMultiplier = 100.0;
       Print("✅ Conta Cent (Forçada pelo Utilizador). Multiplicador = 100x");
    } else {
@@ -247,14 +268,16 @@ int OnInit()
       }
    }
    
-   EventSetTimer(InpTimerSeconds);
+   EventSetTimer(g_TimerSeconds);
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetAsyncMode(false);
    return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason) 
-{ 
+{
+   if(g_Panel != NULL) { g_Panel.Destroy(); delete g_Panel; }
+ 
    EventKillTimer(); 
    
    // LIBERTAR HANDLES ATR (Institutional Memory Management)
@@ -356,7 +379,7 @@ double GetDailyPnL()
          if(ticket > 0)
          {
             long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
-            if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0))
+            if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
             {
                closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
                closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
@@ -373,7 +396,7 @@ double GetDailyPnL()
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
          long magic = PositionGetInteger(POSITION_MAGIC);
-         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0))
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
             floatingProfit += PositionGetDouble(POSITION_PROFIT);
       }
    }
@@ -401,7 +424,7 @@ void CheckDailyTarget()
          DailyLossLock      = false;
          DailyStartBalance  = currentBal;
          DailyStartEquity   = currentEq;
-         DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
+         DailyTargetProfit  = DailyStartEquity * (g_DailyTargetPct / 100.0);
          
          GlobalVariableSet(gvTarget, DailyTargetProfit);
          GlobalVariableSet(gvEquity, DailyStartEquity);
@@ -430,7 +453,7 @@ void CheckDailyTarget()
          {
             DailyStartBalance  = currentBal;
             DailyStartEquity   = currentEq;
-            DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
+            DailyTargetProfit  = DailyStartEquity * (g_DailyTargetPct / 100.0);
             
             GlobalVariableSet(gvTarget, DailyTargetProfit);
             GlobalVariableSet(gvEquity, DailyStartEquity);
@@ -460,10 +483,10 @@ void CheckDailyTarget()
    }
 
    // 2. Lógica da Trava de Segurança Diária (Daily Target Profit Lock)
-   if(InpDailyTargetLockActive)
+   if(g_DailyTargetLockActive)
    {
-      double activationThreshold = DailyTargetProfit * (InpDailyTargetLockPct / 100.0);
-      double floorProfit         = DailyTargetProfit * (InpDailyTargetFloorPct / 100.0);
+      double activationThreshold = DailyTargetProfit * (g_DailyTargetLockPct / 100.0);
+      double floorProfit         = DailyTargetProfit * (g_DailyTargetFloorPct / 100.0);
 
       // Ativar trava ao alcançar o gatilho (ex: 80% da meta)
       if(!DailyTargetLockActive && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
@@ -471,7 +494,7 @@ void CheckDailyTarget()
          DailyTargetLockActive = true;
          DailyPeakPnL = dailyPnL;
          Print("🛡️ [DAILY LOCK] Ativado! Lucro Diário: $", DoubleToString(dailyPnL, 2), 
-               " atingiu o gatilho de ", InpDailyTargetLockPct, "% ($", DoubleToString(activationThreshold, 2), ")");
+               " atingiu o gatilho de ", g_DailyTargetLockPct, "% ($", DoubleToString(activationThreshold, 2), ")");
       }
 
       if(DailyTargetLockActive)
@@ -483,7 +506,7 @@ void CheckDailyTarget()
          if(dailyPnL <= floorProfit)
          {
             DailyTargetReached = true;
-            Print("🛑 [DAILY LOCK] Lucro recuou ao limite mínimo garantido de ", InpDailyTargetFloorPct, 
+            Print("🛑 [DAILY LOCK] Lucro recuou ao limite mínimo garantido de ", g_DailyTargetFloorPct, 
                   "% ($", DoubleToString(floorProfit, 2), ") | Lucro Atual: $", DoubleToString(dailyPnL, 2), 
                   " (Pico: $", DoubleToString(DailyPeakPnL, 2), ") | Fechando tudo para trancar lucros!");
             
@@ -511,7 +534,7 @@ void CheckDailyLoss()
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    // Só bloqueia se houver uma perda REAL de 10%
-   if(lossPct >= InpMaxDailyLossPct)
+   if(lossPct >= g_MaxDailyLossPct)
    {
       DailyLossLock = true;
       Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Equity Inicial: ", DailyStartEquity, " | Equity Actual: ", equity);
@@ -534,7 +557,7 @@ void MonitorProfitLock()
       string sym = PositionGetString(POSITION_SYMBOL);
 
       // FILTRO INSTITUCIONAL (MULTI-ASSET)
-      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
+      if(magic != GetAuraMagic() && (!g_ManageManualOrders || magic != 0)) continue;
 
       double profit    = PositionGetDouble(POSITION_PROFIT);
       double currentSL = PositionGetDouble(POSITION_SL);
@@ -559,7 +582,7 @@ void MonitorProfitLock()
       // FASE 1: Verificar se lucro atingiu o mínimo para activar
       if(!ProfitLocks[idx].active)
       {
-         double minProfitActivation = InpProfitLockMin * g_MonetaryMultiplier;
+         double minProfitActivation = g_ProfitLockMin * g_MonetaryMultiplier;
          
          if(profit >= minProfitActivation)
          {
@@ -592,7 +615,7 @@ void MonitorProfitLock()
       if(TimeCurrent() - ProfitLocks[idx].activationTime < lockDelay) continue;
 
       // 2. Warmup Zone (Deixar o activo respirar antes de fechar agressivo)
-      double protectionStart = InpProfitLockMin;
+      double protectionStart = g_ProfitLockMin;
       if(peak < protectionStart) continue;
 
       // 3. Cálculo de Volatilidade Real via Cache
@@ -615,7 +638,7 @@ void MonitorProfitLock()
 
       // 4. Factor de Volatilidade por Ativo
       // double volatilityFactor = (StringFind(sym, "XAU") >= 0) ? 2.5 : 1.2;
-      double allowedDropMoney = peak * (InpProfitLockDrop / 100.0);
+      double allowedDropMoney = peak * (g_ProfitLockDrop / 100.0);
       if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Garante limite mínimo viável
       
       double currentDropMoney = ProfitLocks[idx].peakProfit - profit;
@@ -681,7 +704,7 @@ double GetBreakevenPrice(ulong ticket, double openPrice, int posType, double vol
    if(commission < 0) totalCost += MathAbs(commission);
    if(swap < 0)       totalCost += MathAbs(swap);
    
-   double extraProfit = InpBreakevenSecure * point;
+   double extraProfit = g_BreakevenSecure * point;
    double priceOffset = totalCost / (volume * (tickVal / tickSize));
    
    double bePrice = openPrice;
@@ -699,7 +722,7 @@ double GetBreakevenPrice(ulong ticket, double openPrice, int posType, double vol
 
 void ApplyBreakeven()
 {
-   if(!InpBreakevenEnabled) return;
+   if(!g_BreakevenEnabled) return;
 
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -710,7 +733,7 @@ void ApplyBreakeven()
       long magic = PositionGetInteger(POSITION_MAGIC);
       string sym = PositionGetString(POSITION_SYMBOL);
 
-      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
+      if(magic != GetAuraMagic() && (!g_ManageManualOrders || magic != 0)) continue;
 
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -721,13 +744,13 @@ void ApplyBreakeven()
       double volume    = PositionGetDouble(POSITION_VOLUME);
       int    posType   = (int)PositionGetInteger(POSITION_TYPE);
 
-      if(InpSpreadGuardianActive)
+      if(g_SpreadGuardianActive)
       {
          double spread = (ask - bid) / point;
-         if(spread > InpMaxSpreadPips) continue;
+         if(spread > g_MaxSpreadPips) continue;
       }
 
-      double triggerDist = InpBreakevenTrigger * point;
+      double triggerDist = g_BreakevenTrigger * point;
       double bePrice = GetBreakevenPrice(ticket, openPrice, posType, volume, sym);
 
       if(posType == POSITION_TYPE_BUY)
@@ -768,14 +791,14 @@ void ApplyBreakeven()
 //+------------------------------------------------------------------+
 void CheckFridaySafeLock()
 {
-   if(!InpFridaySafeLock) return;
+   if(!g_FridaySafeLock) return;
 
    MqlDateTime dt;
    TimeCurrent(dt);
 
    if(dt.day_of_week == 5)
    {
-      if(dt.hour > InpFridayHour || (dt.hour == InpFridayHour && dt.min >= InpFridayMinute))
+      if(dt.hour > g_FridayHour || (dt.hour == g_FridayHour && dt.min >= g_FridayMinute))
       {
          int openCount = 0;
          for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -784,7 +807,7 @@ void CheckFridaySafeLock()
             if(ticket > 0 && PositionSelectByTicket(ticket))
             {
                long magic = PositionGetInteger(POSITION_MAGIC);
-               if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0))
+               if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
                {
                   openCount++;
                }
@@ -816,7 +839,7 @@ void MonitorGlobalProfitLock()
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
          long magic = PositionGetInteger(POSITION_MAGIC);
-         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0))
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
          {
             currentNetProfit += PositionGetDouble(POSITION_PROFIT);
             openPositionsCount++;
@@ -839,7 +862,7 @@ void MonitorGlobalProfitLock()
    // FASE 1: Activação do Profit Lock Global
    if(!GlobalProfitLockState.active)
    {
-      double minGlobalActivation = InpProfitLockMin * g_MonetaryMultiplier;
+      double minGlobalActivation = g_ProfitLockMin * g_MonetaryMultiplier;
       
       if(currentNetProfit >= minGlobalActivation)
       {
@@ -857,12 +880,12 @@ void MonitorGlobalProfitLock()
          GlobalProfitLockState.peakProfit = currentNetProfit;
       }
 
-      // FASE 3: Verificar queda do pico baseada em InpProfitLockDrop (%)
+      // FASE 3: Verificar queda do pico baseada em g_ProfitLockDrop (%)
       // Buffer de Tempo (Anti-Spike) de 30 segundos
       if(TimeCurrent() - GlobalProfitLockState.activationTime < 30) return;
 
       double peak = GlobalProfitLockState.peakProfit;
-      double allowedDropMoney = peak * (InpProfitLockDrop / 100.0);
+      double allowedDropMoney = peak * (g_ProfitLockDrop / 100.0);
       if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Limite mínimo viável
 
       double currentDropMoney = peak - currentNetProfit;
@@ -933,7 +956,7 @@ void MonitorPartialTP()
       string sym = PositionGetString(POSITION_SYMBOL);
 
       // FILTRO INSTITUCIONAL (MULTI-ASSET)
-      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
+      if(magic != GetAuraMagic() && (!g_ManageManualOrders || magic != 0)) continue;
 
       double profit = PositionGetDouble(POSITION_PROFIT);
       double vol = PositionGetDouble(POSITION_VOLUME);
@@ -1015,7 +1038,7 @@ void CleanPartialCloses()
 //+------------------------------------------------------------------+
 void MonitorTrailingStop()
 {
-   if(!InpTrailingEnabled) return;
+   if(!g_TrailingEnabled) return;
 
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -1033,7 +1056,7 @@ void MonitorTrailingStop()
       }
 
       // FILTRO INSTITUCIONAL (MULTI-ASSET)
-      if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0)) continue;
+      if(magic != GetAuraMagic() && (!g_ManageManualOrders || magic != 0)) continue;
 
       double point     = SymbolInfoDouble(sym, SYMBOL_POINT);
       int    digits    = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
@@ -1048,15 +1071,15 @@ void MonitorTrailingStop()
       // double atr = GetATR(sym, atrTF);
 
       // SPREAD SPIKE GUARDIAN CHECK
-      if(InpSpreadGuardianActive)
+      if(g_SpreadGuardianActive)
       {
          double spread = (ask - bid) / point;
-         if(spread > InpMaxSpreadPips) continue; // Pular se o spread estiver alargado (notícia)
+         if(spread > g_MaxSpreadPips) continue; // Pular se o spread estiver alargado (notícia)
       }
 
-      double trailStart = InpTrailingStart    * point;
-      double trailStep  = InpTrailingStep     * point;
-      double trailDist  = InpTrailingDistance * point;
+      double trailStart = g_TrailingStart    * point;
+      double trailStep  = g_TrailingStep     * point;
+      double trailDist  = g_TrailingDistance * point;
 
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
@@ -1069,7 +1092,7 @@ void MonitorTrailingStop()
          double profit  = PositionGetDouble(POSITION_PROFIT);
          double peak    = ProfitLocks[plIdx].peakProfit;
          double dropPct = (peak > 0) ? ((peak - profit) / peak) * 100.0 : 0;
-         if(dropPct >= InpProfitLockDrop * 0.9) // 90% do limiar = iminente
+         if(dropPct >= g_ProfitLockDrop * 0.9) // 90% do limiar = iminente
          {
             Print("ℹ️ Trailing pausado (ProfitLock iminente) | ", sym, " | Ticket: ", ticket);
             continue;
@@ -1118,8 +1141,8 @@ void ValidateLicense()
    lastValidate = TimeCurrent();
    
    // CORRECÇÃO INSTITUCIONAL v2
-   string url = InpServerUrl + "/ea/validate";
-   string payload = "{\"licenseKey\":\"" + InpLicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
+   string url = g_ServerUrl + "/ea/validate";
+   string payload = "{\"licenseKey\":\"" + g_LicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    string res = SendPost(url, payload);
 
    if(StringFind(res, "\"status\":\"success\"") >= 0 || StringFind(res, "\"status\":\"OK\"") >= 0) {
@@ -1159,7 +1182,7 @@ void CheckSignals()
    
    lastCheckTime = TimeCurrent();
 
-   string url = InpServerUrl + "/ea/signals?licenseKey=" + InpLicenseKey;
+   string url = g_ServerUrl + "/ea/signals?licenseKey=" + g_LicenseKey;
    string result = SendGet(url);
    
    if(result == "") return; 
@@ -1177,13 +1200,13 @@ void CheckSignals()
       }
    }
 
-   if(openCount >= InpMaxOrders)
+   if(openCount >= g_MaxOrders)
    {
       // Apenas avisa uma vez para não inundar o log
       static datetime lastLimitMsg = 0;
       if(TimeCurrent() - lastLimitMsg > 60)
       {
-         Print("⚠️ Limite de ordens atingido (", openCount, "/", InpMaxOrders, "). Ignorando novos sinais.");
+         Print("⚠️ Limite de ordens atingido (", openCount, "/", g_MaxOrders, "). Ignorando novos sinais.");
          lastLimitMsg = TimeCurrent();
       }
       return;
@@ -1281,7 +1304,7 @@ void RecoverState()
       ulong ticket = PositionGetTicket(i);
       if(ticket > 0 && PositionSelectByTicket(ticket))
       {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetDouble(POSITION_SL) == 0)
+         if(PositionGetInteger(POSITION_MAGIC) == g_MagicNumber && PositionGetDouble(POSITION_SL) == 0)
          {
             string slKey = "PSL_" + (string)ticket;
             string tpKey = "PTP_" + (string)ticket;
@@ -1421,9 +1444,9 @@ bool ExecuteSignal(string json)
    }
 
    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
-   if(CountAuraPositions() >= InpMaxOrders)
+   if(CountAuraPositions() >= g_MaxOrders)
    {
-      Print("🛑 Limite global de ordens atingido (", InpMaxOrders, "). Ignorando sinal ", sigId);
+      Print("🛑 Limite global de ordens atingido (", g_MaxOrders, "). Ignorando sinal ", sigId);
       return true; // Ignorado por gestão, removemos da fila
    }
 
@@ -1439,12 +1462,12 @@ bool ExecuteSignal(string json)
       }
    }
 
-   if(dir == "BUY" && currentBuys >= InpMaxBuys) {
-      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", InpMaxBuys, "). Ignorando sinal.");
+   if(dir == "BUY" && currentBuys >= g_MaxBuys) {
+      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", g_MaxBuys, "). Ignorando sinal.");
       return true;
    }
-   if(dir == "SELL" && currentSells >= InpMaxSells) {
-      Print("⚠️ Limite de SELL atingido (", currentSells, "/", InpMaxSells, "). Ignorando sinal.");
+   if(dir == "SELL" && currentSells >= g_MaxSells) {
+      Print("⚠️ Limite de SELL atingido (", currentSells, "/", g_MaxSells, "). Ignorando sinal.");
       return true;
    }
 
@@ -1498,7 +1521,7 @@ bool ExecuteSignal(string json)
        tpDist = slDist * 1.5; 
     }
     
-    int hardMaxSL = (IsXAU(pair) || (StringFind(pair, "JPY") >= 0)) ? InpMaxSLJPY : InpMaxSLForex;
+    int hardMaxSL = IsXAU(pair) ? g_MaxSLOuro : ((StringFind(pair, "JPY") >= 0) ? g_MaxSLJPY : g_MaxSLForex);
     
     int slPoints = (int)(slDist / point);
     
@@ -1707,7 +1730,7 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
    if(SafePositionModify(ticket, sl, tp))
    {
       Print("🛡️ Protecção OK | Ticket: ", ticket);
-      SendPost(InpServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
+      SendPost(g_ServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
       return true;
    }
    return false;
@@ -1757,7 +1780,7 @@ double CalculateInstitutionalSL(double entry, double atr, ENUM_POSITION_TYPE typ
 
 void ProtectManualOrders()
 {
-   if(!InpManageManualOrders) return;
+   if(!g_ManageManualOrders) return;
 
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -1804,7 +1827,7 @@ void ReportBalance()
    if(TimeLocal() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
    lastReport = TimeLocal();
 
-   double mult = InpIsCentAccount ? 0.01 : 1.0;
+   double mult = g_IsCentAccount ? 0.01 : 1.0;
 
    double rawBalance = AccountInfoDouble(ACCOUNT_BALANCE);
    double rawEquity  = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -1830,7 +1853,7 @@ void ReportBalance()
       ulong ticket = PositionGetTicket(i);
       if(ticket > 0 && PositionSelectByTicket(ticket)) {
          long magic = PositionGetInteger(POSITION_MAGIC);
-         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0)) {
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0)) {
             string sym = PositionGetString(POSITION_SYMBOL);
             long type = PositionGetInteger(POSITION_TYPE);
             string dir = (type == POSITION_TYPE_BUY) ? "BUY" : "SELL";
@@ -1855,7 +1878,7 @@ void ReportBalance()
       if(dealTicket > 0) {
          if(HistoryDealGetInteger(dealTicket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
          long magic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
-         if(magic == GetAuraMagic() || (InpManageManualOrders && magic == 0)) {
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0)) {
             string sym = HistoryDealGetString(dealTicket, DEAL_SYMBOL);
             long dealType = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
             string dir = (dealType == DEAL_TYPE_BUY) ? "BUY" : "SELL";
@@ -1873,7 +1896,7 @@ void ReportBalance()
    closedTradesJson += "]";
    
    string payload = "{"
-      "\"licenseKey\":\"" + InpLicenseKey + "\","
+      "\"licenseKey\":\"" + g_LicenseKey + "\","
       "\"balance\":" + DoubleToString(balance, 2) + ","
       "\"equity\":" + DoubleToString(equity, 2) + ","
       "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ","
@@ -1881,8 +1904,8 @@ void ReportBalance()
       "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
       "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
       "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) + ","
-      "\"dailyProfitTarget\":" + DoubleToString(InpDailyTargetPct, 2) + ","
-      "\"dailyLossLimit\":" + DoubleToString(InpMaxDailyLossPct, 2) + ","
+      "\"dailyProfitTarget\":" + DoubleToString(g_DailyTargetPct, 2) + ","
+      "\"dailyLossLimit\":" + DoubleToString(g_MaxDailyLossPct, 2) + ","
       "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
       "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
       "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") + ","
@@ -1890,7 +1913,7 @@ void ReportBalance()
       "\"closedTrades\":" + closedTradesJson +
    "}";
 
-   string url = InpServerUrl + "/ea/report-balance";
+   string url = g_ServerUrl + "/ea/report-balance";
    // Print("[DEBUG] ReportBalance SENDING POST to: ", url);
    string response = SendPost(url, payload);
 
@@ -2044,7 +2067,7 @@ int GetConsecutiveLosses()
       
       // Apenas ordens do nosso EA
       long dealMagic = HistoryDealGetInteger(dealTicket, DEAL_MAGIC);
-      if(dealMagic != InpMagicNumber) continue;
+      if(dealMagic != g_MagicNumber) continue;
       
       double profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT);
       
@@ -2061,7 +2084,7 @@ int GetConsecutiveLosses()
 
 double GetDynamicRisk(double pts)
 {
-   double risk = InpRiskPercent;
+   double risk = g_RiskPercent;
    
    // RISCO ADAPTATIVO: Se 3+ perdas consecutivas → corta risco a metade
    int losses = GetConsecutiveLosses();
@@ -2260,7 +2283,7 @@ void CloseAllPositions()
          if(!PositionSelectByTicket(ticket)) continue;
 
          long magic = PositionGetInteger(POSITION_MAGIC);
-         if(magic != GetAuraMagic() && (!InpManageManualOrders || magic != 0))
+         if(magic != GetAuraMagic() && (!g_ManageManualOrders || magic != 0))
             continue;
 
          ResetLastError();
@@ -2283,4 +2306,15 @@ void CloseAllPositions()
       Print("🔄 Tentativa ", retry+2, " de fecho total...");
       Sleep(1000); // Esperar 1s entre retries
    }
+}
+
+//+------------------------------------------------------------------+
+//| ChartEvent function                                              |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id,
+                  const long &lparam,
+                  const double &dparam,
+                  const string &sparam)
+{
+   if(g_Panel != NULL) g_Panel.OnEvent(id, lparam, dparam, sparam);
 }
