@@ -1874,6 +1874,7 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
           success: true, 
           request,
           cryptoInvoice: {
+            id: cryptoInvoice.id,
             walletAddress: cryptoInvoice.walletAddress,
             amountDue: cryptoInvoice.amountDue,
             network: cryptoInvoice.network,
@@ -1888,6 +1889,23 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
       console.error("[PAYMENT-REQUEST] Erro:", err);
       res.status(500).json({ success: false, error: "Erro interno ao processar solicitação." });
     }
+  }
+});
+
+// Verifica status de uma compra específica
+app.get("/api/buy/status/:id", requireAuth, async (req, res) => {
+  try {
+    const request = await prisma.purchaseRequest.findUnique({
+      where: { id: req.params.id }
+    });
+    
+    if (!request || request.userId !== req.user.id) {
+      return res.status(404).json({ success: false, error: "Compra não encontrada." });
+    }
+
+    res.json({ success: true, status: request.status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Erro ao verificar compra." });
   }
 });
 
