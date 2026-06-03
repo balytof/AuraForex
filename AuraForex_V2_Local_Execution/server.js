@@ -1279,13 +1279,92 @@ app.get("/api/user/wallet/transactions", requireAuth, async (req, res) => {
 
 app.get("/api/admin/wallet/transactions", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const transactions = await prisma.walletTransaction.findMany({
-      include: { user: { select: { email: true } } },
-      orderBy: { createdAt: "desc" }
+    const wTxs = await prisma.walletTransaction.findMany({
+      include: { user: { select: { email: true } } }
     });
-    res.json({ success: true, transactions });
+    
+    const purchases = await prisma.purchaseRequest.findMany({
+      where: { status: "APPROVED" },
+      include: { user: { select: { email: true } }, plan: true }
+    });
+    
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { status: "APPROVED" },
+      include: { user: { select: { email: true } } }
+    });
+    
+    let unified = [];
+    wTxs.forEach(t => {
+      unified.push({
+        id: t.id,
+        user: t.user,
+        amount: t.amount,
+        type: t.type,
+        description: t.description,
+        createdAt: t.createdAt
+      });
+    });
+    
+    purchases.forEach(p => {
+      if (p.licenseType !== "PAMM") {
+         unified.push({
+           id: p.id,
+           user: p.user,
+           amount: p.amount,
+           type: 'VPS_PURCHASE',
+           description: `Compra de Licença: ${p.plan ? p.plan.name : 'VPS'}`,
+           createdAt: p.createdAt
+         });
+      } else {
+         unified.push({
+           id: p.id,
+           user: p.user,
+           amount: p.amount,
+           type: 'PAMM_PURCHASE',
+           description: `Depósito de Gás PAMM`,
+           createdAt: p.createdAt
+         });
+      }
+    });
+    
+    withdrawals.forEach(w => {
+       unified.push({
+         id: w.id,
+         user: w.user,
+         amount: w.amount,
+         type: 'BONUS_PAYOUT',
+         description: `Pagamento de Saque (Aprovado)`,
+         createdAt: w.createdAt
+       });
+    });
+    
+    // Remover duplicados (o Depósito PAMM já está na WalletTransaction)
+    unified = unified.filter(t => !(t.type === 'DEPOSIT' && t.description && t.description.includes('Depósito de Gás')));
+    
+    unified.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.json({ success: true, transactions: unified });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.delete("/api/admin/wallet/transactions", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id, type } = req.body;
+    if (!id || !type) return res.status(400).json({ error: "ID e Tipo são obrigatórios." });
+
+    if (type === "VPS_PURCHASE" || type === "PAMM_PURCHASE") {
+      await prisma.purchaseRequest.delete({ where: { id } });
+    } else if (type === "BONUS_PAYOUT") {
+      await prisma.withdrawalRequest.delete({ where: { id } });
+    } else {
+      await prisma.walletTransaction.delete({ where: { id } });
+    }
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: "Erro ao eliminar transação." });
   }
 });
 
@@ -1427,6 +1506,40 @@ app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     res.json({ success: true, users });
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar usuários." });
+  }
+});
+
+app.get("/api/admin/payments", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const payments = await prisma.cryptoInvoice.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        purchase: {
+          include: {
+            user: { select: { email: true } },
+            plan: { select: { name: true, durationDays: true } }
+          }
+        }
+      }
+    });
+    res.json({ success: true, payments });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar pagamentos automáticos." });
+  }
+});
+
+app.delete("/api/admin/payments/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const invoice = await prisma.cryptoInvoice.findUnique({ where: { id: req.params.id } });
+    if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
+    
+    await prisma.cryptoInvoice.delete({ where: { id: req.params.id } });
+    if (invoice.purchaseId) {
+      await prisma.purchaseRequest.delete({ where: { id: invoice.purchaseId } });
+    }
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ error: "Erro ao eliminar." });
   }
 });
 
@@ -1576,11 +1689,27 @@ app.post("/api/admin/requests/:id/approve", requireAuth, requireAdmin, async (re
         where: { id },
         data: { status: "APPROVED", isBonusProcessed: true }
       });
+      
+      const cryptoInvoice = await prisma.cryptoInvoice.findUnique({ where: { purchaseId: id } });
+      if (cryptoInvoice && cryptoInvoice.status !== 'COMPLETED') {
+        await prisma.cryptoInvoice.update({
+          where: { id: cryptoInvoice.id },
+          data: { status: 'MANUAL_APPROVED' }
+        });
+      }
     } else {
       await prisma.purchaseRequest.update({
         where: { id },
         data: { status: "APPROVED" }
       });
+      
+      const cryptoInvoice = await prisma.cryptoInvoice.findUnique({ where: { purchaseId: id } });
+      if (cryptoInvoice && cryptoInvoice.status !== 'COMPLETED') {
+        await prisma.cryptoInvoice.update({
+          where: { id: cryptoInvoice.id },
+          data: { status: 'MANUAL_APPROVED' }
+        });
+      }
     }
 
     res.json({ success: true, message: "Pagamento aprovado e licença emitida." });
@@ -2314,6 +2443,55 @@ app.post("/api/admin/users/:id/reset-password", requireAuth, requireAdmin, async
   } catch (err) {
     console.error("Reset password error:", err);
     res.status(500).json({ error: "Erro ao redefinir password: " + err.message });
+  }
+});
+
+app.post("/api/admin/users/:id/free-license", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { days } = req.body;
+
+    if (!days || isNaN(days) || parseInt(days) <= 0) {
+      return res.status(400).json({ error: "Tempo de validade inválido." });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: "Utilizador não encontrado." });
+
+    const existingLicense = await prisma.license.findFirst({
+      where: { userId: id, status: "ACTIVE" },
+      orderBy: { expiresAt: 'desc' }
+    });
+
+    let expiresAt = new Date();
+    if (existingLicense && existingLicense.expiresAt > new Date()) {
+      expiresAt = new Date(existingLicense.expiresAt);
+      expiresAt.setDate(expiresAt.getDate() + parseInt(days));
+    } else {
+      expiresAt.setDate(expiresAt.getDate() + parseInt(days));
+    }
+
+    // Expirar licenças antigas
+    await prisma.license.updateMany({
+      where: { userId: id, status: "ACTIVE" },
+      data: { status: "EXPIRED" }
+    });
+
+    // Criar nova licença (Grátis/Líder)
+    await prisma.license.create({
+      data: {
+        userId: id,
+        planId: null,
+        type: "GRATUITA (LÍDER)",
+        status: "ACTIVE",
+        expiresAt: expiresAt
+      }
+    });
+
+    res.json({ success: true, message: `Licença gratuita ativada para ${target.email} por ${days} dias!` });
+  } catch (err) {
+    console.error("Free license error:", err);
+    res.status(500).json({ error: "Erro ao ativar licença: " + err.message });
   }
 });
 

@@ -305,6 +305,10 @@
                 <i class="fas fa-file-invoice-dollar"></i>
                 <span>Solicitações</span>
             </a>
+            <a href="#" class="nav-item" onclick="showPanel('payments')">
+                <i class="fab fa-bitcoin"></i>
+                <span>Pagamentos</span>
+            </a>
             <a href="#" class="nav-item" onclick="showPanel('plans')">
                 <i class="fas fa-gem"></i>
                 <span>Planos</span>
@@ -400,6 +404,32 @@
                     </tr>
                 </thead>
                 <tbody id="requestsTable">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PANEL: PAYMENTS [NEW] -->
+    <div id="panel-payments" class="panel">
+        <div class="panel-header">
+            <h3>Histórico de Pagamentos Crypto (Auto)</h3>
+            <button class="btn" onclick="loadPayments()">Atualizar</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cliente (Email)</th>
+                        <th>Plano</th>
+                        <th>Valor (USDT)</th>
+                        <th>Validade</th>
+                        <th>Hash / TX</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentsTable">
                     <!-- Dynamic -->
                 </tbody>
             </table>
@@ -519,7 +549,7 @@
                 </table>
             </div>
 
-            <h4 style="margin-top:30px; margin-bottom:12px; font-size:0.9rem; color:var(--muted);">Histórico de Transações PAMM (Depósitos & Deduções)</h4>
+            <h4 style="margin-top:30px; margin-bottom:12px; font-size:0.9rem; color:var(--muted);">Histórico Global de Transações (VPS, PAMM & Bónus)</h4>
             <div class="table-container">
                 <table>
                     <thead>
@@ -529,6 +559,7 @@
                             <th>Tipo</th>
                             <th>Valor</th>
                             <th>Descrição</th>
+                            <th style="text-align:right;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="pammTransactionsTable">
@@ -741,6 +772,25 @@
     </div>
 </div>
 
+    <!-- MODAL: FREE LICENSE -->
+    <div id="freeLicenseModal" class="modal-overlay">
+        <div class="modal">
+            <h2 style="color:var(--text); margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-gift" style="color:var(--accent);"></i> Licença Gratuita (Líder)
+            </h2>
+            <p style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">Atribuir licença para: <strong id="freeLicEmail" style="color:var(--accent);"></strong></p>
+            <input type="hidden" id="freeLicUserId">
+            <div style="margin-bottom:15px;">
+                <label style="display:block; margin-bottom:5px; color:var(--muted); font-size:0.85rem;">Tempo de validade (em dias)</label>
+                <input type="number" id="freeLicDays" class="form-input" min="1" value="30" placeholder="Ex: 30" style="width:100%;">
+            </div>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button class="btn" onclick="closeModal('freeLicenseModal')">Cancelar</button>
+                <button class="btn btn-vps" onclick="submitFreeLicense()">Validar e Atribuir Licença</button>
+            </div>
+        </div>
+    </div>
+
 <!-- MODAL: WALLET/PAMM [NEW] -->
 <div class="modal-overlay" id="walletModal">
     <div class="modal" style="width: 520px;">
@@ -850,6 +900,7 @@
         if (id === 'users') loadUsers();
         if (id === 'pamm') loadPammUsers();
         if (id === 'finance') loadFinance();
+        if (id === 'payments') loadPayments();
         if (id === 'settings') {
             loadPaymentMethods();
             loadSystemSettings();
@@ -904,6 +955,65 @@
                 </tr>
             `;
         }).join('') || '<tr><td colspan="7" style="text-align:center;">Sem pendências.</td></tr>';
+    }
+
+    async function loadPayments() {
+        const data = await api("/api/admin/payments");
+        if (!data.success) return;
+        const tbody = document.getElementById('paymentsTable');
+        tbody.innerHTML = data.payments.map(p => {
+            const email = p.purchase && p.purchase.user ? p.purchase.user.email : 'N/A';
+            const planName = p.purchase && p.purchase.plan ? p.purchase.plan.name : 'N/A';
+            const days = p.purchase && p.purchase.plan ? p.purchase.plan.durationDays : 'N/A';
+            
+            let statusColor = "var(--muted)";
+            if (p.status === "COMPLETED" || p.status === "PAID") statusColor = "var(--bull)";
+            if (p.status === "MANUAL_APPROVED") statusColor = "var(--accent)";
+            if (p.status === "PENDING" || p.status === "FORWARDING") statusColor = "var(--warn)";
+            if (p.status === "FAILED") statusColor = "var(--bear)";
+            
+            return `
+                <tr>
+                    <td>${email}</td>
+                    <td><strong>${planName}</strong></td>
+                    <td>$${p.amountDue.toFixed(2)}</td>
+                    <td>${days} Dias</td>
+                    <td style="font-family:'Space Mono';font-size:0.7rem;">
+                        ${p.forwardTxHash ? `<a href="https://bscscan.com/tx/${p.forwardTxHash}" target="_blank" style="color:var(--accent); text-decoration:none;">${p.forwardTxHash.substring(0,10)}... 🔗</a>` : '—'}
+                    </td>
+                    <td><span class="badge" style="color:${statusColor}; border: 1px solid ${statusColor}; background: transparent;">${p.status}</span></td>
+                    <td style="display:flex; gap:6px;">
+                        ${(p.status === "PENDING" || p.status === "FAILED" || p.status === "FORWARDING") ? `<button class="btn btn-vps" onclick="approveManualPayment('${p.purchaseId}')">Aprovar Manualmente</button>` : '—'}
+                        <button class="btn" style="background:var(--bear);color:#fff;border:none;padding:8px 12px;margin-left:5px;" onclick="deletePayment('${p.id}')" title="Eliminar Teste">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="7" style="text-align:center;">Nenhum pagamento crypto encontrado.</td></tr>';
+    }
+
+    async function approveManualPayment(purchaseId) {
+        if (!confirm("Tem a certeza que deseja aprovar este pagamento manualmente? A licença e as comissões serão emitidas agora.")) return;
+        const res = await api(`/api/admin/requests/${purchaseId}/approve`, "POST", { });
+        if (res.success) {
+            alert("Aprovado com sucesso!");
+            loadPayments();
+            loadStats();
+        } else {
+            alert(res.error || "Erro ao aprovar.");
+        }
+    }
+
+    async function deletePayment(invoiceId) {
+        if (!confirm("Tem a certeza que deseja eliminar PERMANENTEMENTE esta fatura e solicitação associada?")) return;
+        const res = await api(`/api/admin/payments/${invoiceId}`, "DELETE");
+        if (res.success) {
+            alert("Fatura eliminada!");
+            loadPayments();
+        } else {
+            alert(res.error || "Erro ao eliminar.");
+        }
     }
 
     async function rejectRequest(id, email) {
@@ -989,7 +1099,7 @@
         
         const filtered = allUsers.filter(u => {
             const matchesEmail = u.email.toLowerCase().includes(email);
-            const matchesRef = (u.referralCode?.toLowerCase().includes(ref) || u.id.toLowerCase().includes(ref));
+            const matchesRef = (u.referralCode && u.referralCode.toLowerCase().includes(ref)) || u.id.toLowerCase().includes(ref);
             
             let matchesPeriod = true;
             if (period) {
@@ -1012,7 +1122,6 @@
             const customFee = u.settings?.pammPerformanceFeePct;
             const feeStr = (customFee !== null && customFee !== undefined) ? `${customFee}%` : 'Padrão';
             
-            // wallet display with low balance alert styling
             const balanceStyle = balance <= 0 ? 'color: var(--bear); font-weight: bold;' : balance < 10 ? 'color: var(--warn); font-weight: bold;' : 'color: var(--bull); font-weight: bold;';
             
             return `
@@ -1033,16 +1142,14 @@
                     <td>${lic ? new Date(lic.expiresAt).toLocaleDateString() : '—'}</td>
                     <td style="display:flex; gap:6px; flex-wrap:wrap;">
                         <button class="btn" style="background:var(--accent);color:#000;border:none;font-size:0.75rem;padding:5px 10px;font-weight:700;" onclick="openWalletModal('${u.id}', '${u.email}', ${balance}, ${customFee !== null && customFee !== undefined ? customFee : 'null'})">💳 PAMM</button>
-                        <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset PW</button>
+                        <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openFreeLicenseModal('${u.id}', '${u.email}')">🎁 Licença</button>
+                        <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="openResetPwModal('${u.id}', '${u.email}')">🔑 Reset</button>
                         <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="deleteUser('${u.id}', '${u.email}')">🗑️ Eliminar</button>
                     </td>
                 </tr>
             `;
         }).join('') || '<tr><td colspan="7" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
     }
-
-    // Período padrão para usuários
-    document.getElementById('userReportPeriod').value = new Date().toISOString().substring(0, 7);
 
     async function generateUsersReport() {
         if (!allUsers || allUsers.length === 0) return alert("Nenhum usuário carregado.");
@@ -1060,13 +1167,6 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Filtrar usuários pelo período selecionado (Expert logic)
-            const filteredUsers = allUsers.filter(u => {
-                const d = new Date(u.createdAt);
-                return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
-            });
-
-            // Header do PDF [EXPERT]
             doc.setFillColor(6, 8, 16);
             doc.rect(0, 0, 210, 40, 'F');
             doc.setTextColor(0, 212, 255);
@@ -1076,7 +1176,6 @@
             doc.setTextColor(255, 255, 255);
             doc.text(`CRESCIMENTO DE REDE - ${month}/${year}`, 105, 30, { align: "center" });
 
-            // Resumo de Registros
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(14);
             doc.text(`Novos Registros no Período: ${filteredUsers.length}`, 14, 50);
@@ -1100,7 +1199,6 @@
                 styles: { fontSize: 8 }
             });
 
-            // Rodapé
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             doc.text(`Gerado em: ${new Date().toLocaleString()} | Total de registros no mês: ${filteredUsers.length}`, 14, doc.internal.pageSize.height - 10);
@@ -1163,7 +1261,7 @@
         } else alert(res.error);
     }
 
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); document.getElementById(id).style.display = 'none'; }
 
     async function addPaymentMethod() {
         const name = document.getElementById('pmName').value;
@@ -1234,7 +1332,7 @@
     }
 
     async function loadPaymentMethods() {
-        const data = await api("/api/payment-methods"); // Using user endpoint is fine or create admin one
+        const data = await api("/api/payment-methods"); 
         const tbody = document.getElementById('pmsTable');
         tbody.innerHTML = data.methods.map(m => `
             <tr>
@@ -1303,7 +1401,6 @@
                 let amtColor = 'var(--bull)';
                 let sign = '+';
                 
-                // Se for um bónus pago, é uma despesa para a AuraTrade
                 if (t.description && t.description.toLowerCase().includes("bónus") || t.type === 'BONUS_PAYOUT') {
                     typeBadge = '<span class="badge badge-pending" style="background:rgba(255,68,68,0.2); color:var(--bear);">DESPESA (BÓNUS)</span>';
                     amtColor = 'var(--bear)';
@@ -1312,6 +1409,8 @@
                     typeBadge = '<span class="badge badge-active" style="background:rgba(0,230,118,0.2); color:var(--bull);">GANHO (TAXA)</span>';
                 } else if (t.type === 'DEPOSIT') {
                     typeBadge = '<span class="badge badge-active">DEPÓSITO</span>';
+                } else if (t.type === 'VPS_PURCHASE' || t.type === 'PAMM_PURCHASE') {
+                    typeBadge = '<span class="badge badge-vps" style="background:rgba(59,130,246,0.2); color:#60a5fa;">VENDA LICENÇA</span>';
                 }
                 return `
                     <tr>
@@ -1320,6 +1419,11 @@
                         <td>${typeBadge}</td>
                         <td style="font-weight:bold; color:${amtColor};">${sign}$${t.amount.toFixed(2)}</td>
                         <td style="color:var(--muted);">${t.description || '—'}</td>
+                        <td style="text-align:right;">
+                            <button class="btn" style="background:var(--bear);color:#fff;border:none;padding:6px 10px;" onclick="deleteFinanceTx('${t.id}', '${t.type}')" title="Eliminar Teste">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join("") || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhuma transação PAMM registrada.</td></tr>';
@@ -1335,6 +1439,16 @@
         } else alert(res.error);
     }
     
+    async function deleteFinanceTx(id, type) {
+        if(!confirm("Tem a certeza que deseja eliminar PERMANENTEMENTE esta transação?")) return;
+        const res = await api("/api/admin/wallet/transactions", "DELETE", { id, type });
+        if(res.success) {
+            alert("Transação eliminada com sucesso!");
+            loadFinance();
+            loadStats();
+        } else alert(res.error || "Erro ao eliminar.");
+    }
+
     async function rejectWithdraw(id) {
         if(!confirm("Rejeitar saque? O valor será devolvido ao saldo disponível do usuário.")) return;
         const res = await api("/api/admin/withdrawals/" + id + "/reject", "POST");
@@ -1365,7 +1479,7 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Header do PDF [EXPERT]
+            // Header do PDF
             doc.setFillColor(6, 8, 16);
             doc.rect(0, 0, 210, 40, 'F');
             doc.setTextColor(0, 212, 255);
@@ -1373,29 +1487,29 @@
             doc.text("AURAFOREX", 105, 20, { align: "center" });
             doc.setFontSize(10);
             doc.setTextColor(255, 255, 255);
-            doc.text(`RELATÓRIO FINANCEIRO - ${month}/${year}`, 105, 30, { align: "center" });
+            doc.text(`RELATORIO FINANCEIRO - ${month}/${year}`, 105, 30, { align: "center" });
 
             // Resumo
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(14);
-            doc.text("Resumo do Período", 14, 55);
+            doc.text("Resumo do Periodo", 14, 55);
             
             const summaryData = [
-                ["Receita de Licenças", `$${data.revenue.toFixed(2)}`],
+                ["Receita de Licencas", `$${data.revenue.toFixed(2)}`],
                 ["Saques Pagos", `$${data.withdrawals.toFixed(2)}`],
-                ["Bónus de Indicação", `$${data.bonuses.toFixed(2)}`],
-                ["Balanço Líquido", `$${data.balance.toFixed(2)}`]
+                ["Bonus de Indicacao", `$${data.bonuses.toFixed(2)}`],
+                ["Balanco Liquido", `$${data.balance.toFixed(2)}`]
             ];
 
             doc.autoTable({
                 startY: 60,
-                head: [['Descrição', 'Valor (USD)']],
+                head: [['Descricao', 'Valor (USD)']],
                 body: summaryData,
                 theme: 'striped',
                 headStyles: { fillStyle: [0, 212, 255] }
             });
 
-            // Rodapé
+            // Rodape
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, doc.internal.pageSize.height - 10);
@@ -1410,6 +1524,42 @@
         }
     }
 
+    // ── FREE LICENSE LOGIC ──
+    function openFreeLicenseModal(id, email) {
+        document.getElementById('freeLicUserId').value = id;
+        document.getElementById('freeLicEmail').textContent = email;
+        document.getElementById('freeLicDays').value = 30; 
+        document.getElementById('freeLicenseModal').style.display = 'flex';
+        document.getElementById('freeLicenseModal').classList.add('active');
+    }
+
+    async function submitFreeLicense() {
+        const userId = document.getElementById('freeLicUserId').value;
+        const days = document.getElementById('freeLicDays').value;
+        if (!days || days <= 0) return alert("Insira um número de dias válido.");
+        
+        const btn = document.querySelector('#freeLicenseModal button');
+        btn.disabled = true;
+        btn.innerHTML = "Atribuindo...";
+
+        try {
+            const res = await api(`/api/admin/users/${userId}/free-license`, "POST", { days });
+            if (res.success) {
+                alert("Licença atribuída com sucesso!");
+                closeModal('freeLicenseModal');
+                loadUsers();
+            } else {
+                alert(res.error || "Erro ao atribuir licença.");
+            }
+        } catch (e) {
+            alert("Erro de rede.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = "Validar e Atribuir Licença";
+        }
+    }
+
+    // ── PAMM WALLET LOGIC ──
     let currentWalletUserId = null;
     function openWalletModal(userId, email, balance, customFee) {
         currentWalletUserId = userId;
@@ -1436,7 +1586,6 @@
         
         let hasChanges = false;
         
-        // 1. Process balance change if provided
         if (directVal !== '') {
             const newBal = parseFloat(directVal);
             const res = await api('/api/admin/wallet/credit-user', 'POST', {
@@ -1466,7 +1615,6 @@
             }
         }
         
-        // 2. Process custom performance fee change
         const resFee = await api(`/api/admin/user/${currentWalletUserId}/pamm-settings`, 'POST', {
             pammPerformanceFeePct: customFeeVal !== '' ? parseFloat(customFeeVal) : ''
         });

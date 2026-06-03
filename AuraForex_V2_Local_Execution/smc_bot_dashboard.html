@@ -3865,8 +3865,8 @@ async function generateCryptoInvoice(btn) {
       // Iniciar polling para verificar aprovação
       if (cryptoCheckInterval) clearInterval(cryptoCheckInterval);
       cryptoCheckInterval = setInterval(async () => {
-        const statusRes = await apiFetch("/api/user/status");
-        if (statusRes.success && statusRes.status && statusRes.status.license === "ACTIVE") {
+        const authRes = await apiFetch("/api/auth/me");
+        if (authRes.success && authRes.user && authRes.user.license) {
           clearInterval(cryptoCheckInterval);
           document.getElementById("cryptoWaitingBox").innerHTML = '<i class="fas fa-check-circle"></i> Pagamento Recebido e Licença Ativada!';
           document.getElementById("cryptoWaitingBox").style.color = "var(--success)";
