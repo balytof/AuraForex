@@ -418,6 +418,7 @@ void CAuraPanel::CreateRect(string name, int x, int y, int w, int h, color bg, b
    ObjectSetInteger(m_chart, id, OBJPROP_COLOR, border ? borderColor : bg);
    ObjectSetInteger(m_chart, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(m_chart, id, OBJPROP_BACK, false);
+   ObjectSetInteger(m_chart, id, OBJPROP_ZORDER, 0);
    ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, false);
 }
 
@@ -432,6 +433,7 @@ void CAuraPanel::CreateLabel(string name, int x, int y, string text, color clr, 
    ObjectSetInteger(m_chart, id, OBJPROP_FONTSIZE, size);
    ObjectSetString(m_chart, id, OBJPROP_FONT, font);
    ObjectSetInteger(m_chart, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(m_chart, id, OBJPROP_ZORDER, 1);
    ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, false);
 }
 
@@ -450,6 +452,8 @@ void CAuraPanel::CreateEdit(string name, int x, int y, int w, int h, string text
    ObjectSetInteger(m_chart, id, OBJPROP_FONTSIZE, 10);
    ObjectSetString(m_chart, id, OBJPROP_FONT, "Segoe UI");
    ObjectSetInteger(m_chart, id, OBJPROP_ALIGN, ALIGN_LEFT);
+   ObjectSetInteger(m_chart, id, OBJPROP_ZORDER, 5);
+   ObjectSetInteger(m_chart, id, OBJPROP_READONLY, false);
    ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, true);
 }
 
@@ -468,6 +472,7 @@ void CAuraPanel::CreateButton(string name, int x, int y, int w, int h, string te
    ObjectSetInteger(m_chart, id, OBJPROP_FONTSIZE, size);
    ObjectSetString(m_chart, id, OBJPROP_FONT, "Segoe UI Bold");
    ObjectSetInteger(m_chart, id, OBJPROP_STATE, false);
+   ObjectSetInteger(m_chart, id, OBJPROP_ZORDER, 2);
    ObjectSetInteger(m_chart, id, OBJPROP_SELECTABLE, false);
 }
 

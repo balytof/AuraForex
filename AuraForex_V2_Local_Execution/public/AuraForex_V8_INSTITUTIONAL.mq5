@@ -227,7 +227,7 @@ int OnInit()
 {
    // --- AURA GUI INIT ---
    g_Panel = new CAuraPanel();
-   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 550, 400)) {
+   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 420)) {
        Print("Falha ao criar o painel Aura GUI.");
        return INIT_FAILED;
    }
