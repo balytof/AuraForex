@@ -220,7 +220,7 @@ int CountAuraPositions()
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   Print("🚀 AURA V8 INSTITUCIONAL - Execution Engine");
+   Print("🚀 AURA V8 INSTITUCIONAL v8.3 - Execution Engine");
    
    // Configurações Visuais de Gráfico (Nível Institucional)
    ChartSetInteger(0, CHART_SHOW_TRADE_HISTORY, true);
@@ -386,6 +386,10 @@ void CheckDailyTarget()
    MqlDateTime tm;
    TimeCurrent(tm);
 
+   string gvTarget = "Aura_DT_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+   string gvEquity = "Aura_DE_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+   string gvDay    = "Aura_TD_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+
    if(tm.day_of_year != LastTradingDay)
    {
       double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -399,9 +403,9 @@ void CheckDailyTarget()
          DailyStartEquity   = currentEq;
          DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
          
-         GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
-         GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
-         GlobalVariableSet("Aura_TradingDay", tm.day_of_year);
+         GlobalVariableSet(gvTarget, DailyTargetProfit);
+         GlobalVariableSet(gvEquity, DailyStartEquity);
+         GlobalVariableSet(gvDay, tm.day_of_year);
          
          Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
       }
@@ -410,10 +414,10 @@ void CheckDailyTarget()
    // Fallback inicialização (Primeiro run do bot no dia ou após reboot)
    if(DailyTargetProfit <= 0 && DailyStartEquity <= 10)
    {
-      if(GlobalVariableCheck("Aura_DailyTarget") && GlobalVariableCheck("Aura_TradingDay") && GlobalVariableGet("Aura_TradingDay") == tm.day_of_year)
+      if(GlobalVariableCheck(gvTarget) && GlobalVariableCheck(gvDay) && GlobalVariableGet(gvDay) == tm.day_of_year)
       {
-         DailyTargetProfit = GlobalVariableGet("Aura_DailyTarget");
-         DailyStartEquity  = GlobalVariableGet("Aura_DailyEquity");
+         DailyTargetProfit = GlobalVariableGet(gvTarget);
+         DailyStartEquity  = GlobalVariableGet(gvEquity);
          DailyStartBalance = DailyStartEquity;
          LastTradingDay    = tm.day_of_year;
          Print("🔄 [RESTORE] Meta Diária recuperada da memória global: $", DoubleToString(DailyTargetProfit, 2));
@@ -428,9 +432,9 @@ void CheckDailyTarget()
             DailyStartEquity   = currentEq;
             DailyTargetProfit  = DailyStartEquity * (InpDailyTargetPct / 100.0);
             
-            GlobalVariableSet("Aura_DailyTarget", DailyTargetProfit);
-            GlobalVariableSet("Aura_DailyEquity", DailyStartEquity);
-            GlobalVariableSet("Aura_TradingDay", tm.day_of_year);
+            GlobalVariableSet(gvTarget, DailyTargetProfit);
+            GlobalVariableSet(gvEquity, DailyStartEquity);
+            GlobalVariableSet(gvDay, tm.day_of_year);
             
             Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
          }
@@ -1797,8 +1801,8 @@ void ReportBalance()
 {
    int interval = (PositionsTotal() > 0) ? 5 : 60;
    static datetime lastReport = 0;
-   if(TimeCurrent() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
-   lastReport = TimeCurrent();
+   if(TimeLocal() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
+   lastReport = TimeLocal();
 
    double mult = InpIsCentAccount ? 0.01 : 1.0;
 
@@ -1835,7 +1839,7 @@ void ReportBalance()
             double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
             
             if(count > 0) openTradesJson += ",";
-            openTradesJson += "{\\\"id\\\":\\\"" + IntegerToString(ticket) + "\\\",\\\"pair\\\":\\\"" + sym + "\\\",\\\"direction\\\":\\\"" + dir + "\\\",\\\"profit\\\":" + DoubleToString(profit, 2) + ",\\\"lotSize\\\":" + DoubleToString(lot, 2) + ",\\\"openPrice\\\":" + DoubleToString(openPrice, 5) + "}";
+            openTradesJson += "{\"id\":\"" + IntegerToString(ticket) + "\",\"pair\":\"" + sym + "\",\"direction\":\"" + dir + "\",\"profit\":" + DoubleToString(profit, 2) + ",\"lotSize\":" + DoubleToString(lot, 2) + ",\"openPrice\":" + DoubleToString(openPrice, 5) + "}";
             count++;
          }
       }
@@ -1861,7 +1865,7 @@ void ReportBalance()
             long closeTime = HistoryDealGetInteger(dealTicket, DEAL_TIME);
             
             if(closedCount > 0) closedTradesJson += ",";
-            closedTradesJson += "{\\\"id\\\":\\\"" + IntegerToString(dealTicket) + "\\\",\\\"pair\\\":\\\"" + sym + "\\\",\\\"direction\\\":\\\"" + dir + "\\\",\\\"profit\\\":" + DoubleToString(dealProfit, 2) + ",\\\"lotSize\\\":" + DoubleToString(dealLot, 2) + ",\\\"closePrice\\\":" + DoubleToString(dealClosePrice, 5) + ",\\\"closeTime\\\":" + IntegerToString((int)closeTime) + "}";
+            closedTradesJson += "{\"id\":\"" + IntegerToString(dealTicket) + "\",\"pair\":\"" + sym + "\",\"direction\":\"" + dir + "\",\"profit\":" + DoubleToString(dealProfit, 2) + ",\"lotSize\":" + DoubleToString(dealLot, 2) + ",\"closePrice\":" + DoubleToString(dealClosePrice, 5) + ",\"closeTime\":" + IntegerToString((int)closeTime) + "}";
             closedCount++;
          }
       }
@@ -1887,6 +1891,7 @@ void ReportBalance()
    "}";
 
    string url = InpServerUrl + "/ea/report-balance";
+   // Print("[DEBUG] ReportBalance SENDING POST to: ", url);
    string response = SendPost(url, payload);
 
    if(response == "") {

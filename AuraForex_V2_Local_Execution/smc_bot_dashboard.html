@@ -1243,6 +1243,45 @@
         font-weight: 800 !important;
       }
     }
+  /* ESTILOS DOS CARTÕES DE PLANOS (COMPRA) */
+  .plan-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+  .plan-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+  .plan-card-info h4 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .plan-card-info p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .plan-card-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0,255,204,0.3);
+  }
 </style>
 
 </head>
@@ -3723,13 +3762,12 @@ async function loadPlans() {
   const data = await apiFetch("/api/plans");
   if (data.success && data.plans) {
     container.innerHTML = data.plans.map(p => `
-      <div class="broker-card" onclick="selectPlan('${p.id}', '${p.name}', ${p.price})">
-        
-        <div class="broker-card-info">
+      <div class="plan-card" onclick="selectPlan('${p.id}', '${p.name}', ${p.price})">
+        <div class="plan-card-info">
           <h4>${p.name}</h4>
           <p>${p.durationDays} dias de acesso ilimitado</p>
         </div>
-        <div style="font-weight:800;color:var(--accent);">$${p.price.toFixed(0)}</div>
+        <div class="plan-card-price">$${p.price.toFixed(0)}</div>
       </div>
     `).join("");
   } else {
@@ -3791,6 +3829,67 @@ async function submitPaymentRequest(btn) {
     btn.innerHTML = originalText;
   }
 }
+
+let cryptoCheckInterval = null;
+
+async function generateCryptoInvoice(btn) {
+  if (!selectedPlanId) {
+    alert("Plano não selecionado.");
+    return;
+  }
+
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GERANDO...';
+
+  try {
+    const res = await apiFetch("/api/license/request", "POST", {
+      planId: selectedPlanId,
+      hash: "crypto_auto", // Magic hash for Crypto Auto
+      amount: selectedAmount
+    });
+
+    if (res.success && res.cryptoInvoice) {
+      document.getElementById("buyStep2").style.display = "none";
+      document.getElementById("buyStepCrypto").style.display = "block";
+      document.getElementById("buyBackBtn").style.display = "none";
+
+      const inv = res.cryptoInvoice;
+      document.getElementById("cryptoAmountDue").textContent = inv.amountDue.toFixed(2);
+      document.getElementById("cryptoWalletAddress").value = inv.walletAddress;
+      
+      // Gerar QR Code via API pública
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${inv.walletAddress}`;
+      document.getElementById("cryptoQrCode").src = qrUrl;
+
+      // Iniciar polling para verificar aprovação
+      if (cryptoCheckInterval) clearInterval(cryptoCheckInterval);
+      cryptoCheckInterval = setInterval(async () => {
+        const statusRes = await apiFetch("/api/user/status");
+        if (statusRes.success && statusRes.status && statusRes.status.license === "ACTIVE") {
+          clearInterval(cryptoCheckInterval);
+          document.getElementById("cryptoWaitingBox").innerHTML = '<i class="fas fa-check-circle"></i> Pagamento Recebido e Licença Ativada!';
+          document.getElementById("cryptoWaitingBox").style.color = "var(--success)";
+          setTimeout(() => {
+            closeBuyModal();
+            fetchUserStatus();
+          }, 3000);
+        }
+      }, 5000);
+
+    } else {
+      alert("Erro: " + (res.error || "Não foi possível gerar a fatura."));
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Erro de conexão ao gerar fatura.");
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
 async function loadWallets() {
   const container = document.getElementById("walletsContainer");
   const data = await apiFetch("/api/payment-methods");
@@ -4671,8 +4770,8 @@ async function submitPammDeposit(btn) {
     <div class="modal-body">
       <div class="download-area">
         <h3 style="margin-bottom: 10px;">Passo Inicial: Baixe o seu Robô</h3>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.1 Institucional (Nova Atualização de Sincronia de Ordens) - Compilada para MetaTrader 5</p>
-        <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=6" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.3 Institucional (Correção de Sincronia de Saldo) - Compilada para MetaTrader 5</p>
+        <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=8" download class="btn btn-primary" style="padding: 12px 30px; font-size: 1rem;">
           <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
         </a>
       </div>
@@ -4791,9 +4890,42 @@ async function submitPammDeposit(btn) {
           <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;">* Após realizar o pagamento, cole a Hash acima para validação.</p>
         </div>
 
-        <button onclick="submitPaymentRequest(this)" class="btn btn-primary" style="width:100%; padding:15px; font-weight:700;">
-          <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO
+        <button onclick="submitPaymentRequest(this)" class="btn btn-secondary" style="width:100%; padding:15px; font-weight:700; margin-bottom: 10px;">
+          <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO MANUAL
         </button>
+
+        <div style="text-align: center; margin: 15px 0; color: var(--muted); font-size: 0.8rem; text-transform: uppercase;">Ou</div>
+
+        <button onclick="generateCryptoInvoice(this)" class="btn btn-primary" style="width:100%; padding:15px; font-weight:700; background: #f3ba2f; color: #000;">
+          <i class="fab fa-bitcoin"></i> PAGAMENTO AUTOMÁTICO (USDT BSC)
+        </button>
+      </div>
+
+      <!-- NOVO PASSO: CRYPTO INVOICE -->
+      <div id="buyStepCrypto" class="buy-step" style="display:none; text-align: center;">
+        <h3 style="margin-bottom: 15px; color: #f3ba2f;">Pagamento USDT (BEP20)</h3>
+        <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 20px;">Envie o valor exato para o endereço abaixo. A ativação será feita automaticamente em menos de 2 minutos após o envio.</p>
+        
+        <div style="background: white; padding: 15px; display: inline-block; border-radius: 10px; margin-bottom: 20px;">
+          <img id="cryptoQrCode" src="" alt="QR Code" width="180" height="180">
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+          <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Valor a enviar:</div>
+          <div style="font-size: 1.8rem; font-weight: 800; color: #f3ba2f; margin: 5px 0;">
+            <span id="cryptoAmountDue">0.00</span> USDT
+          </div>
+          
+          <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-top: 15px;">Endereço de Pagamento (BSC):</div>
+          <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <input type="text" id="cryptoWalletAddress" readonly style="flex:1; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:10px; border-radius:8px; color:white; font-size:0.8rem; font-family: monospace;">
+            <button class="btn btn-primary" onclick="copyText(document.getElementById('cryptoWalletAddress').value)"><i class="fas fa-copy"></i></button>
+          </div>
+        </div>
+
+        <div id="cryptoWaitingBox" style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+          <i class="fas fa-spinner fa-spin"></i> Aguardando depósito na Blockchain...
+        </div>
       </div>
 
       <div id="buyStep3" class="buy-step" style="display:none;">

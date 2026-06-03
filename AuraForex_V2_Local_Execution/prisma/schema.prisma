@@ -110,6 +110,24 @@ model PurchaseRequest {
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan LicensePlan? @relation(fields: [planId], references: [id])
   bonuses BonusTransaction[]
+  cryptoInvoice CryptoInvoice?
+}
+
+model CryptoInvoice {
+  id              String   @id @default(uuid())
+  purchaseId      String   @unique
+  walletAddress   String   @unique
+  privateKeyEnc   String   // Chave privada da carteira temporária (encriptada)
+  network         String   @default("BSC")
+  currency        String   @default("USDT")
+  amountDue       Float
+  amountPaid      Float    @default(0)
+  status          String   @default("PENDING") // PENDING, PAID, FORWARDING, COMPLETED, FAILED
+  forwardTxHash   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchase        PurchaseRequest @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 }
 
 model BrokerConnection {

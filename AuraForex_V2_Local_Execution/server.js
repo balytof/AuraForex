@@ -20,12 +20,16 @@ process.on('uncaughtException', (err) => {
 const prisma = require("./db");
 const { encrypt, decrypt } = require("./utils/encryption");
 
+// Iniciar Workers
+require("./workers/paymentMonitor");
+
 // APEX SMC Broker Layer
 const { createBroker } = require("./apex_broker");
 
 const { generateSignal } = require("./signals/smc_signal_engine");
 const { analyzeAll } = require("./smc/smc");
 const { getRiskManager, userRisks } = require("./risk/store");
+const { generatePaymentWallet } = require("./payments/cryptoGateway");
 const eaApi = require("./ea_api");
 const supportApi = require("./support_api");
 const { setupPammAccount, startPammWorker, togglePammConnection, getPammAccountStats, removePammAccount } = require("./pamm_metaapi");
@@ -62,6 +66,7 @@ app.use((req, res, next) => {
         }
         next();
       } catch (e) {
+        console.error("[JSON PARSE ERROR MT5 BODY]", e, " | Data:", data.replace(/\0/g, '').trim());
         next();
       }
     });
@@ -1714,6 +1719,34 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
         }
       });
 
+      // Se for pagamento crypto automático
+      if (hash === "crypto_auto") {
+        const walletData = generatePaymentWallet();
+        
+        const cryptoInvoice = await prisma.cryptoInvoice.create({
+          data: {
+            purchaseId: request.id,
+            walletAddress: walletData.address,
+            privateKeyEnc: walletData.encryptedPK,
+            network: "BSC",
+            currency: "USDT",
+            amountDue: parseFloat(amount) || 0
+          }
+        });
+
+        console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} via Crypto Auto (Address: ${cryptoInvoice.walletAddress})`);
+        return res.json({ 
+          success: true, 
+          request,
+          cryptoInvoice: {
+            walletAddress: cryptoInvoice.walletAddress,
+            amountDue: cryptoInvoice.amountDue,
+            network: cryptoInvoice.network,
+            currency: cryptoInvoice.currency
+          }
+        });
+      }
+
       console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
       res.json({ success: true, request });
     } catch (err) {
@@ -1745,6 +1778,35 @@ app.post("/api/purchase/request", requireAuth, async (req, res) => {
         status: "PENDING"
       }
     });
+
+    // Se for Crypto Gateway Nativo
+    if (paymentMethodId === "crypto_bsc") {
+      const walletData = generatePaymentWallet();
+      
+      const cryptoInvoice = await prisma.cryptoInvoice.create({
+        data: {
+          purchaseId: request.id,
+          walletAddress: walletData.address,
+          privateKeyEnc: walletData.encryptedPK,
+          network: "BSC",
+          currency: "USDT",
+          amountDue: parseFloat(amount)
+        }
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: "Invoice Crypto gerada com sucesso.", 
+        request, 
+        cryptoInvoice: {
+          walletAddress: cryptoInvoice.walletAddress,
+          amountDue: cryptoInvoice.amountDue,
+          network: cryptoInvoice.network,
+          currency: cryptoInvoice.currency
+        }
+      });
+    }
+
     res.json({ success: true, message: "Solicitação enviada. Aguarde a aprovação do admin.", request });
   } catch (err) {
     console.error("Erro ao criar PurchaseRequest:", err);
