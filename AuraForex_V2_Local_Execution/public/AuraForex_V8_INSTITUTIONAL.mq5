@@ -405,6 +405,36 @@ double GetDailyPnL()
    return closedProfit + floatingProfit;
 }
 
+double GetRealizedDailyPnL()
+{
+   double closedProfit = 0;
+   
+   MqlDateTime dt; 
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime todayStart = StructToTime(dt);
+   
+   if(HistorySelect(todayStart, TimeCurrent()))
+   {
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+            if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
+            {
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+            }
+         }
+      }
+   }
+   return closedProfit;
+}
+
 void CheckDailyTarget()
 {
    MqlDateTime tm;
@@ -1847,6 +1877,7 @@ void ReportBalance()
 
    // 🛡️ CONSISTÊNCIA VISUAL ABSOLUTA: O Dashboard deve mostrar exatamente o PnL calculado para a Trava (Equity Atual - Start Equity)
    double dailyPnl = (DailyStartEquity > 0) ? ((rawEquity - DailyStartEquity) * mult) : 0;
+   double realizedPnl = GetRealizedDailyPnL() * mult;
    
    string openTradesJson = "[";
    int count = 0;
@@ -1905,6 +1936,7 @@ void ReportBalance()
       "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ","
       "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
       "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) + ","
+      "\"realizedPnl\":" + DoubleToString(realizedPnl, 2) + ","
       "\"dailyProfitTarget\":" + DoubleToString(g_DailyTargetPct, 2) + ","
       "\"dailyLossLimit\":" + DoubleToString(g_MaxDailyLossPct, 2) + ","
       "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","

@@ -2951,7 +2951,7 @@ async function updateStats() {
       const bal = (status.balance !== undefined && status.balance !== null) ? status.balance : 0;
       document.getElementById("statBalance").textContent = formatCurrency(bal, "USD");
       
-      const realizedPnl = status.dailyPnl !== undefined ? status.dailyPnl : 0;
+      const realizedPnl = status.realizedPnl !== undefined ? status.realizedPnl : 0;
       const pnlEl = document.getElementById("statPnl");
       pnlEl.textContent = (realizedPnl >= 0 ? "+" : "") + formatCurrency(realizedPnl, "USD");
       pnlEl.className = "stat-value " + (realizedPnl >= 0 ? "bull" : "bear");

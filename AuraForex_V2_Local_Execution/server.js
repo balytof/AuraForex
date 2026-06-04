@@ -487,12 +487,14 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let finalBalance = lastBalance;
     let finalEquity = lastEquity;
     let finalDailyPnl = risk.dailyPnl;
+    let finalRealizedPnl = risk.realizedPnl || 0;
     let finalDailyTargetMoney = dailyTargetMoney;
 
     if (isCentAccount) {
       finalBalance = finalBalance / 100;
       finalEquity = finalEquity / 100;
       finalDailyPnl = finalDailyPnl / 100;
+      finalRealizedPnl = finalRealizedPnl / 100;
       finalDailyTargetMoney = finalDailyTargetMoney / 100;
     }
 
@@ -501,6 +503,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       balance: finalBalance,
       equity: finalEquity, // Prioriza a equity em tempo real para evitar sinais invertidos!
       dailyPnl: finalDailyPnl, // Correção: Usar o PnL fechado+flutuante exacto vindo do MT5!
+      realizedPnl: finalRealizedPnl,
       dailyTargetMoney: finalDailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
       isLocked: isProfitLocked || risk.circuitBreaker,
       isProfitLocked: isProfitLocked, // Correção: Passar flag específica para o Card Verde

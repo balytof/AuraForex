@@ -252,7 +252,7 @@ router.post("/report-balance", async (req, res) => {
   }
 
   const { 
-    licenseKey, balance, equity, dailyPnl, 
+    licenseKey, balance, equity, dailyPnl, realizedPnl, 
     dailyProfitTarget, dailyLossLimit,
     isLocked, isProfitLocked, isLossLocked 
   } = req.body;
@@ -289,6 +289,7 @@ router.post("/report-balance", async (req, res) => {
     risk.balance = parseFloat(balance);
     risk.equity = parseFloat(equity);
     risk.dailyPnl = parseFloat(dailyPnl || 0);
+    risk.realizedPnl = parseFloat(realizedPnl || 0);
     
     // Sincroniza configurações de meta dinâmicas
     if (dailyProfitTarget !== undefined) risk.dailyProfitTarget = parseFloat(dailyProfitTarget);
