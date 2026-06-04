@@ -488,6 +488,18 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let finalEquity = lastEquity;
     let finalDailyPnl = risk.dailyPnl;
     let finalRealizedPnl = risk.realizedPnl || 0;
+
+    // Fallback: Se não houver realizedPnl (EA antigo ou broker Node), calcula usando histórico do dia
+    if (!finalRealizedPnl && risk.tradeHistory && risk.tradeHistory.length > 0) {
+      const todayStr = new Date().toDateString();
+      finalRealizedPnl = risk.tradeHistory
+        .filter(t => {
+           const d = t.closedAt ? new Date(t.closedAt) : new Date(t.closeTime);
+           return d.toDateString() === todayStr;
+        })
+        .reduce((sum, t) => sum + (t.pnl || 0), 0);
+    }
+
     let finalDailyTargetMoney = dailyTargetMoney;
 
     if (isCentAccount) {

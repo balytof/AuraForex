@@ -286,8 +286,7 @@ router.post("/report-balance", async (req, res) => {
     const risk = getRiskManager(licenseKey); // Usa a licença para ter gestão de risco independente por conta
 
     // 🛡️ Sincronia Rápida de Equidade e Balance no Gestor de Risco
-    risk.balance = parseFloat(balance);
-    risk.equity = parseFloat(equity);
+    risk.setBalance(parseFloat(balance), parseFloat(equity));
     risk.dailyPnl = parseFloat(dailyPnl || 0);
     risk.realizedPnl = parseFloat(realizedPnl || 0);
     
