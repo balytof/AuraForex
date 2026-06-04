@@ -490,9 +490,10 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     let finalRealizedPnl = risk.realizedPnl || 0;
 
     // Fallback: Se não houver realizedPnl (EA antigo ou broker Node), calcula usando histórico do dia
-    if (!finalRealizedPnl && risk.tradeHistory && risk.tradeHistory.length > 0) {
+    const hist = (risk.closedTrades && risk.closedTrades.length > 0) ? risk.closedTrades : (risk.tradeHistory || []);
+    if (!finalRealizedPnl && hist.length > 0) {
       const todayStr = new Date().toDateString();
-      finalRealizedPnl = risk.tradeHistory
+      finalRealizedPnl = hist
         .filter(t => {
            const d = t.closedAt ? new Date(t.closedAt) : new Date(t.closeTime);
            return d.toDateString() === todayStr;
@@ -715,7 +716,7 @@ app.get("/api/broker/history", requireAuth, requireBrokerAuth, async (req, res) 
       const { getRiskManager } = require("./risk/store");
       const risk = getRiskManager(license ? license.id : req.user.id);
       
-      let pammHist = risk.tradeHistory || [];
+      let pammHist = (risk.closedTrades && risk.closedTrades.length > 0) ? risk.closedTrades : (risk.tradeHistory || []);
       const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
       const isCentAccount = userSettings?.isCentAccount || false;
       
@@ -2011,12 +2012,7 @@ app.post("/api/purchase/request", requireAuth, async (req, res) => {
 app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        referrals: {
-          select: { id: true, email: true, createdAt: true, _count: { select: { referrals: true } } }
-        }
-      }
+      where: { id: req.user.id }
     });
 
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
@@ -2029,6 +2025,27 @@ app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
       take: 20
     });
 
+    // Construir a rede de afiliados até ao Nível 5
+    let allReferrals = [];
+    let currentLevelIds = [user.id];
+    
+    for (let level = 1; level <= 5; level++) {
+      if (currentLevelIds.length === 0) break;
+      
+      const levelUsers = await prisma.user.findMany({
+        where: { sponsorId: { in: currentLevelIds } },
+        select: { 
+          id: true, 
+          email: true, 
+          createdAt: true, 
+          _count: { select: { referrals: true } } 
+        }
+      });
+      
+      levelUsers.forEach(u => allReferrals.push({ ...u, level }));
+      currentLevelIds = levelUsers.map(u => u.id);
+    }
+
     res.json({
       success: true,
       stats: {
@@ -2036,7 +2053,7 @@ app.get("/api/affiliate/stats", requireAuth, async (req, res) => {
         totalBonusEarned: user.totalBonusEarned,
         totalBonusWithdrawn: user.totalBonusWithdrawn,
         availableBonus: user.availableBonus,
-        referrals: user.referrals,
+        referrals: allReferrals,
         recentBonuses: bonuses
       }
     });
@@ -2700,50 +2717,6 @@ app.post("/api/admin/withdrawals/:id/reject", requireAuth, requireAdmin, async (
 
 // ── Static Files & Login Page ──────────────────────────────────────
 
-let lastModTimes = {};
-if (!isProd) {
-  app.get("/__reload_check", (req, res) => { res.json({ changed: false }); }); // Desativado dev reload auto para n quebrar requests jwt
-}
-
-app.use((req, res) => {
-  let urlPath = req.path;
-
-  // Rotas /api/ não encontradas devem retornar JSON, nunca HTML
-  if (urlPath.startsWith("/api/")) {
-    return res.status(404).json({ error: `Rota não encontrada: ${req.method} ${urlPath}` });
-  }
-
-  if (urlPath === "/" || urlPath === "" || urlPath === "/login") {
-    urlPath = "/login.html";
-  } else if (urlPath === "/dashboard") {
-    urlPath = "/smc_bot_dashboard.html";
-  } else if (urlPath === "/affiliate") {
-    urlPath = "/affiliate_dashboard.html";
-  }
-
-  const filePath = path.join(ROOT, urlPath);
-
-  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
-    return res.status(404).send("Arquivo não encontrado.");
-  }
-
-  // Prevenir Directory Traversal Attack
-  if (!path.resolve(filePath).startsWith(path.resolve(ROOT))) return res.status(403).send("Forbidden");
-
-  // Prevenir Caching agressivo em ficheiros HTML
-  if (filePath.endsWith(".html")) {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  }
-
-  res.sendFile(filePath);
-});
-
-// ── Startup ───────────────────────────────────────────────────────
-const http = require("http");
-const server = http.createServer(app);
-
-// ─────────────────────────────────────────────────────────────────
 // ── COPY TRADING SAAS ROUTES (NATIVE LOCAL COPIER) ──────────────
 // ─────────────────────────────────────────────────────────────────
 
@@ -2784,6 +2757,21 @@ app.get("/api/admin/providers", requireAuth, requireAdmin, async (req, res) => {
       }
     });
     res.json({ success: true, providers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: Alternar Estado do Provedor
+app.post("/api/admin/providers/:id/toggle", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { isActive } = req.body;
+  try {
+    const provider = await prisma.provider.update({
+      where: { id },
+      data: { isActive: !!isActive }
+    });
+    res.json({ success: true, provider });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2960,6 +2948,52 @@ app.get("/api/user/download-master", requireAuth, async (req, res) => {
   }
 });
 
+
+
+let lastModTimes = {};
+if (!isProd) {
+  app.get("/__reload_check", (req, res) => { res.json({ changed: false }); }); // Desativado dev reload auto para n quebrar requests jwt
+}
+
+app.use((req, res) => {
+  let urlPath = req.path;
+
+  // Rotas /api/ não encontradas devem retornar JSON, nunca HTML
+  if (urlPath.startsWith("/api/")) {
+    return res.status(404).json({ error: `Rota não encontrada: ${req.method} ${urlPath}` });
+  }
+
+  if (urlPath === "/" || urlPath === "" || urlPath === "/login") {
+    urlPath = "/login.html";
+  } else if (urlPath === "/dashboard") {
+    urlPath = "/smc_bot_dashboard.html";
+  } else if (urlPath === "/affiliate") {
+    urlPath = "/affiliate_dashboard.html";
+  }
+
+  const filePath = path.join(ROOT, urlPath);
+
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    if (urlPath !== "/smc_bot_dashboard.html" && urlPath !== "/login.html" && urlPath !== "/affiliate_dashboard.html") return res.status(404).send("Not Found");
+    return res.status(404).send("Arquivo não encontrado.");
+  }
+
+  // Prevenir Directory Traversal Attack
+  if (!path.resolve(filePath).startsWith(path.resolve(ROOT))) return res.status(403).send("Forbidden");
+
+  // Prevenir Caching agressivo em ficheiros HTML
+  if (filePath.endsWith(".html")) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
+
+  res.sendFile(filePath);
+});
+
+// ── Startup ───────────────────────────────────────────────────────
+const http = require("http");
+const server = http.createServer(app);
+
+// ─────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {

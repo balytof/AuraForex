@@ -1714,12 +1714,7 @@
     async function removePammAccount(userId) {
         if (!confirm("Aviso: Esta ação irá eliminar a conta da MetaApi e limpar os dados da base de dados. O utilizador será notificado para ligar uma nova conta.\n\nDeseja prosseguir?")) return;
         try {
-            const res = await fetch("/api/admin/pamm/remove", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") },
-                body: JSON.stringify({ targetUserId: userId })
-            });
-            const data = await res.json();
+            const data = await api("/api/admin/pamm/remove", "POST", { targetUserId: userId });
             if (data.success) {
                 alert("Conta PAMM removida com sucesso!");
                 loadPammUsers();
@@ -1740,12 +1735,7 @@
         const comm = prompt("Taxa de Comissão (ex: 30 para 30%):", "30");
         
         try {
-            const res = await fetch("/api/admin/providers", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") },
-                body: JSON.stringify({ name, commissionPct: parseFloat(comm), ownerEmail: email })
-            });
-            const data = await res.json();
+            const data = await api("/api/admin/providers", "POST", { name, commissionPct: parseFloat(comm), ownerEmail: email });
             if (data.success) {
                 alert(`Provedor criado!\n\nTOKEN SECRETO: ${data.provider.token}\n\nEntregue este token ao provedor para ele colocar no robô Master.`);
                 loadProviders();
@@ -1755,10 +1745,7 @@
 
     async function loadProviders() {
         try {
-            const res = await fetch("/api/admin/providers", {
-                headers: { "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") }
-            });
-            const data = await res.json();
+            const data = await api("/api/admin/providers");
             if (data.success) {
                 const tbody = document.getElementById("providersTable");
                 tbody.innerHTML = "";
@@ -1770,16 +1757,41 @@
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>${p.name}</strong></td>
-                            <td style="font-family:monospace; color:var(--accent);">${p.token}</td>
+                            <td style="font-family:monospace; color:var(--accent);">
+                                ${p.token}
+                                <button class="btn" style="padding: 2px 5px; font-size: 0.7rem; margin-left: 5px;" onclick="copyToClipboard('${p.token}')" title="Copiar Token">📋</button>
+                            </td>
                             <td>${p.commissionPct}%</td>
                             <td>${p._count.clients}</td>
                             <td style="color:var(--bull);">$${p.totalGasEarned.toFixed(2)}</td>
-                            <td><span class="badge ${p.isActive ? 'badge-success' : 'badge-warning'}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
+                            <td>
+                                <span class="badge ${p.isActive ? 'badge-success' : 'badge-warning'}">${p.isActive ? 'Ativo' : 'Inativo'}</span>
+                                <button class="btn" style="padding: 2px 5px; font-size: 0.7rem; margin-left: 5px; color: ${p.isActive ? 'var(--bear)' : 'var(--bull)'}" onclick="toggleProvider('${p.id}', ${p.isActive})">${p.isActive ? 'Desativar' : 'Ativar'}</button>
+                            </td>
                         </tr>
                     `;
                 });
             }
         } catch (err) { console.error(err); }
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Token copiado para a área de transferência!");
+        }).catch(err => {
+            console.error('Falha ao copiar: ', err);
+            prompt("Copie o token abaixo:", text);
+        });
+    }
+
+    async function toggleProvider(id, currentStatus) {
+        if (!confirm(`Tem a certeza que deseja ${currentStatus ? 'desativar' : 'ativar'} este provedor?`)) return;
+        const data = await api(`/api/admin/providers/${id}/toggle`, "POST", { isActive: !currentStatus });
+        if (data.success) {
+            loadProviders();
+        } else {
+            alert(data.error);
+        }
     }
 
     // Override showPanel to load specific data

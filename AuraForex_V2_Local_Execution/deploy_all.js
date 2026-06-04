@@ -13,6 +13,7 @@ conn.on('ready', () => {
             { local: './ea_api.js', remote: `${remoteBaseDir}/ea_api.js` },
             { local: './admin_dashboard.html', remote: `${remoteBaseDir}/admin_dashboard.html` },
             { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` },
+            { local: './affiliate_dashboard.html', remote: `${remoteBaseDir}/affiliate_dashboard.html` },
             { local: './public/i18n_dashboard.js', remote: `${remoteBaseDir}/public/i18n_dashboard.js` },
             { local: './risk/store.js', remote: `${remoteBaseDir}/risk/store.js` },
             { local: './risk/risk.js', remote: `${remoteBaseDir}/risk/risk.js` },
