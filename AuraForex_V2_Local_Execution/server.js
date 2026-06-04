@@ -2734,11 +2734,25 @@ const server = http.createServer(app);
 
 // Admin: Criar Provedor
 app.post("/api/admin/providers", requireAuth, requireAdmin, async (req, res) => {
-  const { name, commissionPct } = req.body;
+  const { name, commissionPct, ownerEmail } = req.body;
   try {
+    let userId = null;
+    if (ownerEmail) {
+      const owner = await prisma.user.findUnique({ where: { email: ownerEmail } });
+      if (!owner) {
+        return res.status(404).json({ error: "E-mail do dono não encontrado." });
+      }
+      userId = owner.id;
+    }
+
     const token = "AURA-PRV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     const provider = await prisma.provider.create({
-      data: { name, token, commissionPct: parseFloat(commissionPct) || 30.0 }
+      data: { 
+        name, 
+        token, 
+        commissionPct: parseFloat(commissionPct) || 30.0,
+        userId
+      }
     });
     res.json({ success: true, provider });
   } catch (err) {
@@ -2904,6 +2918,30 @@ app.post("/api/copytrade/profit", async (req, res) => {
   } catch (err) {
     console.error("Profit report error:", err);
     res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// Download Seguro do Master EA
+app.get("/api/user/download-master", requireAuth, async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send("Token não fornecido.");
+
+  try {
+    const provider = await prisma.provider.findFirst({
+      where: {
+        token: token,
+        userId: req.session.userId
+      }
+    });
+
+    if (!provider) {
+      return res.status(403).send("Acesso Negado: Token inválido ou não pertence a esta conta.");
+    }
+
+    res.download(__dirname + "/public/AuraMaster_Signal.ex5", "AuraMaster_Signal.ex5");
+  } catch (err) {
+    console.error("Erro no download:", err);
+    res.status(500).send("Erro interno no servidor.");
   }
 });
 

@@ -273,6 +273,12 @@ void CAuraPanel::DrawLimites(void)
 
    CreateLabel("C_LblMO", lx, cy+4, "Máximo de Ordens Global:", CLR_TXT_WHITE);
    CreateEdit("C_EdMO", ex, cy, ew, eh, (string)g_MaxOrders, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblMB", lx, cy+4, "Máximo de Compras:", CLR_TXT_WHITE);
+   CreateEdit("C_EdMB", ex, cy, ew, eh, (string)g_MaxBuys, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblMS", lx, cy+4, "Máximo de Vendas:", CLR_TXT_WHITE);
+   CreateEdit("C_EdMS", ex, cy, ew, eh, (string)g_MaxSells, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
 }
 
 void CAuraPanel::DrawTrailing(void)
@@ -311,6 +317,8 @@ void CAuraPanel::SaveConfig(void)
       g_MaxSLJPY = (int)StringToInteger(GetEditText("C_EdSLJ"));
       g_MaxSLOuro = (int)StringToInteger(GetEditText("C_EdSLG"));
       g_MaxOrders = (int)StringToInteger(GetEditText("C_EdMO"));
+      g_MaxBuys = (int)StringToInteger(GetEditText("C_EdMB"));
+      g_MaxSells = (int)StringToInteger(GetEditText("C_EdMS"));
    } else if (m_tab == 4) {
       g_TrailingEnabled = (GetEditText("C_EdTE") == "1");
       g_TrailingStart = (int)StringToInteger(GetEditText("C_EdTS"));
@@ -334,6 +342,8 @@ void CAuraPanel::SaveConfig(void)
       FileWriteString(handle, "SLJpy=" + (string)g_MaxSLJPY + "\n");
       FileWriteString(handle, "SLGold=" + (string)g_MaxSLOuro + "\n");
       FileWriteString(handle, "MaxOrd=" + (string)g_MaxOrders + "\n");
+      FileWriteString(handle, "MaxBuy=" + (string)g_MaxBuys + "\n");
+      FileWriteString(handle, "MaxSel=" + (string)g_MaxSells + "\n");
       
       FileWriteString(handle, "TrailE=" + (string)g_TrailingEnabled + "\n");
       FileWriteString(handle, "TrailS=" + (string)g_TrailingStart + "\n");
@@ -367,6 +377,8 @@ void CAuraPanel::LoadConfig(void)
             if(sep[0] == "SLJpy") g_MaxSLJPY = (int)StringToInteger(sep[1]);
             if(sep[0] == "SLGold") g_MaxSLOuro = (int)StringToInteger(sep[1]);
             if(sep[0] == "MaxOrd") g_MaxOrders = (int)StringToInteger(sep[1]);
+            if(sep[0] == "MaxBuy") g_MaxBuys = (int)StringToInteger(sep[1]);
+            if(sep[0] == "MaxSel") g_MaxSells = (int)StringToInteger(sep[1]);
             
             if(sep[0] == "TrailE") g_TrailingEnabled = (sep[1] == "true" || sep[1] == "1");
             if(sep[0] == "TrailS") g_TrailingStart = (int)StringToInteger(sep[1]);
@@ -446,6 +458,8 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
       if(objName == m_prefix + "C_EdSLJ") g_MaxSLJPY = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdSLG") g_MaxSLOuro = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdMO")  g_MaxOrders = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdMB")  g_MaxBuys = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdMS")  g_MaxSells = (int)StringToInteger(val);
       
       if(objName == m_prefix + "C_EdTE") g_TrailingEnabled = (val == "1");
       if(objName == m_prefix + "C_EdTS") g_TrailingStart = (int)StringToInteger(val);

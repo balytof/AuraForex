@@ -12,7 +12,8 @@ const filesToUpload = [
     { local: './public/AuraCopier_Client.ex5', remote: `${remoteBaseDir}/public/AuraCopier_Client.ex5` },
     { local: './server.js', remote: `${remoteBaseDir}/server.js` },
     { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` },
-    { local: './admin_dashboard.html', remote: `${remoteBaseDir}/admin_dashboard.html` }
+    { local: './admin_dashboard.html', remote: `${remoteBaseDir}/admin_dashboard.html` },
+    { local: './prisma/schema.prisma', remote: `${remoteBaseDir}/prisma/schema.prisma` }
 ];
 
 conn.on('ready', () => {
@@ -25,8 +26,8 @@ conn.on('ready', () => {
         
         function uploadNext() {
             if (completed >= filesToUpload.length) {
-                console.log('✨ Todos os ficheiros enviados! A reiniciar servidor Node.js no VPS...');
-                conn.exec(`cd ${remoteBaseDir} && pm2 restart server`, (err, stream) => {
+                console.log('✨ Todos os ficheiros enviados! A atualizar a BD e reiniciar servidor Node.js no VPS...');
+                conn.exec(`cd ${remoteBaseDir} && npx prisma db push && pm2 restart server`, (err, stream) => {
                     if (err) throw err;
                     stream.on('close', (code, signal) => {
                         console.log('✅ PM2 reiniciado com código ' + code);

@@ -1733,15 +1733,17 @@
     }
 
     async function createProvider() {
-        const name = prompt("Nome do Trader/Provedor:");
+        const name = prompt("Nome do Novo Provedor de Sinal:");
         if (!name) return;
+
+        const email = prompt("Qual o e-mail do Cliente (Dono) deste Provedor?\n(Opcional, deixe em branco se não quiser vincular já)");
         const comm = prompt("Taxa de Comissão (ex: 30 para 30%):", "30");
         
         try {
             const res = await fetch("/api/admin/providers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("aura_admin_token") },
-                body: JSON.stringify({ name, commissionPct: comm })
+                body: JSON.stringify({ name, commissionPct: parseFloat(comm), ownerEmail: email })
             });
             const data = await res.json();
             if (data.success) {
