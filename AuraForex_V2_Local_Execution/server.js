@@ -2179,7 +2179,7 @@ app.post("/api/affiliate/withdraw", requireAuth, async (req, res) => {
 
 app.get("/api/user/provider/stats", requireAuth, async (req, res) => {
   try {
-    const provider = await prisma.provider.findFirst({ where: { userId: req.user.id } });
+    let provider = await prisma.provider.findFirst({ where: { userId: req.user.id } });
     if (!provider) return res.status(403).json({ error: "Não é um provedor." });
     
     // TEMPORARY RESET FOR ADMIN (removes the $10 from earlier auto-heal)

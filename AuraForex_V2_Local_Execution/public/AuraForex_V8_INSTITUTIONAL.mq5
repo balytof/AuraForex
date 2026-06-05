@@ -18,22 +18,22 @@ CAuraPanel *g_Panel;
 
 
 //--- INPUT PARAMETERS ---
-string Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença (Dashboard)
+string Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de LicenÃ§a (Dashboard)
 string Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
-bool Tester_IsCentAccount     = false;                   // A Conta é Cent? (Auto-adaptável)
+bool Tester_IsCentAccount     = false;                   // A Conta Ã© Cent? (Auto-adaptÃ¡vel)
 double Tester_RiskPercent       = 1.0;                     // % de Risco por Trade
 int Tester_MagicNumber       = 888222;                  // Magic Number das Ordens
-int Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) — Recomendado: 2 ou 3
+int Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) â€” Recomendado: 2 ou 3
 int Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
 int Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
 int Tester_MaxSLOuro         = 500;                     // Limite SL Ouro (Pontos)
 int Tester_MaxOrders         = 4;                       // Limite Global de Ordens
-int Tester_MaxBuys           = 2;                       // Máximo de Compras Simultâneas
-int Tester_MaxSells          = 2;                       // Máximo de Vendas Simultâneas
+int Tester_MaxBuys           = 2;                       // MÃ¡ximo de Compras SimultÃ¢neas
+int Tester_MaxSells          = 2;                       // MÃ¡ximo de Vendas SimultÃ¢neas
 int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
 
 // --- PROFIT LOCK PARAMETERS ---
-double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
+double Tester_ProfitLockMin     = 3.0;   // Lucro mÃ­nimo para activar ProfitLock ($)
 double Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
 
 // --- TRAILING STOP PARAMETERS ---
@@ -43,15 +43,15 @@ int Tester_TrailingDistance  = 80;        // Trailing Distance (8.0 pips)
 int Tester_TrailingStep      = 10;        // Trailing Step (1.0 pip)
 
 // --- TWIN TRADING (RUNNER) ---
-bool Tester_UseTwinTrading   = true;      // Dividir posição em T1 e Runner
+bool Tester_UseTwinTrading   = true;      // Dividir posiÃ§Ã£o em T1 e Runner
 
 bool Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
-double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
+double Tester_MaxDailyLossPct    = 10.0;     // Perda MÃ¡xima DiÃ¡ria (%)
 
-// --- TRAVA DE META DIÁRIA (DAILY TARGET PROFIT LOCK) ---
-bool Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta Diária
+// --- TRAVA DE META DIÃRIA (DAILY TARGET PROFIT LOCK) ---
+bool Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta DiÃ¡ria
 double Tester_DailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
-double Tester_DailyTargetFloorPct  = 50.0;  // Lucro Mínimo Garantido ao reverter % (ex: 50%)
+double Tester_DailyTargetFloorPct  = 50.0;  // Lucro MÃ­nimo Garantido ao reverter % (ex: 50%)
 
 // --- BE INTELIGENTE + CUSTOS (BREAKEVEN PLUS COSTS) ---
 bool Tester_BreakevenEnabled     = true;   // Ativar Breakeven Inteligente
@@ -65,14 +65,14 @@ int Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
 
 // --- FILTRO DE SPREAD (SPREAD SPIKE GUARDIAN) ---
 bool Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
-double Tester_MaxSpreadPips        = 5.0;    // Spread Máximo Permitido para Modificações (Pips)
-bool Tester_SessionFilter      = false;    // Filtrar Horário (Apenas Londres/NY)
+double Tester_MaxSpreadPips        = 5.0;    // Spread MÃ¡ximo Permitido para ModificaÃ§Ãµes (Pips)
+bool Tester_SessionFilter      = false;    // Filtrar HorÃ¡rio (Apenas Londres/NY)
 
 struct ProfitLockData {
    ulong    ticket;
-   double   peakProfit;   // Pico máximo de lucro atingido
+   double   peakProfit;   // Pico mÃ¡ximo de lucro atingido
    bool     active;       // ProfitLock activado para este ticket
-   datetime activationTime; // Tempo de activação para buffer anti-spike
+   datetime activationTime; // Tempo de activaÃ§Ã£o para buffer anti-spike
 };
 
 struct PortfolioProfitLock {
@@ -89,9 +89,9 @@ datetime          lastCheckTime = 0;
 double            DailyStartBalance  = 0;
 double            DailyStartEquity   = 0; 
 bool              DailyTargetReached = false;
-bool              DailyLossLock         = false; // Bloqueio por perda diária
+bool              DailyLossLock         = false; // Bloqueio por perda diÃ¡ria
 bool              DailyTargetLockActive = false; // Trava de meta ativada
-double            DailyPeakPnL          = 0;     // Pico de lucro diário atingido
+double            DailyPeakPnL          = 0;     // Pico de lucro diÃ¡rio atingido
 double            DailyTargetProfit     = 0;     // Meta de lucro calculada
 int               LastTradingDay        = -1;
 int               ConsecutiveLosses     = 0; // Contador de perdas consecutivas
@@ -109,7 +109,7 @@ struct ATRCache {
 };
 ATRCache g_atrCache[];
 
-//--- ESTRUTURA PROTEÇÃO ASSÍNCRONA ---
+//--- ESTRUTURA PROTEÃ‡ÃƒO ASSÃNCRONA ---
 struct PendingProtectionData {
    ulong    ticket;
    double   sl;
@@ -117,24 +117,24 @@ struct PendingProtectionData {
    string   signalId;
    datetime timestamp;
 };
-PendingProtectionData PendingQueue[]; // Fila de espera para proteção
+PendingProtectionData PendingQueue[]; // Fila de espera para proteÃ§Ã£o
 
 //--- ESTRUTURA FILA DE SINAIS ---
 struct SignalQueueData {
    string   json;
    datetime timestamp;
 };
-SignalQueueData SignalQueue[]; // Fila de espera para execução
+SignalQueueData SignalQueue[]; // Fila de espera para execuÃ§Ã£o
 struct PartialCloseData
 {
    ulong ticket;
    bool  closed;
 };
 
-PartialCloseData PartialCloses[]; // Rastreio de fechos parciais (Dinâmico)
-bool            ExecutionBusy = false; // Bloqueio de execução (Semáforo)
+PartialCloseData PartialCloses[]; // Rastreio de fechos parciais (DinÃ¢mico)
+bool            ExecutionBusy = false; // Bloqueio de execuÃ§Ã£o (SemÃ¡foro)
 
-//--- Funções Auxiliares de Especialista
+//--- FunÃ§Ãµes Auxiliares de Especialista
 bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, "GOLD") >= 0); }
 
 bool IsTradingSession()
@@ -145,7 +145,7 @@ bool IsTradingSession()
    TimeToStruct(TimeCurrent(), tm);
    int hour = tm.hour;
    
-   // Londres + NY (Aproximado 7h às 18h GMT+2/3)
+   // Londres + NY (Aproximado 7h Ã s 18h GMT+2/3)
    return (hour >= 7 && hour <= 18);
 }
 
@@ -180,7 +180,7 @@ bool SafePositionModify(ulong ticket, double sl, double tp)
 
       if(trade.PositionModify(ticket, sl, tp)) return true;
 
-      Print("⚠️ Modify Retry ", i + 1, " | Ticket: ", ticket, " | Error: ", trade.ResultRetcodeDescription());
+      Print("âš ï¸ Modify Retry ", i + 1, " | Ticket: ", ticket, " | Error: ", trade.ResultRetcodeDescription());
       if(i < 4) Sleep(500);
    }
    return false;
@@ -193,7 +193,7 @@ double GetMaxAllowedSpread(string sym)
 
 bool IsVolatilityAbnormal(string sym)
 {
-   // --- ENGINE ATR DINÂMICO (H1 para Ouro) via Cache ---
+   // --- ENGINE ATR DINÃ‚MICO (H1 para Ouro) via Cache ---
    ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
    double atrNow = GetATR(sym, atrTF);
    
@@ -205,7 +205,7 @@ bool IsVolatilityAbnormal(string sym)
 
 long GetAuraMagic()
 {
-   return g_MagicNumber; // Magic fixo para garantir persistência entre timeframes
+   return g_MagicNumber; // Magic fixo para garantir persistÃªncia entre timeframes
 }
 
 int CountAuraPositions()
@@ -235,7 +235,7 @@ int OnInit()
        Print("Falha ao criar o painel Aura GUI.");
        return INIT_FAILED;
    }
-   // Copiar valores do Tester para as globais caso o ficheiro txt não exista (Fallback)
+   // Copiar valores do Tester para as globais caso o ficheiro txt nÃ£o exista (Fallback)
    if(!FileIsExist("AuraForexConfig.txt", FILE_COMMON)) {
        g_LicenseKey = Tester_LicenseKey;
        g_ServerUrl = Tester_ServerUrl;
@@ -245,9 +245,9 @@ int OnInit()
    }
    // ---------------------
 
-   Print("🚀 AURA V8 INSTITUCIONAL v8.3 - Execution Engine");
+   Print("ðŸš€ AURA V8 INSTITUCIONAL v8.3 - Execution Engine");
    
-   // Configurações Visuais de Gráfico (Nível Institucional)
+   // ConfiguraÃ§Ãµes Visuais de GrÃ¡fico (NÃ­vel Institucional)
    ChartSetInteger(0, CHART_SHOW_TRADE_HISTORY, true);
    ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
    ChartSetInteger(0, CHART_SHOW_OBJECT_DESCR, true);
@@ -259,16 +259,16 @@ int OnInit()
    ValidateLicense();
    RecoverState(); 
    
-   // --- AUTO DETEÇÃO CONTA CENT ---
+   // --- AUTO DETEÃ‡ÃƒO CONTA CENT ---
    g_MonetaryMultiplier = 1.0;
    if(g_IsCentAccount) {
       g_MonetaryMultiplier = 100.0;
-      Print("✅ Conta Cent (Forçada pelo Utilizador). Multiplicador = 100x");
+      Print("âœ… Conta Cent (ForÃ§ada pelo Utilizador). Multiplicador = 100x");
    } else {
       string currency = AccountInfoString(ACCOUNT_CURRENCY);
       if(StringFind(currency, "USC") >= 0 || StringFind(currency, "USX") >= 0 || StringFind(currency, "EUC") >= 0 || StringFind(currency, "GBX") >= 0) {
          g_MonetaryMultiplier = 100.0;
-         Print("✅ Conta Cent Autodetectada (Moeda: ", currency, "). Multiplicador = 100x");
+         Print("âœ… Conta Cent Autodetectada (Moeda: ", currency, "). Multiplicador = 100x");
       }
    }
    
@@ -294,7 +294,7 @@ void OnDeinit(const int reason)
       }
    }
    ArrayFree(g_atrCache);
-   Print("🧹 [CLEANUP] Handles de ATR libertados com sucesso.");
+   Print("ðŸ§¹ [CLEANUP] Handles de ATR libertados com sucesso.");
 }
 
 void OnTick()
@@ -303,22 +303,22 @@ void OnTick()
 
    string sym = _Symbol;
    
-   //--- Filtros Institucionais de Elite (Aplicados apenas ao Ouro para não afectar Forex)
+   //--- Filtros Institucionais de Elite (Aplicados apenas ao Ouro para nÃ£o afectar Forex)
    if(IsXAU(sym))
    {
-      // 1. Filtro de Sessão (Ouro só opera em alta liquidez: Londres/NY)
+      // 1. Filtro de SessÃ£o (Ouro sÃ³ opera em alta liquidez: Londres/NY)
       if(!IsTradingSession()) return;
       
       // 2. Filtro de Spread Guard
       double spread = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / _Point;
       if(spread > GetMaxAllowedSpread(sym)) return;
       
-      // 3. Filtro de Volatilidade Anormal (Evita "pânico" de mercado)
+      // 3. Filtro de Volatilidade Anormal (Evita "pÃ¢nico" de mercado)
       if(IsVolatilityAbnormal(sym)) return;
    }
 
-   // Monitorização removida do OnTick para evitar race conditions.
-   // Centralizado no OnTimer sob o semáforo ExecutionBusy.
+   // MonitorizaÃ§Ã£o removida do OnTick para evitar race conditions.
+   // Centralizado no OnTimer sob o semÃ¡foro ExecutionBusy.
 }
 
 void OnTimer()
@@ -327,10 +327,10 @@ void OnTimer()
    ReportBalance();
    UpdateChartVisuals();
    
-   // 2. Proteger Ordens Manuais (Prioridade total e independente de autorização)
+   // 2. Proteger Ordens Manuais (Prioridade total e independente de autorizaÃ§Ã£o)
    ProtectManualOrders();
 
-   // 3. SEMÁFORO DE EXECUÇÃO (Protegido por Wrapper para evitar Deadlocks)
+   // 3. SEMÃFORO DE EXECUÃ‡ÃƒO (Protegido por Wrapper para evitar Deadlocks)
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
@@ -341,22 +341,22 @@ void OnTimer()
 
 void RunInstitutionalCore()
 {
-   // Validar Licença (anti-spam throttle interno)
+   // Validar LicenÃ§a (anti-spam throttle interno)
    ValidateLicense();
 
    if(IsAuthorized)
    {
       CheckDailyLoss();
-      // CheckDailyTarget(); // Desativado: Fecho global causa prejuízos aos Runners
+      // CheckDailyTarget(); // Desativado: Fecho global causa prejuÃ­zos aos Runners
       CheckFridaySafeLock();
       ApplyBreakeven();
       
-      ProcessPendingProtections(); // Aplica protecções assíncronas (Apex Guardian)
+      ProcessPendingProtections(); // Aplica protecÃ§Ãµes assÃ­ncronas (Apex Guardian)
       
       CheckSignals();
       ProcessSignalQueue();
 
-      // HIERARQUIA INSTITUCIONAL DE GESTÃO
+      // HIERARQUIA INSTITUCIONAL DE GESTÃƒO
       MonitorTrailingStop();
       MonitorPartialTP();
       // MonitorProfitLock(); // Desativado: Conflito com Trailing Stop dos Runners
@@ -368,7 +368,7 @@ double GetDailyPnL()
 {
    double closedProfit = 0;
    
-   // CORRECÇÃO INSTITUCIONAL: Cálculo via estrutura de tempo para evitar falhas do iTime em mercado fechado
+   // CORRECÃ‡ÃƒO INSTITUCIONAL: CÃ¡lculo via estrutura de tempo para evitar falhas do iTime em mercado fechado
    MqlDateTime dt; 
    TimeToStruct(TimeCurrent(), dt);
    dt.hour = 0; dt.min = 0; dt.sec = 0;
@@ -382,12 +382,16 @@ double GetDailyPnL()
          ulong ticket = HistoryDealGetTicket(i);
          if(ticket > 0)
          {
-            long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
-            if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
+            long dealType = HistoryDealGetInteger(ticket, DEAL_TYPE);
+            if(dealType == DEAL_TYPE_BUY || dealType == DEAL_TYPE_SELL)
             {
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
-               closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+               long magic = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+               if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
+               {
+                  closedProfit += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+                  closedProfit += HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+                  closedProfit += HistoryDealGetDouble(ticket, DEAL_SWAP);
+               }
             }
          }
       }
@@ -464,11 +468,11 @@ void CheckDailyTarget()
          GlobalVariableSet(gvEquity, DailyStartEquity);
          GlobalVariableSet(gvDay, tm.day_of_year);
          
-         Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
+         Print("ðŸŒ… [DAILY] Novo dia detectado. Meta/Loss resetados | Balance Inicial: $", DoubleToString(DailyStartBalance, 2), " | Equity Inicial: $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
       }
    }
 
-   // Fallback inicialização (Primeiro run do bot no dia ou após reboot)
+   // Fallback inicializaÃ§Ã£o (Primeiro run do bot no dia ou apÃ³s reboot)
    if(DailyTargetProfit <= 0 && DailyStartEquity <= 10)
    {
       if(GlobalVariableCheck(gvTarget) && GlobalVariableCheck(gvDay) && GlobalVariableGet(gvDay) == tm.day_of_year)
@@ -477,7 +481,7 @@ void CheckDailyTarget()
          DailyStartEquity  = GlobalVariableGet(gvEquity);
          DailyStartBalance = DailyStartEquity;
          LastTradingDay    = tm.day_of_year;
-         Print("🔄 [RESTORE] Meta Diária recuperada da memória global: $", DoubleToString(DailyTargetProfit, 2));
+         Print("ðŸ”„ [RESTORE] Meta DiÃ¡ria recuperada da memÃ³ria global: $", DoubleToString(DailyTargetProfit, 2));
       }
       else
       {
@@ -493,22 +497,22 @@ void CheckDailyTarget()
             GlobalVariableSet(gvEquity, DailyStartEquity);
             GlobalVariableSet(gvDay, tm.day_of_year);
             
-            Print("🌅 [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
+            Print("ðŸŒ… [BOOT] Saldo inicial definido: Balance = $", DoubleToString(DailyStartBalance, 2), " | Equity = $", DoubleToString(DailyStartEquity, 2), " | Meta do Dia: $", DoubleToString(DailyTargetProfit, 2));
          }
       }
    }
 
-   if(DailyStartEquity <= 10) return; // Não calcular meta se saldo inicial não foi definido
+   if(DailyStartEquity <= 10) return; // NÃ£o calcular meta se saldo inicial nÃ£o foi definido
    if(DailyTargetReached) return;
 
-   // CÁLCULO PRECISO DO LUCRO DIÁRIO (via Histórico Fechado + Flutuante - Imune a depósitos/levantamentos)
+   // CÃLCULO PRECISO DO LUCRO DIÃRIO (via HistÃ³rico Fechado + Flutuante - Imune a depÃ³sitos/levantamentos)
    double dailyPnL = GetDailyPnL();
 
    // 1. Meta 100% atingida de imediato
    if(dailyPnL >= DailyTargetProfit && DailyTargetProfit > 0)
    {
       DailyTargetReached = true;
-      Print("🏆 [DAILY] META ATINGIDA PELO BOT: $", DoubleToString(dailyPnL, 2), " >= Meta: $", DoubleToString(DailyTargetProfit, 2), " | Fechando posições...");
+      Print("ðŸ† [DAILY] META ATINGIDA PELO BOT: $", DoubleToString(dailyPnL, 2), " >= Meta: $", DoubleToString(DailyTargetProfit, 2), " | Fechando posiÃ§Ãµes...");
       
       CloseAllPositions();
       DailyTargetLockActive = false;
@@ -516,31 +520,31 @@ void CheckDailyTarget()
       return;
    }
 
-   // 2. Lógica da Trava de Segurança Diária (Daily Target Profit Lock)
+   // 2. LÃ³gica da Trava de SeguranÃ§a DiÃ¡ria (Daily Target Profit Lock)
    if(g_DailyTargetLockActive)
    {
       double activationThreshold = DailyTargetProfit * (g_DailyTargetLockPct / 100.0);
       double floorProfit         = DailyTargetProfit * (g_DailyTargetFloorPct / 100.0);
 
-      // Ativar trava ao alcançar o gatilho (ex: 80% da meta)
+      // Ativar trava ao alcanÃ§ar o gatilho (ex: 80% da meta)
       if(!DailyTargetLockActive && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
       {
          DailyTargetLockActive = true;
          DailyPeakPnL = dailyPnL;
-         Print("🛡️ [DAILY LOCK] Ativado! Lucro Diário: $", DoubleToString(dailyPnL, 2), 
+         Print("ðŸ›¡ï¸ [DAILY LOCK] Ativado! Lucro DiÃ¡rio: $", DoubleToString(dailyPnL, 2), 
                " atingiu o gatilho de ", g_DailyTargetLockPct, "% ($", DoubleToString(activationThreshold, 2), ")");
       }
 
       if(DailyTargetLockActive)
       {
-         // Atualizar pico diário
+         // Atualizar pico diÃ¡rio
          if(dailyPnL > DailyPeakPnL) DailyPeakPnL = dailyPnL;
 
-         // Se cair abaixo do lucro mínimo garantido (ex: 50% da meta), fechar tudo
+         // Se cair abaixo do lucro mÃ­nimo garantido (ex: 50% da meta), fechar tudo
          if(dailyPnL <= floorProfit)
          {
             DailyTargetReached = true;
-            Print("🛑 [DAILY LOCK] Lucro recuou ao limite mínimo garantido de ", g_DailyTargetFloorPct, 
+            Print("ðŸ›‘ [DAILY LOCK] Lucro recuou ao limite mÃ­nimo garantido de ", g_DailyTargetFloorPct, 
                   "% ($", DoubleToString(floorProfit, 2), ") | Lucro Atual: $", DoubleToString(dailyPnL, 2), 
                   " (Pico: $", DoubleToString(DailyPeakPnL, 2), ") | Fechando tudo para trancar lucros!");
             
@@ -555,9 +559,9 @@ void CheckDailyTarget()
 void CheckDailyLoss()
 {
    if(DailyLossLock) return;
-   if(DailyStartEquity <= 10) return; // Não calcular perda se saldo inicial não foi definido
+   if(DailyStartEquity <= 10) return; // NÃ£o calcular perda se saldo inicial nÃ£o foi definido
 
-   // Buffer de inicialização: Não actua nos primeiros 10 segundos para evitar spikes de boot
+   // Buffer de inicializaÃ§Ã£o: NÃ£o actua nos primeiros 10 segundos para evitar spikes de boot
    static datetime bootTime = 0;
    if(bootTime == 0) bootTime = TimeCurrent();
    if(TimeCurrent() - bootTime < 10) return;
@@ -567,11 +571,11 @@ void CheckDailyLoss()
 
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
 
-   // Só bloqueia se houver uma perda REAL de 10%
+   // SÃ³ bloqueia se houver uma perda REAL de 10%
    if(lossPct >= g_MaxDailyLossPct)
    {
       DailyLossLock = true;
-      Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Equity Inicial: ", DailyStartEquity, " | Equity Actual: ", equity);
+      Print("ðŸ›‘ [CIRCUIT-BREAKER] LIMITE DE PERDA DIÃRIA ATINGIDO: ", DoubleToString(lossPct, 2), "% | Equity Inicial: ", DailyStartEquity, " | Equity Actual: ", equity);
       CloseAllPositions();
    }
 }
@@ -598,12 +602,12 @@ void MonitorProfitLock()
       double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
       long   posType   = PositionGetInteger(POSITION_TYPE);
 
-      // Ignorar posições no negativo
+      // Ignorar posiÃ§Ãµes no negativo
       if(profit <= 0) continue;
 
-      // CONFLITO 1 RESOLVIDO: Se Trailing já moveu o SL para zona de lucro,
-      // o ProfitLock não fecha — deixa o SL físico do Trailing fazer o trabalho.
-      // Isto evita fechar cedo demais quando o Trailing já está a proteger.
+      // CONFLITO 1 RESOLVIDO: Se Trailing jÃ¡ moveu o SL para zona de lucro,
+      // o ProfitLock nÃ£o fecha â€” deixa o SL fÃ­sico do Trailing fazer o trabalho.
+      // Isto evita fechar cedo demais quando o Trailing jÃ¡ estÃ¡ a proteger.
       bool slInProfit = false;
       if(posType == POSITION_TYPE_BUY  && currentSL > openPrice) slInProfit = true;
       if(posType == POSITION_TYPE_SELL && currentSL < openPrice && currentSL > 0) slInProfit = true;
@@ -613,7 +617,7 @@ void MonitorProfitLock()
       if(idx < 0) idx = CreateProfitLockEntry(ticket);
       if(idx < 0) continue;
 
-      // FASE 1: Verificar se lucro atingiu o mínimo para activar
+      // FASE 1: Verificar se lucro atingiu o mÃ­nimo para activar
       if(!ProfitLocks[idx].active)
       {
          double minProfitActivation = g_ProfitLockMin * g_MonetaryMultiplier;
@@ -622,28 +626,28 @@ void MonitorProfitLock()
          {
             ProfitLocks[idx].active         = true;
             ProfitLocks[idx].peakProfit     = profit;
-            ProfitLocks[idx].activationTime = TimeCurrent(); // Buffer anti-spike começa agora
-            Print("🔒 ProfitLock ACTIVADO (Warmup Concluído) | ", sym,
+            ProfitLocks[idx].activationTime = TimeCurrent(); // Buffer anti-spike comeÃ§a agora
+            Print("ðŸ”’ ProfitLock ACTIVADO (Warmup ConcluÃ­do) | ", sym,
                   " | Ticket: ", ticket,
                   " | Lucro: $", DoubleToString(profit, 2));
          }
          continue;
       }
 
-      // FASE 2: Actualizar pico máximo (Com filtro de ruído dinâmico % do pico)
+      // FASE 2: Actualizar pico mÃ¡ximo (Com filtro de ruÃ­do dinÃ¢mico % do pico)
       double peak = ProfitLocks[idx].peakProfit;
       double peakUpdateThreshold = (StringFind(sym, "XAU") >= 0) ? (peak * 0.05) : 0.5;
       
       if(profit > peak + peakUpdateThreshold)
       {
          ProfitLocks[idx].peakProfit = profit;
-         Print("📈 Novo pico | ", sym,
+         Print("ðŸ“ˆ Novo pico | ", sym,
                " | Ticket: ", ticket,
                " | Pico: $", DoubleToString(profit, 2), 
-               " (Avanço: +$", DoubleToString(profit - peak, 2), ")");
+               " (AvanÃ§o: +$", DoubleToString(profit - peak, 2), ")");
       }
 
-      // FASE 3: Verificar queda do pico com Lógica Adaptativa ATR
+      // FASE 3: Verificar queda do pico com LÃ³gica Adaptativa ATR
       // 1. Buffer de Tempo (Anti-Spike)
       int lockDelay = (StringFind(sym, "XAU") >= 0) ? 120 : 30;
       if(TimeCurrent() - ProfitLocks[idx].activationTime < lockDelay) continue;
@@ -652,13 +656,13 @@ void MonitorProfitLock()
       double protectionStart = g_ProfitLockMin;
       if(peak < protectionStart) continue;
 
-      // 3. Cálculo de Volatilidade Real via Cache
+      // 3. CÃ¡lculo de Volatilidade Real via Cache
       ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
       // double atr = GetATR(sym, atrTF);
       
       // if(atr <= 0) continue;
 
-      // 3. Conversão ATR para Valor Monetário
+      // 3. ConversÃ£o ATR para Valor MonetÃ¡rio
       double point    = SymbolInfoDouble(sym, SYMBOL_POINT);
       double tickVal  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
       double tickSize = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
@@ -667,22 +671,22 @@ void MonitorProfitLock()
       
       // double atrInPoints = atr / point;
       // double lotSize     = PositionGetDouble(POSITION_VOLUME);
-      // Cálculo aproximado do valor monetário do ATR para este lote
+      // CÃ¡lculo aproximado do valor monetÃ¡rio do ATR para este lote
       // double atrMoney    = (atr / tickSize) * tickVal * lotSize;
 
       // 4. Factor de Volatilidade por Ativo
       // double volatilityFactor = (StringFind(sym, "XAU") >= 0) ? 2.5 : 1.2;
       double allowedDropMoney = peak * (g_ProfitLockDrop / 100.0);
-      if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Garante limite mínimo viável
+      if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Garante limite mÃ­nimo viÃ¡vel
       
       double currentDropMoney = ProfitLocks[idx].peakProfit - profit;
 
       if(currentDropMoney >= allowedDropMoney)
       {
-         // CONFLITO 1: Se SL do Trailing já está em lucro, não fechar pelo ProfitLock
+         // CONFLITO 1: Se SL do Trailing jÃ¡ estÃ¡ em lucro, nÃ£o fechar pelo ProfitLock
          if(slInProfit) continue;
 
-         Print("🛑 ProfitLock ADAPTATIVO DISPARADO | ", sym,
+         Print("ðŸ›‘ ProfitLock ADAPTATIVO DISPARADO | ", sym,
                " | Ticket: ", ticket,
                " | Pico: $",   DoubleToString(peak, 2),
                " | Actual: $", DoubleToString(profit, 2),
@@ -691,19 +695,19 @@ void MonitorProfitLock()
 
          if(trade.PositionClose(ticket))
          {
-            Print("✅ Ordem fechada com lucro preservado | ", sym,
+            Print("âœ… Ordem fechada com lucro preservado | ", sym,
                   " | Ticket: ", ticket,
                   " | Lucro final: $", DoubleToString(profit, 2));
             RemoveProfitLockEntry(idx);
          }
          else
          {
-            Print("⚠️ Falha ao fechar | ", sym, " | Erro: ", GetLastError());
+            Print("âš ï¸ Falha ao fechar | ", sym, " | Erro: ", GetLastError());
          }
       }
    }
 
-   // Limpar entradas de tickets já fechados
+   // Limpar entradas de tickets jÃ¡ fechados
    CleanClosedPositions();
 }
 
@@ -797,7 +801,7 @@ void ApplyBreakeven()
                ResetLastError();
                if(trade.PositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
                {
-                  Print("🛡️ [BE SECURE] Breakeven ativado | Buy Ticket: ", ticket, " | SL definido para: ", DoubleToString(targetSL, digits));
+                  Print("ðŸ›¡ï¸ [BE SECURE] Breakeven ativado | Buy Ticket: ", ticket, " | SL definido para: ", DoubleToString(targetSL, digits));
                }
             }
          }
@@ -812,7 +816,7 @@ void ApplyBreakeven()
                ResetLastError();
                if(trade.PositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
                {
-                  Print("🛡️ [BE SECURE] Breakeven ativado | Sell Ticket: ", ticket, " | SL definido para: ", DoubleToString(targetSL, digits));
+                  Print("ðŸ›¡ï¸ [BE SECURE] Breakeven ativado | Sell Ticket: ", ticket, " | SL definido para: ", DoubleToString(targetSL, digits));
                }
             }
          }
@@ -823,38 +827,43 @@ void ApplyBreakeven()
 //+------------------------------------------------------------------+
 //| SEXTA-FEIRA SEGURA (FRIDAY SAFE LOCK)                            |
 //+------------------------------------------------------------------+
-void CheckFridaySafeLock()
+bool IsFridayLocked()
 {
-   if(!g_FridaySafeLock) return;
-
+   if(!g_FridaySafeLock) return false;
    MqlDateTime dt;
    TimeCurrent(dt);
-
    if(dt.day_of_week == 5)
    {
       if(dt.hour > g_FridayHour || (dt.hour == g_FridayHour && dt.min >= g_FridayMinute))
-      {
-         int openCount = 0;
-         for(int i = PositionsTotal() - 1; i >= 0; i--)
-         {
-            ulong ticket = PositionGetTicket(i);
-            if(ticket > 0 && PositionSelectByTicket(ticket))
-            {
-               long magic = PositionGetInteger(POSITION_MAGIC);
-               if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
-               {
-                  openCount++;
-               }
-            }
-         }
+         return true;
+   }
+   return false;
+}
 
-         if(openCount > 0)
+void CheckFridaySafeLock()
+{
+   if(!IsFridayLocked()) return;
+
+   int openCount = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
          {
-            Print("📅 [FRIDAY SAFE LOCK] Sexta-feira fim de dia atingido (", 
-                  dt.hour, ":", dt.min, ") | Fechando todas as ordens para evitar riscos de fim de semana...");
-            CloseAllPositions();
+            openCount++;
          }
       }
+   }
+
+   if(openCount > 0)
+   {
+      MqlDateTime dt; TimeCurrent(dt);
+      Print("ðŸ“… [FRIDAY SAFE LOCK] Sexta-feira fim de dia atingido (", 
+            dt.hour, ":", dt.min, ") | Fechando todas as ordens para evitar riscos de fim de semana...");
+      CloseAllPositions();
    }
 }
 
@@ -863,7 +872,7 @@ void CheckFridaySafeLock()
 //+------------------------------------------------------------------+
 void MonitorGlobalProfitLock()
 {
-   // 1. Calcular o lucro flutuante líquido atual das nossas ordens
+   // 1. Calcular o lucro flutuante lÃ­quido atual das nossas ordens
    double currentNetProfit = 0;
    int openPositionsCount = 0;
 
@@ -881,7 +890,7 @@ void MonitorGlobalProfitLock()
       }
    }
 
-   // Se não houver posições abertas, resetar o estado do ProfitLock Global
+   // Se nÃ£o houver posiÃ§Ãµes abertas, resetar o estado do ProfitLock Global
    if(openPositionsCount == 0)
    {
       if(GlobalProfitLockState.active)
@@ -893,7 +902,7 @@ void MonitorGlobalProfitLock()
       return;
    }
 
-   // FASE 1: Activação do Profit Lock Global
+   // FASE 1: ActivaÃ§Ã£o do Profit Lock Global
    if(!GlobalProfitLockState.active)
    {
       double minGlobalActivation = g_ProfitLockMin * g_MonetaryMultiplier;
@@ -903,7 +912,7 @@ void MonitorGlobalProfitLock()
          GlobalProfitLockState.active         = true;
          GlobalProfitLockState.peakProfit     = currentNetProfit;
          GlobalProfitLockState.activationTime = TimeCurrent();
-         Print("🛡️ [GLOBAL PROFITLOCK] Ativado! Lucro Líquido: $", DoubleToString(currentNetProfit, 2), " | Meta Ativação: $", DoubleToString(minGlobalActivation, 2));
+         Print("ðŸ›¡ï¸ [GLOBAL PROFITLOCK] Ativado! Lucro LÃ­quido: $", DoubleToString(currentNetProfit, 2), " | Meta AtivaÃ§Ã£o: $", DoubleToString(minGlobalActivation, 2));
       }
    }
    else
@@ -920,17 +929,17 @@ void MonitorGlobalProfitLock()
 
       double peak = GlobalProfitLockState.peakProfit;
       double allowedDropMoney = peak * (g_ProfitLockDrop / 100.0);
-      if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Limite mínimo viável
+      if(allowedDropMoney < 0.5) allowedDropMoney = 0.5; // Limite mÃ­nimo viÃ¡vel
 
       double currentDropMoney = peak - currentNetProfit;
 
       if(currentDropMoney >= allowedDropMoney)
       {
-         Print("🚨 [GLOBAL PROFITLOCK] Lucro Líquido recuou demais! Pico: $", DoubleToString(peak, 2), " | Atual: $", DoubleToString(currentNetProfit, 2), " | Queda: $", DoubleToString(currentDropMoney, 2), " >= Permitido: $", DoubleToString(allowedDropMoney, 2), " | Fechando TODAS as ordens...");
+         Print("ðŸš¨ [GLOBAL PROFITLOCK] Lucro LÃ­quido recuou demais! Pico: $", DoubleToString(peak, 2), " | Atual: $", DoubleToString(currentNetProfit, 2), " | Queda: $", DoubleToString(currentDropMoney, 2), " >= Permitido: $", DoubleToString(allowedDropMoney, 2), " | Fechando TODAS as ordens...");
          
          CloseAllPositions();
          
-         // Resetar estado após fecho total
+         // Resetar estado apÃ³s fecho total
          GlobalProfitLockState.active         = false;
          GlobalProfitLockState.peakProfit     = 0;
          GlobalProfitLockState.activationTime = 0;
@@ -939,7 +948,7 @@ void MonitorGlobalProfitLock()
 }
 
 //+------------------------------------------------------------------+
-//| PROFIT LOCK - Funções auxiliares                                 |
+//| PROFIT LOCK - FunÃ§Ãµes auxiliares                                 |
 //+------------------------------------------------------------------+
 int FindProfitLockIndex(ulong ticket)
 {
@@ -998,7 +1007,7 @@ void MonitorPartialTP()
       // Meta para Fecho Parcial: $25 para Ouro, $10 para Forex
       double partialTarget = (IsXAU(sym) ? 25.0 : 10.0) * g_MonetaryMultiplier;
 
-      // Verificar se já fechamos parcialmente este ticket via array dinâmico
+      // Verificar se jÃ¡ fechamos parcialmente este ticket via array dinÃ¢mico
       bool alreadyClosed = false;
       for(int j = 0; j < ArraySize(PartialCloses); j++) 
       { 
@@ -1015,27 +1024,27 @@ void MonitorPartialTP()
          double closeVol = NormalizeDouble(vol / 2.0, 2);
          if(closeVol < 0.01) closeVol = vol; // Se muito pequeno, fecha tudo
 
-         Print("💰 META PARCIAL ATINGIDA | ", sym, " | Ticket: ", ticket, " | Fechando 50% (", closeVol, ")");
+         Print("ðŸ’° META PARCIAL ATINGIDA | ", sym, " | Ticket: ", ticket, " | Fechando 50% (", closeVol, ")");
          
          if(trade.PositionClosePartial(ticket, closeVol))
          {
-            // Registar fecho parcial no array dinâmico
+            // Registar fecho parcial no array dinÃ¢mico
             RegisterPartialClose(ticket);
             
             // Mover para Break Even
             double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
             double currentTP = PositionGetDouble(POSITION_TP);
             trade.PositionModify(ticket, openPrice, currentTP);
-            Print("🛡️ BREAK EVEN ACTIVADO para Ticket: ", ticket);
+            Print("ðŸ›¡ï¸ BREAK EVEN ACTIVADO para Ticket: ", ticket);
          }
       }
    }
-   // Limpar tickets órfãos do array de parciais
+   // Limpar tickets Ã³rfÃ£os do array de parciais
    CleanPartialCloses();
 }
 
 //+------------------------------------------------------------------+
-//| GESTÃO DINÂMICA DE FECHOS PARCIAIS                               |
+//| GESTÃƒO DINÃ‚MICA DE FECHOS PARCIAIS                               |
 //+------------------------------------------------------------------+
 void RegisterPartialClose(ulong ticket)
 {
@@ -1085,7 +1094,7 @@ void MonitorTrailingStop()
 
       if(sym == "" || !SymbolSelect(sym, true))
       {
-         Print("⚠️ Símbolo inválido no trailing.");
+         Print("âš ï¸ SÃ­mbolo invÃ¡lido no trailing.");
          continue;
       }
 
@@ -1100,7 +1109,7 @@ void MonitorTrailingStop()
       double currentSL = PositionGetDouble(POSITION_SL);
       double currentTP = PositionGetDouble(POSITION_TP); // preservar TP original
 
-      // CÁLCULO ATR DINÂMICO PARA TRAILING via Cache
+      // CÃLCULO ATR DINÃ‚MICO PARA TRAILING via Cache
       // ENUM_TIMEFRAMES atrTF = IsXAU(sym) ? PERIOD_H1 : PERIOD_M15;
       // double atr = GetATR(sym, atrTF);
 
@@ -1108,7 +1117,7 @@ void MonitorTrailingStop()
       if(g_SpreadGuardianActive)
       {
          double spread = (ask - bid) / point;
-         if(spread > g_MaxSpreadPips) continue; // Pular se o spread estiver alargado (notícia)
+         if(spread > g_MaxSpreadPips) continue; // Pular se o spread estiver alargado (notÃ­cia)
       }
 
       double trailStart = g_TrailingStart    * point;
@@ -1118,8 +1127,8 @@ void MonitorTrailingStop()
       double stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL) * point;
       if(trailDist < stopLevel * 1.1) trailDist = stopLevel * 1.1;
 
-      // CONFLITO 2 RESOLVIDO: Se ProfitLock está prestes a fechar esta posição
-      // (queda >= 90% do limiar), Trailing não interfere para não gerar ordens duplas
+      // CONFLITO 2 RESOLVIDO: Se ProfitLock estÃ¡ prestes a fechar esta posiÃ§Ã£o
+      // (queda >= 90% do limiar), Trailing nÃ£o interfere para nÃ£o gerar ordens duplas
       int plIdx = FindProfitLockIndex(ticket);
       if(plIdx >= 0 && ProfitLocks[plIdx].active)
       {
@@ -1128,7 +1137,7 @@ void MonitorTrailingStop()
          double dropPct = (peak > 0) ? ((peak - profit) / peak) * 100.0 : 0;
          if(dropPct >= g_ProfitLockDrop * 0.9) // 90% do limiar = iminente
          {
-            Print("ℹ️ Trailing pausado (ProfitLock iminente) | ", sym, " | Ticket: ", ticket);
+            Print("â„¹ï¸ Trailing pausado (ProfitLock iminente) | ", sym, " | Ticket: ", ticket);
             continue;
          }
       }
@@ -1141,12 +1150,12 @@ void MonitorTrailingStop()
 
          if(newSL > currentSL + trailStep)
          {
-            // CONFLITO 3: Manter TP original do ApplyProtection — não passar 0
+            // CONFLITO 3: Manter TP original do ApplyProtection â€” nÃ£o passar 0
             if(SafePositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing BUY | ", sym,
+               Print("ðŸ“Š Trailing BUY | ", sym,
                      " | Ticket: ", ticket,
                      " | SL: ", DoubleToString(currentSL, digits),
-                     " → ",     DoubleToString(newSL, digits));
+                     " â†’ ",     DoubleToString(newSL, digits));
          }
       }
       else // SELL
@@ -1158,7 +1167,7 @@ void MonitorTrailingStop()
          if((currentSL == 0 || newSL < currentSL - trailStep) && (newSL - ask > stopLevel))
          {
             if(SafePositionModify(ticket, newSL, currentTP))
-               Print("📊 Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", newSL);
+               Print("ðŸ“Š Trailing SELL | ", sym, " | Ticket: ", ticket, " | SL: ", newSL);
          }
       }
    }
@@ -1174,28 +1183,30 @@ void ValidateLicense()
 
    lastValidate = TimeCurrent();
    
-   // CORRECÇÃO INSTITUCIONAL v2
+   // CORRECÃ‡ÃƒO INSTITUCIONAL v2
    string url = g_ServerUrl + "/ea/validate";
    string payload = "{\"licenseKey\":\"" + g_LicenseKey + "\",\"mtAccount\":\"" + (string)AccountInfoInteger(ACCOUNT_LOGIN) + "\"}";
    string res = SendPost(url, payload);
 
    if(StringFind(res, "\"status\":\"success\"") >= 0 || StringFind(res, "\"status\":\"OK\"") >= 0) {
-      if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
+      if(!IsAuthorized) Print("âœ… LICENÃ‡A VALIDADA COM SUCESSO!");
       IsAuthorized = true;
    } else {
       IsAuthorized = false;
-      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
-      else          Print("❌ FALHA NA LICENÇA: ", res);
+      if(res == "") Print("âŒ ERRO DE CONEXÃƒO: Servidor Offline ou URL InvÃ¡lida.");
+      else          Print("âŒ FALHA NA LICENÃ‡A: ", res);
    }
 }
 
 void CheckSignals()
 {
+   if(IsFridayLocked()) return;
+
    if(DailyTargetReached)
    {
       static datetime lastLockMsg = 0;
       if(TimeCurrent() - lastLockMsg > 3600) {
-         Print("🛑 [DAILY] Meta diária atingida. Trading bloqueado até amanhã.");
+         Print("ðŸ›‘ [DAILY] Meta diÃ¡ria atingida. Trading bloqueado atÃ© amanhÃ£.");
          lastLockMsg = TimeCurrent();
       }
       return;
@@ -1205,7 +1216,7 @@ void CheckSignals()
    {
       static datetime lastLossMsg = 0;
       if(TimeCurrent() - lastLossMsg > 3600) {
-         Print("🛑 [DAILY] Limite de perda diária atingido. Trading bloqueado até amanhã.");
+         Print("ðŸ›‘ [DAILY] Limite de perda diÃ¡ria atingido. Trading bloqueado atÃ© amanhÃ£.");
          lastLossMsg = TimeCurrent();
       }
       return;
@@ -1222,7 +1233,7 @@ void CheckSignals()
    if(result == "") return; 
    if(StringFind(result, "\"signals\":[]") >= 0) return;
 
-   // VERIFICAÇÃO DE LIMITE DE ORDENS
+   // VERIFICAÃ‡ÃƒO DE LIMITE DE ORDENS
    int openCount = 0;
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -1236,22 +1247,22 @@ void CheckSignals()
 
    if(openCount >= g_MaxOrders)
    {
-      // Apenas avisa uma vez para não inundar o log
+      // Apenas avisa uma vez para nÃ£o inundar o log
       static datetime lastLimitMsg = 0;
       if(TimeCurrent() - lastLimitMsg > 60)
       {
-         Print("⚠️ Limite de ordens atingido (", openCount, "/", g_MaxOrders, "). Ignorando novos sinais.");
+         Print("âš ï¸ Limite de ordens atingido (", openCount, "/", g_MaxOrders, "). Ignorando novos sinais.");
          lastLimitMsg = TimeCurrent();
       }
       return;
    }
 
-   // Silent Polling - Apenas logamos se houver acção real
+   // Silent Polling - Apenas logamos se houver acÃ§Ã£o real
 
    // Processamento Profissional via JAson.mqh
    CJAVal root;
    if(!root.Deserialize(result)) {
-      Print("❌ [JSON] Erro ao deserializar resposta do servidor.");
+      Print("âŒ [JSON] Erro ao deserializar resposta do servidor.");
       return;
    }
    
@@ -1263,7 +1274,7 @@ void CheckSignals()
       
       if(signalId == "") continue;
 
-      // Verificação de segurança (Anti-duplicação na FILA e no HISTÓRICO)
+      // VerificaÃ§Ã£o de seguranÃ§a (Anti-duplicaÃ§Ã£o na FILA e no HISTÃ“RICO)
       if(IsProcessed(signalId) || GlobalVariableCheck("SQ_" + signalId)) continue;
 
       // Serializa o objecto individual do sinal para a fila
@@ -1282,11 +1293,12 @@ void AddToSignalQueue(string json) {
    CJAVal j;
    if(j.Deserialize(json)) signalId = j["id"].ToStr();
    
-   GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // Persistência na fila
+   GlobalVariableSet("SQ_" + signalId, (double)TimeCurrent()); // PersistÃªncia na fila
 }
 
 void ProcessSignalQueue()
 {
+   if(IsFridayLocked()) return;
    if(ArraySize(SignalQueue) == 0) return;
 
    string json = SignalQueue[0].json;
@@ -1298,11 +1310,11 @@ void ProcessSignalQueue()
    {
       GlobalVariableDel("SQ_" + sigId);
       RemoveSignalQueueIndex(0);
-      Print("🗑️ Sinal ", sigId, " removido da fila (Sucesso/Inválido)");
+      Print("ðŸ—‘ï¸ Sinal ", sigId, " removido da fila (Sucesso/InvÃ¡lido)");
    }
    else
    {
-      Print("⏳ Sinal ", sigId, " manteve-se na fila para nova tentativa.");
+      Print("â³ Sinal ", sigId, " manteve-se na fila para nova tentativa.");
    }
 }
 
@@ -1330,9 +1342,9 @@ void RemovePendingQueueIndex(int idx)
 
 void RecoverState()
 {
-   Print("🔍 Iniciando Recuperação de Estado (Institutional Recovery)...");
+   Print("ðŸ” Iniciando RecuperaÃ§Ã£o de Estado (Institutional Recovery)...");
    
-   // 1. Recuperar Proteções Pendentes
+   // 1. Recuperar ProteÃ§Ãµes Pendentes
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
@@ -1348,13 +1360,13 @@ void RecoverState()
                double sl = GlobalVariableGet(slKey);
                double tp = GlobalVariableGet(tpKey);
                AddToPendingQueue(ticket, sl, tp, "RECOVERED");
-               Print("✅ Proteção Recuperada para Ticket: ", ticket);
+               Print("âœ… ProteÃ§Ã£o Recuperada para Ticket: ", ticket);
             }
          }
       }
    }
    
-   // 2. Limpeza de GVs órfãs (tickets já fechados)
+   // 2. Limpeza de GVs Ã³rfÃ£s (tickets jÃ¡ fechados)
    int totalGv = GlobalVariablesTotal();
    for(int i = totalGv - 1; i >= 0; i--)
    {
@@ -1414,13 +1426,13 @@ void SetSymbolCooldown(string sym)
 
 bool ExecuteSignal(string json)
 {
-   Print("🔍 [DEBUG] JSON recebido: ", json);
+   Print("ðŸ” [DEBUG] JSON recebido: ", json);
    CJAVal jParser;
    if(!jParser.Deserialize(json)) return true; // JSON invalido, removemos da fila para nao travar
    
    string sigId = jParser["id"].ToStr();
    
-   // Mapeamento Flexível (Suporta 'pair' ou 'symbol' e 'direction' ou 'type')
+   // Mapeamento FlexÃ­vel (Suporta 'pair' ou 'symbol' e 'direction' ou 'type')
    string pairRaw = jParser["pair"].ToStr(); 
    if(pairRaw == "") pairRaw = jParser["symbol"].ToStr();
    
@@ -1431,21 +1443,21 @@ bool ExecuteSignal(string json)
 
    if(pair == "" || StringLen(pair) < 3)
    {
-      Print("❌ [SIGNAL] Símbolo inválido (", pairRaw, ") recebido no JSON. Pulando sinal.");
+      Print("âŒ [SIGNAL] SÃ­mbolo invÃ¡lido (", pairRaw, ") recebido no JSON. Pulando sinal.");
       if(sigId != "") AddProcessed(sigId);
       return true;
    }
    
    string type = jParser["order_type"].ToStr();
-   if(type == "") type = "MARKET"; // Padrão institucional se omitido
+   if(type == "") type = "MARKET"; // PadrÃ£o institucional se omitido
    double entry = jParser["entry"].ToDbl();
    double sl    = jParser["sl"].ToDbl();
    double tp    = jParser["tp"].ToDbl();
    
-   // --- FILTRO DE SESSÃO INSTITUCIONAL (XAU só opera em Londres/NY) ---
+   // --- FILTRO DE SESSÃƒO INSTITUCIONAL (XAU sÃ³ opera em Londres/NY) ---
    if(IsXAU(pair) && !IsTradingSession())
    {
-      Print("⏰ Fora de sessão institucional para ", pair, " | Entrada Rejeitada");
+      Print("â° Fora de sessÃ£o institucional para ", pair, " | Entrada Rejeitada");
       return true; // Rejeitado por regra, removemos da fila
    }
    
@@ -1465,12 +1477,12 @@ bool ExecuteSignal(string json)
          }
       }
    }
-   if(!SymbolSelect(pair, true)) { Print("❌ Par não encontrado no Market Watch: " + pair); return false; } // Tentará novamente
+   if(!SymbolSelect(pair, true)) { Print("âŒ Par nÃ£o encontrado no Market Watch: " + pair); return false; } // TentarÃ¡ novamente
 
    // --- SYMBOL SYNC WARMUP (Institutional Fix for Zero Prices) ---
    Sleep(500);
    if(!SymbolIsSynchronized(pair)) {
-      Print("⏳ Aguardando sincronismo de dados para ", pair, "...");
+      Print("â³ Aguardando sincronismo de dados para ", pair, "...");
       for(int i = 0; i < 5; i++) {
          if(SymbolIsSynchronized(pair)) break;
          Sleep(200);
@@ -1480,8 +1492,8 @@ bool ExecuteSignal(string json)
    // --- GLOBAL ORDER LIMIT (Institutional Safety) ---
    if(CountAuraPositions() >= g_MaxOrders)
    {
-      Print("🛑 Limite global de ordens atingido (", g_MaxOrders, "). Ignorando sinal ", sigId);
-      return true; // Ignorado por gestão, removemos da fila
+      Print("ðŸ›‘ Limite global de ordens atingido (", g_MaxOrders, "). Ignorando sinal ", sigId);
+      return true; // Ignorado por gestÃ£o, removemos da fila
    }
 
    // --- EXPOSURE CONTROL (PER-PAIR LIMITS) ---
@@ -1497,17 +1509,17 @@ bool ExecuteSignal(string json)
    }
 
    if(dir == "BUY" && currentBuys >= g_MaxBuys) {
-      Print("⚠️ Limite de BUY atingido (", currentBuys, "/", g_MaxBuys, "). Ignorando sinal.");
+      Print("âš ï¸ Limite de BUY atingido (", currentBuys, "/", g_MaxBuys, "). Ignorando sinal.");
       return true;
    }
    if(dir == "SELL" && currentSells >= g_MaxSells) {
-      Print("⚠️ Limite de SELL atingido (", currentSells, "/", g_MaxSells, "). Ignorando sinal.");
+      Print("âš ï¸ Limite de SELL atingido (", currentSells, "/", g_MaxSells, "). Ignorando sinal.");
       return true;
    }
 
    // --- SYMBOL COOLDOWN ---
    if(!CanTradeSymbol(pair)) {
-      Print("⏳ Cooldown activo para ", pair, " | Aguardando intervalo de segurança.");
+      Print("â³ Cooldown activo para ", pair, " | Aguardando intervalo de seguranÃ§a.");
       return false; // Esperar
    }
 
@@ -1517,7 +1529,7 @@ bool ExecuteSignal(string json)
    double bid    = SymbolInfoDouble(pair, SYMBOL_BID);
    
    if(ask <= 0 || bid <= 0) {
-      Print("❌ [TICK-ERROR] Preços inválidos para ", pair, " (Ask: ", ask, ", Bid: ", bid, "). Rejeitando sinal.");
+      Print("âŒ [TICK-ERROR] PreÃ§os invÃ¡lidos para ", pair, " (Ask: ", ask, ", Bid: ", bid, "). Rejeitando sinal.");
       return false;
    }
    double entryPrice = (dir == "BUY") ? ask : bid;
@@ -1626,8 +1638,8 @@ bool ExecuteSignal(string json)
       if(nTP > 0 && marketPrice - nTP < minDistance) nTP = NormalizeDouble(marketPrice - minDistance, digits);
    }
 
-   // --- HARMONIZAÇÃO INSTITUCIONAL DE PREÇOS ---
-   // Se o sinal for MARKET, ignoramos o entry do JSON e usamos o preço actual de mercado
+   // --- HARMONIZAÃ‡ÃƒO INSTITUCIONAL DE PREÃ‡OS ---
+   // Se o sinal for MARKET, ignoramos o entry do JSON e usamos o preÃ§o actual de mercado
    if(type == "MARKET") entry = marketPrice;
 
    bool invalid = false;
@@ -1639,11 +1651,11 @@ bool ExecuteSignal(string json)
       if(nSL <= entry) nSL = NormalizeDouble(entry + minDistance, digits);
    }
    
-   // Verificação final
+   // VerificaÃ§Ã£o final
    if(dir == "BUY" && (entry <= 0 || (nTP > 0 && nTP <= entry))) invalid = true;
    if(dir == "SELL" && (entry <= 0 || (nTP > 0 && nTP >= entry))) invalid = true;
 
-   if(invalid) return true; // Sinal inválido, removemos da fila
+   if(invalid) return true; // Sinal invÃ¡lido, removemos da fila
 
    double risk = GetDynamicRisk((double)slPoints);
    double lot  = CalculateLot(pair, risk, MathAbs(entry - nSL), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
@@ -1654,7 +1666,7 @@ bool ExecuteSignal(string json)
 
       if(!ValidateStops(pair, dir, entryPrice, nSL, nTP))
       {
-         Print("❌ [EXECUTION-ABORT] Stops inválidos após normalização para ", pair);
+         Print("âŒ [EXECUTION-ABORT] Stops invÃ¡lidos apÃ³s normalizaÃ§Ã£o para ", pair);
          return true; // Erro fatal de stops, removemos
       }
 
@@ -1696,7 +1708,7 @@ bool ExecuteSignal(string json)
       }
 
       if(success) {
-         Print("✅ Ordem executada com sucesso!");
+         Print("âœ… Ordem executada com sucesso!");
          SetSymbolCooldown(pair);
          
          if(sigId != "") {
@@ -1704,14 +1716,14 @@ bool ExecuteSignal(string json)
             ulong ticket = FindPositionBySymbol(pair);
             
             if(ticket > 0) AddToPendingQueue(ticket, nSL, nTP, sigId);
-            else Print("⚠️ [WARNING] Posição aberta mas não encontrada para proteção imediata. Tentará no próximo ciclo.");
+            else Print("âš ï¸ [WARNING] PosiÃ§Ã£o aberta mas nÃ£o encontrada para proteÃ§Ã£o imediata. TentarÃ¡ no prÃ³ximo ciclo.");
             
             AddProcessed(sigId);
          }
          return true; // SUCESSO!
       } else {
-         Print("❌ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
-         return false; // FALHA TEMPORÁRIA, TENTAR NOVAMENTE
+         Print("âŒ Erro ao executar ", type, " | ", trade.ResultRetcodeDescription());
+         return false; // FALHA TEMPORÃRIA, TENTAR NOVAMENTE
       }
    }
    return false;
@@ -1726,7 +1738,7 @@ void AddToPendingQueue(ulong ticket, double sl, double tp, string signalId) {
    PendingQueue[s].signalId = signalId;
    PendingQueue[s].timestamp = TimeCurrent();
    
-   // Persistência em GlobalVariables
+   // PersistÃªncia em GlobalVariables
    GlobalVariableSet("PSL_" + (string)ticket, sl);
    GlobalVariableSet("PTP_" + (string)ticket, tp);
 }
@@ -1744,7 +1756,7 @@ void ProcessPendingProtections() {
          if(sl <= 0 || sl == EMPTY_VALUE) {
             ApplyAsyncProtection(ticket, PendingQueue[i]);
          } else {
-            // Já tem proteção (ou aplicada com sucesso)
+            // JÃ¡ tem proteÃ§Ã£o (ou aplicada com sucesso)
             GlobalVariableDel("PSL_" + (string)ticket);
             GlobalVariableDel("PTP_" + (string)ticket);
             RemovePendingQueueIndex(i);
@@ -1767,7 +1779,7 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
 
    ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
 
-   // Verificação de Stop Level (Buffer de 5.0 pontos para segurança extra)
+   // VerificaÃ§Ã£o de Stop Level (Buffer de 5.0 pontos para seguranÃ§a extra)
    double minDistance = (stopLevel + 5.0) * point;
 
    if(posType == POSITION_TYPE_BUY)
@@ -1792,7 +1804,7 @@ bool ApplyAsyncProtection(ulong ticket, PendingProtectionData &data)
 
    if(SafePositionModify(ticket, sl, tp))
    {
-      Print("🛡️ Protecção OK | Ticket: ", ticket);
+      Print("ðŸ›¡ï¸ ProtecÃ§Ã£o OK | Ticket: ", ticket);
       SendPost(g_ServerUrl + "/ea/report", "{\"signalId\":\"" + data.signalId + "\",\"status\":\"EXECUTED\"}");
       return true;
    }
@@ -1878,7 +1890,7 @@ void ProtectManualOrders()
 
       if(sl != currentSL || tp != currentTP) {
          if(SafePositionModify(ticket, sl, tp))
-            Print("✅ Manual Protected (INSTITUTIONAL): ", ticket, " | SL: ", sl, " | TP: ", tp);
+            Print("âœ… Manual Protected (INSTITUTIONAL): ", ticket, " | SL: ", sl, " | TP: ", tp);
       }
    }
 }
@@ -1887,7 +1899,7 @@ void ReportBalance()
 {
    int interval = (PositionsTotal() > 0) ? 5 : 60;
    static datetime lastReport = 0;
-   if(TimeLocal() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senão 60 segundos
+   if(TimeLocal() - lastReport < interval) return; // Reportar a cada 5 segundos se tiver ordens abertas, senÃ£o 60 segundos
    lastReport = TimeLocal();
 
    double mult = g_IsCentAccount ? 0.01 : 1.0;
@@ -1907,7 +1919,7 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
-   // 🛡️ CONSISTÊNCIA VISUAL ABSOLUTA: O Dashboard deve mostrar exatamente o PnL calculado para a Trava (Equity Atual - Start Equity)
+   // ðŸ›¡ï¸ CONSISTÃŠNCIA VISUAL ABSOLUTA: O Dashboard deve mostrar exatamente o PnL calculado para a Trava (Equity Atual - Start Equity)
    double dailyPnl = (DailyStartEquity > 0) ? ((rawEquity - DailyStartEquity) * mult) : 0;
    double realizedPnl = GetRealizedDailyPnL() * mult;
    
@@ -1983,11 +1995,11 @@ void ReportBalance()
    string response = SendPost(url, payload);
 
    if(response == "") {
-      Print("❌ [SYNC] Falha ao reportar saldo para o Dashboard.");
+      Print("âŒ [SYNC] Falha ao reportar saldo para o Dashboard.");
       return;
    }
    
-   // --- SINCRONIZAÇÃO INSTITUCIONAL DE TRAVAS DO SERVIDOR ---
+   // --- SINCRONIZAÃ‡ÃƒO INSTITUCIONAL DE TRAVAS DO SERVIDOR ---
    CJAVal root;
    if(root.Deserialize(response))
    {
@@ -2004,29 +2016,29 @@ void ReportBalance()
       if(isProfitLocked && !DailyTargetReached)
        {
           DailyTargetReached = true;
-          Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando todas as posições...");
+          Print("ðŸ† [SERVER-SYNC] Meta DiÃ¡ria Atingida no Servidor! Fechando todas as posiÃ§Ãµes...");
           CloseAllPositions();
        }
        else if(!isProfitLocked && DailyTargetReached)
        {
           DailyTargetReached = false;
-          Print("🌅 [SERVER-SYNC] Reset de Meta Diária no Servidor detectado. Desbloqueando...");
+          Print("ðŸŒ… [SERVER-SYNC] Reset de Meta DiÃ¡ria no Servidor detectado. Desbloqueando...");
        }
        
        if(isLossLocked && !DailyLossLock)
        {
           DailyLossLock = true;
-          Print("🛑 [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando todas as posições...");
+          Print("ðŸ›‘ [SERVER-SYNC] Limite de Perda DiÃ¡ria Atingido no Servidor! Fechando todas as posiÃ§Ãµes...");
           CloseAllPositions();
        }
        else if(!isLossLocked && DailyLossLock)
        {
           DailyLossLock = false;
-          Print("🌅 [SERVER-SYNC] Reset de Perda Diária no Servidor detectado. Desbloqueando...");
+          Print("ðŸŒ… [SERVER-SYNC] Reset de Perda DiÃ¡ria no Servidor detectado. Desbloqueando...");
        }
    }
    
-   UpdateChartVisuals(); // Visual Gráfico (Real-time)
+   UpdateChartVisuals(); // Visual GrÃ¡fico (Real-time)
 }
 
 
@@ -2089,11 +2101,11 @@ string SendPost(string url, string payload)
 
    if(code == -1)
    {
-      Print("❌ WebRequest ERROR: ", GetLastError(), " | URL: ", url);
+      Print("âŒ WebRequest ERROR: ", GetLastError(), " | URL: ", url);
       return "";
    }
 
-   // Print("🌐 HTTP ", code, " | ", url); // Debug opcional
+   // Print("ðŸŒ HTTP ", code, " | ", url); // Debug opcional
    return CharArrayToString(res);
 }
 
@@ -2109,7 +2121,7 @@ string SendGet(string url)
 
    if(code == -1)
    {
-      Print("❌ WebRequest (GET) ERROR: ", GetLastError(), " | URL: ", url);
+      Print("âŒ WebRequest (GET) ERROR: ", GetLastError(), " | URL: ", url);
       return "";
    }
 
@@ -2121,13 +2133,13 @@ int GetConsecutiveLosses()
    int losses = 0;
    int total  = HistoryDealsTotal();
    
-   // Ler as últimas 10 operações fechadas (mais recentes primeiro)
+   // Ler as Ãºltimas 10 operaÃ§Ãµes fechadas (mais recentes primeiro)
    for(int i = total - 1; i >= MathMax(0, total - 10); i--)
    {
       ulong dealTicket = HistoryDealGetTicket(i);
       if(dealTicket == 0) continue;
       
-      // Apenas entradas reais (não abertura)
+      // Apenas entradas reais (nÃ£o abertura)
       if(HistoryDealGetInteger(dealTicket, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
       
       // Apenas ordens do nosso EA
@@ -2139,9 +2151,9 @@ int GetConsecutiveLosses()
       if(profit < 0)
          losses++;
       else
-         break; // Sequência de perdas interrompida por um lucro
+         break; // SequÃªncia de perdas interrompida por um lucro
       
-      if(losses >= 3) break; // Só precisamos saber se chegou a 3
+      if(losses >= 3) break; // SÃ³ precisamos saber se chegou a 3
    }
    
    return losses;
@@ -2151,14 +2163,14 @@ double GetDynamicRisk(double pts)
 {
    double risk = g_RiskPercent;
    
-   // RISCO ADAPTATIVO: Se 3+ perdas consecutivas → corta risco a metade
+   // RISCO ADAPTATIVO: Se 3+ perdas consecutivas â†’ corta risco a metade
    int losses = GetConsecutiveLosses();
    if(losses >= 3)
    {
       risk *= 0.5;
       static datetime lastWarn = 0;
       if(TimeCurrent() - lastWarn > 3600) {
-         Print("⚠️ [RISK] ", losses, " perdas consecutivas | Risco reduzido para ", DoubleToString(risk, 2), "%");
+         Print("âš ï¸ [RISK] ", losses, " perdas consecutivas | Risco reduzido para ", DoubleToString(risk, 2), "%");
          lastWarn = TimeCurrent();
       }
    }
@@ -2189,10 +2201,10 @@ double CalculateLot(string sym, double riskPercent, double slDist, ENUM_ORDER_TY
          double minMargin = 0;
          if(OrderCalcMargin(type, sym, minL, p, minMargin)) {
             if(minMargin > freeMargin * 0.80) {
-               Print("⚠️ Sem margem para " + sym);
+               Print("âš ï¸ Sem margem para " + sym);
                return 0;
             }
-            Print("ℹ️ Margem apertada para " + sym);
+            Print("â„¹ï¸ Margem apertada para " + sym);
             return minL;
          }
       }
@@ -2216,7 +2228,7 @@ double GetLastHigh(string sym, ENUM_TIMEFRAMES tf, int bars) {
 
 bool IsProcessed(string id) 
 {
-   // Encurtar o prefixo para evitar limites de caracteres do MT5 (máx 63)
+   // Encurtar o prefixo para evitar limites de caracteres do MT5 (mÃ¡x 63)
    string key = "A_" + id;
    return GlobalVariableCheck(key);
 }
@@ -2227,18 +2239,18 @@ void AddProcessed(string id)
    GlobalVariableSet(key, (double)TimeCurrent());
 }
 
-// --- FUNÇÃO DE HARMONIZAÇÃO DE SÍMBOLOS (SUFIXOS) ---
+// --- FUNÃ‡ÃƒO DE HARMONIZAÃ‡ÃƒO DE SÃMBOLOS (SUFIXOS) ---
 string GetBrokerSymbol(string baseSym)
 {
    if(baseSym == "") return "";
    
-   // 1. Tentar correspondência exacta e VERIFICAR se é negociável!
+   // 1. Tentar correspondÃªncia exacta e VERIFICAR se Ã© negociÃ¡vel!
    if(SymbolInfoInteger(baseSym, SYMBOL_VISIBLE)) 
    {
       ENUM_SYMBOL_TRADE_MODE mode = (ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(baseSym, SYMBOL_TRADE_MODE);
       if(mode == SYMBOL_TRADE_MODE_FULL || mode == SYMBOL_TRADE_MODE_LONGONLY || mode == SYMBOL_TRADE_MODE_SHORTONLY)
       {
-         return baseSym; // É exatamente este e pode ser negociado!
+         return baseSym; // Ã‰ exatamente este e pode ser negociado!
       }
    }
    
@@ -2247,18 +2259,18 @@ string GetBrokerSymbol(string baseSym)
    for(int i = 0; i < total; i++)
    {
       string sym = SymbolName(i, false);
-      if(StringFind(sym, baseSym) == 0) // Começa com o nome base
+      if(StringFind(sym, baseSym) == 0) // ComeÃ§a com o nome base
       {
          ENUM_SYMBOL_TRADE_MODE mode = (ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(sym, SYMBOL_TRADE_MODE);
          if(mode == SYMBOL_TRADE_MODE_FULL || mode == SYMBOL_TRADE_MODE_LONGONLY || mode == SYMBOL_TRADE_MODE_SHORTONLY)
          {
              SymbolSelect(sym, true);
-             return sym; // Encontrou um com sufixo e que é negociável!
+             return sym; // Encontrou um com sufixo e que Ã© negociÃ¡vel!
          }
       }
    }
    
-   // 3. Tentar todos os símbolos se não encontrou no Market Watch
+   // 3. Tentar todos os sÃ­mbolos se nÃ£o encontrou no Market Watch
    total = SymbolsTotal(true);
    for(int i = 0; i < total; i++)
    {
@@ -2281,16 +2293,16 @@ string GetBrokerSymbol(string baseSym)
 
 double GetATR(string sym, ENUM_TIMEFRAMES tf)
 {
-   // --- PROTEÇÃO CRÍTICA ---
+   // --- PROTEÃ‡ÃƒO CRÃTICA ---
    if(sym == "" || StringLen(sym) < 3)
    {
-      Print("❌ [ATR] Símbolo inválido.");
+      Print("âŒ [ATR] SÃ­mbolo invÃ¡lido.");
       return 0;
    }
 
    if(!SymbolSelect(sym, true))
    {
-      Print("❌ [ATR] Falha ao selecionar símbolo: ", sym);
+      Print("âŒ [ATR] Falha ao selecionar sÃ­mbolo: ", sym);
       return 0;
    }
 
@@ -2298,7 +2310,7 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
 
    if(currentBar <= 0)
    {
-      Print("❌ [ATR] Sem barras disponíveis para ", sym);
+      Print("âŒ [ATR] Sem barras disponÃ­veis para ", sym);
       return 0;
    }
 
@@ -2334,7 +2346,7 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
 
    if(handle == INVALID_HANDLE)
    {
-      Print("❌ [ATR-ERROR] Handle inválido para ", sym,
+      Print("âŒ [ATR-ERROR] Handle invÃ¡lido para ", sym,
             " | TF=", EnumToString(tf),
             " | Erro=", GetLastError());
 
@@ -2362,7 +2374,7 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
 
 void CloseAllPositions()
 {
-   Print("🚨 [ACTION] Fechando TODAS as posições para garantir lucro diário...");
+   Print("ðŸš¨ [ACTION] Fechando TODAS as posiÃ§Ãµes para garantir lucro diÃ¡rio...");
    
    for(int retry=0; retry<3; retry++)
    {
@@ -2383,19 +2395,19 @@ void CloseAllPositions()
 
          if(!closed)
          {
-            Print("❌ Failed close: ", ticket, " | ", trade.ResultRetcodeDescription());
+            Print("âŒ Failed close: ", ticket, " | ", trade.ResultRetcodeDescription());
             stillOpen=true;
          }
          else
          {
-            Print("✅ Closed: ", ticket);
+            Print("âœ… Closed: ", ticket);
          }
 
          Sleep(200);
       }
 
       if(!stillOpen) break;
-      Print("🔄 Tentativa ", retry+2, " de fecho total...");
+      Print("ðŸ”„ Tentativa ", retry+2, " de fecho total...");
       Sleep(1000); // Esperar 1s entre retries
    }
 }

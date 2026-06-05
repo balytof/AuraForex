@@ -5102,6 +5102,10 @@ async function submitPammDeposit(btn) {
             Assim que clicar OK, o <b>Painel de Controlo Escuro</b> será aberto no seu gráfico.<br>
             Cole a sua Licença e URL, guarde e inicie o robô!
           </p>
+          <div style="margin-top: 10px; font-size: 0.75rem; color: var(--accent); background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+            <b>Chave de Licença Pessoal:</b> <br><span id="eaLicenseKey" style="user-select: all; font-family: monospace; display:block; margin-bottom: 5px;">A carregar...</span>
+            <b>Link da API:</b> <br><span id="eaApiUrl" style="user-select: all; font-family: monospace; display:block;">A carregar...</span>
+          </div>
         </div>
       </div>
       <div id="customGuideContent" style="margin-top: 20px; font-size: 0.85rem; line-height: 1.6; border-top: 1px solid var(--border); padding-top: 20px; display: none; color: var(--text);">
@@ -5471,7 +5475,7 @@ async function loadPerformanceHistory() {
   }
 }
 </script>
-<script src="/i18n_dashboard.js?v=2.4"></script>
+<script src="/i18n_dashboard_v3.js"></script>
 </body>
 </html>
 
