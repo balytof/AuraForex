@@ -19,7 +19,9 @@ conn.on('ready', () => {
             { local: './risk/risk.js', remote: `${remoteBaseDir}/risk/risk.js` },
             { local: './prisma/schema.prisma', remote: `${remoteBaseDir}/prisma/schema.prisma` },
             { local: './payments/cryptoGateway.js', remote: `${remoteBaseDir}/payments/cryptoGateway.js` },
-            { local: './workers/paymentMonitor.js', remote: `${remoteBaseDir}/workers/paymentMonitor.js` }
+            { local: './workers/paymentMonitor.js', remote: `${remoteBaseDir}/workers/paymentMonitor.js` },
+            { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.ex5` },
+            { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.mq5` }
         ];
 
         let uploadsCompleted = 0;

@@ -2200,18 +2200,45 @@ string GetBrokerSymbol(string baseSym)
 {
    if(baseSym == "") return "";
    
-   // 1. Tentar correspondência exacta
-   if(SymbolInfoInteger(baseSym, SYMBOL_VISIBLE)) return baseSym;
+   // 1. Tentar correspondência exacta e VERIFICAR se é negociável!
+   if(SymbolInfoInteger(baseSym, SYMBOL_VISIBLE)) 
+   {
+      ENUM_SYMBOL_TRADE_MODE mode = (ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(baseSym, SYMBOL_TRADE_MODE);
+      if(mode == SYMBOL_TRADE_MODE_FULL || mode == SYMBOL_TRADE_MODE_LONGONLY || mode == SYMBOL_TRADE_MODE_SHORTONLY)
+      {
+         return baseSym; // É exatamente este e pode ser negociado!
+      }
+   }
    
-   // 2. Procurar por sufixos (.ecn, .pro, etc)
+   // 2. Procurar por sufixos (.ecn, .pro, -STD, etc)
    int total = SymbolsTotal(false);
    for(int i = 0; i < total; i++)
    {
       string sym = SymbolName(i, false);
       if(StringFind(sym, baseSym) == 0) // Começa com o nome base
       {
-         SymbolSelect(sym, true);
-         return sym;
+         ENUM_SYMBOL_TRADE_MODE mode = (ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(sym, SYMBOL_TRADE_MODE);
+         if(mode == SYMBOL_TRADE_MODE_FULL || mode == SYMBOL_TRADE_MODE_LONGONLY || mode == SYMBOL_TRADE_MODE_SHORTONLY)
+         {
+             SymbolSelect(sym, true);
+             return sym; // Encontrou um com sufixo e que é negociável!
+         }
+      }
+   }
+   
+   // 3. Tentar todos os símbolos se não encontrou no Market Watch
+   total = SymbolsTotal(true);
+   for(int i = 0; i < total; i++)
+   {
+      string sym = SymbolName(i, true);
+      if(StringFind(sym, baseSym) == 0)
+      {
+         ENUM_SYMBOL_TRADE_MODE mode = (ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(sym, SYMBOL_TRADE_MODE);
+         if(mode == SYMBOL_TRADE_MODE_FULL || mode == SYMBOL_TRADE_MODE_LONGONLY || mode == SYMBOL_TRADE_MODE_SHORTONLY)
+         {
+             SymbolSelect(sym, true);
+             return sym;
+         }
       }
    }
    

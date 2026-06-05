@@ -224,9 +224,9 @@ class RiskManager {
     const targetPct = cfg.dailyProfitTargetPct || 5.0;
     const dailyTargetMoney = this.dailyStartBalance * (targetPct / 100);
 
-    // 🛡️ LÓGICA INSTITUCIONAL: A meta é batida quando a Equity (Capital Líquido) - Saldo Inicial >= Meta do Dia (Fixo)
+    // 🛡️ LÓGICA INSTITUCIONAL: A meta é batida quando a Equity (Capital Líquido) - Equity Inicial >= Meta do Dia (Fixo)
     const currentEquity = (this.equity && this.equity > 0) ? this.equity : this.balance;
-    const netEvolution = currentEquity - this.dailyStartBalance;
+    const netEvolution = currentEquity - (this.dailyStartEquity > 0 ? this.dailyStartEquity : this.dailyStartBalance);
 
     if (dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
       this.dailyProfitLocked = true;

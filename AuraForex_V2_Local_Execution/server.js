@@ -465,8 +465,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     // A meta do dia fica 100% fixa ao longo das negociações baseada no balance de início do dia
     const dailyTargetMoney = startCapital * targetPercent;
 
-    // Evolução Líquida = Equity Atual - Saldo Inicial
-    let netEvolution = lastEquity - startCapital;
+    // Evolução Líquida = Equity Atual - Equity Inicial (Isto resolve o problema de contas com Bónus/Credit)
+    let netEvolution = lastEquity - (risk.dailyStartEquity > 0 ? risk.dailyStartEquity : startCapital);
 
     // Sincroniza estado de trava se já bateu a meta baseada na Evolução Líquida (Equity - StartBalance)
     let isProfitLocked = risk.dailyProfitLocked;
@@ -2182,6 +2182,13 @@ app.get("/api/user/provider/stats", requireAuth, async (req, res) => {
         data: { totalGasEarned: 0 }
       });
       provider.totalGasEarned = 0;
+    }
+
+    if (!provider.token) {
+        provider = await prisma.provider.update({
+            where: { id: provider.id },
+            data: { token: 'AURA-PRV-' + Math.random().toString(36).substr(2, 6).toUpperCase() }
+        });
     }
     
     // Calculate totalGasDeposited from clients
