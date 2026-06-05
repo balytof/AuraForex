@@ -325,11 +325,11 @@ router.post("/report-balance", async (req, res) => {
        if(!risk.closedTrades) risk.closedTrades = []; // Preserva se o EA não enviar
     }
 
-    console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | OpenTrades: ${risk.openTrades.length} | isLocked: ${isLocked} | isProfit: ${isProfitLocked} | isLoss: ${isLossLocked}`);
+    console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | OpenTrades: ${risk.openTrades.length} | isLocked: ${isLocked} | isLoss: ${isLossLocked}`);
 
     // Sincroniza estados de trava vindo do EA
     if (isLocked !== undefined) {
-      risk.dailyProfitLocked = isProfitLocked || false;
+      
       risk.circuitBreaker = isLossLocked || false;
       
       if (isLocked) {
@@ -342,8 +342,8 @@ router.post("/report-balance", async (req, res) => {
 
     return res.json({ 
       success: true,
-      isLocked: risk.dailyProfitLocked || risk.circuitBreaker,
-      isProfitLocked: risk.dailyProfitLocked,
+      isLocked: risk.circuitBreaker,
+      
       isLossLocked: risk.circuitBreaker,
       dailyStartBalance: risk.dailyStartBalance
     });

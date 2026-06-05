@@ -27,8 +27,8 @@ function validatePriceRange(pair, price) {
 const recentSignals = new Map();
 
 function generateSignal(pair, candles, htfBias = "NEUTRAL") {
-  // Reduzido para 5 minutos (300000 ms) para permitir mais sinais
-  const SIGNAL_COOLDOWN = 5 * 60 * 1000;
+  // Otimizado para permitir Scale-In mais rápido (3 minutos)
+  const SIGNAL_COOLDOWN = 3 * 60 * 1000;
 
   if (!candles || candles.length < 100) return { signal: null, reason: "Velas insuficientes" };
 
@@ -47,15 +47,17 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const minStop = atr * 2.0; 
     let stopDist = Math.max(atr * 4.0, minStop);
     
-    // 🚀 5. 🚨 CORREÇÃO PARA XAUUSD (OBRIGATÓRIO)
+    // 🚀 5. 🚨 CORREÇÃO PARA XAUUSD (ESCALA DINÂMICA)
     if (pair.includes("XAU") || pair.includes("GOLD")) {
-      if (stopDist < 1.0) stopDist = 1.0; // Em vez de rejeitar, forçamos um stop mínimo de $1 (100 pips)
+      const dynamicMin = last.close * 0.001; // 0.1% do preço. Funciona bem quer o ouro esteja a 2300 ou 4400.
+      if (stopDist < dynamicMin) stopDist = dynamicMin;
     }
 
     const entry = normalizePrice(last.close, pair);
 
-    const isBullishStructure = last.close > last.emaFast; // Exige momento de alta
-    const isBearishStructure = last.close < last.emaFast; // Exige momento de baixa
+    // Estrutura forte confirmada por Múltiplos Indicadores Institucionais
+    const isBullishStructure = last.close > last.emaFast && last.macdHist > 0 && last.rsi < 70 && last.rsi > 40;
+    const isBearishStructure = last.close < last.emaFast && last.macdHist < 0 && last.rsi > 30 && last.rsi < 60;
 
     // ================= BUY =================
     if ((htfBias === "BULLISH" && isBullishStructure) || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow && isBullishStructure)) {
@@ -76,7 +78,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "BUY", entry: 0, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "BUY", entry, sl, tp, atr, magic: true, timestamp: Date.now() },
         reason: "Sinal COMPRA MAGIC"
       };
     }
@@ -100,7 +102,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "SELL", entry: 0, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "SELL", entry, sl, tp, atr, magic: true, timestamp: Date.now() },
         reason: "Sinal VENDA MAGIC"
       };
     }

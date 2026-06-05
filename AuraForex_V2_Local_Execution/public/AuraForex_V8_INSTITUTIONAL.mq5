@@ -42,8 +42,10 @@ int Tester_TrailingStart     = 50;        // Trailing Start (5.0 pips)
 int Tester_TrailingDistance  = 80;        // Trailing Distance (8.0 pips)
 int Tester_TrailingStep      = 10;        // Trailing Step (1.0 pip)
 
+// --- TWIN TRADING (RUNNER) ---
+bool Tester_UseTwinTrading   = true;      // Dividir posição em T1 e Runner
+
 bool Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
-double Tester_DailyTargetPct     = 5.0;      // Meta Diária (% de Lucro)
 double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
 
 // --- TRAVA DE META DIÁRIA (DAILY TARGET PROFIT LOCK) ---
@@ -84,17 +86,18 @@ double            g_MonetaryMultiplier = 1.0; // Multiplicador para Contas Cent
 CTrade            trade;
 bool              IsAuthorized = false;
 datetime          lastCheckTime = 0;
-ProfitLockData    ProfitLocks[];   // Array de monitoramento
-PortfolioProfitLock GlobalProfitLockState = {false, 0, 0}; // Estado do ProfitLock Global
 double            DailyStartBalance  = 0;
 double            DailyStartEquity   = 0; 
-double            DailyTargetProfit  = 0; // Meta fixa calculada apenas uma vez
 bool              DailyTargetReached = false;
-bool              DailyLossLock      = false; // Bloqueio por perda diária
-double            DailyPeakPnL       = 0;     // Pico de lucro diário atingido
-bool              DailyTargetLockActive = false; // Se a trava diária foi ativada
-int               LastTradingDay     = -1;
-int               ConsecutiveLosses  = 0; // Contador de perdas consecutivas
+bool              DailyLossLock         = false; // Bloqueio por perda diária
+bool              DailyTargetLockActive = false; // Trava de meta ativada
+double            DailyPeakPnL          = 0;     // Pico de lucro diário atingido
+double            DailyTargetProfit     = 0;     // Meta de lucro calculada
+int               LastTradingDay        = -1;
+int               ConsecutiveLosses     = 0; // Contador de perdas consecutivas
+
+ProfitLockData      ProfitLocks[];
+PortfolioProfitLock GlobalProfitLockState;
 
 // --- CACHE DE INDICADORES ---
 struct ATRCache {
@@ -344,7 +347,7 @@ void RunInstitutionalCore()
    if(IsAuthorized)
    {
       CheckDailyLoss();
-      CheckDailyTarget();
+      // CheckDailyTarget(); // Desativado: Fecho global causa prejuízos aos Runners
       CheckFridaySafeLock();
       ApplyBreakeven();
       
@@ -356,8 +359,8 @@ void RunInstitutionalCore()
       // HIERARQUIA INSTITUCIONAL DE GESTÃO
       MonitorTrailingStop();
       MonitorPartialTP();
-      MonitorProfitLock();
-      MonitorGlobalProfitLock();
+      // MonitorProfitLock(); // Desativado: Conflito com Trailing Stop dos Runners
+      // MonitorGlobalProfitLock(); // Desativado: Conflito com Scale-in
    }
 }
 
@@ -1481,12 +1484,12 @@ bool ExecuteSignal(string json)
       return true; // Ignorado por gestão, removemos da fila
    }
 
-   // --- EXPOSURE CONTROL (HEDGE SAFETY) ---
+   // --- EXPOSURE CONTROL (PER-PAIR LIMITS) ---
    int currentBuys = 0, currentSells = 0;
    for(int i = PositionsTotal() - 1; i >= 0; i--) {
       ulong t = PositionGetTicket(i);
       if(t > 0 && PositionSelectByTicket(t)) {
-         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic()) {
+         if(PositionGetInteger(POSITION_MAGIC) == GetAuraMagic() && PositionGetString(POSITION_SYMBOL) == pair) {
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) currentBuys++;
             if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) currentSells++;
          }
@@ -1527,13 +1530,14 @@ bool ExecuteSignal(string json)
       if(entry < 0.01 || entry > 10) entry = entryPrice;
    }
 
-   if(sl <= 0 || MathAbs(entry - sl) < (10 * point)) {
+   if(sl <= 0 || MathAbs(entry - sl) > (entry * 0.5) || MathAbs(entry - sl) < (10 * point)) {
       sl = (dir == "BUY") ? entry - (300 * point) : entry + (300 * point);
    }
 
-   if(tp <= 0 || MathAbs(entry - tp) < (10 * point)) {
+   if(tp <= 0 || MathAbs(entry - tp) > (entry * 0.5) || MathAbs(entry - tp) < (10 * point)) {
       tp = (dir == "BUY") ? entry + (500 * point) : entry - (500 * point);
    }
+   
    
     double slDist = (sl > 0) ? MathAbs(entry - sl) : 0;
     double tpDist = (tp > 0) ? MathAbs(entry - tp) : 0;
@@ -1655,12 +1659,40 @@ bool ExecuteSignal(string json)
       }
 
       bool success = false;
-      if(type == "LIMIT") {
-         if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
-         else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
+      double minLot = SymbolInfoDouble(pair, SYMBOL_VOLUME_MIN);
+      double lotStep = SymbolInfoDouble(pair, SYMBOL_VOLUME_STEP);
+      
+      if(Tester_UseTwinTrading && lot >= minLot * 2.0) {
+         double halfLot = NormalizeDouble(lot / 2.0, 2);
+         if(halfLot < minLot) halfLot = minLot;
+         halfLot = halfLot - MathMod(halfLot, lotStep); // Ajustar ao step
+         if(halfLot < minLot) halfLot = minLot;
+         
+         // T1 (Com TP)
+         if(type == "LIMIT") {
+            if(dir == "BUY") success = trade.BuyLimit(halfLot, entry, pair, nSL, nTP, ORDER_TIME_GTC, 0, "Aura [T1]");
+            else             success = trade.SellLimit(halfLot, entry, pair, nSL, nTP, ORDER_TIME_GTC, 0, "Aura [T1]");
+         } else {
+            if(dir == "BUY") success = trade.Buy(halfLot, pair, entry, nSL, nTP, "Aura [T1]");
+            else             success = trade.Sell(halfLot, pair, entry, nSL, nTP, "Aura [T1]");
+         }
+         
+         // RUNNER (Sem TP)
+         if(type == "LIMIT") {
+            if(dir == "BUY") trade.BuyLimit(halfLot, entry, pair, nSL, 0, ORDER_TIME_GTC, 0, "Aura [RUNNER]");
+            else             trade.SellLimit(halfLot, entry, pair, nSL, 0, ORDER_TIME_GTC, 0, "Aura [RUNNER]");
+         } else {
+            if(dir == "BUY") trade.Buy(halfLot, pair, entry, nSL, 0, "Aura [RUNNER]");
+            else             trade.Sell(halfLot, pair, entry, nSL, 0, "Aura [RUNNER]");
+         }
       } else {
-         if(dir == "BUY") success = trade.Buy(lot, pair, entry, nSL, nTP);
-         else             success = trade.Sell(lot, pair, entry, nSL, nTP);
+         if(type == "LIMIT") {
+            if(dir == "BUY") success = trade.BuyLimit(lot, entry, pair, nSL, nTP);
+            else             success = trade.SellLimit(lot, entry, pair, nSL, nTP);
+         } else {
+            if(dir == "BUY") success = trade.Buy(lot, pair, entry, nSL, nTP);
+            else             success = trade.Sell(lot, pair, entry, nSL, nTP);
+         }
       }
 
       if(success) {
@@ -1937,10 +1969,10 @@ void ReportBalance()
       "\"drawdown\":" + DoubleToString(drawdown, 2) + ","
       "\"dailyPnl\":" + DoubleToString(dailyPnl, 2) + ","
       "\"realizedPnl\":" + DoubleToString(realizedPnl, 2) + ","
-      "\"dailyProfitTarget\":" + DoubleToString(g_DailyTargetPct, 2) + ","
+      
       "\"dailyLossLimit\":" + DoubleToString(g_MaxDailyLossPct, 2) + ","
-      "\"isLocked\":" + (DailyTargetReached || DailyLossLock ? "true" : "false") + ","
-      "\"isProfitLocked\":" + (DailyTargetReached ? "true" : "false") + ","
+      "\"isLocked\":" + (DailyLossLock ? "true" : "false") + ","
+      
       "\"isLossLocked\":" + (DailyLossLock ? "true" : "false") + ","
       "\"openTrades\":" + openTradesJson + ","
       "\"closedTrades\":" + closedTradesJson +

@@ -522,8 +522,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       dailyPnl: finalDailyPnl, // Correção: Usar o PnL fechado+flutuante exacto vindo do MT5!
       realizedPnl: finalRealizedPnl,
       dailyTargetMoney: finalDailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
-      isLocked: isProfitLocked || risk.circuitBreaker,
-      isProfitLocked: isProfitLocked, // Correção: Passar flag específica para o Card Verde
+      isLocked: risk.circuitBreaker,
+      
       isLossLocked: risk.circuitBreaker, // Correção: Passar flag específica para o Card Vermelho
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null,
@@ -1005,31 +1005,38 @@ app.post("/api/broker/order", requireAuth, async (req, res) => {
       }
     }
 
-    // 2.5 Validação final de sanidade
-    const isBuy = direction === "BUY";
-    const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
-    if (invalidSl) {
-      const pip = getPipValue(pair);
-      let fallSl = 180; let fallTp = 270;
-      if (pair.includes("XAU") || pair.includes("GOLD")) { fallSl = 40; fallTp = 60; }
-      sl = isBuy ? (entryPrice - (pip * fallSl)) : (entryPrice + (pip * fallSl));
-      tp = isBuy ? (entryPrice + (pip * fallTp)) : (entryPrice - (pip * fallTp)); // Garante consistência
-    }
+    // 2.5 Validação final de sanidade APENAS SE ENTRY > 0
+    if (entryPrice > 0) {
+      const isBuy = direction === "BUY";
+      const invalidSl = !sl || (isBuy ? sl >= entryPrice : sl <= entryPrice);
+      if (invalidSl) {
+        const pip = getPipValue(pair);
+        let fallSl = 180; let fallTp = 270;
+        if (pair.includes("XAU") || pair.includes("GOLD")) { fallSl = 40; fallTp = 60; }
+        sl = isBuy ? (entryPrice - (pip * fallSl)) : (entryPrice + (pip * fallSl));
+        tp = isBuy ? (entryPrice + (pip * fallTp)) : (entryPrice - (pip * fallTp)); // Garante consistência
+      }
 
-    // 3. Garantir distância mínima e normalização
-    const guarded = enforceMinStopDistance(sl, tp, entryPrice, direction, pair);
-    sl = guarded.sl;
-    tp = guarded.tp;
+      // 3. Garantir distância mínima e normalização
+      const guarded = enforceMinStopDistance(sl, tp, entryPrice, direction, pair);
+      sl = guarded.sl;
+      tp = guarded.tp;
 
-    // 3.5 Fallback final se ainda estiverem ausentes (segurança crítica)
-    if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
-      console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
-      const pip = getPipValue(pair);
-      let fallbackDist = pip * 300; // 300 pips de segurança padrão
-      if (pair.includes("XAU") || pair.includes("GOLD")) fallbackDist = pip * 40; // 40 pips de segurança para Ouro (4 pontos = $4 num lote 0.01)
-      
-      if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
-      if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
+      // 3.5 Fallback final se ainda estiverem ausentes
+      if (!sl || !tp || isNaN(sl) || isNaN(tp)) {
+        console.warn(`[ORDER] SL/TP ainda ausentes para ${pair}. Aplicando fallback de emergência.`);
+        const pip = getPipValue(pair);
+        let fallbackDist = pip * 300; // 300 pips de segurança padrão
+        if (pair.includes("XAU") || pair.includes("GOLD")) fallbackDist = pip * 40;
+        
+        if (!sl || isNaN(sl)) sl = direction === "BUY" ? normPrice(entryPrice - fallbackDist, pair) : normPrice(entryPrice + fallbackDist, pair);
+        if (!tp || isNaN(tp)) tp = direction === "BUY" ? normPrice(entryPrice + fallbackDist, pair) : normPrice(entryPrice - fallbackDist, pair);
+      }
+    } else {
+      // Se entryPrice for 0, nós não podemos validar nem calcular limites locais.
+      // O MT5 (EA) fará a sua própria validação com o LastPrice ao executar a ordem.
+      if (isNaN(sl)) sl = 0;
+      if (isNaN(tp)) tp = 0;
     }
 
     // 4. EM VEZ DE EXECUTAR NA CORRETORA (METADEV/METAAPI), SALVAMOS COMO SINAL PARA O EA

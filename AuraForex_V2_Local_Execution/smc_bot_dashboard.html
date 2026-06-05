@@ -90,7 +90,7 @@
     pointer-events:none; z-index:0;
   }
 
-  .wrapper { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:24px; }
+  .wrapper { position:relative; z-index:1; width: 100%; max-width:1400px; margin:0 auto; padding:24px; }
 
   /* Header */
   header {
@@ -546,12 +546,12 @@
 
 
 
-
   /* History Panel */
   .history-controls { display:flex; gap:10px; padding:12px; background:var(--surface2); border-bottom:1px solid var(--border); flex-wrap:wrap; }
   .history-controls select, .history-controls input {
     background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:6px 10px; font-size:0.75rem; 
   }
+  .table-container { width: 100%; overflow-x: auto; }
   .history-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
   .history-table th { background:var(--surface2); color:var(--muted); font-weight:700; text-align:left; padding:8px 12px; border-bottom:1px solid var(--border); font-family:'Syne',sans-serif; }
   .history-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-family:'Space Mono',monospace; }
@@ -1555,11 +1555,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="stat-value accent" id="statBalance">—</div>
       <div class="stat-sub" id="statBalanceSub">Ligação EA: Ativa</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Meta Diária (Profit Target)</div>
-      <div class="stat-value bull" id="statDailyTarget">$0.00</div>
-      <div class="stat-sub" id="statDailyProgress">P&L Hoje: $0.00</div>
-    </div>
+    
     <div class="stat-card" onclick="document.getElementById('signalsList').scrollIntoView({behavior:'smooth'})">
       <div class="stat-label">P&L Realizado (Hoje)</div>
       <div class="stat-value" id="statPnl">$0.00</div>
@@ -1577,61 +1573,23 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   </div>
 
-  <!-- AVISO META BATIDA (HMI) -->
-  <div id="dailyLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,212,255,0.1)); border: 2px solid var(--bull); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
-     <div style="font-size: 2.5rem; margin-bottom: 10px; display: none;"></div>
-     <h2 style="color: var(--bull); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">LUCRO DIÁRIO GARANTIDO</h2>
-     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O AuraForex_V8_INSTITUTIONAL fechou TODAS as posições para garantir lucro diário. Trading bloqueado até amanhã às 00h.</p>
-     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
-        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">PRÓXIMA SESSÃO EM:</span>
-        <span id="lockCountdown" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--accent);">00:00:00</span>
-     </div>
-  </div>
-
-  <!-- AVISO CIRCUIT BREAKER (PERDA) -->
-  <div id="lossLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(255,82,82,0.1), rgba(255,0,0,0.2)); border: 2px solid var(--bear); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
-     <h2 style="color: var(--bear); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">CIRCUIT BREAKER ATIVADO</h2>
-     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O limite máximo de perda diária foi atingido. O sistema bloqueou operações para proteger o capital.</p>
-     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
-        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">PRÓXIMA SESSÃO EM:</span>
-        <span id="lossCountdown" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--warn);">00:00:00</span>
-     </div>
-  </div>
-
-  <div id="weekendLockOverlay" style="display:none; margin: 20px 0; padding: 25px; background: linear-gradient(135deg, rgba(255,82,82,0.1), rgba(255,152,0,0.1)); border: 2px solid var(--bear); border-radius: 20px; text-align: center; animation: pulseGlow 2s infinite;">
-     <div style="font-size: 2.5rem; margin-bottom: 10px; display: none;"></div>
-     <h2 style="color: var(--bear); font-weight: 900; letter-spacing: 2px; margin-bottom: 5px;">MERCADO FECHADO</h2>
-     <p style="color: var(--text); font-size: 0.9rem; opacity: 0.9;">O mercado encontra-se fechado. As operações do robô foram suspensas pelo servidor para proteger o seu saldo de flutuações e Gaps de fim de semana.</p>
-     <div style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: rgba(0,0,0,0.3); border-radius: 12px;">
-        <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">RETOMA DAS OPERAÇÕES EM:</span>
-        <span id="weekendLockTimer" style="font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 800; color: var(--warn);">Domingo às 22h00</span>
-     </div>
-  </div>
-
-  <!-- MAIN GRID -->
-  <div class="pamm-workspace-grid" id="vpsMainGrid">
-
-    <!-- LEFT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:20px;height:100%;">
-
-      <!-- POSIÇÕES ATIVAS -->
-      <div class="panel glass-panel" id="activePositionsPanel" style="display:none; margin-bottom: 20px;">
-        <div class="panel-header" style="background: rgba(0,212,255,0.05);">
-          <div class="panel-title"><span class="icon"></span> Posições em Aberto</div>
-          <div class="status-badge" style="background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2);">
-            <div class="dot active"></div>
-            <span id="activePositionsCount">0 Ativas</span>
-          </div>
+  <div id="vpsMainGrid" class="main-grid">
+    <div style="display:flex; flex-direction:column; gap:20px; flex-grow:1;">
+      <!-- ACTIVE POSITIONS -->
+      <div class="panel" id="activePositionsPanel" style="display:none; border: 1px solid var(--accent); background: rgba(0, 255, 170, 0.02);">
+        <div class="panel-header" style="border-bottom: 1px solid rgba(0, 255, 170, 0.1);">
+          <div class="panel-title"><span class="icon">🟢</span> Posições Ativas</div>
+          <span id="activePositionsCount" style="font-size:0.75rem; color:var(--accent); font-family:'Space Mono',monospace; padding:2px 8px; background:rgba(0,255,170,0.1); border-radius:4px;">0</span>
         </div>
-        <div class="active-positions-list" id="activePositionsList" style="padding:16px; display:flex; flex-direction:column; gap:10px;">
-          <!-- Populated by JS -->
+        <div id="activePositionsList" style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+          <!-- Cards injetados aqui via JS -->
         </div>
       </div>
 
       <!-- SIGNALS -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><span class="icon"></span> Sinais & Execuções</div>
+          <div class="panel-title"><span class="icon">🎯</span> Sinais & Execuções</div>
           <div style="display:flex;gap:10px;align-items:center;">
              <div class="nav-controls" id="signalNav" style="display:none; gap:6px;">
                 <button class="btn-nav" onclick="prevSignal()">◀</button>
@@ -1642,10 +1600,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
         <div class="signals-list" id="signalsList">
-          <div class="empty-state" id="signalsEmptyState">
-            <div class="em-icon" style="display:none;"></div>
-            <p>Aguardando sinais do mercado...</p>
-            <p style="font-size:0.7rem; color:var(--muted);">Certifique-se de que o seu EA está conectado no MT5.</p>
+          <div class="empty-state">
+            <div class="em-icon">🔗</div>
+            <p>Conecte uma corretora e inicie o bot<br>para receber sinais SMC com execução automática.</p>
           </div>
         </div>
       </div>
@@ -1774,6 +1731,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
   </div>
+  </div> <!-- closes vpsMainGrid -->
 
   <!-- 💳 SEÇÃO DO PAINEL PAMM INTERATIVO (MOBILE & TABLET OPTIMIZED) -->
   <div id="pammDashboardSection" style="display: none; flex-direction: column; gap: 20px;">
@@ -1893,6 +1851,108 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
     </div>
+  </div> <!-- closes pammDashboardSection -->
+
+<section id="providerSection" class="content-section" style="display: none; padding-top: 10px;">
+        <div class="panel glass-panel" style="margin-bottom: 20px; border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(124,58,237,0.05) 100%);">
+          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div class="panel-title" style="font-size: 1.2rem;"><span class="icon"></span> Painel de Provedor</div>
+            <div translate="no" style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+              <span style="font-size: 0.9rem; color: #a1a1aa;">Token:</span>
+              <span id="provTokenDisplay" style="font-family: monospace; font-size: 1rem; color: #3b82f6; font-weight: bold;">Carregando...</span>
+              <button class="btn" onclick="copyProvToken()" style="padding: 4px 10px; font-size: 0.8rem; background: #3f3f46; color: white; border: none; border-radius: 4px; cursor: pointer;">Copiar</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="provStatsGrid" style="display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 24px;">
+          <div class="stat-card">
+            <div class="stat-label">TOTAL DEPOSITADO (CLIENTES)</div>
+            <div class="stat-value bull" id="provTotalDeposited">$0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">TOTAL EARNINGS (GAS)</div>
+            <div class="stat-value bull" id="provTotalEarnings">$0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">AVAILABLE FOR WITHDRAWAL</div>
+            <div class="stat-value accent" id="provAvailable">$0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">TOTAL WITHDRAWN</div>
+            <div class="stat-value" id="provWithdrawn" style="color: var(--warn);">$0.00</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
+          <div class="panel glass-panel" style="flex: 2; min-width:300px;">
+            <div class="panel-header" style="background: rgba(0,212,255,0.05);">
+              <div class="panel-title"><span class="icon"></span> Your Team (Clients)</div>
+            </div>
+            <div class="table-responsive" style="padding:15px; max-height: 350px; overflow-y: auto;">
+              <table class="history-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Registado a</th>
+                    <th>Gas Total Pago</th>
+                  </tr>
+                </thead>
+                <tbody id="provClientsTable">
+                  <!-- JS Data -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel glass-panel" style="flex: 1; min-width:300px;">
+            <div class="panel-header" style="background: rgba(124,58,237,0.05);">
+              <div class="panel-title"><span class="icon"></span> Request Withdrawal</div>
+            </div>
+            <div style="padding:15px;">
+              <div style="margin-bottom:15px;">
+                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Available Amount: <span id="provWithdrawAvailable" class="accent" style="font-weight:700;">$0.00</span></label>
+                <input type="number" id="provWithdrawAmount" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;" placeholder="Montante (USD)">
+              </div>
+              <div style="margin-bottom:15px;">
+                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Endereço da Carteira Crypto</label>
+                <input type="text" id="provWithdrawAddress" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;" placeholder="TRC20 / BEP20">
+              </div>
+              <div style="margin-bottom:15px;">
+                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Rede</label>
+                <select id="provWithdrawNetwork" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;">
+                  <option value="USDT TRC20">USDT TRC20</option>
+                  <option value="USDT BEP20">USDT BEP20</option>
+                  <option value="BTC">Bitcoin</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%; padding:12px; font-weight:bold; margin-top: 5px;" onclick="requestProvWithdraw()">Confirm Request</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel glass-panel" style="margin-top: 20px;">
+          <div class="panel-header">
+            <div class="panel-title"><span class="icon"></span> Withdrawal History</div>
+          </div>
+          <div class="table-responsive" style="padding:15px; max-height: 250px; overflow-y: auto;">
+            <table class="history-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Montante</th>
+                  <th>Rede/Carteira</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="provWithdrawalsTable">
+                <!-- JS Data -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
 
   </div>
 </div>
@@ -3125,12 +3185,7 @@ async function updateStats() {
       pnlEl.textContent = (realizedPnl >= 0 ? "+" : "") + formatCurrency(realizedPnl, "USD");
       pnlEl.className = "stat-value " + (realizedPnl >= 0 ? "bull" : "bear");
 
-      // Meta Diária
-      document.getElementById("statDailyTarget").textContent = formatCurrency(status.dailyTargetMoney, "USD");
-      const progressEl = document.getElementById("statDailyProgress");
-          const falta = Math.max(0, status.dailyTargetMoney - status.dailyPnl);
-          progressEl.textContent = `Evolução: ${formatCurrency(status.dailyPnl, "USD")} | Falta: ${formatCurrency(falta, "USD")}`;
-      progressEl.style.color = status.dailyPnl >= 0 ? "var(--bull)" : "var(--bear)";
+      
 
       // HMI Lock Management
       const lockOverlay = document.getElementById("dailyLockOverlay");
@@ -3170,17 +3225,6 @@ async function updateStats() {
         if (mainBtn) {
             mainBtn.disabled = true;
             if (mainBtn.dataset.state !== "losslocked") { mainBtn.textContent = "Circuit Breaker Ativo"; mainBtn.dataset.state = "losslocked"; }
-            mainBtn.style.opacity = "0.5";
-            if (isRunning) stopBot();
-        }
-        updateLockCountdown(status.timeUntilReset);
-      } else if (status.isProfitLocked) {
-        weekendOverlay.style.display = "none";
-        if(lossLockOverlay) lossLockOverlay.style.display = "none";
-        lockOverlay.style.display = "block";
-        if (mainBtn) {
-            mainBtn.disabled = true;
-            if (mainBtn.dataset.state !== "locked") { mainBtn.textContent = "Meta Atingida"; mainBtn.dataset.state = "locked"; }
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
@@ -3360,36 +3404,78 @@ function renderActivePositions(positions) {
     return;
   }
 
-  panel.style.display = "block";
-  countEl.textContent = `${positions.length} ${positions.length === 1 ? 'Ativa' : 'Ativas'}`;
-  
   list.innerHTML = positions.map(pos => {
     const pnlVal = pos.pnl || 0;
     const pnlClass = pnlVal >= 0 ? 'bull' : 'bear';
     const direction = (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL';
     const dirColor = direction === 'BUY' ? 'var(--bull)' : 'var(--bear)';
-    
+
+    const peak = maxProfitTrack[pos.id] || (pnlVal > 0 ? pnlVal : 0);
+    const drop = peak - pnlVal;
+    const dropPercentOfProfit = (peak > 2.0) ? (drop / peak) * 100 : 0;
+    let dropTrigger = "--";
+    if (peak > 5.0) {
+        dropTrigger = `-${dropPercentOfProfit.toFixed(1)}% / 30%`;
+    }
+
     return `
-      <div class="position-item">
-        <div class="pos-info">
-          <span class="pos-label">Ativo / ID</span>
-          <span class="pos-val">${pos.symbol || pos.pair} <span style="font-size:0.6rem; color:var(--muted);">#${pos.id}</span></span>
+      <div class="signal-card" style="border-left: 4px solid ${dirColor}; margin-bottom: 15px; position: relative; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="signal-pair" style="font-size:1.1rem; font-weight:900;">${pos.symbol || pos.pair}</div>
+          <div style="font-family:'Space Mono',monospace; font-size:0.85rem; font-weight:700; color:var(--text); opacity: 0.6;">Lote: ${pos.lotSize || pos.lots}</div>
+          <button onclick="closeTradeNow('${pos.id}', '${pos.symbol || pos.pair}')" style="
+            background: rgba(255,68,68,0.2); color: var(--bear); border: 1px solid rgba(255,68,68,0.3);
+            border-radius: 4px; padding: 4px 10px; font-size: 0.62rem; 
+            font-weight: 800; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase;
+          " onmouseover="this.style.background='var(--bear)'; this.style.color='#fff';" onmouseout="this.style.background='rgba(255,68,68,0.2)'; this.style.color='var(--bear)';">
+            <span data-i18n="close_trade">FECHAR</span>
+          </button>
+          <span class="signal-dir ${direction.toLowerCase()}" style="font-size: 0.7rem; padding: 2px 6px;">${direction}</span>
         </div>
-        <div class="pos-info">
-          <span class="pos-label">Direção / Lote</span>
-          <span class="pos-val" style="color:${dirColor}">${direction} · ${pos.lotSize || pos.lots}</span>
+        
+        <div class="signal-grid" style="margin-top: 15px;">
+          <div class="sig-item"><span><span data-i18n="entry">ENTRADA</span></span><span>${pos.openPrice ? pos.openPrice.toFixed(5) : '--'}</span></div>
+          <div class="sig-item"><span>STOP LOSS</span><span style="color:var(--bear)">${pos.sl ? pos.sl.toFixed(5) : '--'}</span></div>
+          <div class="sig-item"><span>TAKE PROFIT</span><span style="color:var(--bull)">${pos.tp ? pos.tp.toFixed(5) : '--'}</span></div>
         </div>
-        <div class="pos-info">
-          <span class="pos-label">Preço Entrada</span>
-          <span class="pos-val">${pos.openPrice ? pos.openPrice.toFixed(brokerInfo.precision || 5) : '--'}</span>
+        
+        <div class="score-bar" style="margin-top: 15px;"><div class="score-fill" style="width:100%; background: linear-gradient(90deg, var(--accent), var(--accent2));"></div></div>
+
+        <div class="pnl-float-badge" style="
+          margin-top: 15px;
+          padding: 10px 14px;
+          background: rgba(0,0,0,0.3);
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        ">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.75rem; color:var(--muted); font-weight:bold; letter-spacing:1px;" data-i18n="live_profit">LUCRO AO VIVO:</span>
+            <span class="${pnlClass}" style="font-weight:900; font-family:'Space Mono',monospace; font-size:1.1rem;">${(pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency)}</span>
+          </div>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top:8px;">
+             <div style="display:flex; flex-direction:column;">
+                <span style="font-size:0.6rem; color:var(--muted); text-transform:uppercase;" data-i18n="peak_reached">PICO ATINGIDO:</span>
+                <span style="font-size:0.85rem; font-family:'Space Mono',monospace; color:var(--accent);">$ ${peak.toFixed(2)}</span>
+             </div>
+             <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <span style="font-size:0.6rem; color:var(--muted); text-transform:uppercase;" data-i18n="lock_trigger">GATILHO LOCK:</span>
+                <span style="font-size:0.85rem; font-family:'Space Mono',monospace; color:var(--warn);">${dropTrigger}</span>
+             </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(255,255,255,0.05); padding-top:8px;">
+            <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase;" data-i18n="broker_levels">NÍVEIS BROKER:</span>
+            <span style="font-size:0.7rem; font-family:'Space Mono',monospace;">
+              SL: <span style="color:var(--bear)">${pos.sl ? pos.sl.toFixed(5) : '--'}</span> | 
+              TP: <span style="color:var(--bull)">${pos.tp ? pos.tp.toFixed(5) : '--'}</span>
+            </span>
+          </div>
         </div>
-        <div class="pos-info">
-          <span class="pos-label">P&L Atual</span>
-          <span class="pos-pnl ${pnlClass}">${(pnlVal >= 0 ? "+" : "") + formatCurrency(pnlVal, brokerInfo.currency)}</span>
-        </div>
-        <button onclick="closeTradeNow('${pos.id}', '${pos.symbol || pos.pair}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.65rem; border-color: rgba(255,68,68,0.3); color: var(--bear);">
-          FECHAR
-        </button>
       </div>
     `;
   }).join("");
@@ -5221,105 +5307,7 @@ async function submitPammDeposit(btn) {
   </div>
 </div>
       <!-- PROVIDER SECTION -->
-      <section id="providerSection" class="content-section" style="display: none; padding-top: 10px;">
-        <div class="panel glass-panel" style="margin-bottom: 20px; border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(124,58,237,0.05) 100%);">
-          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-            <div class="panel-title" style="font-size: 1.2rem;"><span class="icon"></span> Painel de Provedor</div>
-            <div translate="no" style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-              <span style="font-size: 0.9rem; color: #a1a1aa;">Token:</span>
-              <span id="provTokenDisplay" style="font-family: monospace; font-size: 1rem; color: #3b82f6; font-weight: bold;">Carregando...</span>
-              <button class="btn" onclick="copyProvToken()" style="padding: 4px 10px; font-size: 0.8rem; background: #3f3f46; color: white; border: none; border-radius: 4px; cursor: pointer;">Copiar</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="provStatsGrid" style="display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 24px;">
-          <div class="stat-card">
-            <div class="stat-label">TOTAL DEPOSITADO (CLIENTES)</div>
-            <div class="stat-value bull" id="provTotalDeposited">$0.00</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">TOTAL EARNINGS (GAS)</div>
-            <div class="stat-value bull" id="provTotalEarnings">$0.00</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">AVAILABLE FOR WITHDRAWAL</div>
-            <div class="stat-value accent" id="provAvailable">$0.00</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">TOTAL WITHDRAWN</div>
-            <div class="stat-value" id="provWithdrawn" style="color: var(--warn);">$0.00</div>
-          </div>
-        </div>
-
-        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
-          <div class="panel glass-panel" style="flex: 2; min-width:300px;">
-            <div class="panel-header" style="background: rgba(0,212,255,0.05);">
-              <div class="panel-title"><span class="icon"></span> Your Team (Clients)</div>
-            </div>
-            <div class="table-responsive" style="padding:15px; max-height: 350px; overflow-y: auto;">
-              <table class="history-table" style="width: 100%; border-collapse: collapse;">
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Registado a</th>
-                    <th>Gas Total Pago</th>
-                  </tr>
-                </thead>
-                <tbody id="provClientsTable">
-                  <!-- JS Data -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="panel glass-panel" style="flex: 1; min-width:300px;">
-            <div class="panel-header" style="background: rgba(124,58,237,0.05);">
-              <div class="panel-title"><span class="icon"></span> Request Withdrawal</div>
-            </div>
-            <div style="padding:15px;">
-              <div style="margin-bottom:15px;">
-                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Available Amount: <span id="provWithdrawAvailable" class="accent" style="font-weight:700;">$0.00</span></label>
-                <input type="number" id="provWithdrawAmount" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;" placeholder="Montante (USD)">
-              </div>
-              <div style="margin-bottom:15px;">
-                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Endereço da Carteira Crypto</label>
-                <input type="text" id="provWithdrawAddress" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;" placeholder="TRC20 / BEP20">
-              </div>
-              <div style="margin-bottom:15px;">
-                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Rede</label>
-                <select id="provWithdrawNetwork" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;">
-                  <option value="USDT TRC20">USDT TRC20</option>
-                  <option value="USDT BEP20">USDT BEP20</option>
-                  <option value="BTC">Bitcoin</option>
-                </select>
-              </div>
-              <button class="btn btn-primary" style="width:100%; padding:12px; font-weight:bold; margin-top: 5px;" onclick="requestProvWithdraw()">Confirm Request</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel glass-panel" style="margin-top: 20px;">
-          <div class="panel-header">
-            <div class="panel-title"><span class="icon"></span> Withdrawal History</div>
-          </div>
-          <div class="table-responsive" style="padding:15px; max-height: 250px; overflow-y: auto;">
-            <table class="history-table" style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Montante</th>
-                  <th>Rede/Carteira</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="provWithdrawalsTable">
-                <!-- JS Data -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      
 
     </div> <!-- /wrapper -->
   </main> <!-- /main-content -->

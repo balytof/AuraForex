@@ -300,7 +300,7 @@ class RiskManager {
         date: this.dailyDate,
         startBalance: this.dailyStartBalance,
         realizedProfit: realizedProfit,
-        targetReached: this.dailyProfitLocked
+        targetReached: false
       });
       
       fs.writeFileSync(perfFile, JSON.stringify(history, null, 2));
@@ -346,7 +346,7 @@ class RiskManager {
         balance: this.balance,
         equity: this.equity || this.balance || 0,
         circuitBreaker: this.circuitBreaker,
-        dailyProfitLocked: this.dailyProfitLocked,
+        
         dailyDate: this.dailyDate,
         lastUpdate: new Date().toISOString()
       };
@@ -369,7 +369,7 @@ class RiskManager {
         this.balance = state.balance || 0;
         this.equity = state.equity || state.balance || 0;
         this.circuitBreaker = state.circuitBreaker || false;
-        this.dailyProfitLocked = state.dailyProfitLocked || false;
+        
         this.dailyDate = state.dailyDate || null;
       }
     } catch (e) { this.openTrades = []; }
