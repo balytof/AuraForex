@@ -7,19 +7,19 @@ conn.on('ready', () => {
       async function run() {
         try {
           const user = await prisma.user.findUnique({ where: { email: 'balytof@gmail.com' } });
-          console.log('User balytof:', user);
+          console.log('User balytof:', user ? user.id : 'not found');
           if(user) {
              const sub = await prisma.clientSubscription.findFirst({ where: { userId: user.id }});
              console.log('Sub:', sub);
           }
-        } finally {
-          await prisma.$disconnect();
+        } catch(e) {
+             console.error(e);
         }
       }
       run();
     `;
     
-    conn.exec(`echo "${script.replace(/"/g, '\\"')}" > /root/AuraForex/AuraForex_V2_Local_Execution/test_balytof.js && node /root/AuraForex/AuraForex_V2_Local_Execution/test_balytof.js`, (err, stream) => {
+    conn.exec(`echo '${script}' > /root/AuraForex/AuraForex_V2_Local_Execution/test_balytof.js && node /root/AuraForex/AuraForex_V2_Local_Execution/test_balytof.js`, (err, stream) => {
         if (err) throw err;
         let output = '';
         stream.on('close', (code, signal) => {

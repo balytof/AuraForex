@@ -2215,6 +2215,7 @@ app.get("/api/user/provider/stats", requireAuth, async (req, res) => {
       }
     });
   } catch (err) {
+    console.error("STATS ERROR:", err);
     res.status(500).json({ error: "Erro ao buscar stats do provedor." });
   }
 });
