@@ -46,67 +46,101 @@ async function checkPendingInvoices() {
 
                         const purchaseReq = invoice.purchase;
                         if (purchaseReq && purchaseReq.status !== 'APPROVED') {
-                            // 1. Calcular Expiração
-                            const days = purchaseReq.plan ? purchaseReq.plan.durationDays : 30;
-                            const existingLicense = await prisma.license.findFirst({
-                                where: { userId: purchaseReq.userId, status: "ACTIVE" },
-                                orderBy: { expiresAt: 'desc' }
-                            });
+                            if (purchaseReq.licenseType === "PAMM") {
+                                // 1. Update Provider totalGasEarned
+                                const providerToken = purchaseReq.transactionHash ? purchaseReq.transactionHash.replace("crypto_auto_", "") : "";
+                                const provider = await prisma.provider.findUnique({
+                                    where: { token: providerToken }
+                                });
+                                
+                                if (provider) {
+                                    await prisma.provider.update({
+                                        where: { id: provider.id },
+                                        data: { 
+                                            totalGasEarned: { increment: purchaseReq.amount },
+                                            availableGas: { increment: purchaseReq.amount }
+                                        }
+                                    });
 
-                            let expiresAt = new Date();
-                            if (existingLicense && existingLicense.expiresAt > new Date()) {
-                                expiresAt = new Date(existingLicense.expiresAt);
-                                expiresAt.setDate(expiresAt.getDate() + days);
-                            } else {
-                                expiresAt.setDate(expiresAt.getDate() + days);
-                            }
-
-                            await prisma.license.updateMany({
-                                where: { userId: purchaseReq.userId, status: "ACTIVE" },
-                                data: { status: "EXPIRED" }
-                            });
-
-                            await prisma.license.create({
-                                data: {
-                                    userId: purchaseReq.userId,
-                                    planId: purchaseReq.planId,
-                                    type: purchaseReq.plan?.name || "PRO",
-                                    status: "ACTIVE",
-                                    expiresAt: expiresAt
+                                    // 2. Upsert ClientSubscription totalGasPaid
+                                    await prisma.clientSubscription.upsert({
+                                        where: { userId: purchaseReq.userId },
+                                        update: { 
+                                            providerId: provider.id,
+                                            totalGasPaid: { increment: purchaseReq.amount },
+                                            status: "ACTIVE"
+                                        },
+                                        create: {
+                                            userId: purchaseReq.userId,
+                                            providerId: provider.id,
+                                            totalGasPaid: purchaseReq.amount,
+                                            status: "ACTIVE"
+                                        }
+                                    });
                                 }
-                            });
+                            } else {
+                                // 1. Calcular Expiração para Licença
+                                const days = purchaseReq.plan ? purchaseReq.plan.durationDays : 30;
+                                const existingLicense = await prisma.license.findFirst({
+                                    where: { userId: purchaseReq.userId, status: "ACTIVE" },
+                                    orderBy: { expiresAt: 'desc' }
+                                });
 
-                            // 2. Distribuir Bónus de Afiliados
-                            if (!purchaseReq.isBonusProcessed) {
-                                const baseAmount = purchaseReq.amount;
-                                const bonusLevels = [0.06, 0.04, 0.02, 0.01, 0.01];
-                                let currentUser = await prisma.user.findUnique({ where: { id: purchaseReq.userId } });
+                                let expiresAt = new Date();
+                                if (existingLicense && existingLicense.expiresAt > new Date()) {
+                                    expiresAt = new Date(existingLicense.expiresAt);
+                                    expiresAt.setDate(expiresAt.getDate() + days);
+                                } else {
+                                    expiresAt.setDate(expiresAt.getDate() + days);
+                                }
 
-                                for (let i = 0; i < bonusLevels.length; i++) {
-                                    if (!currentUser || !currentUser.sponsorId) break;
-                                    const sponsor = await prisma.user.findUnique({ where: { id: currentUser.sponsorId } });
-                                    if (!sponsor) break;
+                                await prisma.license.updateMany({
+                                    where: { userId: purchaseReq.userId, status: "ACTIVE" },
+                                    data: { status: "EXPIRED" }
+                                });
 
-                                    const bonusAmount = parseFloat((baseAmount * bonusLevels[i]).toFixed(2));
-                                    await prisma.bonusTransaction.create({
-                                        data: {
-                                            receiverId: sponsor.id,
-                                            sourceUserId: purchaseReq.userId,
-                                            purchaseId: purchaseReq.id,
-                                            amount: bonusAmount,
-                                            level: i + 1,
-                                            status: "COMPLETED"
-                                        }
-                                    });
+                                await prisma.license.create({
+                                    data: {
+                                        userId: purchaseReq.userId,
+                                        planId: purchaseReq.planId,
+                                        type: purchaseReq.plan?.name || "PRO",
+                                        status: "ACTIVE",
+                                        expiresAt: expiresAt
+                                    }
+                                });
 
-                                    await prisma.user.update({
-                                        where: { id: sponsor.id },
-                                        data: {
-                                            totalBonusEarned: { increment: bonusAmount },
-                                            availableBonus: { increment: bonusAmount }
-                                        }
-                                    });
-                                    currentUser = sponsor;
+                                // 2. Distribuir Bónus de Afiliados
+                                if (!purchaseReq.isBonusProcessed) {
+                                    const baseAmount = purchaseReq.amount;
+                                    const bonusLevels = [0.06, 0.04, 0.02, 0.01, 0.01];
+                                    let currentUser = await prisma.user.findUnique({ where: { id: purchaseReq.userId } });
+
+                                    for (let i = 0; i < bonusLevels.length; i++) {
+                                        if (!currentUser || !currentUser.sponsorId) break;
+                                        const sponsor = await prisma.user.findUnique({ where: { id: currentUser.sponsorId } });
+                                        if (!sponsor) break;
+
+                                        const bonusAmount = parseFloat((baseAmount * bonusLevels[i]).toFixed(2));
+                                        await prisma.bonusTransaction.create({
+                                            data: {
+                                                receiverId: sponsor.id,
+                                                sourceUserId: purchaseReq.userId,
+                                                purchaseId: purchaseReq.id,
+                                                amount: bonusAmount,
+                                                level: i + 1,
+                                                status: "COMPLETED"
+                                            }
+                                        });
+
+                                        await prisma.user.update({
+                                            where: { id: sponsor.id },
+                                            data: {
+                                                totalBonusEarned: { increment: bonusAmount },
+                                                availableBonus: { increment: bonusAmount }
+                                            }
+                                        });
+                                        currentUser = sponsor;
+                                    }
                                 }
                             }
 

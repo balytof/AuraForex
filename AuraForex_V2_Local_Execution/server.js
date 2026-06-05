@@ -380,7 +380,10 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: { licenses: { where: { status: "ACTIVE", expiresAt: { gt: new Date() } }, orderBy: { expiresAt: 'desc' }, take: 1 } }
+      include: { 
+        licenses: { where: { status: "ACTIVE", expiresAt: { gt: new Date() } }, orderBy: { expiresAt: 'desc' }, take: 1 },
+        providers: true
+      }
     });
 
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
@@ -391,7 +394,8 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        license: user.licenses[0] || null
+        license: user.licenses[0] || null,
+        isProvider: user.providers && user.providers.length > 0
       }
     });
   } catch (err) {
@@ -1236,6 +1240,40 @@ app.post("/api/admin/wallet/credit-user", requireAuth, requireAdmin, async (req,
           description: description || (amt >= 0 ? "Saldo adicionado manualmente pelo administrador" : "Saldo deduzido manualmente pelo administrador")
         }
       });
+      diff = amt;
+    }
+
+    if (diff > 0 && req.body.providerToken) {
+      const providerToken = req.body.providerToken.trim();
+      if (providerToken) {
+        const provider = await prisma.provider.findUnique({
+          where: { token: providerToken }
+        });
+        
+        if (provider) {
+          await prisma.provider.update({
+            where: { id: provider.id },
+            data: { 
+              totalGasEarned: { increment: diff }
+            }
+          });
+
+          await prisma.clientSubscription.upsert({
+            where: { userId: userId },
+            update: { 
+              providerId: provider.id,
+              totalGasPaid: { increment: diff },
+              status: "ACTIVE"
+            },
+            create: {
+              userId: userId,
+              providerId: provider.id,
+              totalGasPaid: diff,
+              status: "ACTIVE"
+            }
+          });
+        }
+      }
     }
 
     res.json({ success: true, walletBalance: updatedUser.walletBalance, transaction: tx });
@@ -1848,8 +1886,9 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
   const { planId, hash, amount, licenseType } = req.body;
 
   if (licenseType === "PAMM") {
-    if (!hash || !amount) {
-      return res.status(400).json({ success: false, error: "Dados incompletos para depósito PAMM." });
+    const providerToken = req.body.providerToken;
+    if (!hash || !amount || !providerToken) {
+      return res.status(400).json({ success: false, error: "Dados incompletos para depósito PAMM (Token ausente)." });
     }
 
     try {
@@ -1865,11 +1904,39 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
           userId: req.user.id,
           planId: null,
           licenseType: "PAMM",
-          transactionHash: hash,
+          transactionHash: hash === "crypto_auto" ? `crypto_auto_${providerToken}` : hash,
           amount: amountVal,
           status: "PENDING"
         }
       });
+
+      if (hash === "crypto_auto") {
+        const walletData = generatePaymentWallet();
+        
+        const cryptoInvoice = await prisma.cryptoInvoice.create({
+          data: {
+            purchaseId: request.id,
+            walletAddress: walletData.address,
+            privateKeyEnc: walletData.encryptedPK,
+            network: "BSC",
+            currency: "USDT",
+            amountDue: amountVal
+          }
+        });
+
+        console.log(`[PAMM-REQUEST] User ${req.user.id} solicitou gas PAMM via Crypto Auto (Address: ${cryptoInvoice.walletAddress})`);
+        return res.json({ 
+          success: true, 
+          request,
+          cryptoInvoice: {
+            id: cryptoInvoice.id,
+            walletAddress: cryptoInvoice.walletAddress,
+            amountDue: cryptoInvoice.amountDue,
+            network: cryptoInvoice.network,
+            currency: cryptoInvoice.currency
+          }
+        });
+      }
 
       console.log(`[PAMM-REQUEST] User ${req.user.id} solicitou depósito de gás PAMM de $${amountVal} com Hash ${hash}`);
       return res.json({ success: true, request });
@@ -2090,6 +2157,137 @@ app.post("/api/affiliate/withdraw", requireAuth, async (req, res) => {
           walletAddress,
           network,
           status: "PENDING"
+        }
+      })
+    ]);
+
+    res.json({ success: true, message: "Pedido de saque efetuado com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao solicitar saque." });
+  }
+});
+
+// ── Provider Dashboard Routes ──────────────────────────────────────
+
+app.get("/api/user/provider/stats", requireAuth, async (req, res) => {
+  try {
+    const provider = await prisma.provider.findFirst({ where: { userId: req.user.id } });
+    if (!provider) return res.status(403).json({ error: "Não é um provedor." });
+    
+    // TEMPORARY RESET FOR ADMIN (removes the $10 from earlier auto-heal)
+    if (provider.totalGasEarned > 0 && req.user.email === 'admin@auratrade.ai') {
+      await prisma.provider.update({
+        where: { id: provider.id },
+        data: { totalGasEarned: 0 }
+      });
+      provider.totalGasEarned = 0;
+    }
+    
+    // Calculate totalGasDeposited from clients
+    const clients = await prisma.clientSubscription.findMany({
+      where: { providerId: provider.id }
+    });
+    let totalGasDeposited = 0;
+    for (let c of clients) {
+      totalGasDeposited += (c.totalGasPaid || 0);
+    }
+    
+    // Auto-fix availableGas based on totalGasEarned (from trade commissions)
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { userId: req.user.id, type: "PROVIDER" }
+    });
+    let totalW = 0;
+    for (let w of withdrawals) {
+      if (w.status === "PENDING" || w.status === "APPROVED") totalW += w.amount;
+    }
+    const correctAvailable = provider.totalGasEarned - totalW;
+    let currentAvailable = correctAvailable;
+
+    res.json({ 
+      success: true, 
+      stats: {
+        token: provider.token,
+        totalGasEarned: provider.totalGasEarned,
+        availableGas: currentAvailable,
+        totalGasWithdrawn: provider.totalGasWithdrawn,
+        totalGasDeposited: totalGasDeposited
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar stats do provedor." });
+  }
+});
+
+app.get("/api/user/provider/clients", requireAuth, async (req, res) => {
+  try {
+    const provider = await prisma.provider.findFirst({ where: { userId: req.user.id } });
+    if (!provider) return res.status(403).json({ error: "Não é um provedor." });
+
+    const clients = await prisma.clientSubscription.findMany({
+      where: { providerId: provider.id },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const formattedClients = clients.map(c => ({
+      email: c.user.email,
+      registeredOn: c.createdAt,
+      totalGasPaid: c.totalGasPaid
+    }));
+
+    res.json({ success: true, clients: formattedClients });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar clientes do provedor." });
+  }
+});
+
+app.get("/api/user/provider/withdrawals", requireAuth, async (req, res) => {
+  try {
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { userId: req.user.id, type: "PROVIDER" },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, withdrawals });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar saques do provedor." });
+  }
+});
+
+app.post("/api/user/provider/withdraw", requireAuth, async (req, res) => {
+  const { amount, walletAddress, network } = req.body;
+  const withdrawAmount = parseFloat(amount);
+
+  if (!withdrawAmount || withdrawAmount <= 0 || !walletAddress || !network) {
+    return res.status(400).json({ error: "Dados inválidos." });
+  }
+
+  try {
+    const provider = await prisma.provider.findFirst({ where: { userId: req.user.id } });
+    if (!provider) return res.status(403).json({ error: "Não é um provedor." });
+
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { userId: req.user.id, type: "PROVIDER" }
+    });
+    let totalW = 0;
+    for (let w of withdrawals) {
+      if (w.status === "PENDING" || w.status === "APPROVED") totalW += w.amount;
+    }
+    const currentAvailable = provider.totalGasEarned - totalW;
+
+    if (currentAvailable < withdrawAmount) {
+      return res.status(400).json({ error: "Saldo insuficiente." });
+    }
+
+    await prisma.$transaction([
+      prisma.withdrawalRequest.create({
+        data: {
+          userId: req.user.id,
+          amount: withdrawAmount,
+          walletAddress,
+          network,
+          status: "PENDING",
+          type: "PROVIDER"
         }
       })
     ]);
@@ -2674,16 +2872,29 @@ app.post("/api/admin/withdrawals/:id/approve", requireAuth, requireAdmin, async 
     const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
     if (!wr || wr.status !== "PENDING") return res.status(400).json({ error: "Pedido não encontrado ou já processado." });
 
-    await prisma.$transaction([
+    let txs = [
       prisma.withdrawalRequest.update({
         where: { id },
         data: { status: "APPROVED" }
-      }),
-      prisma.user.update({
+      })
+    ];
+
+    if (wr.type === "PROVIDER") {
+      const provider = await prisma.provider.findFirst({ where: { userId: wr.userId } });
+      if (provider) {
+        txs.push(prisma.provider.update({
+          where: { id: provider.id },
+          data: { totalGasWithdrawn: { increment: wr.amount } }
+        }));
+      }
+    } else {
+      txs.push(prisma.user.update({
         where: { id: wr.userId },
         data: { totalBonusWithdrawn: { increment: wr.amount } }
-      })
-    ]);
+      }));
+    }
+
+    await prisma.$transaction(txs);
 
     res.json({ success: true, message: "Saque aprovado com sucesso." });
   } catch (err) {
@@ -2697,17 +2908,30 @@ app.post("/api/admin/withdrawals/:id/reject", requireAuth, requireAdmin, async (
     const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
     if (!wr || wr.status !== "PENDING") return res.status(400).json({ error: "Pedido não encontrado ou já processado." });
 
-    // Estornar o saldo para o availableBonus
-    await prisma.$transaction([
+    // Estornar o saldo para o availableBonus ou availableGas
+    let txs = [
       prisma.withdrawalRequest.update({
         where: { id },
         data: { status: "REJECTED" }
-      }),
-      prisma.user.update({
+      })
+    ];
+
+    if (wr.type === "PROVIDER") {
+      const provider = await prisma.provider.findFirst({ where: { userId: wr.userId } });
+      if (provider) {
+        txs.push(prisma.provider.update({
+          where: { id: provider.id },
+          data: { /* totalGasEarned should not be incremented here */ }
+        }));
+      }
+    } else {
+      txs.push(prisma.user.update({
         where: { id: wr.userId },
         data: { availableBonus: { increment: wr.amount } }
-      })
-    ]);
+      }));
+    }
+
+    await prisma.$transaction(txs);
 
     res.json({ success: true, message: "Saque rejeitado e saldo estornado." });
   } catch (err) {
@@ -2897,7 +3121,9 @@ app.post("/api/copytrade/profit", async (req, res) => {
     // Add to Provider's total generated gas
     await prisma.provider.update({
       where: { id: provider.id },
-      data: { totalGasEarned: { increment: gasToDeduct } }
+      data: { 
+        totalGasEarned: { increment: gasToDeduct }
+      }
     });
 
     if (user.subscription) {

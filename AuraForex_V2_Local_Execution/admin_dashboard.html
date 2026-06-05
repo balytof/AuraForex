@@ -854,6 +854,12 @@
             <label class="form-label">Descrição da Movimentação (Opcional)</label>
             <input type="text" id="walletDescription" class="form-input" placeholder="Ex: Ajuste manual de saldo">
         </div>
+        
+        <div class="form-group" style="margin-top: 15px;">
+            <label class="form-label" style="color: var(--accent);">Token do Provedor (Opcional - Para alocar o Gás)</label>
+            <input type="text" id="walletProviderToken" class="form-input" placeholder="Ex: AURA-PRV-123456">
+            <small style="color: var(--muted); font-size: 0.7rem;">Se preenchido, o valor adicionado será contabilizado como Gás depositado para este provedor.</small>
+        </div>
 
         <h4 style="font-size:0.8rem; color:var(--text); margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:4px;">2. Configurar Taxa Customizada</h4>
         <div class="form-group">
@@ -1622,6 +1628,7 @@
         const directVal = document.getElementById('walletDirectBalance').value;
         const descriptionVal = document.getElementById('walletDescription').value;
         const customFeeVal = document.getElementById('walletCustomFee').value;
+        const providerTokenVal = document.getElementById('walletProviderToken').value.trim();
         
         let hasChanges = false;
         
@@ -1631,7 +1638,8 @@
                 userId: currentWalletUserId,
                 isDirectSet: true,
                 newBalance: newBal,
-                description: descriptionVal || 'Correção de saldo pelo administrador'
+                description: descriptionVal || 'Correção de saldo pelo administrador',
+                providerToken: providerTokenVal
             });
             if (!res.success) {
                 alert('Erro ao atualizar saldo: ' + res.error);
@@ -1644,7 +1652,8 @@
                 const res = await api('/api/admin/wallet/credit-user', 'POST', {
                     userId: currentWalletUserId,
                     amount: amt,
-                    description: descriptionVal
+                    description: descriptionVal,
+                    providerToken: providerTokenVal
                 });
                 if (!res.success) {
                     alert('Erro ao atualizar saldo: ' + res.error);

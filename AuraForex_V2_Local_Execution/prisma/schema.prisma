@@ -180,6 +180,7 @@ model WithdrawalRequest {
   walletAddress String
   network       String
   status        String   @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  type          String   @default("AFFILIATE") // "AFFILIATE", "PROVIDER"
   adminNotes    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -264,6 +265,8 @@ model Provider {
   name            String
   commissionPct   Float    @default(30.0)
   totalGasEarned  Float    @default(0.0)
+  availableGas    Float    @default(0.0)
+  totalGasWithdrawn Float  @default(0.0)
   isActive        Boolean  @default(true)
   userId          String?  // O dono deste Provedor (opcional por retrocompatibilidade)
   createdAt       DateTime @default(now())
