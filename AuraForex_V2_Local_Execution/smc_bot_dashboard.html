@@ -1871,15 +1871,15 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="stat-value bull" id="provTotalDeposited">$0.00</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">TOTAL EARNINGS (GAS)</div>
+            <div class="stat-label">GANHOS TOTAIS (GAS)</div>
             <div class="stat-value bull" id="provTotalEarnings">$0.00</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">AVAILABLE FOR WITHDRAWAL</div>
+            <div class="stat-label">DISPONÍVEL PARA SAQUE</div>
             <div class="stat-value accent" id="provAvailable">$0.00</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">TOTAL WITHDRAWN</div>
+            <div class="stat-label">TOTAL SACADO</div>
             <div class="stat-value" id="provWithdrawn" style="color: var(--warn);">$0.00</div>
           </div>
         </div>
@@ -1887,7 +1887,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
           <div class="panel glass-panel" style="flex: 2; min-width:300px;">
             <div class="panel-header" style="background: rgba(0,212,255,0.05);">
-              <div class="panel-title"><span class="icon"></span> Your Team (Clients)</div>
+              <div class="panel-title"><span class="icon"></span> Sua Equipa (Clientes)</div>
             </div>
             <div class="table-responsive" style="padding:15px; max-height: 350px; overflow-y: auto;">
               <table class="history-table" style="width: 100%; border-collapse: collapse;">
@@ -1907,11 +1907,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <div class="panel glass-panel" style="flex: 1; min-width:300px;">
             <div class="panel-header" style="background: rgba(124,58,237,0.05);">
-              <div class="panel-title"><span class="icon"></span> Request Withdrawal</div>
+              <div class="panel-title"><span class="icon"></span> Solicitar Saque</div>
             </div>
             <div style="padding:15px;">
               <div style="margin-bottom:15px;">
-                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Available Amount: <span id="provWithdrawAvailable" class="accent" style="font-weight:700;">$0.00</span></label>
+                <label style="font-size:0.72rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">Montante Disponível: <span id="provWithdrawAvailable" class="accent" style="font-weight:700;">$0.00</span></label>
                 <input type="number" id="provWithdrawAmount" style="width:100%; background:var(--surface2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family: 'Space Mono', monospace;" placeholder="Montante (USD)">
               </div>
               <div style="margin-bottom:15px;">
@@ -1926,14 +1926,14 @@ document.addEventListener("DOMContentLoaded", () => {
                   <option value="BTC">Bitcoin</option>
                 </select>
               </div>
-              <button class="btn btn-primary" style="width:100%; padding:12px; font-weight:bold; margin-top: 5px;" onclick="requestProvWithdraw()">Confirm Request</button>
+              <button class="btn btn-primary" style="width:100%; padding:12px; font-weight:bold; margin-top: 5px;" onclick="requestProvWithdraw()">Confirmar Pedido</button>
             </div>
           </div>
         </div>
 
         <div class="panel glass-panel" style="margin-top: 20px;">
           <div class="panel-header">
-            <div class="panel-title"><span class="icon"></span> Withdrawal History</div>
+            <div class="panel-title"><span class="icon"></span> Histórico de Saques</div>
           </div>
           <div class="table-responsive" style="padding:15px; max-height: 250px; overflow-y: auto;">
             <table class="history-table" style="width: 100%; border-collapse: collapse;">
@@ -5047,7 +5047,7 @@ async function submitPammDeposit(btn) {
         <h3 style="margin-bottom: 10px;">Passo Inicial: Baixe o seu Robô</h3>
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.5 Institucional (Novo Painel Gráfico Flat Design) - Compilada para MetaTrader 5</p>
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=8" download class="btn btn-primary" style="padding: 12px 20px; font-size: 0.9rem;">
+          <a href="/AuraForex_V8_INSTITUTIONAL.ex5?v=8.5" download class="btn btn-primary" style="padding: 12px 20px; font-size: 0.9rem;">
             <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
           </a>
           <a href="/AuraCopier_Client.ex5" download class="btn" style="padding: 12px 20px; font-size: 0.9rem; background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid var(--accent);">

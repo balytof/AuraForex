@@ -11,7 +11,7 @@ if (!eaCode.includes('#include "AuraGUI.mqh"')) {
 const inputNames = [
     'LicenseKey', 'ServerUrl', 'IsCentAccount', 'RiskPercent', 'MagicNumber', 'TimerSeconds',
     'MaxSLForex', 'MaxSLJPY', 'MaxSLOuro', 'MaxOrders', 'MaxBuys', 'MaxSells', 'TradeCooldown',
-    'ProfitLockMin', 'ProfitLockDrop', 'TrailingEnabled', 'TrailingStart', 'TrailingDistance', 'TrailingStep',
+    'ProfitLockMin', 'ProfitLockDrop', 'TrailingEnabled', 'TrailingStart_XAU', 'TrailingDistance_XAU', 'TrailingStep_XAU', 'TrailingStart_JPY', 'TrailingDistance_JPY', 'TrailingStep_JPY', 'TrailingStart_Forex', 'TrailingDistance_Forex', 'TrailingStep_Forex',
     'ManageManualOrders', 'DailyTargetPct', 'MaxDailyLossPct', 'DailyTargetLockActive', 'DailyTargetLockPct', 'DailyTargetFloorPct',
     'BreakevenEnabled', 'BreakevenTrigger', 'BreakevenSecure', 'FridaySafeLock', 'FridayHour', 'FridayMinute',
     'SpreadGuardianActive', 'MaxSpreadPips', 'SessionFilter'
