@@ -3,7 +3,7 @@ const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
     console.log('Client :: ready');
-    conn.exec(`su -c 'psql -d auraforex -c "SELECT id, name, token, status, \\"userId\\" FROM \\"Provider\\";"' postgres`, (err, stream) => {
+    conn.exec(`su -c 'psql -d auraforex -c "SELECT id, name, email, token, status, \\"userId\\" FROM \\"Provider\\";"' postgres`, (err, stream) => {
         if (err) throw err;
         stream.on('close', (code, signal) => {
             console.log('Command finished with code ' + code);

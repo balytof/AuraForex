@@ -2333,7 +2333,8 @@ async function retrySync(attempts) {
         document.getElementById('adminLink').style.display = 'flex';
       }
       
-      if (currentUser.isProvider) {
+      const hasActiveLicense = currentUser.license && currentUser.license.status === 'ACTIVE';
+      if (currentUser.isProvider || hasActiveLicense) {
         document.getElementById('providerLink').style.display = 'flex';
       }
       
