@@ -430,9 +430,7 @@
                         <th>Valor (USDT)</th>
                         <th>Validade</th>
                         <th>Hash / TX</th>
-                        <th>Acesso (Ativo)</th>
-                          <th>Estado (Candidatura)</th>
-                          <th>Ações</th>
+                        <th>Status</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
@@ -635,7 +633,7 @@
                     </tr>
                 </thead>
                 <tbody id="pammTableBody">
-                    <tr><td colspan="8" style="text-align: center; color: var(--muted);">A carregar dados...</td></tr>
+                    <tr><td colspan="6" style="text-align: center; color: var(--muted);">A carregar dados...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1835,22 +1833,7 @@
         });
     }
 
-    async function changeProviderStatus(id, newStatus) {
-          if(!confirm(`Tem certeza que deseja ${newStatus === 'APPROVED' ? 'APROVAR' : 'REJEITAR'} este provedor?`)) return;
-          try {
-              const data = await api(`/api/admin/providers/${id}/status`, "POST", { status: newStatus });
-              if (data.success) {
-                  alert("Estado atualizado com sucesso.");
-                  loadProviders();
-              } else {
-                  alert(data.error || "Erro ao atualizar.");
-              }
-          } catch(err) {
-              alert("Erro interno.");
-          }
-      }
-
-      async function toggleProvider(id, currentStatus) {
+    async function toggleProvider(id, currentStatus) {
         if (!confirm(`Tem a certeza que deseja ${currentStatus ? 'desativar' : 'ativar'} este provedor?`)) return;
         const data = await api(`/api/admin/providers/${id}/toggle`, "POST", { isActive: !currentStatus });
         if (data.success) {

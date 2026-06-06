@@ -1854,6 +1854,37 @@ document.addEventListener("DOMContentLoaded", () => {
   </div> <!-- closes pammDashboardSection -->
 
 <section id="providerSection" class="content-section" style="display: none; padding-top: 10px;">
+        
+        <!-- Application Form Container -->
+        <div id="providerApplyContainer" style="display: none; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px 20px;">
+          <i class="fas fa-bullhorn" style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;"></i>
+          <h2 style="margin-bottom: 15px;">Torne-se um Provedor de Sinais</h2>
+          <p style="color: var(--muted); margin-bottom: 30px;">Ganhe até 30% de comissão sobre os lucros dos seus copiadores. Preencha o formulário para submeter a sua candidatura.</p>
+          
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 25px; border-radius: 15px; text-align: left;">
+            <label style="display: block; margin-bottom: 10px; color: var(--muted); font-size: 0.9rem;">Nome ou Apelido de Provedor:</label>
+            <input type="text" id="providerApplyName" placeholder="Ex: MasterTraderPro" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.5); color: white; margin-bottom: 20px;">
+            
+            <button onclick="submitProviderApplication(this)" class="btn btn-primary" style="width: 100%; padding: 15px; font-weight: 800;">SUBMETER CANDIDATURA</button>
+          </div>
+        </div>
+
+        <!-- Pending State Container -->
+        <div id="providerPendingContainer" style="display: none; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px 20px;">
+          <i class="fas fa-hourglass-half" style="font-size: 3rem; color: #f3ba2f; margin-bottom: 20px;"></i>
+          <h2 style="margin-bottom: 15px;">Candidatura em Análise</h2>
+          <p style="color: var(--muted); margin-bottom: 30px;">A sua candidatura está a ser analisada pela nossa equipa. Receberá uma notificação assim que for aprovada.</p>
+        </div>
+
+        <!-- Rejected State Container -->
+        <div id="providerRejectedContainer" style="display: none; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px 20px;">
+          <i class="fas fa-times-circle" style="font-size: 3rem; color: var(--bear); margin-bottom: 20px;"></i>
+          <h2 style="margin-bottom: 15px;">Candidatura Rejeitada</h2>
+          <p style="color: var(--muted); margin-bottom: 30px;">Infelizmente, a sua candidatura não foi aprovada neste momento.</p>
+        </div>
+
+        <!-- Dashboard Container -->
+        <div id="providerDashboardContainer">
         <div class="panel glass-panel" style="margin-bottom: 20px; border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(124,58,237,0.05) 100%);">
           <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
             <div class="panel-title" style="font-size: 1.2rem;"><span class="icon"></span> Painel de Provedor</div>
@@ -4076,7 +4107,37 @@ async function submitPaymentRequest(btn) {
 
 let cryptoCheckInterval = null;
 
-async function generateCryptoInvoice(btn) {
+async function submitLemonSqueezyPayment(btn) {
+    if (!selectedPlanId) {
+      alert("Plano não selecionado.");
+      return;
+    }
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
+  
+    try {
+      const res = await apiFetch("/api/license/request", "POST", {
+        planId: selectedPlanId,
+        hash: "lemonsqueezy",
+        amount: selectedAmount
+      });
+  
+      if (res.success && res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        alert(res.error || "Erro ao gerar link de pagamento.");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    } catch(err) {
+      alert("Erro interno.");
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+
+  async function generateCryptoInvoice(btn) {
   if (!selectedPlanId) {
     alert("Plano não selecionado.");
     return;
