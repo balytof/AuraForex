@@ -50,7 +50,7 @@
 
         .bg-overlay {
             position: fixed; inset: 0;
-            background: radial-gradient(circle at 50% 50%, transparent 30%, var(--bg) 110%);
+            background: radial-gradient(circle at 50% 50%, transparent <span data-i18n="cp_banner_pct"><span data-i18n="cp_banner_pct"><span data-i18n="cp_banner_pct"><span data-i18n="cp_banner_pct"><span data-i18n="cp_banner_pct"><span data-i18n="cp_banner_pct">30%</span></span></span></span></span></span>, var(--bg) 110%);
             z-index: -1;
         }
 
@@ -617,10 +617,10 @@
     <!-- COPY TRADING SECTION -->
     <section class="section" id="copy-trading" style="position: relative; background: radial-gradient(circle at 50% 50%, rgba(157, 80, 187, 0.05) 0%, transparent 70%);">
         <div class="container">
-            <div style="display: inline-block; padding: 5px 15px; background: rgba(157, 80, 187, 0.2); border: 1px solid var(--accent-purple); color: #e2b0ff; font-weight: 700; font-size: 0.8rem; border-radius: 20px; margin-bottom: 20px; letter-spacing: 1px;">NOVIDADE EXCLUSIVA</div>
+            <div style="display: inline-block; padding: 5px 15px; background: rgba(157, 80, 187, 0.2); border: 1px solid var(--accent-purple); color: #e2b0ff; font-weight: 700; font-size: 0.8rem; border-radius: 20px; margin-bottom: 20px; letter-spacing: 1px;" data-i18n="cp_badge" data-i18n="cp_badge" data-i18n="cp_badge" data-i18n="cp_badge" data-i18n="cp_badge" data-i18n="cp_badge">NOVIDADE EXCLUSIVA</div>
             
             <h2 class="section-title" style="margin-bottom: 20px; font-size: clamp(2.2rem, 5vw, 4rem);">
-                AURATRADE <br><span class="highlight" style="color: var(--accent-purple); -webkit-text-fill-color: initial; background: none;">COPY TRADING</span>
+                <span data-i18n="cp_title_pt1">AURATRADE</span> <br><span class="highlight" style="color: var(--accent-purple); -webkit-text-fill-color: initial; background: none;" data-i18n="cp_title_pt2">COPY TRADING</span>
             </h2>
             
             <p style="font-size: 1.2rem; color: white; max-width: 800px; margin: 0 auto 30px auto; font-weight: 600;">
@@ -630,65 +630,65 @@
             <div style="display: inline-flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.5); padding: 15px 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 60px;">
                 <i class="fas fa-user-friends" style="color: var(--accent-purple); font-size: 2rem;"></i>
                 <div style="text-align: left;">
-                    <div style="color: var(--accent); font-weight: 800; font-size: 1.1rem;">SEM EXPERIÊNCIA? SEM PROBLEMA!</div>
-                    <div style="color: var(--text-muted); font-size: 0.9rem;">AURA COPY É PARA TODOS.</div>
+                    <div style="color: var(--accent); font-weight: 800; font-size: 1.1rem;" data-i18n="cp_alert_title">SEM EXPERIÊNCIA? SEM PROBLEMA!</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem;" data-i18n="cp_alert_desc">AURA COPY É PARA TODOS.</div>
                 </div>
             </div>
 
-            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.8rem; color: white;">COMO FUNCIONA?</h3>
+            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.8rem; color: white;" data-i18n="cp_how_title" data-i18n="cp_how_title" data-i18n="cp_how_title" data-i18n="cp_how_title" data-i18n="cp_how_title" data-i18n="cp_how_title">COMO FUNCIONA?</h3>
             <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 80px;">
                 <div class="step-card" style="border-color: rgba(157, 80, 187, 0.3);">
                     <div style="background: var(--accent-purple); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">1</div>
                     <i class="fas fa-user-circle" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px; display: block;"></i>
-                    <h4 class="syne" style="margin-bottom: 10px;">ABRA SUA CONTA</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted);">Crie sua conta gratuita na plataforma AuraTrade.</p>
+                    <h4 class="syne" style="margin-bottom: 10px;" data-i18n="cp_step1_title" data-i18n="cp_step1_title" data-i18n="cp_step1_title" data-i18n="cp_step1_title" data-i18n="cp_step1_title" data-i18n="cp_step1_title">ABRA SUA CONTA</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cp_step1_desc" data-i18n="cp_step1_desc" data-i18n="cp_step1_desc" data-i18n="cp_step1_desc" data-i18n="cp_step1_desc" data-i18n="cp_step1_desc">Crie sua conta gratuita na plataforma AuraTrade.</p>
                 </div>
                 <div class="step-card" style="border-color: rgba(0, 212, 255, 0.3);">
                     <div style="background: var(--accent); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">2</div>
                     <i class="fas fa-clipboard-check" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px; display: block;"></i>
-                    <h4 class="syne" style="margin-bottom: 10px;">REGISTRE-SE COMO PROVEDOR</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted);">Ative sua conta como provedor de sinais e configure seu perfil.</p>
+                    <h4 class="syne" style="margin-bottom: 10px;" data-i18n="cp_step2_title" data-i18n="cp_step2_title" data-i18n="cp_step2_title" data-i18n="cp_step2_title" data-i18n="cp_step2_title" data-i18n="cp_step2_title">REGISTRE-SE COMO PROVEDOR</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cp_step2_desc" data-i18n="cp_step2_desc" data-i18n="cp_step2_desc" data-i18n="cp_step2_desc" data-i18n="cp_step2_desc" data-i18n="cp_step2_desc">Ative sua conta como provedor de sinais e configure seu perfil.</p>
                 </div>
                 <div class="step-card" style="border-color: rgba(0, 230, 118, 0.3);">
                     <div style="background: #00e676; color: #000; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">3</div>
                     <i class="fas fa-broadcast-tower" style="font-size: 2.5rem; color: #00e676; margin-bottom: 15px; display: block;"></i>
-                    <h4 class="syne" style="margin-bottom: 10px;">ADQUIRA O AURA MASTER</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted);">Conecte-se ao robô institucional e receba sinais.</p>
+                    <h4 class="syne" style="margin-bottom: 10px;" data-i18n="cp_step3_title" data-i18n="cp_step3_title" data-i18n="cp_step3_title" data-i18n="cp_step3_title" data-i18n="cp_step3_title" data-i18n="cp_step3_title">ADQUIRA O AURA MASTER</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cp_step3_desc" data-i18n="cp_step3_desc" data-i18n="cp_step3_desc" data-i18n="cp_step3_desc" data-i18n="cp_step3_desc" data-i18n="cp_step3_desc">Conecte-se ao robô institucional e receba sinais.</p>
                 </div>
                 <div class="step-card" style="border-color: rgba(157, 80, 187, 0.3);">
                     <div style="background: var(--accent-purple); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">4</div>
                     <i class="fas fa-share-alt" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px; display: block;"></i>
-                    <h4 class="syne" style="margin-bottom: 10px;">COMPARTILHE SEU TOKEN</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted);">Compartilhe seu token com copiadores e comece a ganhar!</p>
+                    <h4 class="syne" style="margin-bottom: 10px;" data-i18n="cp_step4_title" data-i18n="cp_step4_title" data-i18n="cp_step4_title" data-i18n="cp_step4_title" data-i18n="cp_step4_title" data-i18n="cp_step4_title">COMPARTILHE SEU TOKEN</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cp_step4_desc" data-i18n="cp_step4_desc" data-i18n="cp_step4_desc" data-i18n="cp_step4_desc" data-i18n="cp_step4_desc" data-i18n="cp_step4_desc">Compartilhe seu token com copiadores e comece a ganhar!</p>
                 </div>
             </div>
 
-            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.5rem; color: #00e676;">VANTAGENS DE SER UM PROVEDOR</h3>
+            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.5rem; color: #00e676;" data-i18n="cp_adv_title" data-i18n="cp_adv_title" data-i18n="cp_adv_title" data-i18n="cp_adv_title" data-i18n="cp_adv_title" data-i18n="cp_adv_title">VANTAGENS DE SER UM PROVEDOR</h3>
             <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center; margin-bottom: 60px;">
                 <div>
                     <i class="fas fa-coins" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px;"></i>
-                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;">GANHE ATÉ 30% DE COMISSÃO</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">Receba comissões sobre os lucros gerados pelos copiadores.</p>
+                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;" data-i18n="cp_adv1_title" data-i18n="cp_banner_earn">GANHE ATÉ</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="cp_adv1_desc">Receba comissões sobre os lucros gerados pelos copiadores.</p>
                 </div>
                 <div>
                     <i class="fas fa-chart-line" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px;"></i>
-                    <h4 style="color: var(--accent); font-size: 0.95rem; margin-bottom: 10px;">RENDA PASSIVA</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">Ganhe enquanto seus sinais trabalham por você.</p>
+                    <h4 style="color: var(--accent); font-size: 0.95rem; margin-bottom: 10px;" data-i18n="cp_adv2_title" data-i18n="cp_adv2_title" data-i18n="cp_adv2_title" data-i18n="cp_adv2_title" data-i18n="cp_adv2_title" data-i18n="cp_adv2_title">RENDA PASSIVA</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="cp_adv2_desc" data-i18n="cp_adv2_desc" data-i18n="cp_adv2_desc" data-i18n="cp_adv2_desc" data-i18n="cp_adv2_desc" data-i18n="cp_adv2_desc">Ganhe enquanto seus sinais trabalham por você.</p>
                 </div>
                 <div>
                     <i class="fas fa-users" style="font-size: 2.5rem; color: #00e676; margin-bottom: 15px;"></i>
-                    <h4 style="color: #00e676; font-size: 0.95rem; margin-bottom: 10px;">CONSTRUA SUA COMUNIDADE</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">Tenha seus copiadores e expanda sua rede.</p>
+                    <h4 style="color: #00e676; font-size: 0.95rem; margin-bottom: 10px;" data-i18n="cp_adv3_title" data-i18n="cp_adv3_title" data-i18n="cp_adv3_title" data-i18n="cp_adv3_title" data-i18n="cp_adv3_title" data-i18n="cp_adv3_title">CONSTRUA SUA COMUNIDADE</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="cp_adv3_desc" data-i18n="cp_adv3_desc" data-i18n="cp_adv3_desc" data-i18n="cp_adv3_desc" data-i18n="cp_adv3_desc" data-i18n="cp_adv3_desc">Tenha seus copiadores e expanda sua rede.</p>
                 </div>
                 <div>
                     <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: #f39c12; margin-bottom: 15px;"></i>
-                    <h4 style="color: #f39c12; font-size: 0.95rem; margin-bottom: 10px;">SEGURO E AUTOMÁTICO</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">Execução transparente e com total controle de risco.</p>
+                    <h4 style="color: #f39c12; font-size: 0.95rem; margin-bottom: 10px;" data-i18n="cp_adv4_title">SEGURO E AUTOMÁTICO</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="cp_adv4_desc">Execução transparente e com total controle de risco.</p>
                 </div>
                 <div>
                     <i class="fas fa-tachometer-alt" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px;"></i>
-                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;">PAINEL DE DESEMPENHO</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">Acompanhe ganhos e comissões em tempo real.</p>
+                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;" data-i18n="cp_adv5_title" data-i18n="cp_adv5_title" data-i18n="cp_adv5_title" data-i18n="cp_adv5_title" data-i18n="cp_adv5_title" data-i18n="cp_adv5_title">PAINEL DE DESEMPENHO</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);" data-i18n="cp_adv5_desc">Acompanhe ganhos e comissões em tempo real.</p>
                 </div>
             </div>
 
@@ -696,19 +696,19 @@
                 <div style="flex: 1; min-width: 300px;">
                     <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 15px;">
                         <i class="fas fa-trophy" style="font-size: 3rem; color: var(--accent);"></i>
-                        <h3 class="syne" style="font-size: 1.5rem;">TRANSFORME SUA ESTRATÉGIA EM UMA <span style="color: #00e676;">FONTE DE RENDA!</span></h3>
+                        <h3 class="syne" style="font-size: 1.5rem;" data-i18n="cp_banner_title_pt1">TRANSFORME SUA ESTRATÉGIA EM UMA </span><span style="color: #00e676;" data-i18n="cp_banner_title_pt2">FONTE DE RENDA!</span></h3>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 0.95rem;">Com AuraTrade Copy Trading, você não precisa operar por todos. Deixe que outros copiem seus sinais e ganhe com cada resultado positivo!</p>
+                    <p style="color: var(--text-muted); font-size: 0.95rem;" data-i18n="cp_banner_desc">Com AuraTrade Copy Trading, você não precisa operar por todos. Deixe que outros copiem seus sinais e ganhe com cada resultado positivo!</p>
                 </div>
                 <div style="text-align: center; border-left: 1px solid var(--glass-border); padding-left: 30px;">
                     <h4 style="font-size: 1rem; color: white;">GANHE ATÉ</h4>
                     <div style="font-size: 3rem; font-weight: 900; color: #00e676; line-height: 1;">30%</div>
-                    <div style="font-size: 0.9rem; color: white;">DE COMISSÃO</div>
+                    <div style="font-size: 0.9rem; color: white;" data-i18n="cp_banner_comm">DE COMISSÃO</div>
                 </div>
             </div>
             
             <div style="text-align: center; margin-top: 50px;">
-                <a href="/login?mode=register" class="btn-access" style="padding: 15px 40px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(157, 80, 187, 0.4);">SEJA PROVEDOR. LIDERE. GANHE.</a>
+                <a href="/login?mode=register" class="btn-access" style="padding: 15px 40px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(157, 80, 187, 0.4);" data-i18n="cp_btn_provider" data-i18n="cp_btn_provider" data-i18n="cp_btn_provider" data-i18n="cp_btn_provider" data-i18n="cp_btn_provider" data-i18n="cp_btn_provider">SEJA PROVEDOR. LIDERE. GANHE.</a>
             </div>
         </div>
     </section>
@@ -861,7 +861,43 @@
 
     <script>
         const translations = {
-            pt: {
+            pt: {\n
+                  cp_badge: "NOVIDADE EXCLUSIVA",
+                  cp_title_pt1: "AURATRADE",
+                  cp_title_pt2: "COPY TRADING",
+                  cp_subtitle_pt1: "QUALQUER PESSOA PODE SE TORNAR UM PROVEDOR DE SINAIS E GANHAR",
+                  cp_subtitle_pt2: "COMISSÕES DE ATÉ 30%",
+                  cp_subtitle_pt3: "SOBRE OS RESULTADOS!",
+                  cp_alert_title: "SEM EXPERIÊNCIA? SEM PROBLEMA!",
+                  cp_alert_desc: "AURA COPY É PARA TODOS.",
+                  cp_how_title: "COMO FUNCIONA?",
+                  cp_step1_title: "ABRA SUA CONTA",
+                  cp_step1_desc: "Crie sua conta gratuita na plataforma AuraTrade.",
+                  cp_step2_title: "REGISTRE-SE COMO PROVEDOR",
+                  cp_step2_desc: "Ative sua conta como provedor de sinais e configure seu perfil.",
+                  cp_step3_title: "ADQUIRA O AURA MASTER",
+                  cp_step3_desc: "Conecte-se ao robô institucional e receba sinais.",
+                  cp_step4_title: "COMPARTILHE SEU TOKEN",
+                  cp_step4_desc: "Compartilhe seu token com copiadores e comece a ganhar!",
+                  cp_adv_title: "VANTAGENS DE SER UM PROVEDOR",
+                  cp_adv1_title: "GANHE ATÉ 30% DE COMISSÃO",
+                  cp_adv1_desc: "Receba comissões sobre os lucros gerados pelos copiadores.",
+                  cp_adv2_title: "RENDA PASSIVA",
+                  cp_adv2_desc: "Ganhe enquanto seus sinais trabalham por você.",
+                  cp_adv3_title: "CONSTRUA SUA COMUNIDADE",
+                  cp_adv3_desc: "Tenha seus copiadores e expanda sua rede.",
+                  cp_adv4_title: "SEGURO E AUTOMÁTICO",
+                  cp_adv4_desc: "Execução transparente e com total controle de risco.",
+                  cp_adv5_title: "PAINEL DE DESEMPENHO",
+                  cp_adv5_desc: "Acompanhe ganhos e comissões em tempo real.",
+                  cp_banner_title_pt1: "TRANSFORME SUA ESTRATÉGIA EM UMA ",
+                  cp_banner_title_pt2: "FONTE DE RENDA!",
+                  cp_banner_desc: "Com AuraTrade Copy Trading, você não precisa operar por todos. Deixe que outros copiem seus sinais e ganhe com cada resultado positivo!",
+                  cp_banner_earn: "GANHE ATÉ",
+                  cp_banner_pct: "30%",
+                  cp_banner_comm: "DE COMISSÃO",
+                  cp_btn_provider: "SEJA PROVEDOR. LIDERE. GANHE.",
+
                 nav_services: "Bots",
                 nav_about: "Sobre",
                 nav_plans: "Planos",
@@ -973,7 +1009,43 @@
                 terms_p5: "<strong>5. Isenção de Responsabilidade</strong><br>O desempenho passado não é indicativo de resultados futuros. Qualquer perda decorrente do uso da nossa tecnologia ou volatilidade do mercado é da exclusiva responsabilidade do utilizador. Nunca invista dinheiro que não possa perder.",
                 terms_btn_accept: "Entendi e Aceito"
             },
-            en: {
+            en: {\n
+                  cp_badge: "EXCLUSIVE NEWS",
+                  cp_title_pt1: "AURATRADE",
+                  cp_title_pt2: "COPY TRADING",
+                  cp_subtitle_pt1: "ANYONE CAN BECOME A SIGNAL PROVIDER AND EARN",
+                  cp_subtitle_pt2: "UP TO 30% COMMISSION",
+                  cp_subtitle_pt3: "ON RESULTS!",
+                  cp_alert_title: "NO EXPERIENCE? NO PROBLEM!",
+                  cp_alert_desc: "AURA COPY IS FOR EVERYONE.",
+                  cp_how_title: "HOW IT WORKS?",
+                  cp_step1_title: "OPEN YOUR ACCOUNT",
+                  cp_step1_desc: "Create your free account on the AuraTrade platform.",
+                  cp_step2_title: "REGISTER AS A PROVIDER",
+                  cp_step2_desc: "Activate your signal provider account and set up your profile.",
+                  cp_step3_title: "GET AURA MASTER",
+                  cp_step3_desc: "Connect to the institutional bot and receive signals.",
+                  cp_step4_title: "SHARE YOUR TOKEN",
+                  cp_step4_desc: "Share your token with copiers and start earning!",
+                  cp_adv_title: "ADVANTAGES OF BEING A PROVIDER",
+                  cp_adv1_title: "EARN UP TO 30% COMMISSION",
+                  cp_adv1_desc: "Receive commissions on the profits generated by copiers.",
+                  cp_adv2_title: "PASSIVE INCOME",
+                  cp_adv2_desc: "Earn while your signals work for you.",
+                  cp_adv3_title: "BUILD YOUR COMMUNITY",
+                  cp_adv3_desc: "Have your copiers and expand your network.",
+                  cp_adv4_title: "SECURE AND AUTOMATIC",
+                  cp_adv4_desc: "Transparent execution with full risk control.",
+                  cp_adv5_title: "PERFORMANCE DASHBOARD",
+                  cp_adv5_desc: "Track earnings and commissions in real-time.",
+                  cp_banner_title_pt1: "TURN YOUR STRATEGY INTO A ",
+                  cp_banner_title_pt2: "SOURCE OF INCOME!",
+                  cp_banner_desc: "With AuraTrade Copy Trading, you don't need to trade for everyone. Let others copy your signals and earn with every positive result!",
+                  cp_banner_earn: "EARN UP TO",
+                  cp_banner_pct: "30%",
+                  cp_banner_comm: "COMMISSION",
+                  cp_btn_provider: "BE A PROVIDER. LEAD. EARN.",
+
                 nav_services: "Bots",
                 nav_about: "About",
                 nav_plans: "Plans",
@@ -1085,7 +1157,43 @@
                 terms_p5: "<strong>5. Disclaimer</strong><br>Past performance is not indicative of future results. Any loss resulting from the use of our technology or market volatility is the sole responsibility of the user. Never invest money you cannot afford to lose.",
                 terms_btn_accept: "I Understand and Accept"
             },
-            fr: {
+            fr: {\n
+                  cp_badge: "NOUVEAUTÉ EXCLUSIVE",
+                  cp_title_pt1: "AURATRADE",
+                  cp_title_pt2: "COPY TRADING",
+                  cp_subtitle_pt1: "TOUT LE MONDE PEUT DEVENIR FOURNISSEUR DE SIGNAUX ET GAGNER",
+                  cp_subtitle_pt2: "JUSQU'À 30% DE COMMISSIONS",
+                  cp_subtitle_pt3: "SUR LES RÉSULTATS !",
+                  cp_alert_title: "PAS D'EXPÉRIENCE ? PAS DE PROBLÈME !",
+                  cp_alert_desc: "AURA COPY EST POUR TOUT LE MONDE.",
+                  cp_how_title: "COMMENT ÇA MARCHE ?",
+                  cp_step1_title: "OUVREZ VOTRE COMPTE",
+                  cp_step1_desc: "Créez votre compte gratuit sur la plateforme AuraTrade.",
+                  cp_step2_title: "INSCRIVEZ-VOUS COMME FOURNISSEUR",
+                  cp_step2_desc: "Activez votre compte fournisseur de signaux et configurez votre profil.",
+                  cp_step3_title: "OBTENEZ AURA MASTER",
+                  cp_step3_desc: "Connectez-vous au robot institutionnel et recevez des signaux.",
+                  cp_step4_title: "PARTAGEZ VOTRE JETON",
+                  cp_step4_desc: "Partagez votre jeton avec des copieurs et commencez à gagner !",
+                  cp_adv_title: "AVANTAGES D'ÊTRE FOURNISSEUR",
+                  cp_adv1_title: "GAGNEZ JUSQU'À 30% DE COMMISSION",
+                  cp_adv1_desc: "Recevez des commissions sur les bénéfices générés par les copieurs.",
+                  cp_adv2_title: "REVENU PASSIF",
+                  cp_adv2_desc: "Gagnez pendant que vos signaux travaillent pour vous.",
+                  cp_adv3_title: "CONSTRUISEZ VOTRE COMMUNAUTÉ",
+                  cp_adv3_desc: "Ayez vos copieurs et étendez votre réseau.",
+                  cp_adv4_title: "SÉCURISÉ ET AUTOMATIQUE",
+                  cp_adv4_desc: "Exécution transparente avec un contrôle total des risques.",
+                  cp_adv5_title: "TABLEAU DE BORD DE PERFORMANCE",
+                  cp_adv5_desc: "Suivez les gains et les commissions en temps réel.",
+                  cp_banner_title_pt1: "TRANSFORMEZ VOTRE STRATÉGIE EN UNE ",
+                  cp_banner_title_pt2: "SOURCE DE REVENUS !",
+                  cp_banner_desc: "Avec AuraTrade Copy Trading, vous n'avez pas besoin de trader pour tout le monde. Laissez d'autres copier vos signaux et gagnez à chaque résultat positif !",
+                  cp_banner_earn: "GAGNEZ JUSQU'À",
+                  cp_banner_pct: "30%",
+                  cp_banner_comm: "DE COMMISSION",
+                  cp_btn_provider: "SOYEZ FOURNISSEUR. DIRIGEZ. GAGNEZ.",
+
                 nav_services: "Bots",
                 nav_about: "À propos",
                 nav_plans: "Tarifs",
@@ -1197,7 +1305,43 @@
                 terms_p5: "<strong>5. Clause de Non-responsabilité</strong><br>Les performances passées ne préjugent pas des résultats futurs. Toute perte résultant de l'utilisation de notre technologie est de la seule responsabilité de l'utilisateur. N'investissez jamais de l'argent que vous ne pouvez pas vous permettre de perdre.",
                 terms_btn_accept: "Je Comprends et J'accepte"
             },
-            es: {
+            es: {\n
+                  cp_badge: "NOVEDAD EXCLUSIVA",
+                  cp_title_pt1: "AURATRADE",
+                  cp_title_pt2: "COPY TRADING",
+                  cp_subtitle_pt1: "CUALQUIERA PUEDE CONVERTIRSE EN PROVEEDOR DE SEÑALES Y GANAR",
+                  cp_subtitle_pt2: "¡COMISIONES DE HASTA 30%",
+                  cp_subtitle_pt3: "SOBRE LOS RESULTADOS!",
+                  cp_alert_title: "¿SIN EXPERIENCIA? ¡NO HAY PROBLEMA!",
+                  cp_alert_desc: "AURA COPY ES PARA TODOS.",
+                  cp_how_title: "¿CÓMO FUNCIONA?",
+                  cp_step1_title: "ABRE TU CUENTA",
+                  cp_step1_desc: "Crea tu cuenta gratuita en la plataforma AuraTrade.",
+                  cp_step2_title: "REGÍSTRATE COMO PROVEEDOR",
+                  cp_step2_desc: "Activa tu cuenta como proveedor de señales y configura tu perfil.",
+                  cp_step3_title: "ADQUIERE AURA MASTER",
+                  cp_step3_desc: "Conéctate al robot institucional y recibe señales.",
+                  cp_step4_title: "COMPARTE TU TOKEN",
+                  cp_step4_desc: "¡Comparte tu token con copiadores y empieza a ganar!",
+                  cp_adv_title: "VENTAJAS DE SER UN PROVEEDOR",
+                  cp_adv1_title: "GANA HASTA 30% DE COMISIÓN",
+                  cp_adv1_desc: "Recibe comisiones sobre las ganancias generadas por los copiadores.",
+                  cp_adv2_title: "INGRESOS PASIVOS",
+                  cp_adv2_desc: "Gana mientras tus señales trabajan por ti.",
+                  cp_adv3_title: "CONSTRUYE TU COMUNIDAD",
+                  cp_adv3_desc: "Ten a tus copiadores y expande tu red.",
+                  cp_adv4_title: "SEGURO Y AUTOMÁTICO",
+                  cp_adv4_desc: "Ejecución transparente y con total control de riesgos.",
+                  cp_adv5_title: "PANEL DE RENDIMIENTO",
+                  cp_adv5_desc: "Sigue ganancias y comisiones en tiempo real.",
+                  cp_banner_title_pt1: "¡CONVIERTE TU ESTRATEGIA EN UNA ",
+                  cp_banner_title_pt2: "FUENTE DE INGRESOS!",
+                  cp_banner_desc: "Con AuraTrade Copy Trading, no necesitas operar por todos. ¡Deja que otros copien tus señales y gana con cada resultado positivo!",
+                  cp_banner_earn: "GANA HASTA",
+                  cp_banner_pct: "30%",
+                  cp_banner_comm: "DE COMISIÓN",
+                  cp_btn_provider: "SÉ PROVEEDOR. LIDERA. GANA.",
+
                 nav_services: "Bots",
                 nav_about: "Sobre",
                 nav_plans: "Planes",

@@ -1085,7 +1085,7 @@
                 <td><span class="badge ${p.isActive ? 'badge-active' : ''}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
                 <td>
                     <button class="btn" style="color: ${p.isActive ? 'var(--warn)' : 'var(--success)'}" onclick="togglePlan('${p.id}', ${p.isActive})">${p.isActive ? 'Desativar' : 'Ativar'}</button>
-                    <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays})">✏️</button>
+                    <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays}, '${p.lemonSqueezyUrl || ''}')">✏️</button>
                     <button class="btn" style="color:var(--bear)" onclick="deletePlan('${p.id}')">🗑️</button>
                 </td>
             </tr>
@@ -1093,12 +1093,13 @@
     }
 
     let currentPlanId = null;
-    function openPlanModal(id = null, name = '', price = '', days = '') {
+    function openPlanModal(id = null, name = '', price = '', days = '', lsUrl = '') {
         currentPlanId = id;
         document.getElementById('planModalTitle').textContent = id ? 'Editar Plano' : 'Novo Plano de Licença';
         document.getElementById('planName').value = name;
         document.getElementById('planPrice').value = price;
         document.getElementById('planDays').value = days;
+          document.getElementById('planLemonSqueezyUrl').value = lsUrl || '';
         document.getElementById('savePlanBtn').onclick = savePlan;
         document.getElementById('planModal').classList.add('active');
     }
@@ -1107,7 +1108,8 @@
         const payload = {
             name: document.getElementById('planName').value,
             price: document.getElementById('planPrice').value,
-            durationDays: document.getElementById('planDays').value
+            durationDays: document.getElementById('planDays').value,
+              lemonSqueezyUrl: document.getElementById('planLemonSqueezyUrl').value
         };
         const method = currentPlanId ? "PUT" : "POST";
         const url = "/api/admin/plans" + (currentPlanId ? "/" + currentPlanId : "");

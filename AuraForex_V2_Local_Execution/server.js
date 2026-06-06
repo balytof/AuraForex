@@ -1521,10 +1521,10 @@ app.get("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
 });
 
 app.post("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
-  const { name, price, durationDays } = req.body;
+  const { name, price, durationDays, lemonSqueezyUrl } = req.body;
   try {
     const plan = await prisma.licensePlan.create({
-      data: { name, price: parseFloat(price), durationDays: parseInt(durationDays) }
+      data: { name, price: parseFloat(price), durationDays: parseInt(durationDays), lemonSqueezyUrl }
     });
     res.json({ success: true, plan });
   } catch (err) {
@@ -1534,13 +1534,14 @@ app.post("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
 
 app.put("/api/admin/plans/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, price, durationDays, isActive } = req.body;
+  const { name, price, durationDays, isActive, lemonSqueezyUrl } = req.body;
   try {
     const dataToUpdate = {};
     if (name !== undefined) dataToUpdate.name = name;
     if (price !== undefined) dataToUpdate.price = parseFloat(price);
     if (durationDays !== undefined) dataToUpdate.durationDays = parseInt(durationDays);
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
+      if (lemonSqueezyUrl !== undefined) dataToUpdate.lemonSqueezyUrl = lemonSqueezyUrl;
 
     const plan = await prisma.licensePlan.update({
       where: { id },
