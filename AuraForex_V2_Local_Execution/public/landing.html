@@ -551,6 +551,7 @@
         </div>
         <div class="nav-links" id="navLinks">
             <a href="#services" data-i18n="nav_services" onclick="toggleMenu()">Bots</a>
+            <a href="#copy-trading" data-i18n="nav_copy_trading" onclick="toggleMenu()">Copy Trading</a>
             <a href="#about" data-i18n="nav_about" onclick="toggleMenu()">Sobre</a>
             <a href="#plans" data-i18n="nav_plans" onclick="toggleMenu()">Planos</a>
             <a href="#access" onclick="toggleMenu()">Acesso</a>
@@ -609,6 +610,105 @@
                         <button onclick="openPammModal(event)" style="color: var(--accent); background: transparent; text-decoration: none; font-weight: 600; font-size: 0.85rem; border: 1px solid var(--accent); padding: 9px 20px; border-radius: 30px; transition: 0.3s; white-space: nowrap; cursor: pointer;" onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" onmouseout="this.style.background='transparent'">Saber mais</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COPY TRADING SECTION -->
+    <section class="section" id="copy-trading" style="position: relative; background: radial-gradient(circle at 50% 50%, rgba(157, 80, 187, 0.05) 0%, transparent 70%);">
+        <div class="container">
+            <div style="display: inline-block; padding: 5px 15px; background: rgba(157, 80, 187, 0.2); border: 1px solid var(--accent-purple); color: #e2b0ff; font-weight: 700; font-size: 0.8rem; border-radius: 20px; margin-bottom: 20px; letter-spacing: 1px;">NOVIDADE EXCLUSIVA</div>
+            
+            <h2 class="section-title" style="margin-bottom: 20px; font-size: clamp(2.2rem, 5vw, 4rem);">
+                AURATRADE <br><span class="highlight" style="color: var(--accent-purple); -webkit-text-fill-color: initial; background: none;">COPY TRADING</span>
+            </h2>
+            
+            <p style="font-size: 1.2rem; color: white; max-width: 800px; margin: 0 auto 30px auto; font-weight: 600;">
+                QUALQUER PESSOA PODE SE TORNAR UM PROVEDOR DE SINAIS E GANHAR <span style="color: #00e676;">COMISSÕES DE ATÉ 30%</span> SOBRE OS RESULTADOS!
+            </p>
+
+            <div style="display: inline-flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.5); padding: 15px 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 60px;">
+                <i class="fas fa-user-friends" style="color: var(--accent-purple); font-size: 2rem;"></i>
+                <div style="text-align: left;">
+                    <div style="color: var(--accent); font-weight: 800; font-size: 1.1rem;">SEM EXPERIÊNCIA? SEM PROBLEMA!</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">AURA COPY É PARA TODOS.</div>
+                </div>
+            </div>
+
+            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.8rem; color: white;">COMO FUNCIONA?</h3>
+            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 80px;">
+                <div class="step-card" style="border-color: rgba(157, 80, 187, 0.3);">
+                    <div style="background: var(--accent-purple); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">1</div>
+                    <i class="fas fa-user-circle" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px; display: block;"></i>
+                    <h4 class="syne" style="margin-bottom: 10px;">ABRA SUA CONTA</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Crie sua conta gratuita na plataforma AuraTrade.</p>
+                </div>
+                <div class="step-card" style="border-color: rgba(0, 212, 255, 0.3);">
+                    <div style="background: var(--accent); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">2</div>
+                    <i class="fas fa-clipboard-check" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px; display: block;"></i>
+                    <h4 class="syne" style="margin-bottom: 10px;">REGISTRE-SE COMO PROVEDOR</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Ative sua conta como provedor de sinais e configure seu perfil.</p>
+                </div>
+                <div class="step-card" style="border-color: rgba(0, 230, 118, 0.3);">
+                    <div style="background: #00e676; color: #000; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">3</div>
+                    <i class="fas fa-broadcast-tower" style="font-size: 2.5rem; color: #00e676; margin-bottom: 15px; display: block;"></i>
+                    <h4 class="syne" style="margin-bottom: 10px;">ADQUIRA O AURA MASTER</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Conecte-se ao robô institucional e receba sinais.</p>
+                </div>
+                <div class="step-card" style="border-color: rgba(157, 80, 187, 0.3);">
+                    <div style="background: var(--accent-purple); color: white; width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-bottom: 15px;">4</div>
+                    <i class="fas fa-share-alt" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px; display: block;"></i>
+                    <h4 class="syne" style="margin-bottom: 10px;">COMPARTILHE SEU TOKEN</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Compartilhe seu token com copiadores e comece a ganhar!</p>
+                </div>
+            </div>
+
+            <h3 class="syne" style="margin-bottom: 40px; font-size: 1.5rem; color: #00e676;">VANTAGENS DE SER UM PROVEDOR</h3>
+            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; text-align: center; margin-bottom: 60px;">
+                <div>
+                    <i class="fas fa-coins" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px;"></i>
+                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;">GANHE ATÉ 30% DE COMISSÃO</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Receba comissões sobre os lucros gerados pelos copiadores.</p>
+                </div>
+                <div>
+                    <i class="fas fa-chart-line" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px;"></i>
+                    <h4 style="color: var(--accent); font-size: 0.95rem; margin-bottom: 10px;">RENDA PASSIVA</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Ganhe enquanto seus sinais trabalham por você.</p>
+                </div>
+                <div>
+                    <i class="fas fa-users" style="font-size: 2.5rem; color: #00e676; margin-bottom: 15px;"></i>
+                    <h4 style="color: #00e676; font-size: 0.95rem; margin-bottom: 10px;">CONSTRUA SUA COMUNIDADE</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Tenha seus copiadores e expanda sua rede.</p>
+                </div>
+                <div>
+                    <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: #f39c12; margin-bottom: 15px;"></i>
+                    <h4 style="color: #f39c12; font-size: 0.95rem; margin-bottom: 10px;">SEGURO E AUTOMÁTICO</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Execução transparente e com total controle de risco.</p>
+                </div>
+                <div>
+                    <i class="fas fa-tachometer-alt" style="font-size: 2.5rem; color: var(--accent-purple); margin-bottom: 15px;"></i>
+                    <h4 style="color: var(--accent-purple); font-size: 0.95rem; margin-bottom: 10px;">PAINEL DE DESEMPENHO</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Acompanhe ganhos e comissões em tempo real.</p>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 20px; padding: 40px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 30px; text-align: left;">
+                <div style="flex: 1; min-width: 300px;">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 15px;">
+                        <i class="fas fa-trophy" style="font-size: 3rem; color: var(--accent);"></i>
+                        <h3 class="syne" style="font-size: 1.5rem;">TRANSFORME SUA ESTRATÉGIA EM UMA <span style="color: #00e676;">FONTE DE RENDA!</span></h3>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.95rem;">Com AuraTrade Copy Trading, você não precisa operar por todos. Deixe que outros copiem seus sinais e ganhe com cada resultado positivo!</p>
+                </div>
+                <div style="text-align: center; border-left: 1px solid var(--glass-border); padding-left: 30px;">
+                    <h4 style="font-size: 1rem; color: white;">GANHE ATÉ</h4>
+                    <div style="font-size: 3rem; font-weight: 900; color: #00e676; line-height: 1;">30%</div>
+                    <div style="font-size: 0.9rem; color: white;">DE COMISSÃO</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 50px;">
+                <a href="/login?mode=register" class="btn-access" style="padding: 15px 40px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(157, 80, 187, 0.4);">SEJA PROVEDOR. LIDERE. GANHE.</a>
             </div>
         </div>
     </section>

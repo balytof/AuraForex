@@ -42,13 +42,14 @@ model User {
 }
 
 model LicensePlan {
-  id           String   @id @default(uuid())
-  name         String   // "Mensal", "Anual", etc.
-  price        Float
-  durationDays Int
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String   // "Mensal", "Anual", etc.
+  price           Float
+  durationDays    Int
+  isActive        Boolean  @default(true)
+  lemonSqueezyUrl String?  // Checkout Link base do LemonSqueezy
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   licenses License[]
   requests PurchaseRequest[]
@@ -105,6 +106,8 @@ model PurchaseRequest {
   licenseType     String?
   paymentMethodId String?
   transactionHash String?
+  lemonSqueezyId  String?  @unique
+  checkoutUrl     String?
   amount          Float
   status          String   @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
   isBonusProcessed Boolean @default(false)
@@ -268,6 +271,7 @@ model Provider {
   availableGas    Float    @default(0.0)
   totalGasWithdrawn Float  @default(0.0)
   isActive        Boolean  @default(true)
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
   userId          String?  // O dono deste Provedor (opcional por retrocompatibilidade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
