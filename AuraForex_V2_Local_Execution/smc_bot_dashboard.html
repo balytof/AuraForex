@@ -5102,9 +5102,18 @@ async function submitPammDeposit(btn) {
             Assim que clicar OK, o <b>Painel de Controlo Escuro</b> será aberto no seu gráfico.<br>
             Cole a sua Licença e URL, guarde e inicie o robô!
           </p>
-          <div style="margin-top: 10px; font-size: 0.75rem; color: var(--accent); background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-            <b>Chave de Licença Pessoal:</b> <br><span id="eaLicenseKey" style="user-select: all; font-family: monospace; display:block; margin-bottom: 5px;">A carregar...</span>
-            <b>Link da API:</b> <br><span id="eaApiUrl" style="user-select: all; font-family: monospace; display:block;">A carregar...</span>
+          <div style="margin-top: 15px; font-size: 1rem; color: var(--accent); background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+            <b data-i18n="Chave de Licença Pessoal:">Chave de Licença Pessoal:</b>
+            <div class="code-block" style="margin-top: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              <span id="eaLicenseKey" style="user-select: all; font-family: monospace; font-size: 1.15rem; color: #fff; word-break: break-all;">A carregar...</span>
+              <button class="copy-btn" onclick="copyText(document.getElementById('eaLicenseKey').textContent)">Copiar</button>
+            </div>
+
+            <b data-i18n="Link da API:">Link da API:</b>
+            <div class="code-block" style="margin-top: 5px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              <span id="eaApiUrl" style="user-select: all; font-family: monospace; font-size: 1.15rem; color: #fff; word-break: break-all;">A carregar...</span>
+              <button class="copy-btn" onclick="copyText(document.getElementById('eaApiUrl').textContent)">Copiar</button>
+            </div>
           </div>
         </div>
       </div>
