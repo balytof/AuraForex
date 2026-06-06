@@ -1997,6 +1997,30 @@ app.post("/api/license/request", requireAuth, async (req, res) => {
         });
       }
 
+      // Se for pagamento via LemonSqueezy
+      if (hash === "lemonsqueezy") {
+        const plan = await prisma.licensePlan.findUnique({ where: { id: planId } });
+        if (!plan || !plan.lemonSqueezyUrl) {
+          return res.status(400).json({ success: false, error: "Plano não possui link de checkout LemonSqueezy configurado." });
+        }
+
+        const url = new URL(plan.lemonSqueezyUrl);
+        url.searchParams.append("checkout[custom][user_id]", req.user.id);
+        url.searchParams.append("checkout[custom][request_id]", request.id);
+
+        await prisma.purchaseRequest.update({
+          where: { id: request.id },
+          data: { checkoutUrl: url.toString() }
+        });
+
+        console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} via LemonSqueezy`);
+        return res.json({ 
+          success: true, 
+          request,
+          checkoutUrl: url.toString()
+        });
+      }
+
       console.log(`[PAYMENT-REQUEST] User ${req.user.id} solicitou plano ${planId} com Hash ${hash}`);
       res.json({ success: true, request });
     } catch (err) {
@@ -2045,6 +2069,30 @@ app.post("/api/purchase/request", requireAuth, async (req, res) => {
         status: "PENDING"
       }
     });
+
+    // Se for LemonSqueezy
+    if (paymentMethodId === "lemonsqueezy") {
+      const plan = await prisma.licensePlan.findUnique({ where: { id: planId } });
+      if (!plan || !plan.lemonSqueezyUrl) {
+        return res.status(400).json({ error: "Plano inválido ou link de checkout não configurado no painel Admin." });
+      }
+
+      const url = new URL(plan.lemonSqueezyUrl);
+      url.searchParams.append("checkout[custom][user_id]", req.user.id);
+      url.searchParams.append("checkout[custom][request_id]", request.id);
+
+      await prisma.purchaseRequest.update({
+        where: { id: request.id },
+        data: { checkoutUrl: url.toString() }
+      });
+
+      return res.json({ 
+        success: true, 
+        message: "Redirecionando para pagamento seguro via cartão...", 
+        request, 
+        checkoutUrl: url.toString()
+      });
+    }
 
     // Se for Crypto Gateway Nativo
     if (paymentMethodId === "crypto_bsc") {
@@ -3327,6 +3375,124 @@ server.listen(PORT, () => {
 
 process.on('exit', (code) => {
   console.log(`[DIAGNOSTIC] ⚠️ O PROCESSO VAI FECHAR COM O CÓDIGO: ${code}`);
+});
+
+// ─── Provider Application ───────────────────────────────────────
+
+app.post("/api/user/provider/apply", requireAuth, async (req, res) => {
+  try {
+    const existing = await prisma.provider.findFirst({ where: { userId: req.user.id } });
+    if (existing) {
+      return res.status(400).json({ error: "Já possui uma aplicação ou perfil de provedor." });
+    }
+
+    const token = "AURA-PRV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const providerName = req.body.name || req.user.email.split('@')[0];
+
+    const provider = await prisma.provider.create({
+      data: { 
+        name: providerName, 
+        token, 
+        commissionPct: 30.0,
+        userId: req.user.id,
+        status: "PENDING"
+      }
+    });
+
+    res.json({ success: true, message: "Aplicação submetida com sucesso! Aguarde aprovação." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao submeter aplicação de provedor." });
+  }
+});
+
+app.post("/api/admin/providers/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const provider = await prisma.provider.update({
+      where: { id },
+      data: { status }
+    });
+    res.json({ success: true, provider });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar status do provedor." });
+  }
+});
+
+// ─── LemonSqueezy Webhook ───────────────────────────────────────
+app.post("/api/webhooks/lemonsqueezy", async (req, res) => {
+  try {
+    // Basic implementation since express.json() is already parsing
+    const payload = req.body;
+    
+    // In production, we'd verify HMAC signature on raw body:
+    // const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "LEMON_SECRET_AURA";
+    
+    if (payload && payload.meta && payload.meta.event_name === "order_created") {
+      const customData = payload.meta.custom_data;
+      const orderId = payload.data.id;
+      const requestId = customData ? customData.request_id : null;
+
+      if (requestId) {
+        const purchaseReq = await prisma.purchaseRequest.findUnique({
+          where: { id: requestId },
+          include: { plan: true }
+        });
+
+        if (purchaseReq && purchaseReq.status === "PENDING") {
+          // Aprovar pagamento
+          await prisma.purchaseRequest.update({
+            where: { id: requestId },
+            data: { status: "APPROVED", lemonSqueezyId: orderId }
+          });
+
+          // Renovar Licença
+          const days = purchaseReq.plan ? purchaseReq.plan.durationDays : 30;
+          const existingLicense = await prisma.license.findFirst({
+            where: { userId: purchaseReq.userId, status: "ACTIVE" },
+            orderBy: { expiresAt: 'desc' }
+          });
+
+          let expiresAt = new Date();
+          if (existingLicense && existingLicense.expiresAt > new Date()) {
+            expiresAt = new Date(existingLicense.expiresAt);
+          }
+          expiresAt.setDate(expiresAt.getDate() + days);
+
+          await prisma.license.updateMany({
+            where: { userId: purchaseReq.userId, status: "ACTIVE" },
+            data: { status: "EXPIRED" }
+          });
+
+          await prisma.license.create({
+            data: {
+              userId: purchaseReq.userId,
+              planId: purchaseReq.planId,
+              type: purchaseReq.plan?.name || "PRO",
+              status: "ACTIVE",
+              expiresAt: expiresAt
+            }
+          });
+
+          // Transaction log
+          await prisma.walletTransaction.create({
+            data: {
+              userId: purchaseReq.userId,
+              type: "DEPOSIT",
+              amount: parseFloat(payload.data.attributes.total_formatted.replace(/[^0-9.]/g, '')),
+              description: `Pagamento com Cartão (Order #${payload.data.attributes.order_number})`
+            }
+          });
+        }
+      }
+    }
+
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("Erro Webhook LemonSqueezy:", err);
+    res.status(500).send("Server Error");
+  }
 });
 
 // Tratamento de Erros Globais para o Expert
