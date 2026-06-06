@@ -15,6 +15,7 @@ conn.on('ready', () => {
             { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` },
             { local: './affiliate_dashboard.html', remote: `${remoteBaseDir}/affiliate_dashboard.html` },
             { local: './public/i18n_dashboard.js', remote: `${remoteBaseDir}/public/i18n_dashboard.js` },
+            { local: './public/i18n_dashboard_v3.js', remote: `${remoteBaseDir}/public/i18n_dashboard_v3.js` },
             { local: './risk/store.js', remote: `${remoteBaseDir}/risk/store.js` },
             { local: './risk/risk.js', remote: `${remoteBaseDir}/risk/risk.js` },
             { local: './prisma/schema.prisma', remote: `${remoteBaseDir}/prisma/schema.prisma` },
