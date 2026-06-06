@@ -1807,19 +1807,33 @@
                     return;
                 }
                 data.providers.forEach(p => {
+                    const statusColor = p.status === 'APPROVED' ? 'var(--bull)' : p.status === 'REJECTED' ? 'var(--bear)' : '#ffb300';
+                    const statusLabel = p.status === 'APPROVED' ? '✅ Aprovado' : p.status === 'REJECTED' ? '❌ Rejeitado' : '⏳ Pendente';
                     tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${p.name}</strong></td>
-                            <td style="font-family:monospace; color:var(--accent);">
-                                ${p.token}
-                                <button class="btn" style="padding: 2px 5px; font-size: 0.7rem; margin-left: 5px;" onclick="copyToClipboard('${p.token}')" title="Copiar Token">📋</button>
+                        <tr style="border-left: 3px solid ${statusColor};">
+                            <td>
+                                <strong>${p.name}</strong><br>
+                                <span style="font-size:0.7rem; color:var(--muted);">${p.email || p.user?.email || ''}</span>
+                            </td>
+                            <td style="font-family:monospace; color:var(--accent); font-size:0.8rem;">
+                                ${p.status === 'APPROVED' ? p.token : '<span style="color:var(--muted)">—</span>'}
+                                ${p.status === 'APPROVED' ? `<button class="btn" style="padding: 2px 5px; font-size: 0.7rem; margin-left: 5px;" onclick="copyToClipboard('${p.token}')" title="Copiar Token">📋</button>` : ''}
                             </td>
                             <td>${p.commissionPct}%</td>
-                            <td>${p._count.clients}</td>
+                            <td>${p._count?.clients || 0}</td>
                             <td style="color:var(--bull);">$${p.totalGasEarned.toFixed(2)}</td>
                             <td>
-                                <span class="badge ${p.isActive ? 'badge-success' : 'badge-warning'}">${p.isActive ? 'Ativo' : 'Inativo'}</span>
-                                <button class="btn" style="padding: 2px 5px; font-size: 0.7rem; margin-left: 5px; color: ${p.isActive ? 'var(--bear)' : 'var(--bull)'}" onclick="toggleProvider('${p.id}', ${p.isActive})">${p.isActive ? 'Desativar' : 'Ativar'}</button>
+                                <span style="color:${statusColor}; font-weight:bold; font-size:0.8rem;">${statusLabel}</span>
+                            </td>
+                            <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                                ${p.status === 'PENDING' ? `
+                                    <button class="btn" style="padding:3px 8px;font-size:0.72rem;background:rgba(0,230,118,0.15);color:var(--bull);border:1px solid var(--bull);" onclick="changeProviderStatus('${p.id}', 'APPROVED')">✅ Aprovar</button>
+                                    <button class="btn" style="padding:3px 8px;font-size:0.72rem;background:rgba(255,68,68,0.15);color:var(--bear);border:1px solid var(--bear);" onclick="changeProviderStatus('${p.id}', 'REJECTED')">❌ Rejeitar</button>
+                                ` : ''}
+                                ${p.status === 'APPROVED' ? `
+                                    <button class="btn" style="padding:3px 8px;font-size:0.72rem;color:${p.isActive ? 'var(--warn)' : 'var(--bull)'};" onclick="toggleProvider('${p.id}', ${p.isActive})">${p.isActive ? '⏸ Desativar' : '▶ Ativar'}</button>
+                                ` : ''}
+                                <button class="btn" style="padding:3px 8px;font-size:0.72rem;color:var(--bear);" onclick="deleteProvider('${p.id}')" title="Eliminar candidatura">🗑️</button>
                             </td>
                         </tr>
                     `;
@@ -1859,6 +1873,17 @@
             loadProviders();
         } else {
             alert(data.error);
+        }
+    }
+
+    async function deleteProvider(id) {
+        if (!confirm('⚠️ Tem a certeza que deseja ELIMINAR esta candidatura/provedor?\nEsta ação é irreversível e o utilizador poderá submeter uma nova candidatura.')) return;
+        const data = await api(`/api/admin/providers/${id}`, 'DELETE');
+        if (data.success) {
+            alert('Candidatura eliminada com sucesso.');
+            loadProviders();
+        } else {
+            alert(data.error || 'Erro ao eliminar.');
         }
     }
 

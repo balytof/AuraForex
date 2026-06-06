@@ -1862,8 +1862,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <p style="color: var(--muted); margin-bottom: 30px;">Ganhe até 30% de comissão sobre os lucros dos seus copiadores. Preencha o formulário para submeter a sua candidatura.</p>
           
           <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 25px; border-radius: 15px; text-align: left;">
-            <label style="display: block; margin-bottom: 10px; color: var(--muted); font-size: 0.9rem;">Nome ou Apelido de Provedor:</label>
-            <input type="text" id="providerApplyName" placeholder="Ex: MasterTraderPro" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.5); color: white; margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 10px; color: var(--muted); font-size: 0.9rem;">Email:</label>
+              <input type="email" id="providerApplyEmail" placeholder="Ex: seuemail@gmail.com" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.5); color: white; margin-bottom: 20px;">
+
+              <label style="display: block; margin-bottom: 10px; color: var(--muted); font-size: 0.9rem;">Nome ou Apelido de Provedor:</label>
+              <input type="text" id="providerApplyName" placeholder="Ex: MasterTraderPro" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.5); color: white; margin-bottom: 20px;">
             
             <button onclick="submitProviderApplication(this)" class="btn btn-primary" style="width: 100%; padding: 15px; font-weight: 800;">SUBMETER CANDIDATURA</button>
           </div>
@@ -2008,6 +2011,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else if(tabId === 'provider') {
       document.getElementById('providerSection').style.display = 'block';
+        loadProviderStatus();
       document.getElementById('providerLink').classList.add('active');
       
       // Hide the main grids and header so providerSection is the only thing visible
@@ -2044,6 +2048,81 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   };
+
+  async function loadProviderStatus() {
+    try {
+      const token = localStorage.getItem('aura_token');
+      const res = await fetch('/api/user/provider/status', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+
+      const applyContainer    = document.getElementById('providerApplyContainer');
+      const pendingContainer  = document.getElementById('providerPendingContainer');
+      const rejectedContainer = document.getElementById('providerRejectedContainer');
+      const dashContainer     = document.getElementById('providerDashboardContainer');
+
+      // Hide all
+      [applyContainer, pendingContainer, rejectedContainer].forEach(el => { if(el) el.style.display = 'none'; });
+      if(dashContainer) dashContainer.style.display = 'none';
+
+      const status = data.status || 'NONE';
+      if (status === 'NONE') {
+        if(applyContainer) applyContainer.style.display = 'block';
+      } else if (status === 'PENDING') {
+        if(pendingContainer) pendingContainer.style.display = 'block';
+      } else if (status === 'REJECTED') {
+        if(rejectedContainer) rejectedContainer.style.display = 'block';
+      } else if (status === 'APPROVED') {
+        if(dashContainer) dashContainer.style.display = 'block';
+        loadProviderData();
+      }
+    } catch(err) {
+      console.error('loadProviderStatus error:', err);
+      // On error, show apply form as fallback
+      const applyContainer = document.getElementById('providerApplyContainer');
+      if(applyContainer) applyContainer.style.display = 'block';
+    }
+  }
+
+  async function submitProviderApplication(btn) {
+    const name  = (document.getElementById('providerApplyName')  || {}).value || '';
+    const email = (document.getElementById('providerApplyEmail') || {}).value || '';
+
+    if(!name.trim() || !email.trim()) {
+      alert('Por favor preencha o Nome e o Email!');
+      return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A enviar...';
+
+    try {
+      const token = localStorage.getItem('aura_token');
+      const res = await fetch('/api/user/provider/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ name: name.trim(), email: email.trim() })
+      });
+      const data = await res.json();
+      if(data.success) {
+        alert('Candidatura enviada com sucesso! Aguarde a aprovação da equipa.');
+        loadProviderStatus();
+      } else {
+        alert('Erro: ' + (data.error || 'Algo correu mal.'));
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    } catch(err) {
+      alert('Erro de rede. Tente novamente.');
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
 
   async function loadProviderData() {
     try {

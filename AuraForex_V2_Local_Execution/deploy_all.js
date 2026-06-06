@@ -33,7 +33,7 @@ conn.on('ready', () => {
         function uploadNext() {
             if (uploadsCompleted >= filesToUpload.length) {
                 console.log('All uploads complete. Restarting PM2...');
-                conn.exec('cd /root/AuraForex/AuraForex_V2_Local_Execution && pm2 restart server', (err, stream) => {
+                conn.exec('cd /root/AuraForex/AuraForex_V2_Local_Execution && npx prisma generate && npx prisma db push && pm2 restart server', (err, stream) => {
                     if (err) throw err;
                     stream.on('close', (code, signal) => {
                         console.log('PM2 restarted with code ' + code);
