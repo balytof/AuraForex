@@ -2270,6 +2270,7 @@ app.get("/api/user/provider/stats", requireAuth, async (req, res) => {
       success: true, 
       stats: {
         token: provider.token,
+        status: provider.status,
         totalGasEarned: provider.totalGasEarned,
         availableGas: currentAvailable,
         totalGasWithdrawn: provider.totalGasWithdrawn,
