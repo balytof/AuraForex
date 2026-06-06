@@ -1,33 +1,46 @@
-const { Client } = require('ssh2');
-const conn = new Client();
-conn.on('ready', () => {
-  console.log('[REPAIR] Conectado ao servidor Digital Ocean.');
-  const cmd = 'cd /root/AuraForex && sed -i "s/const PORT = 3006;/const PORT = 3005;/g" server.js && git pull origin main && pm2 restart all';
-  console.log('[REPAIR] Executando comandos de estabilização...');
-  
-  conn.exec(cmd, (err, stream) => {
-    if (err) {
-      console.error('[REPAIR] Erro na execução:', err.message);
-      conn.end();
-      return;
-    }
-    stream.on('close', (code, signal) => {
-      console.log('[REPAIR] Comandos concluídos com código: ' + code);
-      conn.end();
-      process.exit(code);
-    }).on('data', (data) => {
-      console.log('STDOUT: ' + data);
-    }).stderr.on('data', (data) => {
-      console.log('STDERR: ' + data);
-    });
-  });
-}).on('error', (err) => {
-  console.error('[REPAIR] Erro de conexão:', err.message);
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(__dirname, '../server.js');
+console.log('Reading:', filePath);
+let content = fs.readFileSync(filePath, 'utf8');
+
+const target = '          for (const { trade, reason } of toClose) {\n' +
+  '            console.log(`\\x1b[41m\\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\\x1b[0m`);\n' +
+  '            const res = await broker.closePosition(ticketId);\n' +
+  '            if (res.success) {\n' +
+  '              risk.closeTrade(trade.id, 0, reason, currentProfit);\n' +
+  '            }\n' +
+  '          }\n' +
+  '        }\n' +
+  '        }\n' +
+  '      } catch (e) {';
+
+const replace = '          for (const { trade, reason } of toClose) {\n' +
+  '            console.log(`\\x1b[41m\\x1b[37m[ALERTA] FECHANDO TICKET #${ticketId} | LUCRO: $${currentProfit.toFixed(2)} | RAZÃO: ${reason}\\x1b[0m`);\n' +
+  '            const res = await broker.closePosition(ticketId);\n' +
+  '            if (res.success) {\n' +
+  '              risk.closeTrade(trade.id, 0, reason, currentProfit);\n' +
+  '            }\n' +
+  '          }\n' +
+  '        }\n' +
+  '      } catch (e) {';
+
+const normContent = content.replace(/\r\n/g, '\n');
+const normTarget = target.replace(/\r\n/g, '\n');
+
+if (normContent.indexOf(normTarget) === -1) {
+  console.error('❌ Could not find target in server.js');
   process.exit(1);
-}).connect({
-  host: '139.59.159.48',
-  port: 22,
-  username: 'root',
-  password: 'Mesinfos@2020',
-  readyTimeout: 30000
-});
+}
+
+const parts = content.split(target);
+if (parts.length === 2) {
+  content = parts.join(replace);
+} else {
+  const normReplace = replace.replace(/\r\n/g, '\n');
+  content = normContent.split(normTarget).join(normReplace);
+}
+
+fs.writeFileSync(filePath, content, 'utf8');
+console.log('Done! Extra brace removed.');

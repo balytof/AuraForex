@@ -3333,6 +3333,25 @@ server.listen(PORT, () => {
         // 1. Obter dados da conta e posições
         const accountInfo = await broker.getAccountInfo();
         if (accountInfo) risk.setBalance(accountInfo.balance, accountInfo.equity);
+
+        const positions = await broker.getOpenPositions();
+        
+        // 🛡️ NOVO: Verificar Meta Diária de Lucro (Institutional Lock)
+        const dailyCheck = risk.checkDailyProfitTarget(positions || []);
+        if (dailyCheck.hit && !dailyCheck.alreadyLocked) {
+           console.log(`\x1b[42m\x1b[37m[META-BATIDA] User ${userId} atingiu a meta diária! Fechando tudo...\x1b[0m`);
+           // Fechar todas as posições imediatamente
+           for (const pos of (positions || [])) {
+              await broker.closePosition(pos.id);
+              risk.closeTrade(pos.id, 0, "DAILY_TARGET_LOCK", pos.profit);
+           }
+           continue; 
+        }
+
+        if (!positions || positions.length === 0) continue;
+
+        // 2. Para cada posição, verificar proteção
+        for (const pos of positions) {
           const currentProfit = pos.profit || 0;
           const ticketId = pos.id; 
 
@@ -3382,11 +3401,12 @@ app.post("/api/user/provider/apply", requireAuth, async (req, res) => {
 
     const token = "AURA-PRV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     const providerName = req.body.name || req.user.email.split('@')[0];
-      const providerEmail = req.body.email;
+    const providerEmail = req.body.email;
 
     const provider = await prisma.provider.create({
       data: { 
         name: providerName, 
+        email: providerEmail,
         token, 
         commissionPct: 30.0,
         userId: req.user.id,
@@ -3408,6 +3428,20 @@ app.post("/api/admin/providers/:id/status", requireAuth, requireAdmin, async (re
     const provider = await prisma.provider.update({
       where: { id },
       data: { status }
+    });
+    res.json({ success: true, provider });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar status do provedor." });
+  }
+});
+
+// ─── LemonSqueezy Webhook ───────────────────────────────────────
+app.post("/api/webhooks/lemonsqueezy", async (req, res) => {
+  try {
+    // Basic implementation since express.json() is already parsing
+    const payload = req.body;
+    
+    // In production, we'd verify HMAC signature on raw body:
     // const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "LEMON_SECRET_AURA";
     
     if (payload && payload.meta && payload.meta.event_name === "order_created") {

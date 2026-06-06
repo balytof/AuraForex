@@ -266,6 +266,7 @@ model Provider {
   id              String   @id @default(uuid())
   token           String   @unique // ex: AURA-PRV-XYZ
   name            String
+  email           String?
   commissionPct   Float    @default(30.0)
   totalGasEarned  Float    @default(0.0)
   availableGas    Float    @default(0.0)
