@@ -26,7 +26,7 @@ int Tester_MagicNumber       = 888222;                  // Magic Number das Orde
 int Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) – Recomendado: 2 ou 3
 int Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
 int Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
-int Tester_MaxSLOuro         = 500;                     // Limite SL Ouro (Pontos)
+int Tester_MaxSLOuro         = 1500;                    // Limite SL Ouro (Pontos)
 int Tester_MaxOrders         = 4;                       // Limite Global de Ordens
 int Tester_MaxBuys           = 2;                       // Máximo de Compras Simultâneas
 int Tester_MaxSells          = 2;                       // Máximo de Vendas Simultâneas
@@ -130,7 +130,7 @@ bool              g_XAU_AutoTrend   = true;          // Activar módulo de tend�
 ENUM_TIMEFRAMES   g_XAU_Timeframe   = PERIOD_H1;     // Timeframe para análise de tendência XAU
 int               g_XAU_EmaFast     = 21;            // EMA rápida (Tendência XAU)
 int               g_XAU_EmaSlow     = 55;            // EMA lenta (Tendência XAU)
-int               g_XAU_HoldSeconds = 300;           // Segundos mínimos em lucro antes de fechar (Machine Gun)
+// g_XAU_HoldSeconds moved to AuraGUI.mqh
 int               g_MaxXAUOrders    = 3;             // Máximo de ordens XAU simultâneas
 
 ProfitLockData      ProfitLocks[];
