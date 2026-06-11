@@ -112,6 +112,28 @@ void CloseXAUPosition(ulong ticket)
    }
 }
 
+double GetPositionCommission(ulong ticket)
+{
+   double comm = 0.0;
+   long posID = 0;
+   if(PositionSelectByTicket(ticket))
+      posID = PositionGetInteger(POSITION_IDENTIFIER);
+   if(posID > 0)
+   {
+      if(HistorySelectByPosition(posID))
+      {
+         int total = HistoryDealsTotal();
+         for(int i = 0; i < total; i++)
+         {
+            ulong deal = HistoryDealGetTicket(i);
+            if(deal > 0)
+               comm += HistoryDealGetDouble(deal, DEAL_COMMISSION);
+         }
+      }
+   }
+   return comm;
+}
+
 void MonitorIntelligentXAU()
 {
    if(!g_XAU_AutoTrend)              return;
@@ -160,7 +182,7 @@ void MonitorIntelligentXAU()
 
          double pnl = PositionGetDouble(POSITION_PROFIT)
                     + PositionGetDouble(POSITION_SWAP)
-                    + PositionGetDouble(POSITION_COMMISSION);
+                    + GetPositionCommission(t);
 
          if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)  buyProfit  += pnl;
          else                                                          sellProfit += pnl;
@@ -215,7 +237,7 @@ void MonitorIntelligentXAU()
 
       double profit = PositionGetDouble(POSITION_PROFIT)
                     + PositionGetDouble(POSITION_SWAP)
-                    + PositionGetDouble(POSITION_COMMISSION);
+                    + GetPositionCommission(t);
 
       // Find this ticket in our timer array
       int idx = -1;
