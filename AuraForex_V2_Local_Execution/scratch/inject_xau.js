@@ -291,7 +291,7 @@ void MonitorIntelligentXAU()
                       ? entry - (g_MaxSLOuro * point)
                       : entry + (g_MaxSLOuro * point);
       double minLot = SymbolInfoDouble(lastClosedSym, SYMBOL_VOLUME_MIN);
-      double lot    = CalculateLot(lastClosedSym, GetAdjustedRisk(), MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+      double lot    = CalculateLot(lastClosedSym, GetDynamicRisk(g_MaxSLOuro), MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
       if(lot <= 0) lot = minLot;
 
       trade.SetTypeFillingBySymbol(lastClosedSym);
