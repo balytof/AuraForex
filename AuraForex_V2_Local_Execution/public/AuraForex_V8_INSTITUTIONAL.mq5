@@ -2353,6 +2353,90 @@ void OnChartEvent(const int id,
 }
 
 //+------------------------------------------------------------------+
+//| XAU SCALPER AUTÓNOMO — Confluência de 4 Critérios               |
+//+------------------------------------------------------------------+
+// Retorna: +1 = BUY, -1 = SELL, 0 = sem sinal
+int ScalperXAUSignal(string sym)
+{
+   // --- Critério 1: EMA Crossover M5 (EMA9 vs EMA21) ---
+   double ema9_arr[], ema21_arr[];
+   ArraySetAsSeries(ema9_arr, true);
+   ArraySetAsSeries(ema21_arr, true);
+   int hE9  = iMA(sym, PERIOD_M5, 9,  0, MODE_EMA, PRICE_CLOSE);
+   int hE21 = iMA(sym, PERIOD_M5, 21, 0, MODE_EMA, PRICE_CLOSE);
+   int c1 = 0; // vote
+   if(hE9 != INVALID_HANDLE && hE21 != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hE9,  0, 0, 3, ema9_arr)  > 0 &&
+         CopyBuffer(hE21, 0, 0, 3, ema21_arr) > 0)
+      {
+         bool crossedUp   = ema9_arr[0] > ema21_arr[0] && ema9_arr[1] <= ema21_arr[1];
+         bool crossedDown = ema9_arr[0] < ema21_arr[0] && ema9_arr[1] >= ema21_arr[1];
+         // Also consider ongoing trend
+         bool trendUp   = ema9_arr[0] > ema21_arr[0];
+         bool trendDown = ema9_arr[0] < ema21_arr[0];
+         if(crossedUp   || trendUp)   c1 = +1;
+         if(crossedDown || trendDown) c1 = -1;
+      }
+      IndicatorRelease(hE9);
+      IndicatorRelease(hE21);
+   }
+
+   // --- Critério 2: Impulso de Vela M5 (corpo >= 50 pontos) ---
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   int c2 = 0;
+   if(CopyRates(sym, PERIOD_M5, 0, 3, rates) >= 3)
+   {
+      double bodySize = MathAbs(rates[1].close - rates[1].open);
+      double impulsePts = 50 * SymbolInfoDouble(sym, SYMBOL_POINT);
+      if(bodySize >= impulsePts)
+      {
+         if(rates[1].close > rates[1].open) c2 = +1; // bullish candle
+         else                                c2 = -1; // bearish candle
+      }
+   }
+
+   // --- Critério 3: RSI M15 (< 35 = BUY, > 65 = SELL) ---
+   double rsi_arr[];
+   ArraySetAsSeries(rsi_arr, true);
+   int hRSI = iRSI(sym, PERIOD_M15, 14, PRICE_CLOSE);
+   int c3 = 0;
+   if(hRSI != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hRSI, 0, 0, 3, rsi_arr) > 0)
+      {
+         if(rsi_arr[0] < 35) c3 = +1; // Oversold → potencial alta
+         if(rsi_arr[0] > 65) c3 = -1; // Overbought → potencial baixa
+      }
+      IndicatorRelease(hRSI);
+   }
+
+   // --- Critério 4: Breakout das últimas 10 velas M5 ---
+   MqlRates brRates[];
+   ArraySetAsSeries(brRates, true);
+   int c4 = 0;
+   if(CopyRates(sym, PERIOD_M5, 0, 12, brRates) >= 12)
+   {
+      double highestHigh = -DBL_MAX, lowestLow = DBL_MAX;
+      for(int i = 1; i <= 10; i++) // exclude current bar [0]
+      {
+         if(brRates[i].high > highestHigh) highestHigh = brRates[i].high;
+         if(brRates[i].low  < lowestLow)  lowestLow   = brRates[i].low;
+      }
+      double curClose = brRates[0].close;
+      if(curClose > highestHigh) c4 = +1; // breakout para cima
+      if(curClose < lowestLow)   c4 = -1; // breakout para baixo
+   }
+
+   // --- Decisão Final: Maioria >= 3 de 4 ---
+   int score = c1 + c2 + c3 + c4;
+   if(score >= 2)  return  1; // BUY (>= 2 concordam para cima)
+   if(score <= -2) return -1; // SELL (>= 2 concordam para baixo)
+   return 0;
+}
+
+//+------------------------------------------------------------------+
 //| XAU INTELLIGENT TREND MODULE                                     |
 //+------------------------------------------------------------------+
 int GetXAUTrend(string sym)
@@ -2621,6 +2705,63 @@ void MonitorIntelligentXAU()
 
       if(ok) Print("🔫 [XAU] Machine Gun re-entrada ", dir, " | Lot:", DoubleToString(lot,2), " | SL:", DoubleToString(sl,5));
       else   Print("❌ [XAU] Falha na re-entrada: ", trade.ResultRetcodeDescription());
+   }
+
+   // -------------------------------------------------------
+   // Phase 4: Scalper Autónomo — abre ordens sem precisar de
+   //          sinal do servidor, com confluência de 4 critérios
+   // -------------------------------------------------------
+   string xauSym = "XAUUSD"; // símbolo principal a monitorizar
+   if(!SymbolSelect(xauSym, true)) xauSym = "XAUUSDm";
+
+   if(CountXAUOrders() < g_MaxXAUOrders)
+   {
+      int scalpSignal = ScalperXAUSignal(xauSym);
+      if(scalpSignal != 0)
+      {
+         string scalpDir = (scalpSignal == 1) ? "BUY" : "SELL";
+         double sPoint   = SymbolInfoDouble(xauSym, SYMBOL_POINT);
+         double sAsk     = SymbolInfoDouble(xauSym, SYMBOL_ASK);
+         double sBid     = SymbolInfoDouble(xauSym, SYMBOL_BID);
+         double sEntry   = (scalpDir == "BUY") ? sAsk : sBid;
+         double sSL      = (scalpDir == "BUY")
+                           ? sEntry - (g_MaxSLOuro * sPoint)
+                           : sEntry + (g_MaxSLOuro * sPoint);
+         double sTP      = (scalpDir == "BUY")
+                           ? sEntry + (g_MaxSLOuro * sPoint * 1.5)
+                           : sEntry - (g_MaxSLOuro * sPoint * 1.5);
+         double sMinLot  = SymbolInfoDouble(xauSym, SYMBOL_VOLUME_MIN);
+         double sLot     = CalculateLot(xauSym, GetDynamicRisk(g_MaxSLOuro), MathAbs(sEntry - sSL),
+                           (scalpDir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+         if(sLot <= 0) sLot = sMinLot;
+
+         // Evitar abrir na mesma direção se já existe posição XAU
+         bool hasSameDir = false;
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+         {
+            ulong pt = PositionGetTicket(i);
+            if(pt <= 0 || !PositionSelectByTicket(pt)) continue;
+            if(!IsXAU(PositionGetString(POSITION_SYMBOL))) continue;
+            if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+            bool isBuy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+            if((scalpDir == "BUY" && isBuy) || (scalpDir == "SELL" && !isBuy))
+               { hasSameDir = true; break; }
+         }
+
+         if(!hasSameDir)
+         {
+            trade.SetTypeFillingBySymbol(xauSym);
+            bool ok2 = false;
+            if(scalpDir == "BUY")  ok2 = trade.Buy(sLot,  xauSym, sEntry, sSL, sTP, "Aura XAU Scalper");
+            else                    ok2 = trade.Sell(sLot, xauSym, sEntry, sSL, sTP, "Aura XAU Scalper");
+
+            if(ok2) Print("🎯 [XAU Scalper] Entrada autónoma ", scalpDir,
+                          " | Lot:", DoubleToString(sLot,2),
+                          " | SL:", DoubleToString(sSL,5),
+                          " | TP:", DoubleToString(sTP,5));
+            else    Print("❌ [XAU Scalper] Falha na entrada: ", trade.ResultRetcodeDescription());
+         }
+      }
    }
 }
 
