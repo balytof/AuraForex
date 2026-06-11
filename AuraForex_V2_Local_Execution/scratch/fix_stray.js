@@ -1,0 +1,15 @@
+const fs = require('fs');
+const filePath = 'public/AuraForex_V8_INSTITUTIONAL.mq5';
+let content = fs.readFileSync(filePath, 'utf8');
+const lines = content.split(/\r?\n/);
+console.log('Total lines:', lines.length);
+console.log('Line 2365:', JSON.stringify(lines[2364]));
+console.log('Line 2370:', JSON.stringify(lines[2369]));
+console.log('Line 2371:', JSON.stringify(lines[2370]));
+console.log('Line 2372:', JSON.stringify(lines[2371]));
+console.log('Line 2373:', JSON.stringify(lines[2372]));
+console.log('Line 2374:', JSON.stringify(lines[2373]));
+console.log('Line 2375:', JSON.stringify(lines[2374]));
+console.log('Line 2376:', JSON.stringify(lines[2375]));
+console.log('Line 2377:', JSON.stringify(lines[2376]));
+console.log('Line 2378:', JSON.stringify(lines[2377]));
