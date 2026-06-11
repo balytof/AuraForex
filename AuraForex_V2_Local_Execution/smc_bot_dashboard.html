@@ -1575,6 +1575,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
   <div id="vpsMainGrid" class="main-grid">
     <div style="display:flex; flex-direction:column; gap:20px; flex-grow:1;">
+
+      <!-- OVERLAYS DE BLOQUEIO -->
+      <div id="dailyLockOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+        <div style="background:var(--surface); border:1px solid var(--bull); border-radius:16px; padding:40px; max-width:500px; width:100%; box-shadow: 0 10px 30px rgba(0,230,118,0.2);">
+          <h2 style="color: var(--bull); margin-bottom: 15px; font-size:1.8rem;">META DIÁRIA ATINGIDA 🎯</h2>
+          <p style="color: var(--muted); margin-bottom: 25px; line-height:1.5;">O bot atingiu a meta de lucro definida. As operações automáticas estão bloqueadas para proteger os seus ganhos de hoje.</p>
+          <button id="btnResetDaily" onclick="resetClientLocks()" style="display:none; margin: 0 auto; padding: 14px 24px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 800; font-size:1rem; cursor: pointer; transition: transform 0.2s;">Redefinir Limites (Reset)</button>
+        </div>
+      </div>
+
+      <div id="lossLockOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+        <div style="background:var(--surface); border:1px solid var(--bear); border-radius:16px; padding:40px; max-width:500px; width:100%; box-shadow: 0 10px 30px rgba(255,68,68,0.2);">
+          <h2 style="color: var(--bear); margin-bottom: 15px; font-size:1.8rem;">CIRCUIT BREAKER ATIVO 🛡️</h2>
+          <p style="color: var(--muted); margin-bottom: 15px; line-height:1.5;">O limite de perda diária foi atingido. Operações suspensas para proteger o seu capital até amanhã.</p>
+          <div style="font-size: 2.5rem; font-family: 'Space Mono', monospace; color: var(--bear); font-weight: 900; margin-bottom: 25px; text-shadow: 0 0 10px rgba(255,68,68,0.4);" id="lossCountdown">00:00:00</div>
+          <button id="btnResetLoss" onclick="resetClientLocks()" style="display:none; margin: 0 auto; padding: 14px 24px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 800; font-size:1rem; cursor: pointer; transition: transform 0.2s;">Redefinir Limites (Reset)</button>
+        </div>
+      </div>
+
+      <div id="weekendLockOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+        <div style="background:var(--surface); border:1px solid var(--accent2); border-radius:16px; padding:40px; max-width:500px; width:100%; box-shadow: 0 10px 30px rgba(124,58,237,0.2);">
+          <h2 style="color: var(--accent2); margin-bottom: 15px; font-size:1.8rem;">MERCADO FECHADO 🌙</h2>
+          <p style="color: var(--muted); margin-bottom: 20px; line-height:1.5;">O mercado está fechado durante o fim de semana. O bot voltará a operar no domingo à noite.</p>
+          <div style="font-size: 1.8rem; font-family: 'Space Mono', monospace; color: var(--accent2); font-weight: 800; margin-bottom: 5px;" id="weekendLockTimer">Domingo às 22h00</div>
+        </div>
+      </div>
+
       <!-- ACTIVE POSITIONS -->
       <div class="panel" id="activePositionsPanel" style="display:none; border: 1px solid var(--accent); background: rgba(0, 255, 170, 0.02);">
         <div class="panel-header" style="border-bottom: 1px solid rgba(0, 255, 170, 0.1);">
@@ -3304,6 +3331,12 @@ async function updateStats() {
       const weekendOverlay = document.getElementById("weekendLockOverlay");
       const mainBtn = document.getElementById("mainBtn");
       
+      const btnResetDaily = document.getElementById("btnResetDaily");
+      const btnResetLoss = document.getElementById("btnResetLoss");
+      
+      if (btnResetDaily) btnResetDaily.style.display = status.canResetLocks ? "block" : "none";
+      if (btnResetLoss) btnResetLoss.style.display = status.canResetLocks ? "block" : "none";
+      
       isDailyLocked = status.isLocked;
 
       const now = new Date();
@@ -3321,7 +3354,7 @@ async function updateStats() {
       if (isWeekendBlocked) {
         lockOverlay.style.display = "none";
         if(lossLockOverlay) lossLockOverlay.style.display = "none";
-        weekendOverlay.style.display = "block";
+        weekendOverlay.style.display = "flex";
         const wlt = document.getElementById("weekendLockTimer"); if (wlt.dataset.val !== String(sundayHour)) { wlt.textContent = `Domingo às ${sundayHour}h00`; wlt.dataset.val = String(sundayHour); }
         if (mainBtn) {
             mainBtn.disabled = true;
@@ -3332,7 +3365,7 @@ async function updateStats() {
       } else if (status.isLossLocked) {
         weekendOverlay.style.display = "none";
         lockOverlay.style.display = "none";
-        if(lossLockOverlay) lossLockOverlay.style.display = "block";
+        if(lossLockOverlay) lossLockOverlay.style.display = "flex";
         if (mainBtn) {
             mainBtn.disabled = true;
             if (mainBtn.dataset.state !== "losslocked") { mainBtn.textContent = "Circuit Breaker Ativo"; mainBtn.dataset.state = "losslocked"; }
@@ -3476,6 +3509,22 @@ async function loadUserWallet() {
     }
   } catch (err) {
     console.warn("Erro ao buscar carteira:", err.message);
+  }
+}
+
+async function resetClientLocks() {
+  if (!confirm("Tem a certeza que deseja redefinir os seus limites de meta e perda para hoje?")) return;
+  
+  try {
+    const res = await apiFetch("/api/user/reset-locks", "POST");
+    if (res && res.success) {
+      alert("✅ Limites redefinidos com sucesso! As operações podem ser retomadas.");
+      updateStats();
+    } else {
+      alert("❌ Erro ao redefinir limites: " + (res.error || "Desconhecido"));
+    }
+  } catch (e) {
+    alert("❌ Falha de comunicação.");
   }
 }
 
@@ -4518,7 +4567,7 @@ function switchDashboardView(view) {
     
     if (vpsStatsGrid) vpsStatsGrid.style.display = "grid";
     if (vpsMainGrid) vpsMainGrid.style.display = "grid";
-    if (dailyLockOverlay) dailyLockOverlay.style.display = isDailyLocked ? "block" : "none";
+    if (dailyLockOverlay) dailyLockOverlay.style.display = isDailyLocked ? "flex" : "none";
     if (pammDashboardSection) pammDashboardSection.style.display = "none";
     
     localStorage.setItem("aura_dashboard_tab", "vps");

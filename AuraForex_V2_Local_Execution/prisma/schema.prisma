@@ -203,6 +203,7 @@ model UserSettings {
   pammPerformanceFeePct Float?
   pammChangeApproved    Boolean  @default(false)
   isCentAccount         Boolean  @default(false)
+  canResetLocks         Boolean  @default(false)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

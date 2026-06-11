@@ -497,6 +497,8 @@
                     <button class="btn" style="background:var(--accent);color:#000;border:none;font-size:0.75rem;padding:5px 10px;font-weight:700;" onclick="handleUserAction('pamm')">💳 PAMM</button>
                     <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="handleUserAction('licenca')">🎁 Licença</button>
                     <button class="btn" style="background:var(--accent2);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="handleUserAction('reset')">🔑 Reset</button>
+                    <button class="btn" style="background:var(--warn);color:#000;border:none;font-size:0.75rem;padding:5px 10px;font-weight:700;" onclick="handleUserAction('destravar')">🔓 Destravar</button>
+                    <button class="btn" style="background:var(--accent);color:#000;border:none;font-size:0.75rem;padding:5px 10px;font-weight:700;" onclick="handleUserAction('toggle_reset_perm')">⚙️ Permissão Reset</button>
                     <button class="btn" style="background:var(--bear);color:#fff;border:none;font-size:0.75rem;padding:5px 10px;" onclick="handleUserAction('eliminar')">🗑️ Eliminar</button>
                 </div>
             </div>
@@ -1165,8 +1167,8 @@
 
     let selectedUserData = null;
 
-    function selectUser(id, email, balance, customFee) {
-        selectedUserData = { id, email, balance, customFee };
+    function selectUser(id, email, balance, customFee, canResetLocks) {
+        selectedUserData = { id, email, balance, customFee, canResetLocks };
     }
 
     function handleUserAction(action) {
@@ -1175,7 +1177,7 @@
             return;
         }
         
-        const { id, email, balance, customFee } = selectedUserData;
+        const { id, email, balance, customFee, canResetLocks } = selectedUserData;
         
         switch(action) {
             case 'pamm':
@@ -1187,9 +1189,38 @@
             case 'reset':
                 openResetPwModal(id, email);
                 break;
+            case 'destravar':
+                resetUserLocks(id, email);
+                break;
+            case 'toggle_reset_perm':
+                toggleResetPermission(id, email, canResetLocks);
+                break;
             case 'eliminar':
                 deleteUser(id, email);
                 break;
+        }
+    }
+
+    async function resetUserLocks(userId, email) {
+        if (!confirm(`Deseja forçar a redefinição (reset) das travas de meta e perda para o usuário ${email}?`)) return;
+        const res = await api(`/api/admin/users/${userId}/reset-locks`, 'POST');
+        if (res.success) {
+            alert(`✅ Travas de limite do usuário ${email} foram redefinidas com sucesso!`);
+        } else {
+            alert('❌ Erro: ' + res.error);
+        }
+    }
+
+    async function toggleResetPermission(userId, email, currentVal) {
+        const newVal = !currentVal;
+        const actionStr = newVal ? "ATIVAR" : "DESATIVAR";
+        if (!confirm(`Deseja ${actionStr} a permissão para o cliente ${email} redefinir as suas próprias travas de meta/perda?`)) return;
+        const res = await api(`/api/admin/users/${userId}/toggle-reset-permission`, 'POST', { canResetLocks: newVal });
+        if (res.success) {
+            alert(`✅ Permissão de reset de travas atualizada para ${newVal ? 'ATIVADO' : 'DESATIVADO'} para ${email}.`);
+            loadUsers();
+        } else {
+            alert('❌ Erro: ' + res.error);
         }
     }
 
@@ -1202,16 +1233,17 @@
             const balance = (u.walletBalance !== null && u.walletBalance !== undefined) ? Number(u.walletBalance) : 0.0;
             const customFee = u.settings?.pammPerformanceFeePct;
             const feeStr = (customFee !== null && customFee !== undefined) ? `${customFee}%` : 'Padrão';
+            const canReset = u.settings?.canResetLocks || false;
             
             const balanceStyle = balance <= 0 ? 'color: var(--bear); font-weight: bold;' : balance < 10 ? 'color: var(--warn); font-weight: bold;' : 'color: var(--bull); font-weight: bold;';
             
             return `
                 <tr onclick="document.getElementById('radio_user_${u.id}').click()" style="cursor: pointer;">
                     <td style="text-align: center;">
-                        <input type="radio" name="selectedUserRow" id="radio_user_${u.id}" value="${u.id}" onclick="event.stopPropagation(); selectUser('${u.id}', '${u.email}', ${balance}, ${customFee !== null && customFee !== undefined ? customFee : 'null'})" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);">
+                        <input type="radio" name="selectedUserRow" id="radio_user_${u.id}" value="${u.id}" onclick="event.stopPropagation(); selectUser('${u.id}', '${u.email}', ${balance}, ${customFee !== null && customFee !== undefined ? customFee : 'null'}, ${canReset})" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);">
                     </td>
                     <td>
-                        <div style="font-weight:700;">${u.email}</div>
+                        <div style="font-weight:700;">${u.email}${canReset ? ' <span style="color:var(--accent); font-size:0.7rem;">[Reset On]</span>' : ''}</div>
                         <div style="font-size:0.65rem; color:var(--muted);">ID: ${u.id.substring(0,8)}... | Ref: ${u.referralCode || '—'}</div>
                     </td>
                     <td>${u.role}</td>

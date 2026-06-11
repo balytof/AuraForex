@@ -420,6 +420,31 @@ app.post("/api/user/cent-toggle", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/api/user/reset-locks", requireAuth, async (req, res) => {
+  try {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!settings || !settings.canResetLocks) {
+      return res.status(403).json({ error: "Você não tem permissão para redefinir as travas de limite." });
+    }
+    const license = await prisma.license.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { expiresAt: 'desc' }
+    });
+    const risk = getRiskManager(license ? license.id : req.user.id);
+    if (risk) {
+      risk.circuitBreaker = false;
+      risk.dailyProfitLocked = false;
+      risk._saveState();
+      console.log(`[USER-RESET-LOCKS] Locks reset by client ${req.user.id}`);
+    }
+    res.json({ success: true, message: "Travas redefinidas com sucesso." });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── NOVO: Endpoint de Status HMI (Institucional) ──────────────────
 app.get("/api/user/status", requireAuth, async (req, res) => {
   try {
@@ -529,7 +554,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       updatedAt: license ? license.updatedAt : null,
       fridayBlockHour: fridayBlockHour,
       sundayOpenHour: sundayOpenHour,
-      openTrades: trueOpenTrades // Retorna as trades abertas sincronizadas pelo EA/BD
+      openTrades: trueOpenTrades, // Retorna as trades abertas sincronizadas pelo EA/BD
+      canResetLocks: userSettings?.canResetLocks || false
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
@@ -1312,6 +1338,41 @@ app.post("/api/admin/user/:id/pamm-settings", requireAuth, requireAdmin, async (
       });
     }
     res.json({ success: true, message: "Configurações PAMM atualizadas com sucesso." });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-locks", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const license = await prisma.license.findFirst({
+      where: { userId: id },
+      orderBy: { expiresAt: 'desc' }
+    });
+    const risk = getRiskManager(license ? license.id : id);
+    if (risk) {
+      risk.circuitBreaker = false;
+      risk.dailyProfitLocked = false;
+      risk._saveState();
+      console.log(`[ADMIN-RESET-LOCKS] Locks reset for user ${id}`);
+    }
+    res.json({ success: true, message: "Travas de limite redefinidas com sucesso." });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/users/:id/toggle-reset-permission", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { canResetLocks } = req.body;
+  try {
+    const settings = await prisma.userSettings.upsert({
+      where: { userId: id },
+      update: { canResetLocks: Boolean(canResetLocks) },
+      create: { userId: id, canResetLocks: Boolean(canResetLocks) }
+    });
+    res.json({ success: true, canResetLocks: settings.canResetLocks });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
