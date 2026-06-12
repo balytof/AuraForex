@@ -11,6 +11,7 @@ const filesToUpload = [
     { local: './public/AuraMaster_Signal.ex5', remote: `${remoteBaseDir}/public/AuraMaster_Signal.ex5` },
     { local: './public/AuraCopier_Client.ex5', remote: `${remoteBaseDir}/public/AuraCopier_Client.ex5` },
     { local: './server.js', remote: `${remoteBaseDir}/server.js` },
+    { local: './signals/smc_signal_engine.js', remote: `${remoteBaseDir}/signals/smc_signal_engine.js` },
     { local: './smc_bot_dashboard.html', remote: `${remoteBaseDir}/smc_bot_dashboard.html` },
     { local: './admin_dashboard.html', remote: `${remoteBaseDir}/admin_dashboard.html` },
     { local: './prisma/schema.prisma', remote: `${remoteBaseDir}/prisma/schema.prisma` }

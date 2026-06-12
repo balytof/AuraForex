@@ -1458,6 +1458,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
     <div class="controls">
+      <button class="btn btn-danger" onclick="resetFridayBlock()" title="Desativar bloqueio de sexta-feira para testes">🔓 Reset Sexta-Feira</button>
       <button class="btn btn-secondary" onclick="resetBot()">↺ Reset UI</button>
       <button class="btn btn-primary" id="mainBtn" onclick="toggleBot()" disabled>▶ Iniciar Bot</button>
     </div>
@@ -3721,6 +3722,9 @@ async function botLoop(loopId) {
         
         // 4. Processar Sinal Profissional com Filtro de Tendência
         const sig = analyzeRes.signal;
+        if (!sig) {
+            addLog(`⏳ ${pair}: Aguardando oportunidade (Motivo: ${analyzeRes.reason})`, "info");
+        }
         
         const maxTradesLimit = parseInt(document.getElementById("limitSlider").value) || 8;
         if (sig) {
@@ -3749,9 +3753,10 @@ async function botLoop(loopId) {
              addLog(`⏳ ${pair}: Sinal SELL ignorado (Máximo de ${maxSimultaneousDirection} Vendas Simultâneas atingido).`, "warn");
              continue;
           }
-          // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal
-          const isOpposite = (sig.direction === "BUY" && aiResult.bias === "BEARISH") || 
-                             (sig.direction === "SELL" && aiResult.bias === "BULLISH");
+          // Filtro Expert: Só opera se o Bias da IA bater com a direção do sinal (Exceto para XAU/GOLD que tem análise direta independente)
+          const isOpposite = !(pair.includes("XAU") || pair.includes("GOLD")) && 
+                             ((sig.direction === "BUY" && aiResult.bias === "BEARISH") || 
+                              (sig.direction === "SELL" && aiResult.bias === "BULLISH"));
           if (isOpposite) {
              addLog(`⚖️ ${pair}: Sinal ${sig.direction} ignorado por falta de confluência com Bias ${aiResult.bias}`);
              continue;
@@ -3960,6 +3965,22 @@ function stopBot() {
   }).catch(e => console.warn("Erro ao limpar sinais:", e));
   
   addLog("⏹ Bot parado.");
+}
+
+async function resetFridayBlock() {
+  if(!confirm("Deseja desativar o bloqueio de Sexta-feira para continuar os testes?")) return;
+  try {
+    const data = await apiFetch('/api/system/reset-friday-block', 'POST');
+    if(data.success) {
+      alert(data.message);
+      addLog("🔓 Bloqueio de Sexta-feira desativado pelo utilizador.", "warn");
+    } else {
+      alert("Erro: " + data.error);
+    }
+  } catch(e) {
+    console.error(e);
+    alert("Erro ao conectar com servidor.");
+  }
 }
 
 function resetBot() {

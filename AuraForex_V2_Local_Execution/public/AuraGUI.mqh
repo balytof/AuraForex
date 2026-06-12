@@ -291,6 +291,21 @@ void CAuraPanel::DrawLimites(void)
    
    CreateLabel("C_LblXHS", lx, cy+4, "Tempo XAU Positivo (Segundos):", CLR_TXT_WHITE);
    CreateEdit("C_EdXHS", ex, cy, ew, eh, (string)g_XAU_HoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblGridD", lx, cy+4, "XAU Scalp: Distância Grelha (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdGridD", ex, cy, ew, eh, (string)g_XAU_GridDistance, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblMomT", lx, cy+4, "XAU Scalp: Gatilho Momento (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdMomT", ex, cy, ew, eh, (string)g_XAU_MomentumTrigger, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblSRC", lx, cy+4, "XAU S/R: Velas Histórico:", CLR_TXT_WHITE);
+   CreateEdit("C_EdSRC", ex, cy, ew, eh, (string)g_XAU_SR_Candles, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblSRZP", lx, cy+4, "XAU S/R: Largura Zona Quente:", CLR_TXT_WHITE);
+   CreateEdit("C_EdSRZP", ex, cy, ew, eh, (string)g_XAU_SR_ZonePips, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   
+   CreateLabel("C_LblSRBP", lx, cy+4, "XAU S/R: Rompimento Mínimo:", CLR_TXT_WHITE);
+   CreateEdit("C_EdSRBP", ex, cy, ew, eh, (string)g_XAU_SR_BreakoutPips, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
 }
 
 void CAuraPanel::DrawTrailing(void)
@@ -344,6 +359,11 @@ void CAuraPanel::SaveConfig(void)
       g_MaxBuys = (int)StringToInteger(GetEditText("C_EdMB"));
       g_MaxSells = (int)StringToInteger(GetEditText("C_EdMS"));
       g_XAU_HoldSeconds = (int)StringToInteger(GetEditText("C_EdXHS"));
+      g_XAU_GridDistance = (int)StringToInteger(GetEditText("C_EdGridD"));
+      g_XAU_MomentumTrigger = (int)StringToInteger(GetEditText("C_EdMomT"));
+      g_XAU_SR_Candles = (int)StringToInteger(GetEditText("C_EdSRC"));
+      g_XAU_SR_ZonePips = (int)StringToInteger(GetEditText("C_EdSRZP"));
+      g_XAU_SR_BreakoutPips = (int)StringToInteger(GetEditText("C_EdSRBP"));
    } else if (m_tab == 4) {
       g_TrailingEnabled = (GetEditText("C_EdTE") == "1");
       g_TrailingStart_XAU = (int)StringToInteger(GetEditText("C_EdTSG"));
@@ -374,6 +394,11 @@ void CAuraPanel::SaveConfig(void)
       FileWriteString(handle, "MaxBuy=" + (string)g_MaxBuys + "\n");
       FileWriteString(handle, "MaxSel=" + (string)g_MaxSells + "\n");
       FileWriteString(handle, "XAUHoldS=" + (string)g_XAU_HoldSeconds + "\n");
+      FileWriteString(handle, "GridD=" + (string)g_XAU_GridDistance + "\n");
+      FileWriteString(handle, "MomT=" + (string)g_XAU_MomentumTrigger + "\n");
+      FileWriteString(handle, "SRCandles=" + (string)g_XAU_SR_Candles + "\n");
+      FileWriteString(handle, "SRZone=" + (string)g_XAU_SR_ZonePips + "\n");
+      FileWriteString(handle, "SRBreak=" + (string)g_XAU_SR_BreakoutPips + "\n");
       
       FileWriteString(handle, "TrailE=" + (string)g_TrailingEnabled + "\n");
       FileWriteString(handle, "TrailSXAU=" + (string)g_TrailingStart_XAU + "\n");
@@ -414,6 +439,11 @@ void CAuraPanel::LoadConfig(void)
             if(sep[0] == "MaxBuy") g_MaxBuys = (int)StringToInteger(sep[1]);
             if(sep[0] == "MaxSel") g_MaxSells = (int)StringToInteger(sep[1]);
             if(sep[0] == "XAUHoldS") g_XAU_HoldSeconds = (int)StringToInteger(sep[1]);
+            if(sep[0] == "GridD") g_XAU_GridDistance = (int)StringToInteger(sep[1]);
+            if(sep[0] == "MomT") g_XAU_MomentumTrigger = (int)StringToInteger(sep[1]);
+            if(sep[0] == "SRCandles") g_XAU_SR_Candles = (int)StringToInteger(sep[1]);
+            if(sep[0] == "SRZone") g_XAU_SR_ZonePips = (int)StringToInteger(sep[1]);
+            if(sep[0] == "SRBreak") g_XAU_SR_BreakoutPips = (int)StringToInteger(sep[1]);
             
             if(sep[0] == "TrailE") g_TrailingEnabled = (sep[1] == "true" || sep[1] == "1");
             if(sep[0] == "TrailSXAU") g_TrailingStart_XAU = (int)StringToInteger(sep[1]);

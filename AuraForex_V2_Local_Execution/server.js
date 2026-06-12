@@ -1363,6 +1363,26 @@ app.post("/api/admin/users/:id/reset-locks", requireAuth, requireAdmin, async (r
   }
 });
 
+app.post("/api/system/reset-friday-block", requireAuth, async (req, res) => {
+  try {
+    let settings = await prisma.systemSettings.findFirst();
+    if (settings) {
+      await prisma.systemSettings.update({
+        where: { id: settings.id },
+        data: { fridayBlockHour: 23 }
+      });
+    } else {
+      await prisma.systemSettings.create({
+        data: { fridayBlockHour: 23 }
+      });
+    }
+    console.log(`[VPS] Bloqueio de sexta-feira resetado (hora definida para 23) pelo user ${req.user.id} para testes.`);
+    res.json({ success: true, message: "Bloqueio de Sexta-feira desativado para testes!" });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.post("/api/admin/users/:id/toggle-reset-permission", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { canResetLocks } = req.body;

@@ -60,7 +60,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const isBearishStructure = last.close < last.emaFast && last.macdHist < 0 && last.rsi > 30 && last.rsi < 60;
 
     // ================= BUY =================
-    if ((htfBias === "BULLISH" && isBullishStructure) || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow && isBullishStructure)) {
+    const isXAU = pair.includes("XAU") || pair.includes("GOLD");
+    if ( (isXAU && isBullishStructure) || (htfBias === "BULLISH" && isBullishStructure) || (htfBias === "NEUTRAL" && last.emaFast > last.emaSlow && isBullishStructure)) {
       const sl = normalizePrice(entry - stopDist, pair);
       const tp = normalizePrice(entry + (stopDist * 1.5), pair);
 
@@ -84,7 +85,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     }
 
     // ================= SELL =================
-    if ((htfBias === "BEARISH" && isBearishStructure) || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow && isBearishStructure)) {
+    if ( (isXAU && isBearishStructure) || (htfBias === "BEARISH" && isBearishStructure) || (htfBias === "NEUTRAL" && last.emaFast < last.emaSlow && isBearishStructure)) {
       const sl = normalizePrice(entry + stopDist, pair);
       const tp = normalizePrice(entry - (stopDist * 1.5), pair);
 

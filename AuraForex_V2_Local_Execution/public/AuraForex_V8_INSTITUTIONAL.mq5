@@ -31,6 +31,11 @@ int Tester_MaxOrders         = 6;                       // Limite Global de Orde
 int Tester_MaxBuys           = 6;                       // Máximo de Compras Simultâneas
 int Tester_MaxSells          = 6;                       // Máximo de Vendas Simultâneas
 int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+int Tester_XAU_GridDistance  = 200;                     // XAU Scalp: Distância Grelha (Pontos)
+int Tester_XAU_MomentumTrigger = 100;                   // XAU Scalp: Gatilho Momento (Pontos)
+int Tester_XAU_SR_Candles    = 50;                      // XAU S/R: Velas M15 para Extremos
+int Tester_XAU_SR_ZonePips   = 30;                      // XAU S/R: Largura da Zona Quente (Pips)
+int Tester_XAU_SR_BreakoutPips = 20;                    // XAU S/R: Confirmação de Rompimento (Pips)
 
 // --- PROFIT LOCK PARAMETERS ---
 double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -132,6 +137,11 @@ int               g_XAU_EmaFast     = 21;            // EMA rápida (Tendência 
 int               g_XAU_EmaSlow     = 55;            // EMA lenta (Tendência XAU)
 // g_XAU_HoldSeconds moved to AuraGUI.mqh
 int               g_MaxXAUOrders    = 6;             // Máximo de ordens XAU simultâneas
+int               g_XAU_GridDistance = 200;          // Distância Grelha
+int               g_XAU_MomentumTrigger = 100;       // Gatilho Momento
+int               g_XAU_SR_Candles   = 50;
+int               g_XAU_SR_ZonePips  = 30;
+int               g_XAU_SR_BreakoutPips = 20;
 
 ProfitLockData      ProfitLocks[];
 PortfolioProfitLock GlobalProfitLockState;
@@ -281,7 +291,7 @@ int OnInit()
    // --- AURA GUI INIT ---
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
    g_Panel = new CAuraPanel();
-   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 420)) {
+   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 620)) {
        Print("Falha ao criar o painel Aura GUI.");
        return INIT_FAILED;
    }
@@ -315,6 +325,11 @@ int OnInit()
        g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxSLOuro = Tester_MaxSLOuro;
        g_MaxOrders = Tester_MaxOrders;
+       g_XAU_GridDistance = Tester_XAU_GridDistance;
+       g_XAU_MomentumTrigger = Tester_XAU_MomentumTrigger;
+       g_XAU_SR_Candles = Tester_XAU_SR_Candles;
+       g_XAU_SR_ZonePips = Tester_XAU_SR_ZonePips;
+       g_XAU_SR_BreakoutPips = Tester_XAU_SR_BreakoutPips;
        g_MaxBuys = Tester_MaxBuys;
        g_MaxSells = Tester_MaxSells;
        g_TradeCooldown = Tester_TradeCooldown;
@@ -868,6 +883,27 @@ bool IsFridayLocked()
    return false;
 }
 
+bool IsFridayFreeze()
+{
+   if(!g_FridaySafeLock) return false;
+   MqlDateTime dt;
+   TimeCurrent(dt);
+   if(dt.day_of_week == 5)
+   {
+      int freezeHour = g_FridayHour;
+      int freezeMinute = g_FridayMinute - 30;
+      if(freezeMinute < 0) {
+         freezeHour--;
+         freezeMinute += 60;
+      }
+      if(freezeHour < 0) freezeHour = 0; // Edge case
+      
+      if(dt.hour > freezeHour || (dt.hour == freezeHour && dt.min >= freezeMinute))
+         return true;
+   }
+   return false;
+}
+
 void CheckFridaySafeLock()
 {
    if(!IsFridayLocked()) return;
@@ -1228,7 +1264,7 @@ void ValidateLicense()
 
 void CheckSignals()
 {
-   if(IsFridayLocked()) return;
+   if(IsFridayFreeze()) return;
 
    if(DailyTargetReached)
    {
@@ -1313,7 +1349,7 @@ void AddToSignalQueue(string json)
 
 void ProcessSignalQueue()
 {
-   if(IsFridayLocked()) return;
+   if(IsFridayFreeze()) return;
    if(ArraySize(SignalQueue) == 0) return;
 
    string json = SignalQueue[0].json;
@@ -2582,20 +2618,53 @@ int AdaptiveRealTimeXAU(string sym)
    ArraySetAsSeries(m1, true);
    if(CopyRates(sym, PERIOD_M1, 0, 3, m1) < 3) return 0;
    
+   static int hE9 = INVALID_HANDLE;
+   if(hE9 == INVALID_HANDLE) hE9 = iMA(sym, PERIOD_M1, 9, 0, MODE_EMA, PRICE_CLOSE);
+   if(hE9 == INVALID_HANDLE) return 0;
+   
    double ema9[];
    ArraySetAsSeries(ema9, true);
-   int hE9 = iMA(sym, PERIOD_M1, 9, 0, MODE_EMA, PRICE_CLOSE);
-   if(hE9 == INVALID_HANDLE) return 0;
-   if(CopyBuffer(hE9, 0, 0, 1, ema9) <= 0) { IndicatorRelease(hE9); return 0; }
-   IndicatorRelease(hE9);
+   if(CopyBuffer(hE9, 0, 0, 2, ema9) <= 0) return 0;
    
    double curPrice = SymbolInfoDouble(sym, SYMBOL_BID);
-   double lastHigh = m1[1].high;
-   double lastLow  = m1[1].low;
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
    
-   double minDistance = 200 * SymbolInfoDouble(sym, SYMBOL_POINT); // 20 pips
+   double minDistance = g_XAU_GridDistance * point; // Distanciamento configurável
    bool canBuy = true;
    bool canSell = true;
+   
+   // --- S/R DYNAMIC FILTER ---
+   if(g_XAU_SR_Candles > 0)
+   {
+      double high[], low[];
+      ArraySetAsSeries(high, true);
+      ArraySetAsSeries(low, true);
+      if(CopyHigh(sym, PERIOD_M15, 1, g_XAU_SR_Candles, high) > 0 && 
+         CopyLow(sym, PERIOD_M15, 1, g_XAU_SR_Candles, low) > 0)
+      {
+         int hIdx = ArrayMaximum(high);
+         int lIdx = ArrayMinimum(low);
+         double resZone = (hIdx >= 0) ? high[hIdx] : 0;
+         double supZone = (lIdx >= 0) ? low[lIdx] : 0;
+         
+         double zoneDist = g_XAU_SR_ZonePips * 10 * point;
+         double breakDist = g_XAU_SR_BreakoutPips * 10 * point;
+         
+         if(resZone > 0)
+         {
+            // Bloqueio de Compra se na zona de resistência ou se rompimento não confirmado
+            if(curPrice > (resZone - zoneDist) && curPrice < resZone) canBuy = false;
+            if(curPrice >= resZone && curPrice < (resZone + breakDist)) canBuy = false;
+         }
+         if(supZone > 0)
+         {
+            // Bloqueio de Venda se na zona de suporte ou se rompimento não confirmado
+            if(curPrice < (supZone + zoneDist) && curPrice > supZone) canSell = false;
+            if(curPrice <= supZone && curPrice > (supZone - breakDist)) canSell = false;
+         }
+      }
+   }
+   // --------------------------
    
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -2617,8 +2686,12 @@ int AdaptiveRealTimeXAU(string sym)
       }
    }
    
-   if(canSell && curPrice < ema9[0] && curPrice < lastLow) return -1;
-   if(canBuy && curPrice > ema9[0] && curPrice > lastHigh) return 1;
+   // Momentum configurável: Se a vela atual M1 já se moveu X pontos a nosso favor desde a abertura
+   bool strongDrop = (m1[0].open - curPrice) >= (g_XAU_MomentumTrigger * point);
+   bool strongRise = (curPrice - m1[0].open) >= (g_XAU_MomentumTrigger * point);
+   
+   if(canSell && curPrice < ema9[0] && strongDrop) return -1;
+   if(canBuy && curPrice > ema9[0] && strongRise) return 1;
    
    return 0;
 }
@@ -2626,7 +2699,7 @@ int AdaptiveRealTimeXAU(string sym)
 void MonitorIntelligentXAU()
 {
    if(!g_XAU_AutoTrend)              return;
-   if(IsFridayLocked())               return;
+   // if(IsFridayLocked())               return; // Removido para permitir gestão durante o Freeze
    if(DailyTargetReached)             return;
    if(DailyLossLock)                  return;
 
@@ -2709,114 +2782,102 @@ void MonitorIntelligentXAU()
    }
 
    // -------------------------------------------------------
-   // Phase 2: Machine Gun — time-based close + re-entry
+   // Phase 2: Pyramiding N-2 Lock-in and Basket SL Sync
    // -------------------------------------------------------
-   bool   closedAny       = false;
-   string lastClosedSym   = "";
-   int    lastClosedTrend = 0;
-
+   ulong buyTickets[];
+   ulong sellTickets[];
+   double highestBuySL = 0;
+   double lowestSellSL = 999999;
+   
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong t = PositionGetTicket(i);
       if(t <= 0 || !PositionSelectByTicket(t)) continue;
       if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
-
       string sym = PositionGetString(POSITION_SYMBOL);
       if(!IsXAU(sym)) continue;
-
-      double profit = PositionGetDouble(POSITION_PROFIT)
-                    + PositionGetDouble(POSITION_SWAP)
-                    + GetPositionCommission(t);
-
-      // Find this ticket in our timer array
-      int idx = -1;
-      for(int k = 0; k < ArraySize(XAUTimers); k++)
-         if(XAUTimers[k].ticket == t) { idx = k; break; }
-
-      if(profit > 0)
-      {
-         if(idx == -1)
-         {
-            // Start timer
-            int sz = ArraySize(XAUTimers);
-            ArrayResize(XAUTimers, sz + 1);
-            XAUTimers[sz].ticket  = t;
-            XAUTimers[sz].posTime = TimeCurrent();
-         }
-         else if(TimeCurrent() - XAUTimers[idx].posTime >= (datetime)g_XAU_HoldSeconds)
-         {
-            // Time elapsed in positive -> close and re-enter
-            int currentTrend = GetXAUTrend(sym);
-            Print("⏱️ [XAU] Fecho por tempo! Ticket:", t,
-                  " Lucro:$", DoubleToString(profit, 2),
-                  " Segundos:", g_XAU_HoldSeconds,
-                  " Tendência:", currentTrend == 1 ? "ALTA" : (currentTrend == -1 ? "BAIXA" : "NEUTRA"));
-
-            if(currentTrend != 0) // Only close & re-enter if trend is still valid
-            {
-               lastClosedSym   = sym;
-               lastClosedTrend = currentTrend;
-               CloseXAUPosition(t);
-               closedAny = true;
-               XAUTimers[idx].ticket = 0; // Mark for cleanup
-            }
-            else
-            {
-               // Trend gone neutral — reset timer, don't force close
-               XAUTimers[idx].posTime = TimeCurrent();
-            }
-         }
+      
+      long type = PositionGetInteger(POSITION_TYPE);
+      double sl = PositionGetDouble(POSITION_SL);
+      
+      if(type == POSITION_TYPE_BUY) {
+         int sz = ArraySize(buyTickets);
+         ArrayResize(buyTickets, sz + 1);
+         buyTickets[sz] = t;
+         if(sl > highestBuySL) highestBuySL = sl;
       }
-      else
-      {
-         // Profit went negative or zero — RESET timer
-         if(idx != -1)
-            XAUTimers[idx].posTime = TimeCurrent();
+      else if(type == POSITION_TYPE_SELL) {
+         int sz = ArraySize(sellTickets);
+         ArrayResize(sellTickets, sz + 1);
+         sellTickets[sz] = t;
+         if(sl < lowestSellSL && sl > 0) lowestSellSL = sl;
       }
    }
-
-   // Compact timer array (remove zeroed entries)
-   int valid = 0;
-   for(int k = 0; k < ArraySize(XAUTimers); k++)
+   
+   // --- N-2 Lock-in Logic ---
+   if(ArraySize(buyTickets) >= 3)
    {
-      if(XAUTimers[k].ticket != 0)
-      {
-         if(valid != k) XAUTimers[valid] = XAUTimers[k];
-         valid++;
+      // Encontrar a compra mais antiga
+      ulong oldestT = buyTickets[0];
+      PositionSelectByTicket(oldestT);
+      datetime oldestTime = (datetime)PositionGetInteger(POSITION_TIME);
+      for(int k=1; k<ArraySize(buyTickets); k++) {
+         PositionSelectByTicket(buyTickets[k]);
+         datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+         if(pt < oldestTime) { oldestTime = pt; oldestT = buyTickets[k]; }
+      }
+      PositionSelectByTicket(oldestT);
+      if(PositionGetDouble(POSITION_PROFIT) > 0) {
+         Print("🔺 [Pyramiding] A trancar lucro da Ordem BUY base! Ticket: ", oldestT);
+         CloseXAUPosition(oldestT);
       }
    }
-   if(valid < ArraySize(XAUTimers)) ArrayResize(XAUTimers, valid);
-
-   // -------------------------------------------------------
-   // Phase 3: Re-Entry after machine-gun close
-   // -------------------------------------------------------
-   if(closedAny && lastClosedTrend != 0 && CountXAUOrders() < g_MaxXAUOrders)
+   
+   if(ArraySize(sellTickets) >= 3)
    {
-      Sleep(300); // small pause to ensure close settled
-      string dir    = (lastClosedTrend == 1) ? "BUY" : "SELL";
-      double point  = SymbolInfoDouble(lastClosedSym, SYMBOL_POINT);
-      double ask    = SymbolInfoDouble(lastClosedSym, SYMBOL_ASK);
-      double bid    = SymbolInfoDouble(lastClosedSym, SYMBOL_BID);
-      double entry  = (dir == "BUY") ? ask : bid;
-      double sl     = (dir == "BUY")
-                      ? entry - (g_MaxSLOuro * point)
-                      : entry + (g_MaxSLOuro * point);
-      double minLot = SymbolInfoDouble(lastClosedSym, SYMBOL_VOLUME_MIN);
-      double lot    = CalculateLot(lastClosedSym, GetDynamicRisk(g_MaxSLOuro), MathAbs(entry - sl), (dir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
-      if(lot <= 0) lot = minLot;
-
-      trade.SetTypeFillingBySymbol(lastClosedSym);
-      bool ok = false;
-      if(dir == "BUY")  ok = trade.Buy(lot,  lastClosedSym, entry, sl, 0, "Aura XAU Machine Gun");
-      else               ok = trade.Sell(lot, lastClosedSym, entry, sl, 0, "Aura XAU Machine Gun");
-
-      if(ok) Print("🔫 [XAU] Machine Gun re-entrada ", dir, " | Lot:", DoubleToString(lot,2), " | SL:", DoubleToString(sl,5));
-      else   Print("❌ [XAU] Falha na re-entrada: ", trade.ResultRetcodeDescription());
+      // Encontrar a venda mais antiga
+      ulong oldestT = sellTickets[0];
+      PositionSelectByTicket(oldestT);
+      datetime oldestTime = (datetime)PositionGetInteger(POSITION_TIME);
+      for(int k=1; k<ArraySize(sellTickets); k++) {
+         PositionSelectByTicket(sellTickets[k]);
+         datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+         if(pt < oldestTime) { oldestTime = pt; oldestT = sellTickets[k]; }
+      }
+      PositionSelectByTicket(oldestT);
+      if(PositionGetDouble(POSITION_PROFIT) > 0) {
+         Print("🔻 [Pyramiding] A trancar lucro da Ordem SELL base! Ticket: ", oldestT);
+         CloseXAUPosition(oldestT);
+      }
+   }
+   
+   // --- Basket Trailing Sync (Fecho Simultâneo) ---
+   if(highestBuySL > 0) {
+      for(int k=0; k<ArraySize(buyTickets); k++) {
+         if(PositionSelectByTicket(buyTickets[k])) {
+            double currentSL = PositionGetDouble(POSITION_SL);
+            if(currentSL < highestBuySL || currentSL == 0) {
+               trade.PositionModify(buyTickets[k], highestBuySL, PositionGetDouble(POSITION_TP));
+            }
+         }
+      }
+   }
+   if(lowestSellSL < 999999 && lowestSellSL > 0) {
+      for(int k=0; k<ArraySize(sellTickets); k++) {
+         if(PositionSelectByTicket(sellTickets[k])) {
+            double currentSL = PositionGetDouble(POSITION_SL);
+            if(currentSL > lowestSellSL || currentSL == 0) {
+               trade.PositionModify(sellTickets[k], lowestSellSL, PositionGetDouble(POSITION_TP));
+            }
+         }
+      }
    }
 
    // -------------------------------------------------------
    // Phase 4: Scalper Autónomo Adaptativo — Momento Puro M1
    // -------------------------------------------------------
+   if(IsFridayFreeze()) return; // <-- Friday Freeze bloqueia ABERTURA, mas não a GESTÃO acima
+   
    string xauSym = "XAUUSD"; // símbolo principal a monitorizar
    if(!SymbolSelect(xauSym, true)) xauSym = "XAUUSDm";
 
