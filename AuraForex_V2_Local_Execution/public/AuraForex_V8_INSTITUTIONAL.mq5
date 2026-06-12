@@ -2378,6 +2378,22 @@ int ScalperXAUSignal(string sym)
       IndicatorRelease(hE50);
    }
 
+   // --- Filtro de Exaustão (RSI M5) ---
+   // Impede comprar no topo de um ressalto (bull trap) ou vender no fundo
+   double rsi_m5[]; ArraySetAsSeries(rsi_m5, true);
+   int hRSI_m5 = iRSI(sym, PERIOD_M5, 14, PRICE_CLOSE);
+   bool rsiOverbought = false;
+   bool rsiOversold = false;
+   if(hRSI_m5 != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hRSI_m5, 0, 0, 1, rsi_m5) > 0)
+      {
+         rsiOverbought = (rsi_m5[0] > 60); // Ressalto já esticou demasiado
+         rsiOversold   = (rsi_m5[0] < 40); // Queda já esticou demasiado
+      }
+      IndicatorRelease(hRSI_m5);
+   }
+
    // --- Critério 1: EMA Crossover M5 (EMA9 vs EMA21) ---
    double ema9_arr[], ema21_arr[];
    ArraySetAsSeries(ema9_arr, true);
@@ -2454,56 +2470,51 @@ int ScalperXAUSignal(string sym)
    
    if(score >= 2)
    {
-      // Filtro Supremo e Imediato: Proibido comprar se a macro for baixa ou se o preço estiver abaixo da EMA50(M5)
-      if(macroTrend == -1 || priceBelowEma50) return 0; 
+      // Filtro Supremo e Imediato: 
+      // Proibido comprar se a macro for baixa, se o preço estiver abaixo da EMA50(M5) ou se o RSI M5 já estiver esticado (> 60)
+      if(macroTrend == -1 || priceBelowEma50 || rsiOverbought) return 0; 
       return 1; // BUY
    }
    if(score <= -2)
    {
-      // Filtro Supremo e Imediato: Proibido vender se a macro for alta ou se o preço estiver acima da EMA50(M5)
-      if(macroTrend == 1 || priceAboveEma50) return 0;
+      // Filtro Supremo e Imediato: 
+      // Proibido vender se a macro for alta, se o preço estiver acima da EMA50(M5) ou se o RSI M5 já estiver no fundo (< 40)
+      if(macroTrend == 1 || priceAboveEma50 || rsiOversold) return 0;
       return -1; // SELL
    }
    return 0;
 }
 
 //+------------------------------------------------------------------+
-//| XAU INTELLIGENT TREND MODULE (M15: Price Action + EMA 9/21/50)   |
+//| XAU INTELLIGENT TREND MODULE (M15: Price vs EMA 50)              |
 //+------------------------------------------------------------------+
 int GetXAUTrend(string sym)
 {
    if(!g_XAU_AutoTrend) return 0;
 
-   // Usamos 3 EMAs no M15 para uma leitura MUITO mais rápida que o ADX
-   // EMA 9 (Rápida), EMA 21 (Média), EMA 50 (Lenta/Estrutural)
-   double ema9[], ema21[], ema50[];
-   ArraySetAsSeries(ema9, true);
-   ArraySetAsSeries(ema21, true);
+   // Para evitar "lags" de médias móveis curtas a cruzar em pullbacks,
+   // a Tendência Macro passa a ser uma linha dura: Preço vs EMA 50 no M15 (Estrutural)
+   double ema50[];
    ArraySetAsSeries(ema50, true);
 
-   int hEma9  = iMA(sym, PERIOD_M15, 9,  0, MODE_EMA, PRICE_CLOSE);
-   int hEma21 = iMA(sym, PERIOD_M15, 21, 0, MODE_EMA, PRICE_CLOSE);
    int hEma50 = iMA(sym, PERIOD_M15, 50, 0, MODE_EMA, PRICE_CLOSE);
 
-   if(hEma9 == INVALID_HANDLE || hEma21 == INVALID_HANDLE || hEma50 == INVALID_HANDLE) return 0;
+   if(hEma50 == INVALID_HANDLE) return 0;
    
-   bool ok = (CopyBuffer(hEma9, 0, 0, 1, ema9) > 0 && 
-              CopyBuffer(hEma21, 0, 0, 1, ema21) > 0 && 
-              CopyBuffer(hEma50, 0, 0, 1, ema50) > 0);
-              
-   IndicatorRelease(hEma9); IndicatorRelease(hEma21); IndicatorRelease(hEma50);
+   bool ok = (CopyBuffer(hEma50, 0, 0, 1, ema50) > 0);
+   IndicatorRelease(hEma50);
    
    if(!ok) return 0;
 
    double price = SymbolInfoDouble(sym, SYMBOL_BID);
 
-   // Tendência de ALTA: Preço ACIMA da EMA 50 e EMA 9 ACIMA da EMA 21
-   if(price > ema50[0] && ema9[0] > ema21[0]) return 1;
+   // Tendência de ALTA: Preço ACIMA da EMA 50 M15
+   if(price > ema50[0]) return 1;
 
-   // Tendência de BAIXA: Preço ABAIXO da EMA 50 e EMA 9 ABAIXO da EMA 21
-   if(price < ema50[0] && ema9[0] < ema21[0]) return -1;
+   // Tendência de BAIXA: Preço ABAIXO da EMA 50 M15
+   if(price < ema50[0]) return -1;
 
-   return 0; // Lateral ou em transição
+   return 0;
 }
 
 int CountXAUOrders()
