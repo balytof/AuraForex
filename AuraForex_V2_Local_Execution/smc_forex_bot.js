@@ -28,7 +28,7 @@ const BOT_CONFIG = {
   mtf: 60,
   ltf: 15,
   riskPerTrade: 1.5,
-  maxOpenTrades: 3,
+  maxOpenTrades: 6,
   maxDailyLoss: 5,
   rrRatio: 1.5, // Reduzido de 2.5 para 1.5 para fechos mais rápidos
   ema:  { fast: 9, slow: 21 },
@@ -240,28 +240,39 @@ class SignalEngine {
     const { structure } = SMCDetector.detectStructure(candles);
 
     // ── LONG: Avaliado sempre pela EMA (bias AI apenas dá bónus de pontuação)
-    if (lastEmaFast > lastEmaSlow) {
+    // FILTRO IMEDIATO: O preço DEVE estar acima da EMA 9 para comprar (evita comprar facas a cair)
+    if (lastEmaFast > lastEmaSlow && lastClose > lastEmaFast) {
       const nearBullOB  = obs.filter(o => o.type === "BULLISH_OB" && lastClose >= o.low && lastClose <= o.high * 1.002);
       const nearBullFVG = fvgs.filter(f => f.type === "BULLISH_FVG" && lastClose >= f.bottom && lastClose <= f.top);
       const bosBull     = structure.some(s => s.type === "BOS_BULLISH" || s.type === "CHOCH_BULLISH");
-      if (nearBullOB.length || nearBullFVG.length) {
+      
+      const strongMomentumBull = lastRsi > 55 && lastMacd > 0;
+      const hasZone = nearBullOB.length > 0 || nearBullFVG.length > 0;
+      const isBreakout = bosBull && strongMomentumBull;
+
+      if (hasZone || isBreakout) {
         const factors = {
           smcStructure: bosBull, orderBlock: nearBullOB.length > 0, fvg: nearBullFVG.length > 0,
           emaAlignment: lastEmaFast > lastEmaSlow, macdConfirm: lastMacd > 0 && lastMacd > prevMacd,
           rsiConfirm: lastRsi > 40 && lastRsi < this.config.rsi.ob, sessionActive: this.isActiveSession(utcH),
         };
         let score = this.calcConfluence(factors);
-        // Bónus de 10 pontos se o bias da AI coincidir com a direção
         if (htfBias === "BULLISH") score += 10;
+        if (isBreakout && !hasZone) score += 20; // Bónus para compensar a falta de OB/FVG no Breakout
+
         if (score >= 55) {
           let entryPrice = lastClose;
           let orderType = "MARKET";
           const zone = nearBullOB[0] || nearBullFVG[0];
-          const idealEntry = zone.high || zone.top;
-          if (zone && lastClose > idealEntry + (lastAtr * 0.1)) {
-            entryPrice = idealEntry;
-            orderType = "LIMIT";
+          
+          if (zone) {
+            const idealEntry = zone.high || zone.top;
+            if (lastClose > idealEntry + (lastAtr * 0.1)) {
+              entryPrice = idealEntry;
+              orderType = "LIMIT";
+            }
           }
+
           const sl = parseFloat((entryPrice - lastAtr * this.config.atr.slMultiplier).toFixed(5));
           const tp = parseFloat((entryPrice + lastAtr * this.config.atr.tpMultiplier).toFixed(5));
           return { pair, direction: "BUY", score, orderType, entry: entryPrice, sl, tp, rr: ((tp - entryPrice) / (entryPrice - sl)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
@@ -270,28 +281,39 @@ class SignalEngine {
     }
 
     // ── SHORT: Avaliado sempre pela EMA (bias AI apenas dá bónus de pontuação)
-    if (lastEmaFast < lastEmaSlow) {
+    // FILTRO IMEDIATO: O preço DEVE estar abaixo da EMA 9 para vender
+    if (lastEmaFast < lastEmaSlow && lastClose < lastEmaFast) {
       const nearBearOB  = obs.filter(o => o.type === "BEARISH_OB" && lastClose <= o.high && lastClose >= o.low * 0.998);
       const nearBearFVG = fvgs.filter(f => f.type === "BEARISH_FVG" && lastClose <= f.top && lastClose >= f.bottom);
       const bosBear     = structure.some(s => s.type === "BOS_BEARISH" || s.type === "CHOCH_BEARISH");
-      if (nearBearOB.length || nearBearFVG.length) {
+      
+      const strongMomentumBear = lastRsi < 45 && lastMacd < 0;
+      const hasZone = nearBearOB.length > 0 || nearBearFVG.length > 0;
+      const isBreakout = bosBear && strongMomentumBear;
+
+      if (hasZone || isBreakout) {
         const factors = {
           smcStructure: bosBear, orderBlock: nearBearOB.length > 0, fvg: nearBearFVG.length > 0,
           emaAlignment: lastEmaFast < lastEmaSlow, macdConfirm: lastMacd < 0 && lastMacd < prevMacd,
           rsiConfirm: lastRsi < 60 && lastRsi > this.config.rsi.os, sessionActive: this.isActiveSession(utcH),
         };
         let score = this.calcConfluence(factors);
-        // Bónus de 10 pontos se o bias da AI coincidir com a direção
         if (htfBias === "BEARISH") score += 10;
+        if (isBreakout && !hasZone) score += 20; // Bónus para compensar a falta de OB/FVG no Breakout
+
         if (score >= 55) {
           let entryPrice = lastClose;
           let orderType = "MARKET";
           const zone = nearBearOB[0] || nearBearFVG[0];
-          const idealEntry = zone.low || zone.bottom;
-          if (zone && lastClose < idealEntry - (lastAtr * 0.1)) {
-            entryPrice = idealEntry;
-            orderType = "LIMIT";
+          
+          if (zone) {
+            const idealEntry = zone.low || zone.bottom;
+            if (lastClose < idealEntry - (lastAtr * 0.1)) {
+              entryPrice = idealEntry;
+              orderType = "LIMIT";
+            }
           }
+
           const sl = parseFloat((entryPrice + lastAtr * this.config.atr.slMultiplier).toFixed(5));
           const tp = parseFloat((entryPrice - lastAtr * this.config.atr.tpMultiplier).toFixed(5));
           return { pair, direction: "SELL", score, orderType, entry: entryPrice, sl, tp, rr: ((entryPrice - tp) / (sl - entryPrice)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
