@@ -2358,6 +2358,9 @@ void OnChartEvent(const int id,
 // Retorna: +1 = BUY, -1 = SELL, 0 = sem sinal
 int ScalperXAUSignal(string sym)
 {
+   // --- A Lei Suprema: Tendência Macro (M15 ADX + EMA) ---
+   int macroTrend = GetXAUTrend(sym);
+
    // --- Critério 1: EMA Crossover M5 (EMA9 vs EMA21) ---
    double ema9_arr[], ema21_arr[];
    ArraySetAsSeries(ema9_arr, true);
@@ -2431,39 +2434,83 @@ int ScalperXAUSignal(string sym)
 
    // --- Decisão Final: Maioria >= 3 de 4 ---
    int score = c1 + c2 + c3 + c4;
-   if(score >= 2)  return  1; // BUY (>= 2 concordam para cima)
-   if(score <= -2) return -1; // SELL (>= 2 concordam para baixo)
+   
+   if(score >= 2)
+   {
+      // Filtro Supremo: Proibido comprar se a macro for de baixa
+      if(macroTrend == -1) return 0; 
+      return 1; // BUY
+   }
+   if(score <= -2)
+   {
+      // Filtro Supremo: Proibido vender se a macro for de alta
+      if(macroTrend == 1) return 0;
+      return -1; // SELL
+   }
    return 0;
 }
 
 //+------------------------------------------------------------------+
-//| XAU INTELLIGENT TREND MODULE                                     |
+//| XAU INTELLIGENT TREND MODULE (M15 ADX + EMA 20/50)               |
 //+------------------------------------------------------------------+
 int GetXAUTrend(string sym)
 {
    if(!g_XAU_AutoTrend) return 0;
 
-   double emaFast[], emaSlow[];
-   ArraySetAsSeries(emaFast, true);
-   ArraySetAsSeries(emaSlow, true);
+   // 1. Médias Móveis (EMA 20 e 50 no M15)
+   double ema20[], ema50[];
+   ArraySetAsSeries(ema20, true);
+   ArraySetAsSeries(ema50, true);
 
-   int hFast = iMA(sym, g_XAU_Timeframe, g_XAU_EmaFast, 0, MODE_EMA, PRICE_CLOSE);
-   int hSlow  = iMA(sym, g_XAU_Timeframe, g_XAU_EmaSlow, 0, MODE_EMA, PRICE_CLOSE);
+   int hEma20 = iMA(sym, PERIOD_M15, 20, 0, MODE_EMA, PRICE_CLOSE);
+   int hEma50 = iMA(sym, PERIOD_M15, 50, 0, MODE_EMA, PRICE_CLOSE);
 
-   if(hFast == INVALID_HANDLE || hSlow == INVALID_HANDLE) return 0;
+   if(hEma20 == INVALID_HANDLE || hEma50 == INVALID_HANDLE) return 0;
+   if(CopyBuffer(hEma20, 0, 0, 2, ema20) <= 0 || CopyBuffer(hEma50, 0, 0, 2, ema50) <= 0) 
+   { 
+      IndicatorRelease(hEma20); IndicatorRelease(hEma50); return 0; 
+   }
 
-   if(CopyBuffer(hFast, 0, 0, 3, emaFast) <= 0) { IndicatorRelease(hFast); IndicatorRelease(hSlow); return 0; }
-   if(CopyBuffer(hSlow, 0, 0, 3, emaSlow) <= 0) { IndicatorRelease(hFast); IndicatorRelease(hSlow); return 0; }
+   // 2. Indicador ADX (Average Directional Index) no M15
+   double adxMain[], adxPlus[], adxMinus[];
+   ArraySetAsSeries(adxMain, true);
+   ArraySetAsSeries(adxPlus, true);
+   ArraySetAsSeries(adxMinus, true);
 
-   IndicatorRelease(hFast);
-   IndicatorRelease(hSlow);
+   int hAdx = iADX(sym, PERIOD_M15, 14);
+   if(hAdx == INVALID_HANDLE) 
+   { 
+      IndicatorRelease(hEma20); IndicatorRelease(hEma50); return 0; 
+   }
+   
+   if(CopyBuffer(hAdx, 0, 0, 2, adxMain) <= 0 || 
+      CopyBuffer(hAdx, 1, 0, 2, adxPlus) <= 0 || 
+      CopyBuffer(hAdx, 2, 0, 2, adxMinus) <= 0)
+   {
+      IndicatorRelease(hEma20); IndicatorRelease(hEma50); IndicatorRelease(hAdx); return 0;
+   }
 
-   double diff    = emaFast[0] - emaSlow[0];
-   double minDiff = SymbolInfoDouble(sym, SYMBOL_POINT) * 50; // Needs at least 5 pips gap to be "strong"
+   IndicatorRelease(hEma20);
+   IndicatorRelease(hEma50);
+   IndicatorRelease(hAdx);
 
-   if(diff >  minDiff) return  1; // Strong uptrend
-   if(diff < -minDiff) return -1; // Strong downtrend
-   return 0; // Neutral - no trade
+   bool isEmaUp   = ema20[0] > ema50[0];
+   bool isEmaDown = ema20[0] < ema50[0];
+
+   bool isAdxStrong = adxMain[0] > 25.0; // Força de tendência superior a 25
+   bool isAdxUp     = adxPlus[0] > adxMinus[0];
+   bool isAdxDown   = adxMinus[0] > adxPlus[0];
+
+   // Validação de Tendência de ALTA:
+   // EMA 20 acima da 50 + Força ADX > 25 + Linha de compra (+DI) acima de venda (-DI)
+   if(isEmaUp && isAdxStrong && isAdxUp) return 1;
+
+   // Validação de Tendência de BAIXA:
+   // EMA 20 abaixo da 50 + Força ADX > 25 + Linha de venda (-DI) acima de compra (+DI)
+   if(isEmaDown && isAdxStrong && isAdxDown) return -1;
+
+   // Mercado lateral / sem tendência definida forte
+   return 0;
 }
 
 int CountXAUOrders()
