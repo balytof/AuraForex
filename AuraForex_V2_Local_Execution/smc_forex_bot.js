@@ -31,7 +31,7 @@ const BOT_CONFIG = {
   maxOpenTrades: 3,
   maxDailyLoss: 5,
   rrRatio: 1.5, // Reduzido de 2.5 para 1.5 para fechos mais rápidos
-  ema:  { fast: 50, slow: 200 },
+  ema:  { fast: 9, slow: 21 },
   rsi:  { period: 14, ob: 70, os: 30 },
   macd: { fast: 12, slow: 26, signal: 9 },
   atr:  { period: 14, slMultiplier: 1.8, tpMultiplier: 2.2 }, // Reduzido de 3.2 para 2.2
@@ -239,8 +239,8 @@ class SignalEngine {
     const fvgs = SMCDetector.detectFairValueGaps(candles);
     const { structure } = SMCDetector.detectStructure(candles);
 
-    // ── LONG
-    if (htfBias === "BULLISH" || lastEmaFast > lastEmaSlow) {
+    // ── LONG: Avaliado sempre pela EMA (bias AI apenas dá bónus de pontuação)
+    if (lastEmaFast > lastEmaSlow) {
       const nearBullOB  = obs.filter(o => o.type === "BULLISH_OB" && lastClose >= o.low && lastClose <= o.high * 1.002);
       const nearBullFVG = fvgs.filter(f => f.type === "BULLISH_FVG" && lastClose >= f.bottom && lastClose <= f.top);
       const bosBull     = structure.some(s => s.type === "BOS_BULLISH" || s.type === "CHOCH_BULLISH");
@@ -250,18 +250,18 @@ class SignalEngine {
           emaAlignment: lastEmaFast > lastEmaSlow, macdConfirm: lastMacd > 0 && lastMacd > prevMacd,
           rsiConfirm: lastRsi > 40 && lastRsi < this.config.rsi.ob, sessionActive: this.isActiveSession(utcH),
         };
-        const score = this.calcConfluence(factors);
+        let score = this.calcConfluence(factors);
+        // Bónus de 10 pontos se o bias da AI coincidir com a direção
+        if (htfBias === "BULLISH") score += 10;
         if (score >= 55) {
           let entryPrice = lastClose;
           let orderType = "MARKET";
-          
           const zone = nearBullOB[0] || nearBullFVG[0];
           const idealEntry = zone.high || zone.top;
           if (zone && lastClose > idealEntry + (lastAtr * 0.1)) {
             entryPrice = idealEntry;
             orderType = "LIMIT";
           }
-
           const sl = parseFloat((entryPrice - lastAtr * this.config.atr.slMultiplier).toFixed(5));
           const tp = parseFloat((entryPrice + lastAtr * this.config.atr.tpMultiplier).toFixed(5));
           return { pair, direction: "BUY", score, orderType, entry: entryPrice, sl, tp, rr: ((tp - entryPrice) / (entryPrice - sl)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
@@ -269,8 +269,8 @@ class SignalEngine {
       }
     }
 
-    // ── SHORT
-    if (htfBias === "BEARISH" || lastEmaFast < lastEmaSlow) {
+    // ── SHORT: Avaliado sempre pela EMA (bias AI apenas dá bónus de pontuação)
+    if (lastEmaFast < lastEmaSlow) {
       const nearBearOB  = obs.filter(o => o.type === "BEARISH_OB" && lastClose <= o.high && lastClose >= o.low * 0.998);
       const nearBearFVG = fvgs.filter(f => f.type === "BEARISH_FVG" && lastClose <= f.top && lastClose >= f.bottom);
       const bosBear     = structure.some(s => s.type === "BOS_BEARISH" || s.type === "CHOCH_BEARISH");
@@ -280,18 +280,18 @@ class SignalEngine {
           emaAlignment: lastEmaFast < lastEmaSlow, macdConfirm: lastMacd < 0 && lastMacd < prevMacd,
           rsiConfirm: lastRsi < 60 && lastRsi > this.config.rsi.os, sessionActive: this.isActiveSession(utcH),
         };
-        const score = this.calcConfluence(factors);
+        let score = this.calcConfluence(factors);
+        // Bónus de 10 pontos se o bias da AI coincidir com a direção
+        if (htfBias === "BEARISH") score += 10;
         if (score >= 55) {
           let entryPrice = lastClose;
           let orderType = "MARKET";
-          
           const zone = nearBearOB[0] || nearBearFVG[0];
           const idealEntry = zone.low || zone.bottom;
           if (zone && lastClose < idealEntry - (lastAtr * 0.1)) {
             entryPrice = idealEntry;
             orderType = "LIMIT";
           }
-
           const sl = parseFloat((entryPrice + lastAtr * this.config.atr.slMultiplier).toFixed(5));
           const tp = parseFloat((entryPrice - lastAtr * this.config.atr.tpMultiplier).toFixed(5));
           return { pair, direction: "SELL", score, orderType, entry: entryPrice, sl, tp, rr: ((entryPrice - tp) / (sl - entryPrice)).toFixed(2), atr: lastAtr, factors, timestamp: new Date().toISOString() };
@@ -545,13 +545,14 @@ ${JSON.stringify(marketData, null, 2)}
    * @param {string} aiApiKey
    * @param {number} intervalMs
    */
-  static async runWithAI(bot, getMarketData, aiApiKey, intervalMs = 60000) {
+  static async runWithAI(bot, getMarketData, aiApiKey, intervalMs = 30000) {
     bot.log("Modo AI Studio ativado");
     bot.isRunning = true;
 
     const loop = async () => {
       if (!bot.isRunning) return;
-      for (const pair of bot.config.pairs) {
+      // Pares em paralelo para eliminar atraso sequencial
+      await Promise.all(bot.config.pairs.map(async (pair) => {
         try {
           const { candles, currentPrice, atr, htfSummary } = await getMarketData(pair);
           const ai = await AIStudioIntegration.analyzeSentimentWithAI(pair, htfSummary, aiApiKey);
@@ -561,7 +562,7 @@ ${JSON.stringify(marketData, null, 2)}
         } catch (e) {
           bot.log(`Erro ao processar ${pair}: ${e.message}`);
         }
-      }
+      }));
       setTimeout(loop, intervalMs);
     };
 

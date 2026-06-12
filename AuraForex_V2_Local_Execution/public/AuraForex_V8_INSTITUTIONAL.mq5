@@ -2388,8 +2388,8 @@ int ScalperXAUSignal(string sym)
    {
       if(CopyBuffer(hRSI_m5, 0, 0, 1, rsi_m5) > 0)
       {
-         rsiOverbought = (rsi_m5[0] > 60); // Ressalto já esticou demasiado
-         rsiOversold   = (rsi_m5[0] < 40); // Queda já esticou demasiado
+         rsiOverbought = (rsi_m5[0] > 80); // Ressalto extremo/topo (Bull Trap)
+         rsiOversold   = (rsi_m5[0] < 20); // Fundo extremo (Bear Trap)
       }
       IndicatorRelease(hRSI_m5);
    }
