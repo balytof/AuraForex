@@ -32,6 +32,12 @@ int Tester_MaxBuys           = 6;                       // Máximo de Compras Si
 int Tester_MaxSells          = 6;                       // Máximo de Vendas Simultâneas
 int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
 
+// --- XAU DISTANCE SCALPER --- 
+int Tester_XAU_StepDistance      = 100; // XAU: Distância para Abrir Nova Ordem (Pts)
+int Tester_XAU_TargetPoints      = 200; // XAU: Alvo Fixo de Lucro (Pts)
+int Tester_XAU_ReversalPoints    = 150; // XAU: Reversão para Fechar Lucros (Pts)
+int Tester_XAU_HoldSeconds       = 30;  // XAU: Tempo Limite no Lucro (Seg)
+
 // --- PROFIT LOCK PARAMETERS ---
 double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
 double Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
@@ -115,6 +121,20 @@ double            DailyPeakPnL          = 0;
 double            DailyTargetProfit     = 0;
 int               LastTradingDay        = -1;
 int               ConsecutiveLosses     = 0;
+int               g_MaxSLForex      = 1500;
+int               g_MaxSLJPY        = 3000;
+int               g_MaxSLOuro       = 1500;
+int               g_MaxOrders       = 6;
+int               g_XAU_StepDistance = 100;
+int               g_XAU_TargetPoints = 200;
+int               g_XAU_ReversalPoints = 150;
+int               g_XAU_HoldSeconds = 30;
+double            g_XAU_AnchorPrice = 0;
+double            g_XAU_PeakPrice = 0;
+double            g_XAU_ValleyPrice = 0;
+int               g_TrailingStart_XAU = 200;
+int               g_TrailingDistance_XAU = 300;
+int               g_TrailingStep_XAU = 50;
 
 // ✅ FIX #3: g_UseTwinTrading declarado aqui como global (padrão g_*)
 //    Será inicializado em OnInit() a partir de Tester_UseTwinTrading
@@ -289,9 +309,6 @@ int OnInit()
        
        // Fallbacks para as novas variáveis do Trailing
        g_TrailingEnabled = Tester_TrailingEnabled;
-       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
-       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
-       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
        g_TrailingStart_JPY = Tester_TrailingStart_JPY;
        g_TrailingDistance_JPY = Tester_TrailingDistance_JPY;
        g_TrailingStep_JPY = Tester_TrailingStep_JPY;
@@ -305,7 +322,15 @@ int OnInit()
        g_MaxSLForex = Tester_MaxSLForex;
        g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxSLOuro = Tester_MaxSLOuro;
+       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
+       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
+       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
+       g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxOrders = Tester_MaxOrders;
+       g_XAU_StepDistance = Tester_XAU_StepDistance;
+       g_XAU_TargetPoints = Tester_XAU_TargetPoints;
+       g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
+       g_XAU_HoldSeconds = Tester_XAU_HoldSeconds;
        g_MaxBuys = Tester_MaxBuys;
        g_MaxSells = Tester_MaxSells;
        g_TradeCooldown = Tester_TradeCooldown;
@@ -378,6 +403,135 @@ void OnDeinit(const int reason)
    ArrayFree(g_atrCache);
    Print("🧹 [CLEANUP] Handles de ATR libertados com sucesso.");
 }
+int CountXAUOrders() {
+   int c=0;
+   for(int i=PositionsTotal()-1; i>=0; i--) {
+      ulong t=PositionGetTicket(i);
+      if(t>0 && PositionSelectByTicket(t)) {
+         if(IsXAU(PositionGetString(POSITION_SYMBOL)) && PositionGetInteger(POSITION_MAGIC)==GetAuraMagic()) c++;
+      }
+   }
+   return c;
+}
+
+//+------------------------------------------------------------------+
+//| XAU CONTINUOUS DISTANCE SCALPER                                  |
+//+------------------------------------------------------------------+
+void ContinuousTickScalperXAU()
+{
+   if(IsFridayFreeze()) return; // Bloqueia abertura à Sexta-feira
+   if(CountXAUOrders() >= g_MaxOrders) return; // Limite global
+
+   string sym = "XAUUSD";
+   if(!SymbolSelect(sym, true)) sym = "XAUUSDm";
+   if(!IsXAU(sym)) return;
+
+   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   double midPrice = (ask + bid) / 2.0;
+
+   // 1. INICIALIZAÇÃO DA ÂNCORA E EXTREMOS
+   if(g_XAU_AnchorPrice == 0)
+   {
+      g_XAU_AnchorPrice = midPrice;
+      g_XAU_PeakPrice = midPrice;
+      g_XAU_ValleyPrice = midPrice;
+      return; // Aguarda o próximo tick para medir distância
+   }
+
+   // 2. ATUALIZAÇÃO DOS EXTREMOS DA TENDÊNCIA ATUAL (Para Reversão)
+   if(midPrice > g_XAU_PeakPrice) g_XAU_PeakPrice = midPrice;
+   if(midPrice < g_XAU_ValleyPrice) g_XAU_ValleyPrice = midPrice;
+
+   // 3. REGRA DE ABERTURA DE ORDENS (Por Distância da Âncora)
+   // Se o preço subir a distância definida desde a âncora -> COMPRA
+   if(midPrice >= g_XAU_AnchorPrice + (g_XAU_StepDistance * point))
+   {
+      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+      trade.SetTypeFillingBySymbol(sym);
+      bool ok = trade.Buy(sLot, sym, ask, 0, 0, "Aura XAU Distance Buy");
+      if(ok)
+      {
+         Print("📈 [XAU] Abertura de COMPRA por Distância (Passo atingido). Preço: ", ask);
+         g_XAU_AnchorPrice = midPrice; // Nova âncora
+         g_XAU_PeakPrice = midPrice;   // Reset Peak
+         g_XAU_ValleyPrice = midPrice; // Reset Valley
+      }
+   }
+   // Se o preço cair a distância definida desde a âncora -> VENDE
+   else if(midPrice <= g_XAU_AnchorPrice - (g_XAU_StepDistance * point))
+   {
+      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+      trade.SetTypeFillingBySymbol(sym);
+      bool ok = trade.Sell(sLot, sym, bid, 0, 0, "Aura XAU Distance Sell");
+      if(ok)
+      {
+         Print("📉 [XAU] Abertura de VENDA por Distância (Passo atingido). Preço: ", bid);
+         g_XAU_AnchorPrice = midPrice; // Nova âncora
+         g_XAU_PeakPrice = midPrice;   // Reset Peak
+         g_XAU_ValleyPrice = midPrice; // Reset Valley
+      }
+   }
+
+   // 4. GESTÃO DE FECHO (Take Profit, Reversão e Hold Seconds)
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t <= 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != sym) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+
+      long type = PositionGetInteger(POSITION_TYPE);
+      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP); // Commission handled separately if needed, simplified here
+      
+      bool closeIt = false;
+      string closeReason = "";
+
+      // REGRA 1: FECHO NO ALVO (Take Profit)
+      if(type == POSITION_TYPE_BUY && bid >= openPrice + (g_XAU_TargetPoints * point))
+      {
+         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+      }
+      else if(type == POSITION_TYPE_SELL && ask <= openPrice - (g_XAU_TargetPoints * point))
+      {
+         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+      }
+
+      // REGRA 2: PROTEÇÃO NA REVERSÃO
+      // Se estamos em lucro e o mercado reverteu X pontos do topo/fundo
+      if(!closeIt && profit > 0)
+      {
+         if(type == POSITION_TYPE_BUY && bid <= g_XAU_PeakPrice - (g_XAU_ReversalPoints * point))
+         {
+            closeIt = true; closeReason = "Reversão de Mercado detetada (Proteção de Lucro)";
+         }
+         else if(type == POSITION_TYPE_SELL && ask >= g_XAU_ValleyPrice + (g_XAU_ReversalPoints * point))
+         {
+            closeIt = true; closeReason = "Reversão de Mercado detetada (Proteção de Lucro)";
+         }
+      }
+
+      // REGRA 3: FECHO POR EXAUSTÃO DE TEMPO
+      if(!closeIt && profit > 0 && g_XAU_HoldSeconds > 0)
+      {
+         long timeOpen = PositionGetInteger(POSITION_TIME);
+         if(TimeCurrent() - timeOpen > g_XAU_HoldSeconds)
+         {
+            closeIt = true; closeReason = "Exaustão de Tempo (Hold Seconds)";
+         }
+      }
+
+      // EXECUTA O FECHO
+      if(closeIt)
+      {
+         trade.PositionClose(t, 50);
+         Print("✅ [XAU] Ordem ", t, " Fechada. Motivo: ", closeReason, " | Lucro: $", DoubleToString(profit, 2));
+      }
+   }
+}
+
 
 void OnTick()
 {
@@ -430,6 +584,7 @@ void RunInstitutionalCore()
       ProcessSignalQueue();
 
       MonitorTrailingStop();
+      ContinuousTickScalperXAU();
       MonitorPartialTP();
    }
 }
@@ -1156,9 +1311,6 @@ void MonitorTrailingStop()
       double trailDistPts  = g_TrailingDistance_Forex;
       
       if(IsXAU(sym)) {
-         trailStartPts = g_TrailingStart_XAU;
-         trailStepPts  = g_TrailingStep_XAU;
-         trailDistPts  = g_TrailingDistance_XAU;
       }
       else if(StringFind(sym, "JPY") >= 0) {
          trailStartPts = g_TrailingStart_JPY;
@@ -1580,7 +1732,6 @@ bool ExecuteSignal(string json)
    }
    if(tpDist <= 0) tpDist = slDist * 1.5;
 
-   int hardMaxSL = IsXAU(pair) ? g_MaxSLOuro
                                : ((StringFind(pair, "JPY") >= 0) ? g_MaxSLJPY : g_MaxSLForex);
    int slPoints  = (int)(slDist / point);
    if(slPoints > hardMaxSL) slPoints = hardMaxSL;
