@@ -19,15 +19,12 @@ int    g_MaxOrders = 4;
 int    g_MaxBuys = 2;
 int    g_MaxSells = 2;
 int    g_TradeCooldown = 60;
+int    g_XAU_HoldSeconds = 30; // Modificado para 30 por defeito a pedido
 
 double g_ProfitLockMin = 3.0;
 double g_ProfitLockDrop = 30.0;
 
 bool   g_TrailingEnabled = true;
-int    g_XAU_StepDistance = 100;
-int    g_XAU_TargetPoints = 200;
-int    g_XAU_ReversalPoints = 150;
-int    g_XAU_HoldSeconds = 30;
 int    g_TrailingStart_XAU = 200;
 int    g_TrailingDistance_XAU = 300;
 int    g_TrailingStep_XAU = 50;
@@ -292,11 +289,8 @@ void CAuraPanel::DrawLimites(void)
    CreateLabel("C_LblMS", lx, cy+4, "Máximo de Vendas:", CLR_TXT_WHITE);
    CreateEdit("C_EdMS", ex, cy, ew, eh, (string)g_MaxSells, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
    
-   
-   
-   
-   
-   
+   CreateLabel("C_LblXHS", lx, cy+4, "Tempo XAU Positivo (Segundos):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXHS", ex, cy, ew, eh, (string)g_XAU_HoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
 }
 
 void CAuraPanel::DrawTrailing(void)
@@ -349,14 +343,10 @@ void CAuraPanel::SaveConfig(void)
       g_MaxOrders = (int)StringToInteger(GetEditText("C_EdMO"));
       g_MaxBuys = (int)StringToInteger(GetEditText("C_EdMB"));
       g_MaxSells = (int)StringToInteger(GetEditText("C_EdMS"));
+      g_XAU_HoldSeconds = (int)StringToInteger(GetEditText("C_EdXHS"));
    } else if (m_tab == 4) {
       g_TrailingEnabled = (GetEditText("C_EdTE") == "1");
-      g_XAU_StepDistance = (int)StringToInteger(GetEditText("C_EdXSD"));
-   g_XAU_TargetPoints = (int)StringToInteger(GetEditText("C_EdXTP"));
-   g_XAU_ReversalPoints = (int)StringToInteger(GetEditText("C_EdXRP"));
-   g_XAU_HoldSeconds = (int)StringToInteger(GetEditText("C_EdXHS"));
-
-   g_TrailingStart_XAU = (int)StringToInteger(GetEditText("C_EdTSG"));
+      g_TrailingStart_XAU = (int)StringToInteger(GetEditText("C_EdTSG"));
       g_TrailingDistance_XAU = (int)StringToInteger(GetEditText("C_EdTDG"));
       g_TrailingStart_JPY = (int)StringToInteger(GetEditText("C_EdTSJ"));
       g_TrailingDistance_JPY = (int)StringToInteger(GetEditText("C_EdTDJ"));
@@ -383,14 +373,10 @@ void CAuraPanel::SaveConfig(void)
       FileWriteString(handle, "MaxOrd=" + (string)g_MaxOrders + "\n");
       FileWriteString(handle, "MaxBuy=" + (string)g_MaxBuys + "\n");
       FileWriteString(handle, "MaxSel=" + (string)g_MaxSells + "\n");
+      FileWriteString(handle, "XAUHoldS=" + (string)g_XAU_HoldSeconds + "\n");
       
       FileWriteString(handle, "TrailE=" + (string)g_TrailingEnabled + "\n");
-      FileWriteString(handle, "XAUStep=" + (string)g_XAU_StepDistance + "\n");
-   FileWriteString(handle, "XAUTarget=" + (string)g_XAU_TargetPoints + "\n");
-   FileWriteString(handle, "XAUReverse=" + (string)g_XAU_ReversalPoints + "\n");
-   FileWriteString(handle, "XAUHold=" + (string)g_XAU_HoldSeconds + "\n");
-
-   FileWriteString(handle, "TrailSXAU=" + (string)g_TrailingStart_XAU + "\n");
+      FileWriteString(handle, "TrailSXAU=" + (string)g_TrailingStart_XAU + "\n");
       FileWriteString(handle, "TrailDXAU=" + (string)g_TrailingDistance_XAU + "\n");
       FileWriteString(handle, "TrailSJPY=" + (string)g_TrailingStart_JPY + "\n");
       FileWriteString(handle, "TrailDJPY=" + (string)g_TrailingDistance_JPY + "\n");
@@ -427,14 +413,10 @@ void CAuraPanel::LoadConfig(void)
             if(sep[0] == "MaxOrd") g_MaxOrders = (int)StringToInteger(sep[1]);
             if(sep[0] == "MaxBuy") g_MaxBuys = (int)StringToInteger(sep[1]);
             if(sep[0] == "MaxSel") g_MaxSells = (int)StringToInteger(sep[1]);
+            if(sep[0] == "XAUHoldS") g_XAU_HoldSeconds = (int)StringToInteger(sep[1]);
             
             if(sep[0] == "TrailE") g_TrailingEnabled = (sep[1] == "true" || sep[1] == "1");
-            if(sep[0] == "XAUStep") g_XAU_StepDistance = (int)StringToInteger(sep[1]);
-      if(sep[0] == "XAUTarget") g_XAU_TargetPoints = (int)StringToInteger(sep[1]);
-      if(sep[0] == "XAUReverse") g_XAU_ReversalPoints = (int)StringToInteger(sep[1]);
-      if(sep[0] == "XAUHold") g_XAU_HoldSeconds = (int)StringToInteger(sep[1]);
-
-      if(sep[0] == "TrailSXAU") g_TrailingStart_XAU = (int)StringToInteger(sep[1]);
+            if(sep[0] == "TrailSXAU") g_TrailingStart_XAU = (int)StringToInteger(sep[1]);
             if(sep[0] == "TrailDXAU") g_TrailingDistance_XAU = (int)StringToInteger(sep[1]);
             if(sep[0] == "TrailSJPY") g_TrailingStart_JPY = (int)StringToInteger(sep[1]);
             if(sep[0] == "TrailDJPY") g_TrailingDistance_JPY = (int)StringToInteger(sep[1]);
@@ -517,14 +499,10 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
       if(objName == m_prefix + "C_EdMO")  g_MaxOrders = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdMB")  g_MaxBuys = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdMS")  g_MaxSells = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXHS") g_XAU_HoldSeconds = (int)StringToInteger(val);
       
       if(objName == m_prefix + "C_EdTE") g_TrailingEnabled = (val == "1");
-      if(objName == m_prefix + "C_EdXSD") g_XAU_StepDistance = (int)StringToInteger(val);
-   if(objName == m_prefix + "C_EdXTP") g_XAU_TargetPoints = (int)StringToInteger(val);
-   if(objName == m_prefix + "C_EdXRP") g_XAU_ReversalPoints = (int)StringToInteger(val);
-   if(objName == m_prefix + "C_EdXHS") g_XAU_HoldSeconds = (int)StringToInteger(val);
-
-   if(objName == m_prefix + "C_EdTSG") g_TrailingStart_XAU = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdTSG") g_TrailingStart_XAU = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdTDG") g_TrailingDistance_XAU = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdTSJ") g_TrailingStart_JPY = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdTDJ") g_TrailingDistance_JPY = (int)StringToInteger(val);
