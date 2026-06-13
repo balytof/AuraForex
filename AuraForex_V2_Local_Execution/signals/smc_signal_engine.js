@@ -56,8 +56,8 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
     const entry = normalizePrice(last.close, pair);
 
     // Estrutura forte confirmada por Múltiplos Indicadores Institucionais
-    const isBullishStructure = last.close > last.emaFast && last.macdHist > 0 && last.rsi < 70 && last.rsi > 40;
-    const isBearishStructure = last.close < last.emaFast && last.macdHist < 0 && last.rsi > 30 && last.rsi < 60;
+    const isBullishStructure = last.close > last.emaFast && last.macdHist > 0;
+    const isBearishStructure = last.close < last.emaFast && last.macdHist < 0;
 
     // ================= BUY =================
     const isXAU = pair.includes("XAU") || pair.includes("GOLD");
@@ -79,7 +79,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "BUY", entry, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "BUY", entry, sl, tp, atr, rsi: last.rsi, magic: true, timestamp: Date.now() },
         reason: "Sinal COMPRA MAGIC"
       };
     }
@@ -103,7 +103,7 @@ function generateSignal(pair, candles, htfBias = "NEUTRAL") {
 
       recentSignals.set(signalKey, Date.now());
       return {
-        signal: { pair, direction: "SELL", entry, sl, tp, atr, magic: true, timestamp: Date.now() },
+        signal: { pair, direction: "SELL", entry, sl, tp, atr, rsi: last.rsi, magic: true, timestamp: Date.now() },
         reason: "Sinal VENDA MAGIC"
       };
     }

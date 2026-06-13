@@ -3762,6 +3762,16 @@ async function botLoop(loopId) {
              continue;
           }
 
+          // Filtro de Zonas de Suporte/Resistência APENAS PARA REFORÇOS (Scale-in / Sequência)
+          if (sig.direction === 'BUY' && openBuysCount > 0 && (sig.rsi > 70 || sig.rsi < 40)) {
+             addLog(`⏳ ${pair}: Reforço BUY ignorado (RSI Extremo ou Sem Momentum). RSI atual: ${sig.rsi?.toFixed(1) || 'N/A'}`, "warn");
+             continue;
+          }
+          if (sig.direction === 'SELL' && openSellsCount > 0 && (sig.rsi < 30 || sig.rsi > 60)) {
+             addLog(`⏳ ${pair}: Reforço SELL ignorado (RSI Extremo ou Sem Momentum). RSI atual: ${sig.rsi?.toFixed(1) || 'N/A'}`, "warn");
+             continue;
+          }
+
           addLog(`🎯 SINAL PRO DETETADO: ${sig.direction} ${pair}`, "info");
           sigCount++; // Incrementa contador de sinais
           
