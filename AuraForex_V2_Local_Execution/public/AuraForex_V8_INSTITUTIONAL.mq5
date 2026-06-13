@@ -31,12 +31,11 @@ int Tester_MaxOrders         = 6;                       // Limite Global de Orde
 int Tester_MaxBuys           = 6;                       // Máximo de Compras Simultâneas
 int Tester_MaxSells          = 6;                       // Máximo de Vendas Simultâneas
 int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
-
-// --- XAU DISTANCE SCALPER --- 
-int Tester_XAU_StepDistance      = 100; // XAU: Distância para Abrir Nova Ordem (Pts)
-int Tester_XAU_TargetPoints      = 200; // XAU: Alvo Fixo de Lucro (Pts)
-int Tester_XAU_ReversalPoints    = 150; // XAU: Reversão para Fechar Lucros (Pts)
-int Tester_XAU_HoldSeconds       = 30;  // XAU: Tempo Limite no Lucro (Seg)
+int Tester_XAU_GridDistance  = 200;                     // XAU Scalp: Distância Grelha (Pontos)
+int Tester_XAU_MomentumTrigger = 100;                   // XAU Scalp: Gatilho Momento (Pontos)
+int Tester_XAU_SR_Candles    = 50;                      // XAU S/R: Velas M15 para Extremos
+int Tester_XAU_SR_ZonePips   = 30;                      // XAU S/R: Largura da Zona Quente (Pips)
+int Tester_XAU_SR_BreakoutPips = 20;                    // XAU S/R: Confirmação de Rompimento (Pips)
 
 // --- PROFIT LOCK PARAMETERS ---
 double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
@@ -75,7 +74,7 @@ int Tester_BreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de l
 int Tester_BreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
 
 // --- SEXTA-FEIRA SEGURA (FRIDAY SAFE LOCK) ---
-bool Tester_FridaySafeLock       = false;   // DESATIVADO PARA TESTES
+bool Tester_FridaySafeLock       = true;   // Fechar Sexta-feira Fim do Dia
 int Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
 int Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
 
@@ -105,7 +104,11 @@ struct XAUTimerData {
 XAUTimerData XAUTimers[];
 
 //--- FORWARD DECLARATIONS ---
+int  GetXAUTrend(string sym);
+int  CountXAUOrders();
+void CloseXAUPosition(ulong ticket);
 double GetPositionCommission(ulong ticket);
+void MonitorIntelligentXAU();
 
 //--- GLOBAL VARIABLES ---
 double            g_MonetaryMultiplier = 1.0;
@@ -121,28 +124,24 @@ double            DailyPeakPnL          = 0;
 double            DailyTargetProfit     = 0;
 int               LastTradingDay        = -1;
 int               ConsecutiveLosses     = 0;
-int               g_MaxSLForex      = 1500;
-int               g_MaxSLJPY        = 3000;
-int               g_MaxSLOuro       = 1500;
-int               g_MaxOrders       = 6;
-int               g_XAU_StepDistance = 100;
-int               g_XAU_TargetPoints = 200;
-int               g_XAU_ReversalPoints = 150;
-int               g_XAU_HoldSeconds = 30;
-double            g_XAU_AnchorPrice = 0;
-double            g_XAU_PeakPrice = 0;
-double            g_XAU_ValleyPrice = 0;
-int               g_TrailingStart_XAU = 200;
-int               g_TrailingDistance_XAU = 300;
-int               g_TrailingStep_XAU = 50;
 
 // ✅ FIX #3: g_UseTwinTrading declarado aqui como global (padrão g_*)
 //    Será inicializado em OnInit() a partir de Tester_UseTwinTrading
 //    como fallback, ou sobrescrito pela GUI/ficheiro de configuração.
 bool              g_UseTwinTrading = true;
 
-bool              g_UseTwinTrading = true;
-
+// --- XAU INTELLIGENT TREND MODULE GLOBALS ---
+bool              g_XAU_AutoTrend   = true;          // Activar módulo de tendência inteligente XAU
+ENUM_TIMEFRAMES   g_XAU_Timeframe   = PERIOD_H1;     // Timeframe para análise de tendência XAU
+int               g_XAU_EmaFast     = 21;            // EMA rápida (Tendência XAU)
+int               g_XAU_EmaSlow     = 55;            // EMA lenta (Tendência XAU)
+// g_XAU_HoldSeconds moved to AuraGUI.mqh
+int               g_MaxXAUOrders    = 6;             // Máximo de ordens XAU simultâneas
+int               g_XAU_GridDistance = 200;          // Distância Grelha
+int               g_XAU_MomentumTrigger = 100;       // Gatilho Momento
+int               g_XAU_SR_Candles   = 50;
+int               g_XAU_SR_ZonePips  = 30;
+int               g_XAU_SR_BreakoutPips = 20;
 
 ProfitLockData      ProfitLocks[];
 PortfolioProfitLock GlobalProfitLockState;
@@ -309,6 +308,9 @@ int OnInit()
        
        // Fallbacks para as novas variáveis do Trailing
        g_TrailingEnabled = Tester_TrailingEnabled;
+       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
+       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
+       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
        g_TrailingStart_JPY = Tester_TrailingStart_JPY;
        g_TrailingDistance_JPY = Tester_TrailingDistance_JPY;
        g_TrailingStep_JPY = Tester_TrailingStep_JPY;
@@ -322,15 +324,12 @@ int OnInit()
        g_MaxSLForex = Tester_MaxSLForex;
        g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxSLOuro = Tester_MaxSLOuro;
-       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
-       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
-       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
-       g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxOrders = Tester_MaxOrders;
-       g_XAU_StepDistance = Tester_XAU_StepDistance;
-       g_XAU_TargetPoints = Tester_XAU_TargetPoints;
-       g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
-       g_XAU_HoldSeconds = Tester_XAU_HoldSeconds;
+       g_XAU_GridDistance = Tester_XAU_GridDistance;
+       g_XAU_MomentumTrigger = Tester_XAU_MomentumTrigger;
+       g_XAU_SR_Candles = Tester_XAU_SR_Candles;
+       g_XAU_SR_ZonePips = Tester_XAU_SR_ZonePips;
+       g_XAU_SR_BreakoutPips = Tester_XAU_SR_BreakoutPips;
        g_MaxBuys = Tester_MaxBuys;
        g_MaxSells = Tester_MaxSells;
        g_TradeCooldown = Tester_TradeCooldown;
@@ -403,135 +402,6 @@ void OnDeinit(const int reason)
    ArrayFree(g_atrCache);
    Print("🧹 [CLEANUP] Handles de ATR libertados com sucesso.");
 }
-int CountXAUOrders() {
-   int c=0;
-   for(int i=PositionsTotal()-1; i>=0; i--) {
-      ulong t=PositionGetTicket(i);
-      if(t>0 && PositionSelectByTicket(t)) {
-         if(IsXAU(PositionGetString(POSITION_SYMBOL)) && PositionGetInteger(POSITION_MAGIC)==GetAuraMagic()) c++;
-      }
-   }
-   return c;
-}
-
-//+------------------------------------------------------------------+
-//| XAU CONTINUOUS DISTANCE SCALPER                                  |
-//+------------------------------------------------------------------+
-void ContinuousTickScalperXAU()
-{
-   if(IsFridayFreeze()) return; // Bloqueia abertura à Sexta-feira
-   if(CountXAUOrders() >= g_MaxOrders) return; // Limite global
-
-   string sym = "XAUUSD";
-   if(!SymbolSelect(sym, true)) sym = "XAUUSDm";
-   if(!IsXAU(sym)) return;
-
-   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-   double midPrice = (ask + bid) / 2.0;
-
-   // 1. INICIALIZAÇÃO DA ÂNCORA E EXTREMOS
-   if(g_XAU_AnchorPrice == 0)
-   {
-      g_XAU_AnchorPrice = midPrice;
-      g_XAU_PeakPrice = midPrice;
-      g_XAU_ValleyPrice = midPrice;
-      return; // Aguarda o próximo tick para medir distância
-   }
-
-   // 2. ATUALIZAÇÃO DOS EXTREMOS DA TENDÊNCIA ATUAL (Para Reversão)
-   if(midPrice > g_XAU_PeakPrice) g_XAU_PeakPrice = midPrice;
-   if(midPrice < g_XAU_ValleyPrice) g_XAU_ValleyPrice = midPrice;
-
-   // 3. REGRA DE ABERTURA DE ORDENS (Por Distância da Âncora)
-   // Se o preço subir a distância definida desde a âncora -> COMPRA
-   if(midPrice >= g_XAU_AnchorPrice + (g_XAU_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Buy(sLot, sym, ask, 0, 0, "Aura XAU Distance Buy");
-      if(ok)
-      {
-         Print("📈 [XAU] Abertura de COMPRA por Distância (Passo atingido). Preço: ", ask);
-         g_XAU_AnchorPrice = midPrice; // Nova âncora
-         g_XAU_PeakPrice = midPrice;   // Reset Peak
-         g_XAU_ValleyPrice = midPrice; // Reset Valley
-      }
-   }
-   // Se o preço cair a distância definida desde a âncora -> VENDE
-   else if(midPrice <= g_XAU_AnchorPrice - (g_XAU_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Sell(sLot, sym, bid, 0, 0, "Aura XAU Distance Sell");
-      if(ok)
-      {
-         Print("📉 [XAU] Abertura de VENDA por Distância (Passo atingido). Preço: ", bid);
-         g_XAU_AnchorPrice = midPrice; // Nova âncora
-         g_XAU_PeakPrice = midPrice;   // Reset Peak
-         g_XAU_ValleyPrice = midPrice; // Reset Valley
-      }
-   }
-
-   // 4. GESTÃO DE FECHO (Take Profit, Reversão e Hold Seconds)
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-   {
-      ulong t = PositionGetTicket(i);
-      if(t <= 0 || !PositionSelectByTicket(t)) continue;
-      if(PositionGetString(POSITION_SYMBOL) != sym) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
-
-      long type = PositionGetInteger(POSITION_TYPE);
-      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP); // Commission handled separately if needed, simplified here
-      
-      bool closeIt = false;
-      string closeReason = "";
-
-      // REGRA 1: FECHO NO ALVO (Take Profit)
-      if(type == POSITION_TYPE_BUY && bid >= openPrice + (g_XAU_TargetPoints * point))
-      {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
-      }
-      else if(type == POSITION_TYPE_SELL && ask <= openPrice - (g_XAU_TargetPoints * point))
-      {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
-      }
-
-      // REGRA 2: PROTEÇÃO NA REVERSÃO
-      // Se estamos em lucro e o mercado reverteu X pontos do topo/fundo
-      if(!closeIt && profit > 0)
-      {
-         if(type == POSITION_TYPE_BUY && bid <= g_XAU_PeakPrice - (g_XAU_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "Reversão de Mercado detetada (Proteção de Lucro)";
-         }
-         else if(type == POSITION_TYPE_SELL && ask >= g_XAU_ValleyPrice + (g_XAU_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "Reversão de Mercado detetada (Proteção de Lucro)";
-         }
-      }
-
-      // REGRA 3: FECHO POR EXAUSTÃO DE TEMPO
-      if(!closeIt && profit > 0 && g_XAU_HoldSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > g_XAU_HoldSeconds)
-         {
-            closeIt = true; closeReason = "Exaustão de Tempo (Hold Seconds)";
-         }
-      }
-
-      // EXECUTA O FECHO
-      if(closeIt)
-      {
-         trade.PositionClose(t, 50);
-         Print("✅ [XAU] Ordem ", t, " Fechada. Motivo: ", closeReason, " | Lucro: $", DoubleToString(profit, 2));
-      }
-   }
-}
-
 
 void OnTick()
 {
@@ -584,7 +454,7 @@ void RunInstitutionalCore()
       ProcessSignalQueue();
 
       MonitorTrailingStop();
-      ContinuousTickScalperXAU();
+      MonitorIntelligentXAU();
       MonitorPartialTP();
    }
 }
@@ -1311,6 +1181,9 @@ void MonitorTrailingStop()
       double trailDistPts  = g_TrailingDistance_Forex;
       
       if(IsXAU(sym)) {
+         trailStartPts = g_TrailingStart_XAU;
+         trailStepPts  = g_TrailingStep_XAU;
+         trailDistPts  = g_TrailingDistance_XAU;
       }
       else if(StringFind(sym, "JPY") >= 0) {
          trailStartPts = g_TrailingStart_JPY;
@@ -1365,12 +1238,6 @@ void MonitorTrailingStop()
 
 void ValidateLicense()
 {
-   if(MQLInfoInteger(MQL_TESTER))
-   {
-      IsAuthorized = true;
-      return;
-   }
-
    static datetime lastValidate = 0;
    if(TimeCurrent() - lastValidate < 300 && IsAuthorized)  return;
    if(TimeCurrent() - lastValidate < 30  && !IsAuthorized) return;
@@ -1732,6 +1599,7 @@ bool ExecuteSignal(string json)
    }
    if(tpDist <= 0) tpDist = slDist * 1.5;
 
+   int hardMaxSL = IsXAU(pair) ? g_MaxSLOuro
                                : ((StringFind(pair, "JPY") >= 0) ? g_MaxSLJPY : g_MaxSLForex);
    int slPoints  = (int)(slDist / point);
    if(slPoints > hardMaxSL) slPoints = hardMaxSL;
@@ -2519,3 +2387,529 @@ void OnChartEvent(const int id,
 {
    if(g_Panel != NULL) g_Panel.OnEvent(id, lparam, dparam, sparam);
 }
+
+//+------------------------------------------------------------------+
+//| XAU SCALPER AUTÓNOMO — Confluência de 4 Critérios               |
+//+------------------------------------------------------------------+
+// Retorna: +1 = BUY, -1 = SELL, 0 = sem sinal
+int ScalperXAUSignal(string sym)
+{
+   // --- A Lei Suprema: Tendência Macro (M15) ---
+   int macroTrend = GetXAUTrend(sym);
+
+   // --- Filtro de Proteção Imediato (Preço vs EMA 9 e EMA 50 no M5) ---
+   // Se o preço está abaixo da EMA 9 ou 50, é suicídio comprar (faca a cair).
+   double ema50_m5[], ema9_m5[]; 
+   ArraySetAsSeries(ema50_m5, true);
+   ArraySetAsSeries(ema9_m5, true);
+   int hE50 = iMA(sym, PERIOD_M5, 50, 0, MODE_EMA, PRICE_CLOSE);
+   int hE9_im = iMA(sym, PERIOD_M5, 9, 0, MODE_EMA, PRICE_CLOSE);
+   bool priceAboveEma = false;
+   bool priceBelowEma = false;
+   if(hE50 != INVALID_HANDLE && hE9_im != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hE50, 0, 0, 1, ema50_m5) > 0 && CopyBuffer(hE9_im, 0, 0, 1, ema9_m5) > 0)
+      {
+         double price = SymbolInfoDouble(sym, SYMBOL_BID);
+         priceAboveEma = (price > ema50_m5[0] && price > ema9_m5[0]);
+         priceBelowEma = (price < ema50_m5[0] || price < ema9_m5[0]); // Se cair abaixo da EMA9, já é perigoso comprar
+      }
+      IndicatorRelease(hE50);
+      IndicatorRelease(hE9_im);
+   }
+
+   // --- Filtro de Exaustão (RSI M5) ---
+   // Impede comprar no topo de um ressalto (bull trap) ou vender no fundo
+   double rsi_m5[]; ArraySetAsSeries(rsi_m5, true);
+   int hRSI_m5 = iRSI(sym, PERIOD_M5, 14, PRICE_CLOSE);
+   bool rsiOverbought = false;
+   bool rsiOversold = false;
+   if(hRSI_m5 != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hRSI_m5, 0, 0, 1, rsi_m5) > 0)
+      {
+         rsiOverbought = (rsi_m5[0] > 80); // Ressalto extremo/topo (Bull Trap)
+         rsiOversold   = (rsi_m5[0] < 20); // Fundo extremo (Bear Trap)
+      }
+      IndicatorRelease(hRSI_m5);
+   }
+
+   // --- Critério 1: EMA Crossover M5 (EMA9 vs EMA21) ---
+   double ema9_arr[], ema21_arr[];
+   ArraySetAsSeries(ema9_arr, true);
+   ArraySetAsSeries(ema21_arr, true);
+   int hE9  = iMA(sym, PERIOD_M5, 9,  0, MODE_EMA, PRICE_CLOSE);
+   int hE21 = iMA(sym, PERIOD_M5, 21, 0, MODE_EMA, PRICE_CLOSE);
+   int c1 = 0; // vote
+   if(hE9 != INVALID_HANDLE && hE21 != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hE9,  0, 0, 3, ema9_arr)  > 0 &&
+         CopyBuffer(hE21, 0, 0, 3, ema21_arr) > 0)
+      {
+         bool crossedUp   = ema9_arr[0] > ema21_arr[0] && ema9_arr[1] <= ema21_arr[1];
+         bool crossedDown = ema9_arr[0] < ema21_arr[0] && ema9_arr[1] >= ema21_arr[1];
+         // Also consider ongoing trend
+         bool trendUp   = ema9_arr[0] > ema21_arr[0];
+         bool trendDown = ema9_arr[0] < ema21_arr[0];
+         if(crossedUp   || trendUp)   c1 = +1;
+         if(crossedDown || trendDown) c1 = -1;
+      }
+      IndicatorRelease(hE9);
+      IndicatorRelease(hE21);
+   }
+
+   // --- Critério 2: Impulso de Vela M5 (corpo >= 50 pontos) ---
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   int c2 = 0;
+   if(CopyRates(sym, PERIOD_M5, 0, 3, rates) >= 3)
+   {
+      double bodySize = MathAbs(rates[1].close - rates[1].open);
+      double impulsePts = 50 * SymbolInfoDouble(sym, SYMBOL_POINT);
+      if(bodySize >= impulsePts)
+      {
+         if(rates[1].close > rates[1].open) c2 = +1; // bullish candle
+         else                                c2 = -1; // bearish candle
+      }
+   }
+
+   // --- Critério 3: RSI M15 (< 35 = BUY, > 65 = SELL) ---
+   double rsi_arr[];
+   ArraySetAsSeries(rsi_arr, true);
+   int hRSI = iRSI(sym, PERIOD_M15, 14, PRICE_CLOSE);
+   int c3 = 0;
+   if(hRSI != INVALID_HANDLE)
+   {
+      if(CopyBuffer(hRSI, 0, 0, 3, rsi_arr) > 0)
+      {
+         if(rsi_arr[0] < 35) c3 = +1; // Oversold → potencial alta
+         if(rsi_arr[0] > 65) c3 = -1; // Overbought → potencial baixa
+      }
+      IndicatorRelease(hRSI);
+   }
+
+   // --- Critério 4: Breakout das últimas 10 velas M5 ---
+   MqlRates brRates[];
+   ArraySetAsSeries(brRates, true);
+   int c4 = 0;
+   if(CopyRates(sym, PERIOD_M5, 0, 12, brRates) >= 12)
+   {
+      double highestHigh = -DBL_MAX, lowestLow = DBL_MAX;
+      for(int i = 1; i <= 10; i++) // exclude current bar [0]
+      {
+         if(brRates[i].high > highestHigh) highestHigh = brRates[i].high;
+         if(brRates[i].low  < lowestLow)  lowestLow   = brRates[i].low;
+      }
+      double curClose = brRates[0].close;
+      if(curClose > highestHigh) c4 = +1; // breakout para cima
+      if(curClose < lowestLow)   c4 = -1; // breakout para baixo
+   }
+
+   // --- Decisão Final: Maioria >= 3 de 4 ---
+   int score = c1 + c2 + c3 + c4;
+   
+   if(score >= 2)
+   {
+      // Filtro Supremo e Imediato: 
+      // Proibido comprar se a macro for baixa (A NÃO SER que a pontuação seja máxima +3 ou +4)
+      if(macroTrend == -1 && score < 3) return 0; 
+      if(priceBelowEma || rsiOverbought) return 0; 
+      return 1; // BUY
+   }
+   if(score <= -2)
+   {
+      // Filtro Supremo e Imediato: 
+      // Proibido vender se a macro for alta (A NÃO SER que a pontuação seja máxima -3 ou -4)
+      if(macroTrend == 1 && score > -3) return 0;
+      if(priceAboveEma || rsiOversold) return 0;
+      return -1; // SELL
+   }
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| XAU INTELLIGENT TREND MODULE (M15: Price vs EMA 50)              |
+//+------------------------------------------------------------------+
+int GetXAUTrend(string sym)
+{
+   if(!g_XAU_AutoTrend) return 0;
+
+   // Para evitar "lags" de médias móveis curtas a cruzar em pullbacks,
+   // a Tendência Macro passa a ser uma linha dura: Preço vs EMA 50 no M15 (Estrutural)
+   double ema50[];
+   ArraySetAsSeries(ema50, true);
+
+   int hEma50 = iMA(sym, PERIOD_M15, 50, 0, MODE_EMA, PRICE_CLOSE);
+
+   if(hEma50 == INVALID_HANDLE) return 0;
+   
+   bool ok = (CopyBuffer(hEma50, 0, 0, 1, ema50) > 0);
+   IndicatorRelease(hEma50);
+   
+   if(!ok) return 0;
+
+   double price = SymbolInfoDouble(sym, SYMBOL_BID);
+
+   // Tendência de ALTA: Preço ACIMA da EMA 50 M15
+   if(price > ema50[0]) return 1;
+
+   // Tendência de BAIXA: Preço ABAIXO da EMA 50 M15
+   if(price < ema50[0]) return -1;
+
+   return 0;
+}
+
+int CountXAUOrders()
+{
+   int c = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t))
+      {
+         if(IsXAU(PositionGetString(POSITION_SYMBOL)) && PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+            c++;
+      }
+   }
+   return c;
+}
+
+void CloseXAUPosition(ulong ticket)
+{
+   if(!PositionSelectByTicket(ticket)) return;
+   string sym = PositionGetString(POSITION_SYMBOL);
+   trade.SetTypeFillingBySymbol(sym);
+   for(int i = 0; i < 3; i++)
+   {
+      if(trade.PositionClose(ticket, 30)) return;
+      Print("⚠️ CloseXAUPosition retry ", i+1, " | ", trade.ResultRetcodeDescription());
+      Sleep(200);
+   }
+}
+
+double GetPositionCommission(ulong ticket)
+{
+   double comm = 0.0;
+   long posID = 0;
+   if(PositionSelectByTicket(ticket))
+      posID = PositionGetInteger(POSITION_IDENTIFIER);
+   if(posID > 0)
+   {
+      if(HistorySelectByPosition(posID))
+      {
+         int total = HistoryDealsTotal();
+         for(int i = 0; i < total; i++)
+         {
+            ulong deal = HistoryDealGetTicket(i);
+            if(deal > 0)
+               comm += HistoryDealGetDouble(deal, DEAL_COMMISSION);
+         }
+      }
+   }
+   return comm;
+}
+
+//+------------------------------------------------------------------+
+//| ADAPTIVE REAL-TIME XAU SCALPER (Momento Puro M1)                 |
+//+------------------------------------------------------------------+
+int AdaptiveRealTimeXAU(string sym)
+{
+   MqlRates m1[];
+   ArraySetAsSeries(m1, true);
+   if(CopyRates(sym, PERIOD_M1, 0, 3, m1) < 3) return 0;
+   
+   static int hE9 = INVALID_HANDLE;
+   if(hE9 == INVALID_HANDLE) hE9 = iMA(sym, PERIOD_M1, 9, 0, MODE_EMA, PRICE_CLOSE);
+   if(hE9 == INVALID_HANDLE) return 0;
+   
+   double ema9[];
+   ArraySetAsSeries(ema9, true);
+   if(CopyBuffer(hE9, 0, 0, 2, ema9) <= 0) return 0;
+   
+   double curPrice = SymbolInfoDouble(sym, SYMBOL_BID);
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   
+   double minDistance = g_XAU_GridDistance * point; // Distanciamento configurável
+   bool canBuy = true;
+   bool canSell = true;
+   
+   // --- S/R DYNAMIC FILTER ---
+   if(g_XAU_SR_Candles > 0)
+   {
+      double high[], low[];
+      ArraySetAsSeries(high, true);
+      ArraySetAsSeries(low, true);
+      if(CopyHigh(sym, PERIOD_M15, 1, g_XAU_SR_Candles, high) > 0 && 
+         CopyLow(sym, PERIOD_M15, 1, g_XAU_SR_Candles, low) > 0)
+      {
+         int hIdx = ArrayMaximum(high);
+         int lIdx = ArrayMinimum(low);
+         double resZone = (hIdx >= 0) ? high[hIdx] : 0;
+         double supZone = (lIdx >= 0) ? low[lIdx] : 0;
+         
+         double zoneDist = g_XAU_SR_ZonePips * 10 * point;
+         double breakDist = g_XAU_SR_BreakoutPips * 10 * point;
+         
+         if(resZone > 0)
+         {
+            // Bloqueio de Compra se na zona de resistência ou se rompimento não confirmado
+            if(curPrice > (resZone - zoneDist) && curPrice < resZone) canBuy = false;
+            if(curPrice >= resZone && curPrice < (resZone + breakDist)) canBuy = false;
+         }
+         if(supZone > 0)
+         {
+            // Bloqueio de Venda se na zona de suporte ou se rompimento não confirmado
+            if(curPrice < (supZone + zoneDist) && curPrice > supZone) canSell = false;
+            if(curPrice <= supZone && curPrice > (supZone - breakDist)) canSell = false;
+         }
+      }
+   }
+   // --------------------------
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t > 0 && PositionSelectByTicket(t))
+      {
+         if(PositionGetString(POSITION_SYMBOL) == sym && PositionGetInteger(POSITION_MAGIC) == GetAuraMagic())
+         {
+            double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+            {
+               if(MathAbs(curPrice - openPrice) < minDistance) canBuy = false;
+            }
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
+            {
+               if(MathAbs(curPrice - openPrice) < minDistance) canSell = false;
+            }
+         }
+      }
+   }
+   
+   // Momentum configurável: Se a vela atual M1 já se moveu X pontos a nosso favor desde a abertura
+   bool strongDrop = (m1[0].open - curPrice) >= (g_XAU_MomentumTrigger * point);
+   bool strongRise = (curPrice - m1[0].open) >= (g_XAU_MomentumTrigger * point);
+   
+   if(canSell && curPrice < ema9[0] && strongDrop) return -1;
+   if(canBuy && curPrice > ema9[0] && strongRise) return 1;
+   
+   return 0;
+}
+
+void MonitorIntelligentXAU()
+{
+   if(!g_XAU_AutoTrend)              return;
+   // if(IsFridayLocked())               return; // Removido para permitir gestão durante o Freeze
+   if(DailyTargetReached)             return;
+   if(DailyLossLock)                  return;
+
+   // -------------------------------------------------------
+   // Phase 1: Basket Reversal — close wrong-direction trades
+   // Collect unique XAU symbols that have open positions
+   // -------------------------------------------------------
+   string activeSymbols[];
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t <= 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      if(!IsXAU(sym)) continue;
+
+      bool found = false;
+      for(int j = 0; j < ArraySize(activeSymbols); j++)
+         if(activeSymbols[j] == sym) { found = true; break; }
+      if(!found)
+      {
+         int sz = ArraySize(activeSymbols);
+         ArrayResize(activeSymbols, sz + 1);
+         activeSymbols[sz] = sym;
+      }
+   }
+
+   for(int s = 0; s < ArraySize(activeSymbols); s++)
+   {
+      string sym   = activeSymbols[s];
+      int    trend = GetXAUTrend(sym);
+      if(trend == 0) continue;
+
+      double buyProfit = 0, sellProfit = 0;
+
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = PositionGetTicket(i);
+         if(t <= 0 || !PositionSelectByTicket(t)) continue;
+         if(PositionGetString(POSITION_SYMBOL) != sym) continue;
+         if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+
+         double pnl = PositionGetDouble(POSITION_PROFIT)
+                    + PositionGetDouble(POSITION_SWAP)
+                    + GetPositionCommission(t);
+
+         if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)  buyProfit  += pnl;
+         else                                                          sellProfit += pnl;
+      }
+
+      // Trend reversed to DOWN -> close BUY trades that are in profit
+      if(trend == -1 && buyProfit > 0)
+      {
+         Print("🔄 [XAU] Reversão para BAIXA. Fechando BUYs em lucro: $", DoubleToString(buyProfit, 2));
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+         {
+            ulong t = PositionGetTicket(i);
+            if(t <= 0 || !PositionSelectByTicket(t)) continue;
+            if(PositionGetString(POSITION_SYMBOL) != sym) continue;
+            if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+               CloseXAUPosition(t);
+         }
+      }
+
+      // Trend reversed to UP -> close SELL trades that are in profit
+      if(trend == 1 && sellProfit > 0)
+      {
+         Print("🔄 [XAU] Reversão para ALTA. Fechando SELLs em lucro: $", DoubleToString(sellProfit, 2));
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+         {
+            ulong t = PositionGetTicket(i);
+            if(t <= 0 || !PositionSelectByTicket(t)) continue;
+            if(PositionGetString(POSITION_SYMBOL) != sym) continue;
+            if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
+               CloseXAUPosition(t);
+         }
+      }
+   }
+
+   // -------------------------------------------------------
+   // Phase 2: Pyramiding N-2 Lock-in and Basket SL Sync
+   // -------------------------------------------------------
+   ulong buyTickets[];
+   ulong sellTickets[];
+   double highestBuySL = 0;
+   double lowestSellSL = 999999;
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t <= 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      if(!IsXAU(sym)) continue;
+      
+      long type = PositionGetInteger(POSITION_TYPE);
+      double sl = PositionGetDouble(POSITION_SL);
+      
+      if(type == POSITION_TYPE_BUY) {
+         int sz = ArraySize(buyTickets);
+         ArrayResize(buyTickets, sz + 1);
+         buyTickets[sz] = t;
+         if(sl > highestBuySL) highestBuySL = sl;
+      }
+      else if(type == POSITION_TYPE_SELL) {
+         int sz = ArraySize(sellTickets);
+         ArrayResize(sellTickets, sz + 1);
+         sellTickets[sz] = t;
+         if(sl < lowestSellSL && sl > 0) lowestSellSL = sl;
+      }
+   }
+   
+   // --- N-2 Lock-in Logic ---
+   if(ArraySize(buyTickets) >= 3)
+   {
+      // Encontrar a compra mais antiga
+      ulong oldestT = buyTickets[0];
+      PositionSelectByTicket(oldestT);
+      datetime oldestTime = (datetime)PositionGetInteger(POSITION_TIME);
+      for(int k=1; k<ArraySize(buyTickets); k++) {
+         PositionSelectByTicket(buyTickets[k]);
+         datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+         if(pt < oldestTime) { oldestTime = pt; oldestT = buyTickets[k]; }
+      }
+      PositionSelectByTicket(oldestT);
+      if(PositionGetDouble(POSITION_PROFIT) > 0) {
+         Print("🔺 [Pyramiding] A trancar lucro da Ordem BUY base! Ticket: ", oldestT);
+         CloseXAUPosition(oldestT);
+      }
+   }
+   
+   if(ArraySize(sellTickets) >= 3)
+   {
+      // Encontrar a venda mais antiga
+      ulong oldestT = sellTickets[0];
+      PositionSelectByTicket(oldestT);
+      datetime oldestTime = (datetime)PositionGetInteger(POSITION_TIME);
+      for(int k=1; k<ArraySize(sellTickets); k++) {
+         PositionSelectByTicket(sellTickets[k]);
+         datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+         if(pt < oldestTime) { oldestTime = pt; oldestT = sellTickets[k]; }
+      }
+      PositionSelectByTicket(oldestT);
+      if(PositionGetDouble(POSITION_PROFIT) > 0) {
+         Print("🔻 [Pyramiding] A trancar lucro da Ordem SELL base! Ticket: ", oldestT);
+         CloseXAUPosition(oldestT);
+      }
+   }
+   
+   // --- Basket Trailing Sync (Fecho Simultâneo) ---
+   if(highestBuySL > 0) {
+      for(int k=0; k<ArraySize(buyTickets); k++) {
+         if(PositionSelectByTicket(buyTickets[k])) {
+            double currentSL = PositionGetDouble(POSITION_SL);
+            if(currentSL < highestBuySL || currentSL == 0) {
+               trade.PositionModify(buyTickets[k], highestBuySL, PositionGetDouble(POSITION_TP));
+            }
+         }
+      }
+   }
+   if(lowestSellSL < 999999 && lowestSellSL > 0) {
+      for(int k=0; k<ArraySize(sellTickets); k++) {
+         if(PositionSelectByTicket(sellTickets[k])) {
+            double currentSL = PositionGetDouble(POSITION_SL);
+            if(currentSL > lowestSellSL || currentSL == 0) {
+               trade.PositionModify(sellTickets[k], lowestSellSL, PositionGetDouble(POSITION_TP));
+            }
+         }
+      }
+   }
+
+   // -------------------------------------------------------
+   // Phase 4: Scalper Autónomo Adaptativo — Momento Puro M1
+   // -------------------------------------------------------
+   if(IsFridayFreeze()) return; // <-- Friday Freeze bloqueia ABERTURA, mas não a GESTÃO acima
+   
+   string xauSym = "XAUUSD"; // símbolo principal a monitorizar
+   if(!SymbolSelect(xauSym, true)) xauSym = "XAUUSDm";
+
+   if(CountXAUOrders() < g_MaxOrders) // Atualizado para usar o limite global
+   {
+      int scalpSignal = AdaptiveRealTimeXAU(xauSym);
+      if(scalpSignal != 0)
+      {
+         string scalpDir = (scalpSignal == 1) ? "BUY" : "SELL";
+         double sPoint   = SymbolInfoDouble(xauSym, SYMBOL_POINT);
+         double sAsk     = SymbolInfoDouble(xauSym, SYMBOL_ASK);
+         double sBid     = SymbolInfoDouble(xauSym, SYMBOL_BID);
+         double sEntry   = (scalpDir == "BUY") ? sAsk : sBid;
+         double sSL      = (scalpDir == "BUY")
+                           ? sEntry - (g_MaxSLOuro * sPoint)
+                           : sEntry + (g_MaxSLOuro * sPoint);
+         double sTP      = (scalpDir == "BUY")
+                           ? sEntry + (g_MaxSLOuro * sPoint * 1.5)
+                           : sEntry - (g_MaxSLOuro * sPoint * 1.5);
+         double sMinLot  = SymbolInfoDouble(xauSym, SYMBOL_VOLUME_MIN);
+         double sLot     = CalculateLot(xauSym, GetDynamicRisk(g_MaxSLOuro), MathAbs(sEntry - sSL),
+                           (scalpDir == "BUY") ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+         if(sLot <= 0) sLot = sMinLot;
+
+         trade.SetTypeFillingBySymbol(xauSym);
+         bool ok2 = false;
+         if(scalpDir == "BUY")  ok2 = trade.Buy(sLot,  xauSym, sEntry, sSL, sTP, "Aura XAU Scalper");
+         else                    ok2 = trade.Sell(sLot, xauSym, sEntry, sSL, sTP, "Aura XAU Scalper");
+
+         if(ok2) Print("🔥 [XAU] Adapative Momento ", scalpDir, " executado! Lot:", DoubleToString(sLot,2));
+         else    Print("❌ [XAU] Falha no Momento Adaptativo: ", trade.ResultRetcodeDescription());
+      }
+   }
+}
+
