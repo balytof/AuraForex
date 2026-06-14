@@ -20,6 +20,22 @@ int    g_MaxBuys = 2;
 int    g_MaxSells = 2;
 int    g_TradeCooldown = 60;
 int    g_XAU_HoldSeconds = 30; // Modificado para 30 por defeito a pedido
+int    g_XAU_NegativeHoldSeconds = 3600; // Tempo máximo no negativo
+int    g_XAU_StepDistance = 100;
+int    g_XAU_TargetPoints = 200;
+int    g_XAU_ReversalPoints = 150;
+bool   g_XAU_TrendFilter = true; // Filtro EMA Activo
+int    g_XAU_EmaPeriod = 50;     // Periodo da EMA
+int    g_XAU_EmaTimeframe = 15;  // Timeframe da EMA (1, 5, 15, 60...)
+
+bool   g_CT_Enable = true;
+int    g_CT_StepDistance = 100;
+int    g_CT_ReversalPoints = 150;
+int    g_CT_HoldSeconds = 30;
+int    g_CT_NegativeHoldSeconds = 3600;
+bool   g_CT_TrendFilter = true;
+int    g_CT_EmaPeriod = 50;
+int    g_CT_EmaTimeframe = 15;
 
 double g_ProfitLockMin = 3.0;
 double g_ProfitLockDrop = 30.0;
@@ -104,6 +120,7 @@ private:
    void              DrawRisco(void);
    void              DrawLimites(void);
    void              DrawTrailing(void);
+   void              DrawCTScalper(void);
    void              ClearContent(void);
    void              MoveAll(int dx, int dy);
    
@@ -188,6 +205,7 @@ void CAuraPanel::DrawTabs(void)
    CreateButton("Tab2", tx + space, ty, tw, th, "Risco", m_tab == 2 ? CLR_BTN_TAB_ACT : CLR_BG_EDIT, clrWhite);
    CreateButton("Tab3", tx + space*2, ty, tw, th, "Limites", m_tab == 3 ? CLR_BTN_TAB_ACT : CLR_BG_EDIT, clrWhite);
    CreateButton("Tab4", tx + space*3, ty, tw, th, "Trailing", m_tab == 4 ? CLR_BTN_TAB_ACT : CLR_BG_EDIT, clrWhite);
+   CreateButton("Tab5", tx + space*4, ty, tw, th, "CT Scalper", m_tab == 5 ? CLR_BTN_TAB_ACT : CLR_BG_EDIT, clrWhite);
 }
 
 void CAuraPanel::ClearContent(void)
@@ -224,6 +242,7 @@ void CAuraPanel::DrawContent(void)
    if(m_tab == 2) DrawRisco();
    if(m_tab == 3) DrawLimites();
    if(m_tab == 4) DrawTrailing();
+   if(m_tab == 5) DrawCTScalper();
    ChartRedraw(m_chart);
 }
 
@@ -289,8 +308,27 @@ void CAuraPanel::DrawLimites(void)
    CreateLabel("C_LblMS", lx, cy+4, "Máximo de Vendas:", CLR_TXT_WHITE);
    CreateEdit("C_EdMS", ex, cy, ew, eh, (string)g_MaxSells, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
    
+   CreateLabel("C_LblXSD", lx, cy+4, "XAU Passo Distancia:", CLR_TXT_WHITE);
+   CreateEdit("C_EdXSD", ex, cy, ew, eh, (string)g_XAU_StepDistance, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   CreateLabel("C_LblXTP", lx, cy+4, "XAU Alvo Lucro (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXTP", ex, cy, ew, eh, (string)g_XAU_TargetPoints, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+   CreateLabel("C_LblXRP", lx, cy+4, "XAU Reversao (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXRP", ex, cy, ew, eh, (string)g_XAU_ReversalPoints, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+
    CreateLabel("C_LblXHS", lx, cy+4, "Tempo XAU Positivo (Segundos):", CLR_TXT_WHITE);
    CreateEdit("C_EdXHS", ex, cy, ew, eh, (string)g_XAU_HoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+
+   CreateLabel("C_LblXNS", lx, cy+4, "Tempo XAU Negativo (Segundos):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXNS", ex, cy, ew, eh, (string)g_XAU_NegativeHoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+
+   CreateLabel("C_LblXTF", lx, cy+4, "Ativar Filtro Tendencia (1=Sim):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXTF", ex, cy, ew, eh, g_XAU_TrendFilter ? "1" : "0", CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+
+   CreateLabel("C_LblXEP", lx, cy+4, "Periodo EMA (Filtro):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXEP", ex, cy, ew, eh, (string)g_XAU_EmaPeriod, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
+
+   CreateLabel("C_LblXET", lx, cy+4, "Timeframe EMA (1,5,15,60):", CLR_TXT_WHITE);
+   CreateEdit("C_EdXET", ex, cy, ew, eh, (string)g_XAU_EmaTimeframe, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=35;
 }
 
 void CAuraPanel::DrawTrailing(void)
@@ -319,6 +357,35 @@ void CAuraPanel::DrawTrailing(void)
    CreateEdit("C_EdTDF", ex, cy, ew, eh, (string)g_TrailingDistance_Forex, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
 }
 
+void CAuraPanel::DrawCTScalper(void)
+{
+   int cy = m_y + 80; int lx = m_x + 30; int ex = m_x + 300; int ew = 100; int eh = 24;
+   
+   CreateLabel("C_LblCTE", lx, cy+4, "Ativar Counter Trend (1=Sim):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTE", ex, cy, ew, eh, g_CT_Enable ? "1" : "0", CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+   
+   CreateLabel("C_LblCTSD", lx, cy+4, "Passo Distancia (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTSD", ex, cy, ew, eh, (string)g_CT_StepDistance, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+   
+   CreateLabel("C_LblCTRP", lx, cy+4, "Reversao Stop (Pts):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTRP", ex, cy, ew, eh, (string)g_CT_ReversalPoints, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+
+   CreateLabel("C_LblCTHS", lx, cy+4, "Tempo Positivo (Seg):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTHS", ex, cy, ew, eh, (string)g_CT_HoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+
+   CreateLabel("C_LblCTNS", lx, cy+4, "Tempo Negativo (Seg):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTNS", ex, cy, ew, eh, (string)g_CT_NegativeHoldSeconds, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+
+   CreateLabel("C_LblCTTF", lx, cy+4, "Filtro Tendencia (1=Sim):", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTTF", ex, cy, ew, eh, g_CT_TrendFilter ? "1" : "0", CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+
+   CreateLabel("C_LblCTEP", lx, cy+4, "Periodo EMA:", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTEP", ex, cy, ew, eh, (string)g_CT_EmaPeriod, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+
+   CreateLabel("C_LblCTET", lx, cy+4, "Timeframe EMA:", CLR_TXT_WHITE);
+   CreateEdit("C_EdCTET", ex, cy, ew, eh, (string)g_CT_EmaTimeframe, CLR_BG_EDIT, CLR_TXT_WHITE); cy+=30;
+}
+
 // =======================================================
 // LÓGICA DE GUARDAR / EVENTOS
 // =======================================================
@@ -343,7 +410,14 @@ void CAuraPanel::SaveConfig(void)
       g_MaxOrders = (int)StringToInteger(GetEditText("C_EdMO"));
       g_MaxBuys = (int)StringToInteger(GetEditText("C_EdMB"));
       g_MaxSells = (int)StringToInteger(GetEditText("C_EdMS"));
+      g_XAU_StepDistance = (int)StringToInteger(GetEditText("C_EdXSD"));
+      g_XAU_TargetPoints = (int)StringToInteger(GetEditText("C_EdXTP"));
+      g_XAU_ReversalPoints = (int)StringToInteger(GetEditText("C_EdXRP"));
       g_XAU_HoldSeconds = (int)StringToInteger(GetEditText("C_EdXHS"));
+      g_XAU_NegativeHoldSeconds = (int)StringToInteger(GetEditText("C_EdXNS"));
+      g_XAU_TrendFilter = (GetEditText("C_EdXTF") == "1");
+      g_XAU_EmaPeriod = (int)StringToInteger(GetEditText("C_EdXEP"));
+      g_XAU_EmaTimeframe = (int)StringToInteger(GetEditText("C_EdXET"));
    } else if (m_tab == 4) {
       g_TrailingEnabled = (GetEditText("C_EdTE") == "1");
       g_TrailingStart_XAU = (int)StringToInteger(GetEditText("C_EdTSG"));
@@ -352,6 +426,15 @@ void CAuraPanel::SaveConfig(void)
       g_TrailingDistance_JPY = (int)StringToInteger(GetEditText("C_EdTDJ"));
       g_TrailingStart_Forex = (int)StringToInteger(GetEditText("C_EdTSF"));
       g_TrailingDistance_Forex = (int)StringToInteger(GetEditText("C_EdTDF"));
+   } else if (m_tab == 5) {
+      g_CT_Enable = (GetEditText("C_EdCTE") == "1");
+      g_CT_StepDistance = (int)StringToInteger(GetEditText("C_EdCTSD"));
+      g_CT_ReversalPoints = (int)StringToInteger(GetEditText("C_EdCTRP"));
+      g_CT_HoldSeconds = (int)StringToInteger(GetEditText("C_EdCTHS"));
+      g_CT_NegativeHoldSeconds = (int)StringToInteger(GetEditText("C_EdCTNS"));
+      g_CT_TrendFilter = (GetEditText("C_EdCTTF") == "1");
+      g_CT_EmaPeriod = (int)StringToInteger(GetEditText("C_EdCTEP"));
+      g_CT_EmaTimeframe = (int)StringToInteger(GetEditText("C_EdCTET"));
    }
 
    int handle = FileOpen("AuraForexConfig.txt", FILE_WRITE|FILE_TXT|FILE_COMMON);
@@ -382,6 +465,15 @@ void CAuraPanel::SaveConfig(void)
       FileWriteString(handle, "TrailDJPY=" + (string)g_TrailingDistance_JPY + "\n");
       FileWriteString(handle, "TrailSFX=" + (string)g_TrailingStart_Forex + "\n");
       FileWriteString(handle, "TrailDFX=" + (string)g_TrailingDistance_Forex + "\n");
+      
+      FileWriteString(handle, "CTE=" + (string)g_CT_Enable + "\n");
+      FileWriteString(handle, "CTSD=" + (string)g_CT_StepDistance + "\n");
+      FileWriteString(handle, "CTRP=" + (string)g_CT_ReversalPoints + "\n");
+      FileWriteString(handle, "CTHS=" + (string)g_CT_HoldSeconds + "\n");
+      FileWriteString(handle, "CTNS=" + (string)g_CT_NegativeHoldSeconds + "\n");
+      FileWriteString(handle, "CTTF=" + (string)g_CT_TrendFilter + "\n");
+      FileWriteString(handle, "CTEP=" + (string)g_CT_EmaPeriod + "\n");
+      FileWriteString(handle, "CTET=" + (string)g_CT_EmaTimeframe + "\n");
       FileClose(handle);
    }
    Print("✅ Configuração Guardada! A Fechar Painel.");
@@ -422,6 +514,15 @@ void CAuraPanel::LoadConfig(void)
             if(sep[0] == "TrailDJPY") g_TrailingDistance_JPY = (int)StringToInteger(sep[1]);
             if(sep[0] == "TrailSFX") g_TrailingStart_Forex = (int)StringToInteger(sep[1]);
             if(sep[0] == "TrailDFX") g_TrailingDistance_Forex = (int)StringToInteger(sep[1]);
+
+            if(sep[0] == "CTE") g_CT_Enable = (sep[1] == "true" || sep[1] == "1");
+            if(sep[0] == "CTSD") g_CT_StepDistance = (int)StringToInteger(sep[1]);
+            if(sep[0] == "CTRP") g_CT_ReversalPoints = (int)StringToInteger(sep[1]);
+            if(sep[0] == "CTHS") g_CT_HoldSeconds = (int)StringToInteger(sep[1]);
+            if(sep[0] == "CTNS") g_CT_NegativeHoldSeconds = (int)StringToInteger(sep[1]);
+            if(sep[0] == "CTTF") g_CT_TrendFilter = (sep[1] == "true" || sep[1] == "1");
+            if(sep[0] == "CTEP") g_CT_EmaPeriod = (int)StringToInteger(sep[1]);
+            if(sep[0] == "CTET") g_CT_EmaTimeframe = (int)StringToInteger(sep[1]);
          }
       }
       FileClose(handle);
@@ -473,6 +574,7 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
       if(objName == m_prefix + "Tab2" && m_tab != 2) { m_tab = 2; DrawTabs(); DrawContent(); }
       if(objName == m_prefix + "Tab3" && m_tab != 3) { m_tab = 3; DrawTabs(); DrawContent(); }
       if(objName == m_prefix + "Tab4" && m_tab != 4) { m_tab = 4; DrawTabs(); DrawContent(); }
+      if(objName == m_prefix + "Tab5" && m_tab != 5) { m_tab = 5; DrawTabs(); DrawContent(); }
    }
    
    // Quando perde o foco da textbox (EndEdit), atualizar a global imediatamente
@@ -499,7 +601,14 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
       if(objName == m_prefix + "C_EdMO")  g_MaxOrders = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdMB")  g_MaxBuys = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdMS")  g_MaxSells = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXSD") g_XAU_StepDistance = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXTP") g_XAU_TargetPoints = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXRP") g_XAU_ReversalPoints = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdXHS") g_XAU_HoldSeconds = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXNS") g_XAU_NegativeHoldSeconds = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXTF") g_XAU_TrendFilter = (val == "1");
+      if(objName == m_prefix + "C_EdXEP") g_XAU_EmaPeriod = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdXET") g_XAU_EmaTimeframe = (int)StringToInteger(val);
       
       if(objName == m_prefix + "C_EdTE") g_TrailingEnabled = (val == "1");
       if(objName == m_prefix + "C_EdTSG") g_TrailingStart_XAU = (int)StringToInteger(val);
@@ -508,6 +617,15 @@ void CAuraPanel::OnEvent(const int id, const long &lparam, const double &dparam,
       if(objName == m_prefix + "C_EdTDJ") g_TrailingDistance_JPY = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdTSF") g_TrailingStart_Forex = (int)StringToInteger(val);
       if(objName == m_prefix + "C_EdTDF") g_TrailingDistance_Forex = (int)StringToInteger(val);
+      
+      if(objName == m_prefix + "C_EdCTE") g_CT_Enable = (val == "1");
+      if(objName == m_prefix + "C_EdCTSD") g_CT_StepDistance = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdCTRP") g_CT_ReversalPoints = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdCTHS") g_CT_HoldSeconds = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdCTNS") g_CT_NegativeHoldSeconds = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdCTTF") g_CT_TrendFilter = (val == "1");
+      if(objName == m_prefix + "C_EdCTEP") g_CT_EmaPeriod = (int)StringToInteger(val);
+      if(objName == m_prefix + "C_EdCTET") g_CT_EmaTimeframe = (int)StringToInteger(val);
    }
 }
 

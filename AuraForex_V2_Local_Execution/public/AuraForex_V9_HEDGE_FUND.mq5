@@ -9,119 +9,72 @@
 #property strict
 #property tester_everytick_calculate
 
-//--- INCLUDES ---
+////--- INCLUDES ---
 #include <Trade\Trade.mqh>
 #include "JAson.mqh"
-#include "AuraGUI.mqh"
-#include "AuraXAU_CandleRider.mqh"
-
-CAuraPanel *g_Panel;
-
+#include "AuraXAU_CandleRider_V9.mqh"
 
 //--- INPUT PARAMETERS ---
-input string Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de LicenÃ§a (Dashboard)
-input string Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do seu VPS (Com /api)
-input bool Tester_IsCentAccount     = false;                   // A Conta Ã© Cent? (Auto-adaptÃ¡vel)
-input double Tester_RiskPercent       = 1.0;                     // % de Risco por Trade
-input int Tester_MagicNumber       = 888222;                  // Magic Number das Ordens
-input int Tester_TimerSeconds      = 2;                       // Intervalo de Checagem (Segundos) â€“ Recomendado: 2 ou 3
-input int Tester_MaxSLForex        = 1500;                    // Limite SL Forex (Pontos)
-input int Tester_MaxSLJPY          = 3000;                    // Limite SL JPY (Pontos)
-input int Tester_MaxSLOuro         = 1500;                    // Limite SL Ouro (Pontos)
-input int Tester_MaxOrders         = 6;                       // Limite Global de Ordens
-input int Tester_MaxBuys           = 6;                       // MÃ¡ximo de Compras SimultÃ¢neas
-input int Tester_MaxSells          = 6;                       // MÃ¡ximo de Vendas SimultÃ¢neas
-input int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+input group "=== AURA V9 HEDGE FUND (XAUUSD) ==="
+input string Tester_LicenseKey        = "COLE_SUA_LICENCA_AQUI"; // Chave de Licença
+input string Tester_ServerUrl         = "https://www.auratradebots.com/api"; // URL do Servidor
 
-// --- XAU DISTANCE SCALPER --- 
-input int Tester_XAU_StepDistance      = 100; // XAU: DistÃ¢ncia para Abrir Nova Ordem (Pts)
-input int Tester_XAU_TargetPoints      = 200; // XAU: Alvo Fixo de Lucro (Pts)
-input int Tester_XAU_ReversalPoints    = 150; // XAU: ReversÃ£o para Fechar Lucros (Pts)
-input int Tester_XAU_HoldSeconds       = 30;  // XAU: Tempo Limite no Lucro (Seg)
-input int Tester_XAU_NegativeHoldSeconds= 3600; // XAU: Tempo Limite na Perda (Seg)
-input bool Tester_XAU_TrendFilter      = true; // XAU: Filtro de Tendencia EMA
-input int Tester_XAU_EmaPeriod         = 50;  // XAU: Periodo EMA
-input int Tester_XAU_EmaTimeframe      = 15;  // XAU: Timeframe EMA (1,5,15,60)
+input group "=== EXECUTION & SPACING (CANDLE RIDER) ==="
+input bool   Tester_CR_Enable              = true;     // Ativar Escalonamento V9
+input int    Tester_CR_Timeframe           = 15;       // Timeframe da vela (min)
+input int    Tester_CR_StepPoints          = 80;       // Distância entre ordens (pts)
+input int    Tester_CR_MaxOrdersPerCandle  = 5;        // Máx ordens por movimento
+input int    Tester_CR_ReversalPoints      = 120;      // Reversão p/ fechar grupo (pts)
+input int    Tester_CR_EMA_Period          = 50;       // Filtro EMA de Apoio
+input int    Tester_CR_EMA_Timeframe       = 15;       // Timeframe da EMA
 
-// --- COUNTER TREND SCALPER ---
-input bool Tester_CT_Enable            = true;
-input int Tester_CT_StepDistance       = 100;
-input int Tester_CT_ReversalPoints     = 150;
-input int Tester_CT_HoldSeconds        = 30;
-input int Tester_CT_NegativeHoldSeconds= 3600;
-input bool Tester_CT_TrendFilter       = true;
-input int Tester_CT_EmaPeriod          = 50;
-input int Tester_CT_EmaTimeframe       = 15;
+input group "=== LOSS MITIGATION ==="
+input double Tester_CR_LossLimitPct      = 30.0;     // % do SL para abortar (se tendência inverter)
 
-// --- PROFIT LOCK PARAMETERS ---
-input double Tester_ProfitLockMin     = 3.0;   // Lucro mÃ­nimo para activar ProfitLock ($)
-input double Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
+input group "=== RISK MANAGEMENT (PER ORDER) ==="
+input double Tester_CR_RiskPercent         = 0.5;      // Risco por ordem (%)
+input int    Tester_CR_SL_Points           = 300;      // Stop Loss fixo (pts)
+input int    Tester_CR_TP_Points           = 200;      // Take Profit por ordem (pts)
 
-// --- TRAILING STOP PARAMETERS ---
-input bool Tester_TrailingEnabled      = true;      // Trailing Stop Activo
-input int Tester_TrailingStart_XAU     = 200;       // Trailing Start Ouro
-input int Tester_TrailingDistance_XAU  = 300;       // Trailing Distance Ouro
-input int Tester_TrailingStep_XAU      = 50;        // Trailing Step Ouro
-input int Tester_TrailingStart_JPY     = 150;       // Trailing Start JPY
-input int Tester_TrailingDistance_JPY  = 200;       // Trailing Distance JPY
-input int Tester_TrailingStep_JPY      = 30;        // Trailing Step JPY
-input int Tester_TrailingStart_Forex   = 100;       // Trailing Start Forex
-input int Tester_TrailingDistance_Forex= 150;       // Trailing Distance Forex
-input int Tester_TrailingStep_Forex    = 20;        // Trailing Step Forex
+input group "=== TRAILING STOP (GLOBAL GROUP) ==="
+input bool   Tester_CR_TrailingGroup       = true;     // Trailing global do grupo ativo
+input int    Tester_CR_TrailingStart       = 150;      // Trailing Start (pts)
+input int    Tester_CR_TrailingDistance    = 200;      // Trailing Distance (pts)
+input int    Tester_CR_TrailingStep        = 40;       // Trailing Step (pts)
 
-// --- TWIN TRADING (RUNNER) ---
-// âœ… FIX #3: Renomeado de Tester_UseTwinTrading para g_UseTwinTrading
-//    para seguir o padrÃ£o das restantes variÃ¡veis globais e ser
-//    correctamente sobrescrito pela GUI / ficheiro de configuraÃ§Ã£o.
-//    ANTES: bool Tester_UseTwinTrading = true;
-//    DEPOIS: declarado directamente como global g_UseTwinTrading (ver secÃ§Ã£o globals)
+input group "=== PORTFOLIO PROTECTIONS ==="
+input double Tester_DailyTargetPct     = 5.0;      // Meta Diária de Lucro (%)
+input double Tester_MaxDailyLossPct    = 10.0;     // Perda Máxima Diária (%)
+input bool   Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta Diária
+input double Tester_DailyTargetLockPct   = 80.0;   // Ativar Trava ao atingir % da Meta
+input double Tester_DailyTargetFloorPct  = 50.0;   // Lucro Mínimo Garantido ao reverter %
+input bool   Tester_FridaySafeLock       = false;  // Sexta-Feira Segura (Fecho Auto)
+input int    Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira
+input int    Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
 
-input bool Tester_ManageManualOrders = true;     // Gerir Ordens Manuais (Magic 0)
-input double Tester_DailyTargetPct     = 5.0;      // Meta DiÃ¡ria de Lucro (%)
-input double Tester_MaxDailyLossPct    = 10.0;     // Perda MÃ¡xima DiÃ¡ria (%)
+input group "=== SPREAD & SESSION ==="
+input bool   Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
+input double Tester_MaxSpreadPips        = 5.0;    // Spread Máximo Permitido (Pips)
+input bool   Tester_SessionFilter        = false;  // Filtrar Horário (Apenas Londres/NY)
 
-// --- TRAVA DE META DIÃRIA (DAILY TARGET PROFIT LOCK) ---
-input bool Tester_DailyTargetLockActive = true;  // Ativar Trava de Meta DiÃ¡ria
-input double Tester_DailyTargetLockPct   = 80.0;  // Ativar Trava ao atingir % da Meta (ex: 80%)
-input double Tester_DailyTargetFloorPct  = 50.0;  // Lucro MÃ­nimo Garantido ao reverter % (ex: 50%)
+input group "=== ADVANCED SYSTEM ==="
+input int    Tester_MagicNumber       = 888222;    // Magic Number
+input int    Tester_TimerSeconds      = 2;         // Intervalo Timer (Seg)
+input bool   Tester_IsCentAccount     = false;     // Forçar Conta Cent?
+input int    Tester_MaxOrders         = 6;         // Limite Global de Ordens Simultâneas
+input int    Tester_MaxBuys           = 6;         // Max Compras
+input int    Tester_MaxSells          = 6;         // Max Vendas
+input int    Tester_TradeCooldown     = 60;        // Cooldown entre grupos (seg)
+input bool   Tester_ManageManualOrders= true;      // Gerir Ordens Manuais (Magic 0)ngStep        = 40;       // [CandleRider] Trailing Step (pts)
 
-// --- BE INTELIGENTE + CUSTOS (BREAKEVEN PLUS COSTS) ---
-input bool Tester_BreakevenEnabled     = true;   // Ativar Breakeven Inteligente
-input int Tester_BreakevenTrigger     = 40;     // Gatilho do Breakeven (4.0 pips de lucro)
-input int Tester_BreakevenSecure      = 10;     // Pips Extras a Garantir (BE + 1.0 pip)
-
-// --- SEXTA-FEIRA SEGURA (FRIDAY SAFE LOCK) ---
-input bool Tester_FridaySafeLock       = false;   // DESATIVADO PARA TESTES
-input int Tester_FridayHour           = 20;     // Hora de fecho na Sexta-feira (GMT/Broker)
-input int Tester_FridayMinute         = 0;      // Minuto de fecho na Sexta-feira
-
-// --- FILTRO DE SPREAD (SPREAD SPIKE GUARDIAN) ---
-input bool Tester_SpreadGuardianActive = true;   // Ativar Spread Spike Guardian
-input double Tester_MaxSpreadPips        = 5.0;    // Spread MÃ¡ximo Permitido para ModificaÃ§Ãµes (Pips)
-input bool Tester_SessionFilter      = false;    // Filtrar HorÃ¡rio (Apenas Londres/NY)
-
-// --- CANDLE RIDER (SCALPER TENDENCIA) ---
-input bool   Tester_CR_Enable              = true;    // [CandleRider] Activar Scalper de Vela
-input int    Tester_CR_EMA_Period          = 50;       // [CandleRider] Período EMA de Tendência
-input int    Tester_CR_EMA_Timeframe       = 15;       // [CandleRider] Timeframe EMA (min)
-input int    Tester_CR_StepPoints          = 80;       // [CandleRider] Distância entre ordens (pts)
-input int    Tester_CR_MaxOrdersPerCandle  = 5;        // [CandleRider] Máx ordens por vela
-input int    Tester_CR_SL_Points           = 300;      // [CandleRider] Stop Loss fixo (pts)
-input int    Tester_CR_TP_Points           = 200;      // [CandleRider] Take Profit por ordem (pts)
-input int    Tester_CR_ReversalPoints      = 120;      // [CandleRider] Reversão p/ fechar grupo (pts)
-input int    Tester_CR_Timeframe           = 15;       // [CandleRider] Timeframe da vela (min)
-input double Tester_CR_RiskPercent         = 0.5;      // [CandleRider] Risco por ordem (%)
-input bool   Tester_CR_TrailingGroup       = true;     // [CandleRider] Trailing global do grupo
-input int    Tester_CR_TrailingStart       = 150;      // [CandleRider] Trailing Start (pts)
-input int    Tester_CR_TrailingDistance    = 200;      // [CandleRider] Trailing Distance (pts)
-input int    Tester_CR_TrailingStep        = 40;       // [CandleRider] Trailing Step (pts)
-
+//--- ESTRUTURAS ---
 struct ProfitLockData {
    ulong    ticket;
    double   peakProfit;
    bool     active;
    datetime activationTime;
 };
+ProfitLockData ProfitLocks[];
 
 struct PortfolioProfitLock {
    bool     active;
@@ -139,7 +92,55 @@ XAUTimerData XAUTimers[];
 //--- FORWARD DECLARATIONS ---
 double GetPositionCommission(ulong ticket);
 
-//--- GLOBAL VARIABLES ---
+//--- GLOBAL VARIABLES (HERDADAS DO V8 / GUI) ---
+string            g_LicenseKey = "";
+string            g_ServerUrl = "";
+bool              g_IsCentAccount = false;
+int               g_MagicNumber = 0;
+int               g_MaxOrders = 0;
+int               g_MaxBuys = 0;
+int               g_MaxSells = 0;
+int               g_TradeCooldown = 0;
+bool              g_ManageManualOrders = true;
+
+double            g_DailyTargetPct = 0;
+double            g_MaxDailyLossPct = 0;
+bool              g_DailyTargetLockActive = true;
+double            g_DailyTargetLockPct = 0;
+double            g_DailyTargetFloorPct = 0;
+
+bool              g_BreakevenEnabled = true;
+int               g_BreakevenTrigger = 0;
+int               g_BreakevenSecure = 0;
+
+bool              g_FridaySafeLock = false;
+int               g_FridayHour = 20;
+int               g_FridayMinute = 0;
+
+bool              g_SpreadGuardianActive = true;
+double            g_MaxSpreadPips = 5.0;
+bool              g_SessionFilter = false;
+
+double            g_ProfitLockMin = 0;
+double            g_ProfitLockDrop = 0;
+bool              g_TrailingEnabled = true;
+
+int               g_TrailingStart_XAU = 0;
+int               g_TrailingDistance_XAU = 0;
+int               g_TrailingStep_XAU = 0;
+int               g_TrailingStart_JPY = 0;
+int               g_TrailingDistance_JPY = 0;
+int               g_TrailingStep_JPY = 0;
+int               g_TrailingStart_Forex = 0;
+int               g_TrailingDistance_Forex = 0;
+int               g_TrailingStep_Forex = 0;
+
+int               g_MaxSLForex = 1500;
+int               g_MaxSLJPY = 3000;
+int               g_MaxSLOuro = 1500;
+int               g_TimerSeconds = 2;
+
+//--- GLOBAL VARIABLES (SISTEMA) ---
 double            g_MonetaryMultiplier = 1.0;
 CTrade            trade;
 bool              IsAuthorized = false;
@@ -153,13 +154,8 @@ double            DailyPeakPnL          = 0;
 double            DailyTargetProfit     = 0;
 int               LastTradingDay        = -1;
 int               ConsecutiveLosses     = 0;
-double            g_XAU_AnchorPrice = 0;
-double            g_XAU_PeakPrice = 0;
-double            g_XAU_ValleyPrice = 0;
-
+double            g_CR_LossLimitPct = 30.0;
 double            g_CT_AnchorPrice  = 0;
-double            g_CT_PeakPrice    = 0;
-double            g_CT_ValleyPrice  = 0;
 
 bool              g_UseTwinTrading = true;
 
@@ -323,97 +319,67 @@ void InitDailyBaseline()
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   // --- AURA GUI INIT ---
-   ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
-   g_Panel = new CAuraPanel();
-   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 700)) {
-       Print("Falha ao criar o painel Aura GUI.");
-       return INIT_FAILED;
-   }
+// Recriado mapeamento direto do V9
+   g_LicenseKey  = Tester_LicenseKey;
+   g_ServerUrl   = Tester_ServerUrl;
+   g_IsCentAccount = Tester_IsCentAccount;
+   g_MagicNumber = Tester_MagicNumber;
+   g_UseTwinTrading = true; 
+   
+   g_MaxOrders = Tester_MaxOrders;
+   g_MaxBuys = Tester_MaxBuys;
+   g_MaxSells = Tester_MaxSells;
+   g_TradeCooldown = Tester_TradeCooldown;
 
-   if(MQLInfoInteger(MQL_TESTER) || !FileIsExist("AuraForexConfig.txt", FILE_COMMON)) {
-       g_LicenseKey  = Tester_LicenseKey;
-       g_ServerUrl   = Tester_ServerUrl;
-       g_IsCentAccount = Tester_IsCentAccount;
-       g_RiskPercent = Tester_RiskPercent;
-       g_MagicNumber = Tester_MagicNumber;
-       // âœ… FIX #3: Inicializar g_UseTwinTrading a partir do parÃ¢metro Tester_
-       //    quando nÃ£o existe ficheiro de configuraÃ§Ã£o (fallback para Tester).
-       g_UseTwinTrading = true; // valor padrÃ£o; a GUI sobrescreve se necessÃ¡rio
-       
-       // Fallbacks para as novas variÃ¡veis do Trailing
-       g_TrailingEnabled = Tester_TrailingEnabled;
-       g_TrailingStart_JPY = Tester_TrailingStart_JPY;
-       g_TrailingDistance_JPY = Tester_TrailingDistance_JPY;
-       g_TrailingStep_JPY = Tester_TrailingStep_JPY;
-       g_TrailingStart_Forex = Tester_TrailingStart_Forex;
-       g_TrailingDistance_Forex = Tester_TrailingDistance_Forex;
-       g_TrailingStep_Forex = Tester_TrailingStep_Forex;
-       
-       // Outras variÃ¡veis ausentes no fallback original
-       g_ProfitLockMin = Tester_ProfitLockMin;
-       g_ProfitLockDrop = Tester_ProfitLockDrop;
-       g_MaxSLForex = Tester_MaxSLForex;
-       g_MaxSLJPY = Tester_MaxSLJPY;
-       g_MaxSLOuro = Tester_MaxSLOuro;
-       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
-       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
-       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
-       g_MaxSLJPY = Tester_MaxSLJPY;
-       g_MaxOrders = Tester_MaxOrders;
-       g_XAU_StepDistance = Tester_XAU_StepDistance;
-       g_XAU_TargetPoints = Tester_XAU_TargetPoints;
-       g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
-       g_XAU_HoldSeconds = Tester_XAU_HoldSeconds;
-       g_XAU_NegativeHoldSeconds = Tester_XAU_NegativeHoldSeconds;
-       g_XAU_TrendFilter = Tester_XAU_TrendFilter;
-       g_XAU_EmaPeriod = Tester_XAU_EmaPeriod;
-       g_XAU_EmaTimeframe = Tester_XAU_EmaTimeframe;
+   g_CR_Enable = Tester_CR_Enable;
+   g_CR_EMA_Period = Tester_CR_EMA_Period;
+   g_CR_EMA_Timeframe = Tester_CR_EMA_Timeframe;
+   g_CR_StepPoints = Tester_CR_StepPoints;
+   g_CR_MaxOrdersPerCandle = Tester_CR_MaxOrdersPerCandle;
+   g_CR_SL_Points = Tester_CR_SL_Points;
+   g_CR_TP_Points = Tester_CR_TP_Points;
+   g_CR_ReversalPoints = Tester_CR_ReversalPoints;
+   g_CR_Timeframe = Tester_CR_Timeframe;
+   g_CR_RiskPercent = Tester_CR_RiskPercent;
+   g_CR_TrailingGroup = Tester_CR_TrailingGroup;
+   g_CR_TrailingStart = Tester_CR_TrailingStart;
+   g_CR_TrailingDistance = Tester_CR_TrailingDistance;
+   g_CR_TrailingStep = Tester_CR_TrailingStep;
+   g_CR_LossLimitPct = Tester_CR_LossLimitPct;
+   
+   g_DailyTargetLockActive = Tester_DailyTargetLockActive;
+   g_DailyTargetPct = Tester_DailyTargetPct;
+   g_DailyTargetLockPct = Tester_DailyTargetLockPct;
+   g_MaxDailyLossPct = Tester_MaxDailyLossPct;
+   
+   g_FridaySafeLock = Tester_FridaySafeLock;
+   g_FridayHour = Tester_FridayHour;
+   g_FridayMinute = Tester_FridayMinute;
+   g_SpreadGuardianActive = Tester_SpreadGuardianActive;
+   g_MaxSpreadPips = Tester_MaxSpreadPips;
+   g_SessionFilter = Tester_SessionFilter;
+   g_TimerSeconds = Tester_TimerSeconds;
+   g_ProfitLockMin = 3.0;
+   g_ProfitLockDrop = 30.0;
+   g_MaxSLForex = 1500;
+   g_MaxSLJPY = 3000;
+   g_MaxSLOuro = 1500;
+   g_TrailingStart_XAU = 200;
+   g_TrailingDistance_XAU = 300;
+   g_TrailingStep_XAU = 50;
+   g_TrailingStart_JPY = 150;
+   g_TrailingDistance_JPY = 200;
+   g_TrailingStep_JPY = 30;
+   g_TrailingStart_Forex = 100;
+   g_TrailingDistance_Forex = 150;
+   g_TrailingStep_Forex = 20;
+   g_BreakevenEnabled = true;
+   g_BreakevenTrigger = 40;
+   g_BreakevenSecure = 10;
+   g_TrailingEnabled = true;
+   g_DailyTargetFloorPct = Tester_DailyTargetFloorPct;
 
-       g_CT_Enable = Tester_CT_Enable;
-       g_CT_StepDistance = Tester_CT_StepDistance;
-       g_CT_ReversalPoints = Tester_CT_ReversalPoints;
-       g_CT_HoldSeconds = Tester_CT_HoldSeconds;
-       g_CT_NegativeHoldSeconds = Tester_CT_NegativeHoldSeconds;
-       g_CT_TrendFilter = Tester_CT_TrendFilter;
-       g_CT_EmaPeriod = Tester_CT_EmaPeriod;
-       g_CT_EmaTimeframe = Tester_CT_EmaTimeframe;
-       
-       g_CR_Enable = Tester_CR_Enable;
-       g_CR_EMA_Period = Tester_CR_EMA_Period;
-       g_CR_EMA_Timeframe = Tester_CR_EMA_Timeframe;
-       g_CR_StepPoints = Tester_CR_StepPoints;
-       g_CR_MaxOrdersPerCandle = Tester_CR_MaxOrdersPerCandle;
-       g_CR_SL_Points = Tester_CR_SL_Points;
-       g_CR_TP_Points = Tester_CR_TP_Points;
-       g_CR_ReversalPoints = Tester_CR_ReversalPoints;
-       g_CR_Timeframe = Tester_CR_Timeframe;
-       g_CR_RiskPercent = Tester_CR_RiskPercent;
-       g_CR_TrailingGroup = Tester_CR_TrailingGroup;
-       g_CR_TrailingStart = Tester_CR_TrailingStart;
-       g_CR_TrailingDistance = Tester_CR_TrailingDistance;
-       g_CR_TrailingStep = Tester_CR_TrailingStep;
-       
-       g_MaxBuys = Tester_MaxBuys;
-       g_MaxSells = Tester_MaxSells;
-       g_TradeCooldown = Tester_TradeCooldown;
-       g_DailyTargetLockActive = Tester_DailyTargetLockActive;
-       g_DailyTargetPct = Tester_DailyTargetPct; // Valor sincronizado
-       g_DailyTargetLockPct = Tester_DailyTargetLockPct;
-       g_MaxDailyLossPct = Tester_MaxDailyLossPct;
-       g_BreakevenEnabled = Tester_BreakevenEnabled;
-       g_BreakevenTrigger = Tester_BreakevenTrigger;
-       g_BreakevenSecure = Tester_BreakevenSecure;
-       g_FridaySafeLock = Tester_FridaySafeLock;
-       g_FridayHour = Tester_FridayHour;
-       g_FridayMinute = Tester_FridayMinute;
-       g_SpreadGuardianActive = Tester_SpreadGuardianActive;
-       g_MaxSpreadPips = Tester_MaxSpreadPips;
-       g_SessionFilter = Tester_SessionFilter;
-       g_ManageManualOrders = Tester_ManageManualOrders;
-   }
-
-   Print("ðŸš€ AURA V8 INSTITUCIONAL v8.1 - Execution Engine (FIXED)");
+   Print("🚀 AURA V9 HEDGE FUND ENGINE - Initialized");
 
    ChartSetInteger(0, CHART_SHOW_TRADE_HISTORY, true);
    ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
@@ -447,13 +413,9 @@ int OnInit()
    InitDailyBaseline();
 
    g_CT_AnchorPrice  = 0;
-   g_CT_PeakPrice    = 0;
-   g_CT_ValleyPrice  = 0;
-   g_XAU_AnchorPrice = 0;
-   g_XAU_PeakPrice   = 0;
-   g_XAU_ValleyPrice = 0;
 
    CandleRider_Init();
+   HF_Engine_Init();
 
    EventSetTimer(g_TimerSeconds);
    trade.SetTypeFillingBySymbol(_Symbol);
@@ -463,8 +425,8 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
+   HF_Engine_Deinit();
    CandleRider_Deinit();
-   if(g_Panel != NULL) { g_Panel.Destroy(); delete g_Panel; }
    EventKillTimer();
    for(int i = 0; i < ArraySize(g_atrCache); i++)
    {
@@ -488,348 +450,7 @@ int CountXAUOrders() {
    return c;
 }
 
-//+------------------------------------------------------------------+
-//| XAU CONTINUOUS DISTANCE SCALPER                                  |
-//+------------------------------------------------------------------+
-void ContinuousTickScalperXAU()
-{
-   if(IsFridayFreeze()) return; // Bloqueia abertura Ã  Sexta-feira
-   if(CountXAUOrders() >= g_MaxOrders) return; // Limite global
-
-   string sym = "XAUUSD";
-   if(!SymbolSelect(sym, true)) sym = "XAUUSDm";
-   if(!IsXAU(sym)) return;
-
-   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-   double midPrice = (ask + bid) / 2.0;
-
-   // 1. INICIALIZAÃ‡ÃƒO DA Ã‚NCORA E EXTREMOS
-   if(g_XAU_AnchorPrice == 0)
-   {
-      g_XAU_AnchorPrice = midPrice;
-      g_XAU_PeakPrice = midPrice;
-      g_XAU_ValleyPrice = midPrice;
-      return; // Aguarda o prÃ³ximo tick para medir distÃ¢ncia
-   }
-
-   // 2. ATUALIZAÃ‡ÃƒO DOS EXTREMOS DA TENDÃŠNCIA ATUAL (Para ReversÃ£o)
-   if(midPrice > g_XAU_PeakPrice) g_XAU_PeakPrice = midPrice;
-   if(midPrice < g_XAU_ValleyPrice) g_XAU_ValleyPrice = midPrice;
-
-   // 2.5 FILTRO INSTITUCIONAL DE TENDENCIA (EMA M15)
-   bool allowBuy = true;
-   bool allowSell = true;
-   
-   if(g_XAU_TrendFilter)
-   {
-      // Converter minutos para ENUM_TIMEFRAMES
-      ENUM_TIMEFRAMES tf = PERIOD_M15;
-      if(g_XAU_EmaTimeframe == 1) tf = PERIOD_M1;
-      else if(g_XAU_EmaTimeframe == 5) tf = PERIOD_M5;
-      else if(g_XAU_EmaTimeframe == 15) tf = PERIOD_M15;
-      else if(g_XAU_EmaTimeframe == 30) tf = PERIOD_M30;
-      else if(g_XAU_EmaTimeframe == 60) tf = PERIOD_H1;
-      else if(g_XAU_EmaTimeframe == 240) tf = PERIOD_H4;
-      else if(g_XAU_EmaTimeframe == 1440) tf = PERIOD_D1;
-
-      double emaBuf[];
-      ArraySetAsSeries(emaBuf, true);
-      
-      static int hEmaDistance = INVALID_HANDLE;
-      static ENUM_TIMEFRAMES lastTF_Distance = PERIOD_CURRENT;
-      
-      if(hEmaDistance == INVALID_HANDLE || lastTF_Distance != tf)
-      {
-         if(hEmaDistance != INVALID_HANDLE) IndicatorRelease(hEmaDistance);
-         hEmaDistance = iMA(sym, tf, g_XAU_EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-         lastTF_Distance = tf;
-      }
-
-      if(hEmaDistance != INVALID_HANDLE)
-      {
-         if(CopyBuffer(hEmaDistance, 0, 0, 1, emaBuf) > 0)
-         {
-            if(midPrice > emaBuf[0]) allowSell = false; // TendÃªncia de Alta: Bloqueia Vendas
-            if(midPrice < emaBuf[0]) allowBuy = false;  // TendÃªncia de Baixa: Bloqueia Compras
-         }
-      }
-   }
-
-   // 3. REGRA DE ABERTURA DE ORDENS (Por DistÃ¢ncia da Ã‚ncora)
-   // Se o preÃ§o subir a distÃ¢ncia definida desde a Ã¢ncora -> COMPRA
-   if(allowBuy && midPrice >= g_XAU_AnchorPrice + (g_XAU_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Buy(sLot, sym, ask, 0, 0, "Aura XAU Distance Buy");
-      if(ok)
-      {
-         Print("ðŸ“ˆ [XAU] Abertura de COMPRA por DistÃ¢ncia (Passo atingido). PreÃ§o: ", ask);
-         g_XAU_AnchorPrice = midPrice; // Nova Ã¢ncora
-         g_XAU_PeakPrice = midPrice;   // Reset Peak
-         g_XAU_ValleyPrice = midPrice; // Reset Valley
-      }
-   }
-   // Se o preÃ§o cair a distÃ¢ncia definida desde a Ã¢ncora -> VENDE
-   else if(allowSell && midPrice <= g_XAU_AnchorPrice - (g_XAU_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Sell(sLot, sym, bid, 0, 0, "Aura XAU Distance Sell");
-      if(ok)
-      {
-         Print("ðŸ“‰ [XAU] Abertura de VENDA por DistÃ¢ncia (Passo atingido). PreÃ§o: ", bid);
-         g_XAU_AnchorPrice = midPrice; // Nova Ã¢ncora
-         g_XAU_PeakPrice = midPrice;   // Reset Peak
-         g_XAU_ValleyPrice = midPrice; // Reset Valley
-      }
-   }
-
-   // 4. GESTÃƒO DE FECHO (Take Profit, ReversÃ£o e Hold Seconds)
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-   {
-      ulong t = PositionGetTicket(i);
-      if(t <= 0 || !PositionSelectByTicket(t)) continue;
-      if(PositionGetString(POSITION_SYMBOL) != sym) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
-
-      long type = PositionGetInteger(POSITION_TYPE);
-      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP); // Commission handled separately if needed, simplified here
-      
-      bool closeIt = false;
-      string closeReason = "";
-
-      // REGRA 1: FECHO NO ALVO (Take Profit)
-      if(type == POSITION_TYPE_BUY && bid >= openPrice + (g_XAU_TargetPoints * point))
-      {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
-      }
-      else if(type == POSITION_TYPE_SELL && ask <= openPrice - (g_XAU_TargetPoints * point))
-      {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
-      }
-
-      // REGRA 2: PROTEÃ‡ÃƒO NA REVERSÃƒO
-      // Se estamos em lucro e o mercado reverteu X pontos do topo/fundo
-      if(!closeIt && profit > 0)
-      {
-         if(type == POSITION_TYPE_BUY && bid <= g_XAU_PeakPrice - (g_XAU_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "ReversÃ£o de Mercado detetada (ProteÃ§Ã£o de Lucro)";
-         }
-         else if(type == POSITION_TYPE_SELL && ask >= g_XAU_ValleyPrice + (g_XAU_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "ReversÃ£o de Mercado detetada (ProteÃ§Ã£o de Lucro)";
-         }
-      }
-
-      // REGRA 3: FECHO POR EXAUSTÃƒO DE TEMPO
-      if(!closeIt && profit > 0 && g_XAU_HoldSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > g_XAU_HoldSeconds)
-         {
-            closeIt = true; closeReason = "ExaustÃ£o de Tempo (Hold Seconds)";
-         }
-      }
-
-      // REGRA 4: FECHO POR TEMPO EM PERDA (Distance Scalper)
-      if(!closeIt && profit < 0 && g_XAU_NegativeHoldSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > g_XAU_NegativeHoldSeconds)
-         {
-            closeIt = true;
-            closeReason = "ExaustÃ£o de Tempo Negativo (Loss Hold Distance)";
-         }
-      }
-
-      // EXECUTA O FECHO
-      if(closeIt)
-      {
-         trade.PositionClose(t, 50);
-         Print("âœ… [XAU] Ordem ", t, " Fechada. Motivo: ", closeReason, " | Lucro: $", DoubleToString(profit, 2));
-      }
-   }
-}
-
-
-//+------------------------------------------------------------------+
-//| XAU COUNTER TREND SCALPER                                        |
-//+------------------------------------------------------------------+
-void CounterTrendScalperXAU()
-{
-   if(!g_CT_Enable) return;
-   if(IsFridayFreeze()) return; // Bloqueia abertura Ã  Sexta-feira
-   if(CountXAUOrders() >= g_MaxOrders) return; // Limite global
-
-   string sym = "XAUUSD";
-   if(!SymbolSelect(sym, true)) sym = "XAUUSDm";
-   if(!IsXAU(sym)) return;
-
-   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
-   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
-   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-   double midPrice = (ask + bid) / 2.0;
-
-   // 1. INICIALIZAÃ‡ÃƒO DA Ã‚NCORA E EXTREMOS
-   if(g_CT_AnchorPrice == 0)
-   {
-      g_CT_AnchorPrice = midPrice;
-      g_CT_PeakPrice = midPrice;
-      g_CT_ValleyPrice = midPrice;
-      return;
-   }
-
-   // 2. ATUALIZAÃ‡ÃƒO DOS EXTREMOS DA TENDÃŠNCIA ATUAL (Para ReversÃ£o)
-   if(midPrice > g_CT_PeakPrice) g_CT_PeakPrice = midPrice;
-   if(midPrice < g_CT_ValleyPrice) g_CT_ValleyPrice = midPrice;
-
-   // 2.5 FILTRO INSTITUCIONAL DE TENDENCIA E MEDIA MOVEL (EMA)
-   bool allowBuy = true;
-   bool allowSell = true;
-   double emaValue = 0;
-   
-   ENUM_TIMEFRAMES tf = PERIOD_M15;
-   if(g_CT_EmaTimeframe == 1) tf = PERIOD_M1;
-   else if(g_CT_EmaTimeframe == 5) tf = PERIOD_M5;
-   else if(g_CT_EmaTimeframe == 15) tf = PERIOD_M15;
-   else if(g_CT_EmaTimeframe == 30) tf = PERIOD_M30;
-   else if(g_CT_EmaTimeframe == 60) tf = PERIOD_H1;
-   else if(g_CT_EmaTimeframe == 240) tf = PERIOD_H4;
-   else if(g_CT_EmaTimeframe == 1440) tf = PERIOD_D1;
-
-   double emaBuf[];
-   ArraySetAsSeries(emaBuf, true);
-   
-   static int hEma = INVALID_HANDLE;
-   if(hEma == INVALID_HANDLE)
-   {
-      hEma = iMA(sym, tf, g_CT_EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   }
-
-   if(hEma != INVALID_HANDLE)
-   {
-      if(CopyBuffer(hEma, 0, 0, 1, emaBuf) > 0)
-      {
-         emaValue = emaBuf[0];
-         if(g_CT_TrendFilter)
-         {
-            // LÃ³gica INVERTIDA para Counter Trend:
-            // PreÃ§o acima da mÃ©dia -> Queremos VENDER (retorno Ã  mÃ©dia), logo bloqueamos as Compras
-            if(midPrice > emaBuf[0]) allowBuy = false; 
-            // PreÃ§o abaixo da mÃ©dia -> Queremos COMPRAR (retorno Ã  mÃ©dia), logo bloqueamos as Vendas
-            if(midPrice < emaBuf[0]) allowSell = false;  
-         }
-      }
-   }
-
-   // 3. REGRA DE ABERTURA DE ORDENS CONTRA A TENDÃŠNCIA
-   // Se o preÃ§o subiu rapidamente a distÃ¢ncia -> EXAUSTÃƒO DA SUBIDA -> VENDER
-   if(allowSell && midPrice >= g_CT_AnchorPrice + (g_CT_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_SELL); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      double slPrice = NormalizeDouble(ask + (g_MaxSLOuro * point), _Digits);
-      double tpPrice = (emaValue > 0) ? NormalizeDouble(emaValue, _Digits) : 0;
-      bool ok = trade.Sell(sLot, sym, bid, slPrice, tpPrice, "Aura CT Distance Sell");
-      if(ok)
-      {
-         Print("ðŸ“‰ [XAU CT] Abertura de VENDA por DistÃ¢ncia (Subida exausta). PreÃ§o: ", bid, " SL: ", slPrice, " TP inicial: ", tpPrice);
-         g_CT_AnchorPrice = midPrice;
-         g_CT_PeakPrice = midPrice;
-         g_CT_ValleyPrice = midPrice;
-      }
-   }
-   // Se o preÃ§o caiu rapidamente a distÃ¢ncia -> EXAUSTÃƒO DA QUEDA -> COMPRAR
-   else if(allowBuy && midPrice <= g_CT_AnchorPrice - (g_CT_StepDistance * point))
-   {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      trade.SetTypeFillingBySymbol(sym);
-      double slPrice = NormalizeDouble(bid - (g_MaxSLOuro * point), _Digits);
-      double tpPrice = (emaValue > 0) ? NormalizeDouble(emaValue, _Digits) : 0;
-      bool ok = trade.Buy(sLot, sym, ask, slPrice, tpPrice, "Aura CT Distance Buy");
-      if(ok)
-      {
-         Print("ðŸ“ˆ [XAU CT] Abertura de COMPRA por DistÃ¢ncia (Queda exausta). PreÃ§o: ", ask, " SL: ", slPrice, " TP inicial: ", tpPrice);
-         g_CT_AnchorPrice = midPrice;
-         g_CT_PeakPrice = midPrice;
-         g_CT_ValleyPrice = midPrice;
-      }
-   }
-
-   // 4. GESTÃƒO DE FECHO
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-   {
-      ulong t = PositionGetTicket(i);
-      if(t <= 0 || !PositionSelectByTicket(t)) continue;
-      if(PositionGetString(POSITION_SYMBOL) != sym) continue;
-      if(PositionGetInteger(POSITION_MAGIC) != GetAuraMagic()) continue;
-
-      long type = PositionGetInteger(POSITION_TYPE);
-      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
-      
-      bool closeIt = false;
-      string closeReason = "";
-
-      // REGRA 1: FECHO NO ALVO (Retorno Ã  MÃ©dia EMA)
-      if(emaValue > 0 && profit > 0)
-      {
-         if(type == POSITION_TYPE_BUY && bid >= emaValue)
-         {
-            closeIt = true; closeReason = "Alvo atingido (Retorno Ã  Media EMA)";
-         }
-         else if(type == POSITION_TYPE_SELL && ask <= emaValue)
-         {
-            closeIt = true; closeReason = "Alvo atingido (Retorno Ã  Media EMA)";
-         }
-      }
-
-      // REGRA 2: PROTEÃ‡ÃƒO NA REVERSÃƒO
-      if(!closeIt && profit > 0)
-      {
-         if(type == POSITION_TYPE_BUY && bid <= g_XAU_PeakPrice - (g_CT_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "ReversÃ£o detetada (ProteÃ§Ã£o CT)";
-         }
-         else if(type == POSITION_TYPE_SELL && ask >= g_XAU_ValleyPrice + (g_CT_ReversalPoints * point))
-         {
-            closeIt = true; closeReason = "ReversÃ£o detetada (ProteÃ§Ã£o CT)";
-         }
-      }
-
-      // REGRA 3: FECHO POR EXAUSTÃƒO DE TEMPO (Positivo)
-      if(!closeIt && profit > 0 && g_CT_HoldSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > g_CT_HoldSeconds)
-         {
-            closeIt = true; closeReason = "ExaustÃ£o de Tempo Positivo (Hold Seconds CT)";
-         }
-      }
-      
-      // REGRA 4: FECHO POR EXAUSTÃƒO DE TEMPO (Negativo)
-      if(!closeIt && profit < 0 && g_CT_NegativeHoldSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > g_CT_NegativeHoldSeconds)
-         {
-            closeIt = true; closeReason = "ExaustÃ£o de Tempo Negativo (Loss Hold CT)";
-         }
-      }
-
-      // EXECUTA O FECHO
-      if(closeIt)
-      {
-         trade.PositionClose(t, 50);
-         Print("âœ… [XAU CT] Ordem ", t, " Fechada. Motivo: ", closeReason, " | Lucro: $", DoubleToString(profit, 2));
-      }
-   }
-}
+// Funções de Scalper V8 Removidas no V9
 
 
 void OnTick()
@@ -855,9 +476,7 @@ void OnTimer()
    if(ExecutionBusy) return;
    ExecutionBusy = true;
 
-   // Sincronismo Dashboard (agora dentro do semÃ¡foro â€” sem race condition)
    ReportBalance();
-   UpdateChartVisuals();
 
    // Proteger Ordens Manuais (executa mesmo sem autorizaÃ§Ã£o de licenÃ§a)
    ProtectManualOrders();
@@ -883,8 +502,6 @@ void RunInstitutionalCore()
       ProcessSignalQueue();
 
       MonitorTrailingStop();
-      //ContinuousTickScalperXAU(); // Temporariamente desativado a pedido do utilizador
-      CounterTrendScalperXAU();
       CandleRiderScalperXAU();
       MonitorPartialTP();
    }
@@ -2811,13 +2428,3 @@ void CloseAllPositions()
    }
 }
 
-//+------------------------------------------------------------------+
-//| ChartEvent function                                              |
-//+------------------------------------------------------------------+
-void OnChartEvent(const int id,
-                  const long &lparam,
-                  const double &dparam,
-                  const string &sparam)
-{
-   if(g_Panel != NULL) g_Panel.OnEvent(id, lparam, dparam, sparam);
-}
