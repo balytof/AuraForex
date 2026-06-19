@@ -688,18 +688,6 @@
                         <label class="form-label">Gemini API URL (Opcional - IP/Proxy)</label>
                         <input type="text" id="sysGeminiUrl" class="form-input" placeholder="https://generativelanguage.googleapis.com">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">MetaApi Token</label>
-                        <input type="password" id="sysMetaToken" class="form-input" placeholder="eyJ...">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">MetaApi Account ID (CopyFactory Master)</label>
-                        <input type="text" id="sysMetaAccountId" class="form-input" placeholder="UUID-...">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Conta Master PAMM (ID Opcional se for diferente do Master CopyFactory)</label>
-                        <input type="text" id="sysPammMasterId" class="form-input" placeholder="UUID-...">
-                    </div>
                 </div>
                 <div class="stat-card" style="background:var(--surface2); border-color:var(--accent2);">
                     <h4 style="margin-bottom:15px; font-size:0.8rem; text-transform:uppercase;">Configurações do EA</h4>
@@ -1391,9 +1379,6 @@
             const s = res.settings;
             document.getElementById('sysGeminiKey').value = s.geminiApiKey || '';
             document.getElementById('sysGeminiUrl').value = s.geminiApiUrl || '';
-            document.getElementById('sysMetaToken').value = s.metaApiToken || '';
-            document.getElementById('sysMetaAccountId').value = s.metaApiAccountId || '';
-            document.getElementById('sysPammMasterId').value = s.pammMasterAccountId || '';
             document.getElementById('sysApiUrl').value = s.apiUrl || '';
             document.getElementById('sysDefaultPammFee').value = s.defaultPammPerformanceFee !== undefined ? s.defaultPammPerformanceFee : 30;
             document.getElementById('sysMinPammDeposit').value = s.minPammDeposit !== undefined ? s.minPammDeposit : 50.0;
@@ -1416,9 +1401,6 @@
         const payload = {
             geminiApiKey: document.getElementById('sysGeminiKey').value,
             geminiApiUrl: document.getElementById('sysGeminiUrl').value,
-            metaApiToken: document.getElementById('sysMetaToken').value,
-            metaApiAccountId: document.getElementById('sysMetaAccountId').value,
-            pammMasterAccountId: document.getElementById('sysPammMasterId').value,
             apiUrl: document.getElementById('sysApiUrl').value,
             defaultPammPerformanceFee: document.getElementById('sysDefaultPammFee').value ? parseFloat(document.getElementById('sysDefaultPammFee').value) : 30.0,
             minPammDeposit: document.getElementById('sysMinPammDeposit').value ? parseFloat(document.getElementById('sysMinPammDeposit').value) : 50.0,
