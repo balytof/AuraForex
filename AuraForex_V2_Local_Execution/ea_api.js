@@ -19,7 +19,7 @@ router.post("/validate", async (req, res) => {
   try {
     const license = await prisma.license.findUnique({
       where: { id: licenseKey },
-      include: { user: true }
+      include: { user: { include: { settings: true } } }
     });
 
     if (!license) {
@@ -47,7 +47,8 @@ router.post("/validate", async (req, res) => {
       status: "OK",
       message: "Licença validada com sucesso.",
       user: license.user.email,
-      expiresAt: license.expiresAt
+      expiresAt: license.expiresAt,
+      activePairs: license.user.settings?.activePairs || ""
     });
 
   } catch (err) {

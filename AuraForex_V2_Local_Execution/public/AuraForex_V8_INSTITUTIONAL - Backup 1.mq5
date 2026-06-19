@@ -11,10 +11,6 @@
 
 //--- INCLUDES ---
 #include <Trade\Trade.mqh>
-#include "JAson.mqh"
-#include "AuraGUI.mqh"
-
-CAuraPanel *g_Panel;
 
 
 //--- INPUT PARAMETERS ---
@@ -30,27 +26,48 @@ input int Tester_MaxSLOuro         = 1500;                    // Limite SL Ouro 
 input int Tester_MaxOrders         = 6;                       // Limite Global de Ordens
 input int Tester_MaxBuys           = 6;                       // Máximo de Compras Simultâneas
 input int Tester_MaxSells          = 6;                       // Máximo de Vendas Simultâneas
-input int Tester_TradeCooldown     = 60;                      // Cooldown entre ordens do mesmo par (seg)
+input int Tester_TradeCooldown     = 300;                      // Cooldown entre ordens do mesmo par (seg)
 
 // --- XAU DISTANCE SCALPER --- 
-input int Tester_XAU_StepDistance      = 100; // XAU: Distância para Abrir Nova Ordem (Pts)
-input int Tester_XAU_TargetPoints      = 200; // XAU: Alvo Fixo de Lucro (Pts)
+input bool Tester_XAU_Enabled          = true; // Ativar Bot Autónomo do Ouro (XAU Scalper)
+input int Tester_XAU_StepDistance      = 200; // XAU: Distância para Abrir Nova Ordem (Pts)
+input int Tester_XAU_TargetPoints      = 3000; // XAU: Alvo Fixo de Lucro (Pts)
 input int Tester_XAU_ReversalPoints    = 150; // XAU: Reversão para Fechar Lucros (Pts)
-input int Tester_XAU_HoldSeconds       = 30;  // XAU: Tempo Limite no Lucro (Seg)
-input int Tester_XAU_NegativeHoldSeconds= 3600; // XAU: Tempo Limite na Perda (Seg)
+input int Tester_XAU_HoldSeconds       = 180;  // XAU: Tempo Limite no Lucro (Seg)
+input int Tester_XAU_NegativeHoldSeconds= 120; // XAU: Tempo Limite na Perda (Seg)
 input bool Tester_XAU_TrendFilter      = true; // XAU: Filtro de Tendencia EMA
 input int Tester_XAU_EmaPeriod         = 50;  // XAU: Periodo EMA
 input int Tester_XAU_EmaTimeframe      = 15;  // XAU: Timeframe EMA (1,5,15,60)
 
+// --- FOREX DISTANCE SCALPER --- 
+input int Tester_Forex_StepDistance      = 150; // FOREX: Distância para Abrir Nova Ordem (Pts)
+input int Tester_Forex_TargetPoints      = 1500; // FOREX: Alvo Fixo de Lucro (Pts)
+input int Tester_Forex_ReversalPoints    = 100; // FOREX: Reversão para Fechar Lucros (Pts)
+input int Tester_Forex_HoldSeconds       = 180;  // FOREX: Tempo Limite no Lucro (Seg)
+input int Tester_Forex_NegativeHoldSeconds= 120; // FOREX: Tempo Limite na Perda (Seg)
+input bool Tester_Forex_TrendFilter      = true; // FOREX: Filtro de Tendencia EMA
+input int Tester_Forex_EmaPeriod         = 50;  // FOREX: Periodo EMA
+input int Tester_Forex_EmaTimeframe      = 15;  // FOREX: Timeframe EMA (1,5,15,60)
+
+// --- JPY DISTANCE SCALPER --- 
+input int Tester_JPY_StepDistance      = 200; // JPY: Distância para Abrir Nova Ordem (Pts)
+input int Tester_JPY_TargetPoints      = 2000; // JPY: Alvo Fixo de Lucro (Pts)
+input int Tester_JPY_ReversalPoints    = 150; // JPY: Reversão para Fechar Lucros (Pts)
+input int Tester_JPY_HoldSeconds       = 180;  // JPY: Tempo Limite no Lucro (Seg)
+input int Tester_JPY_NegativeHoldSeconds= 120; // JPY: Tempo Limite na Perda (Seg)
+input bool Tester_JPY_TrendFilter      = true; // JPY: Filtro de Tendencia EMA
+input int Tester_JPY_EmaPeriod         = 50;  // JPY: Periodo EMA
+input int Tester_JPY_EmaTimeframe      = 15;  // JPY: Timeframe EMA (1,5,15,60)
+
 // --- PROFIT LOCK PARAMETERS ---
-input double Tester_ProfitLockMin     = 3.0;   // Lucro mínimo para activar ProfitLock ($)
+input double Tester_ProfitLockMin     = 10.0;   // Lucro mínimo para activar ProfitLock ($)
 input double Tester_ProfitLockDrop    = 30.0;  // % de queda do pico para fechar ordem
 
 // --- TRAILING STOP PARAMETERS ---
 input bool Tester_TrailingEnabled      = true;      // Trailing Stop Activo
-input int Tester_TrailingStart_XAU     = 200;       // Trailing Start Ouro
-input int Tester_TrailingDistance_XAU  = 300;       // Trailing Distance Ouro
-input int Tester_TrailingStep_XAU      = 50;        // Trailing Step Ouro
+input int Tester_TrailingStart_XAU     = 100;       // Trailing Start Ouro
+input int Tester_TrailingDistance_XAU  = 150;       // Trailing Distance Ouro
+input int Tester_TrailingStep_XAU      = 20;        // Trailing Step Ouro
 input int Tester_TrailingStart_JPY     = 150;       // Trailing Start JPY
 input int Tester_TrailingDistance_JPY  = 200;       // Trailing Distance JPY
 input int Tester_TrailingStep_JPY      = 30;        // Trailing Step JPY
@@ -130,7 +147,7 @@ double            g_XAU_AnchorPrice = 0;
 double            g_XAU_PeakPrice = 0;
 double            g_XAU_ValleyPrice = 0;
 bool              g_UseTwinTrading = true;
-
+string            g_ActivePairs = "";
 ProfitLockData      ProfitLocks[];
 PortfolioProfitLock GlobalProfitLockState;
 
@@ -154,12 +171,6 @@ struct PendingProtectionData {
 };
 PendingProtectionData PendingQueue[];
 
-//--- ESTRUTURA FILA DE SINAIS ---
-struct SignalQueueData {
-   string   json;
-   datetime timestamp;
-};
-SignalQueueData SignalQueue[];
 
 struct PartialCloseData
 {
@@ -276,13 +287,7 @@ void InitDailyBaseline()
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   // --- AURA GUI INIT ---
-   ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
-   g_Panel = new CAuraPanel();
-   if(!g_Panel.Create(0, "AuraDashboard", 0, 50, 50, 600, 620)) {
-       Print("Falha ao criar o painel Aura GUI.");
-       return INIT_FAILED;
-   }
+   // --- AURA GUI INIT (REMOVED) ---
 
    if(MQLInfoInteger(MQL_TESTER) || !FileIsExist("AuraForexConfig.txt", FILE_COMMON)) {
        g_LicenseKey  = Tester_LicenseKey;
@@ -382,7 +387,7 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
-   if(g_Panel != NULL) { g_Panel.Destroy(); delete g_Panel; }
+   // GUI Removida
    EventKillTimer();
    for(int i = 0; i < ArraySize(g_atrCache); i++)
    {
@@ -411,6 +416,7 @@ int CountXAUOrders() {
 //+------------------------------------------------------------------+
 void ContinuousTickScalperXAU()
 {
+   if(!Tester_XAU_Enabled) return;
    if(IsFridayFreeze()) return; // Bloqueia abertura à Sexta-feira
    if(CountXAUOrders() >= g_MaxOrders) return; // Limite global
 
@@ -472,10 +478,14 @@ void ContinuousTickScalperXAU()
    {
       double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
       trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Buy(sLot, sym, ask, 0, 0, "Aura XAU Distance Buy");
+      
+      double slPrice = NormalizeDouble(ask - (g_MaxSLOuro * point), _Digits);
+      double tpPrice = NormalizeDouble(ask + (g_XAU_TargetPoints * point), _Digits);
+      
+      bool ok = trade.Buy(sLot, sym, ask, slPrice, tpPrice, "Aura XAU Distance Buy");
       if(ok)
       {
-         Print("📈 [XAU] Abertura de COMPRA por Distância (Passo atingido). Preço: ", ask);
+         Print("📈 [XAU] Abertura de COMPRA por Distância (Passo atingido). Preço: ", ask, " SL: ", slPrice, " TP: ", tpPrice);
          g_XAU_AnchorPrice = midPrice; // Nova âncora
          g_XAU_PeakPrice = midPrice;   // Reset Peak
          g_XAU_ValleyPrice = midPrice; // Reset Valley
@@ -484,12 +494,16 @@ void ContinuousTickScalperXAU()
    // Se o preço cair a distância definida desde a âncora -> VENDE
    else if(allowSell && midPrice <= g_XAU_AnchorPrice - (g_XAU_StepDistance * point))
    {
-      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+      double sLot = CalculateLot(sym, GetDynamicRisk(g_MaxSLOuro), g_MaxSLOuro * point, ORDER_TYPE_SELL); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
       trade.SetTypeFillingBySymbol(sym);
-      bool ok = trade.Sell(sLot, sym, bid, 0, 0, "Aura XAU Distance Sell");
+      
+      double slPrice = NormalizeDouble(bid + (g_MaxSLOuro * point), _Digits);
+      double tpPrice = NormalizeDouble(bid - (g_XAU_TargetPoints * point), _Digits);
+      
+      bool ok = trade.Sell(sLot, sym, bid, slPrice, tpPrice, "Aura XAU Distance Sell");
       if(ok)
       {
-         Print("📉 [XAU] Abertura de VENDA por Distância (Passo atingido). Preço: ", bid);
+         Print("📉 [XAU] Abertura de VENDA por Distância (Passo atingido). Preço: ", bid, " SL: ", slPrice, " TP: ", tpPrice);
          g_XAU_AnchorPrice = midPrice; // Nova âncora
          g_XAU_PeakPrice = midPrice;   // Reset Peak
          g_XAU_ValleyPrice = midPrice; // Reset Valley
@@ -1333,6 +1347,9 @@ void MonitorTrailingStop()
       double trailDistPts  = g_TrailingDistance_Forex;
       
       if(IsXAU(sym)) {
+         trailStartPts = g_TrailingStart_XAU;
+         trailStepPts  = g_TrailingStep_XAU;
+         trailDistPts  = g_TrailingDistance_XAU;
       }
       else if(StringFind(sym, "JPY") >= 0) {
          trailStartPts = g_TrailingStart_JPY;
@@ -2532,13 +2549,4 @@ void CloseAllPositions()
    }
 }
 
-//+------------------------------------------------------------------+
-//| ChartEvent function                                              |
-//+------------------------------------------------------------------+
-void OnChartEvent(const int id,
-                  const long &lparam,
-                  const double &dparam,
-                  const string &sparam)
-{
-   if(g_Panel != NULL) g_Panel.OnEvent(id, lparam, dparam, sparam);
-}
+// OnChartEvent removido junto com o GUI
