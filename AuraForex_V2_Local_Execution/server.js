@@ -86,13 +86,13 @@ app.get("/smc-forex", (req, res) => {
 });
 
 // Download do Robô
-app.get("/AuraForex_V8_INSTITUTIONAL.ex5", (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'AuraForex_V8_INSTITUTIONAL.ex5');
+app.get("/AuraForex_V8_Institutional.ex5", (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'AuraForex_V8_Institutional.ex5');
   console.log(`[DOWNLOAD-ATTEMPT] Ficheiro: ${filePath}`);
 
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V8_INSTITUTIONAL.ex5"');
+    res.setHeader('Content-Disposition', 'attachment; filename="AuraForex_V8_Institutional.ex5"');
     res.sendFile(filePath, (err) => {
       if (err) {
         console.error("[DOWNLOAD-ERROR]", err);

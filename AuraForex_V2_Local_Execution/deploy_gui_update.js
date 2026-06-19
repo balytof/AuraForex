@@ -5,8 +5,8 @@ const conn = new Client();
 
 const remoteBaseDir = '/root/AuraForex/AuraForex_V2_Local_Execution';
 const filesToUpload = [
-    { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.ex5` },
-    { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.mq5` },
+    { local: './public/AuraForex_V8_Institutional.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_Institutional.ex5` },
+    { local: './public/AuraForex_V8_Institutional.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_Institutional.mq5` },
     { local: './public/AuraGUI.mqh', remote: `${remoteBaseDir}/public/AuraGUI.mqh` },
     { local: './public/AuraMaster_Signal.ex5', remote: `${remoteBaseDir}/public/AuraMaster_Signal.ex5` },
     { local: './public/AuraCopier_Client.ex5', remote: `${remoteBaseDir}/public/AuraCopier_Client.ex5` },

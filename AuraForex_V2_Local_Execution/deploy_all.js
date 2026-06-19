@@ -22,8 +22,8 @@ conn.on('ready', () => {
             { local: './prisma/schema.prisma', remote: `${remoteBaseDir}/prisma/schema.prisma` },
             { local: './payments/cryptoGateway.js', remote: `${remoteBaseDir}/payments/cryptoGateway.js` },
             { local: './workers/paymentMonitor.js', remote: `${remoteBaseDir}/workers/paymentMonitor.js` },
-            { local: './public/AuraForex_V8_INSTITUTIONAL.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.ex5` },
-            { local: './public/AuraForex_V8_INSTITUTIONAL.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_INSTITUTIONAL.mq5` },
+            { local: './public/AuraForex_V8_Institutional.ex5', remote: `${remoteBaseDir}/public/AuraForex_V8_Institutional.ex5` },
+            { local: './public/AuraForex_V8_Institutional.mq5', remote: `${remoteBaseDir}/public/AuraForex_V8_Institutional.mq5` },
             { local: './signals/smc_signal_engine.js', remote: `${remoteBaseDir}/signals/smc_signal_engine.js` },
             { local: './smc_forex_bot.js', remote: `${remoteBaseDir}/smc_forex_bot.js` }
         ];
