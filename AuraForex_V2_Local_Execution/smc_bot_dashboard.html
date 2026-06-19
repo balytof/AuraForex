@@ -3979,6 +3979,7 @@ function resetBuyModal() {
   document.getElementById("buyStep2").style.display = "none";
   document.getElementById("buyStep3").style.display = "none";
   document.getElementById("buyStep4").style.display = "none";
+  document.getElementById("buyStepCrypto").style.display = "none";
   document.getElementById("buyBackBtn").style.display = "none";
   document.getElementById("buyConfirmBtn").style.display = "none";
   document.getElementById("buyFinishBtn").style.display = "none";
@@ -4014,19 +4015,15 @@ async function selectPlan(id, name, price) {
   
   const hasWallets = await loadWallets();
 
+  document.getElementById("buyStep1").style.display = "none";
+  document.getElementById("buyStepCrypto").style.display = "none";
+  document.getElementById("buyStep2").style.display = "block";
+  document.getElementById("buyBackBtn").style.display = "block";
+
   if (hasWallets) {
-    // Show next step
-    document.getElementById("buyStep1").style.display = "none";
-    document.getElementById("buyStep2").style.display = "block";
-    document.getElementById("buyBackBtn").style.display = "block";
+    document.getElementById("manualPaymentGroup").style.display = "block";
   } else {
-    // Skip manual payment screen and go directly to crypto invoice
-    document.getElementById("buyStep1").style.display = "none";
-    document.getElementById("buyStep2").style.display = "none";
-    
-    const dummyBtn = document.createElement("button");
-    dummyBtn.innerHTML = "Processing...";
-    generateCryptoInvoice(dummyBtn);
+    document.getElementById("manualPaymentGroup").style.display = "none";
   }
 }
 
@@ -5191,23 +5188,25 @@ async function submitPammDeposit(btn) {
           <div id="selectedPlanName" style="font-size:1.2rem;font-weight:800;color:var(--accent);">—</div>
           <div id="selectedPlanPrice" style="font-size:1.5rem;font-weight:800;margin-top:5px;">—</div>
         </div>
-        <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
-          <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
-          <div id="walletsContainer" style="display:grid;gap:10px;"></div>
+        <div id="manualPaymentGroup">
+          <div style="background:rgba(0,0,0,0.2);padding:15px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+            <p style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Carteiras para Pagamento:</p>
+            <div id="walletsContainer" style="display:grid;gap:10px;"></div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Comprovativo (Hash da Transação):</label>
+            <input type="text" id="paymentHash" placeholder="Cole aqui a Hash da transação..." 
+              style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
+            <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;">* Após realizar o pagamento, cole a Hash acima para validação.</p>
+          </div>
+
+          <button onclick="submitPaymentRequest(this)" class="btn btn-secondary" style="width:100%; padding:15px; font-weight:700; margin-bottom: 10px;">
+            <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO MANUAL
+          </button>
+
+          <div style="text-align: center; margin: 15px 0; color: var(--muted); font-size: 0.8rem; text-transform: uppercase;">Ou</div>
         </div>
-
-        <div style="margin-bottom: 20px;">
-          <label style="display:block; font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Comprovativo (Hash da Transação):</label>
-          <input type="text" id="paymentHash" placeholder="Cole aqui a Hash da transação..." 
-            style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); padding:12px; border-radius:8px; color:white; font-size:0.9rem;">
-          <p style="font-size:0.7rem; color:var(--accent); margin-top:5px; opacity:0.8;">* Após realizar o pagamento, cole a Hash acima para validação.</p>
-        </div>
-
-        <button onclick="submitPaymentRequest(this)" class="btn btn-secondary" style="width:100%; padding:15px; font-weight:700; margin-bottom: 10px;">
-          <i class="fas fa-check-circle"></i> CONFIRMAR PAGAMENTO MANUAL
-        </button>
-
-        <div style="text-align: center; margin: 15px 0; color: var(--muted); font-size: 0.8rem; text-transform: uppercase;">Ou</div>
 
         <button onclick="submitLemonSqueezyPayment(this)" class="btn btn-primary" style="width:100%; padding:15px; font-weight:700; background: #5a2af8; color: #fff; margin-bottom: 10px; border: none; cursor: pointer;">
           <i class="fas fa-credit-card"></i> PAGAMENTO CARTÃO (LEMON SQUEEZY)
