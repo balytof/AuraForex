@@ -555,7 +555,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       fridayBlockHour: fridayBlockHour,
       sundayOpenHour: sundayOpenHour,
       openTrades: trueOpenTrades, // Retorna as trades abertas sincronizadas pelo EA/BD
-      canResetLocks: userSettings?.canResetLocks || false
+      canResetLocks: userSettings?.canResetLocks || false,
+      dailyStartBalance: startCapital
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });

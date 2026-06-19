@@ -3300,6 +3300,8 @@ function updateLimitUI(val) {
     }
 }
 
+let isFirstConnection = true;
+
 async function updateStats() {
   console.log("[HMI] Iniciando atualização de estatísticas...");
   try {
@@ -3310,6 +3312,17 @@ async function updateStats() {
     const status = await apiFetch("/api/user/status");
     console.log("[HMI] Status recebido:", status);
     if (status && status.success) {
+      if (isRunning && isFirstConnection) {
+         isFirstConnection = false;
+         const h = new Date().getUTCHours();
+         addLog(`🔄 Sincronização HMI [${VERSION}]: A comunicar com MetaTrader 5... (UTC: ${h}h)`, "info");
+         addLog(`🚀 AURA V8 INSTITUCIONAL v8.1 - Execution Engine (FIXED)`, "buy");
+         addLog(`✅ LICENÇA VALIDADA COM SUCESSO!`, "buy");
+         addLog(`🔍 Iniciando Recuperação de Estado (Institutional Recovery)...`, "info");
+         const startEq = status.dailyStartBalance ? status.dailyStartBalance.toFixed(2) : status.balance.toFixed(2);
+         addLog(`📊 [BASELINE] DailyStartEquity inicializado: $${startEq} | Balance: $${status.balance.toFixed(2)}`, "info");
+      }
+
       // 🛡️ CORREÇÃO CRÍTICA: Atualizar as openTrades globais com os dados do EA/Servidor!
       if (status.openTrades && Array.isArray(status.openTrades)) {
          openTrades = status.openTrades;
@@ -3673,9 +3686,6 @@ function scheduleNextBotLoop(loopId, ms) {
 
 async function botLoop(loopId) {
   if (!isRunning || loopId !== currentLoopId) return;
-  
-  const h = new Date().getUTCHours();
-  addLog(`🔄 Sincronização HMI [${VERSION}]: A comunicar com MetaTrader 5... (UTC: ${h}h)`, "info");
 
   try {
     await updateStats();
@@ -3746,6 +3756,7 @@ function startBot() {
 
 function stopBot() {
   isRunning = false;
+  isFirstConnection = true;
   localStorage.setItem("aura_bot_state", "stopped");
   saveConfig();
   if (typeof loopTimer !== 'undefined') clearTimeout(loopTimer);
