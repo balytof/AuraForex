@@ -304,7 +304,9 @@ router.post("/report-balance", async (req, res) => {
          direction: t.direction,
          profit: t.profit,
          lotSize: t.lotSize,
-         openPrice: t.openPrice
+         openPrice: t.openPrice,
+         sl: t.sl,
+         tp: t.tp
        }));
     } else {
        risk.openTrades = [];

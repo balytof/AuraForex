@@ -1800,13 +1800,17 @@ void ReportBalance()
             double profit  = PositionGetDouble(POSITION_PROFIT) * mult;
             double lot     = PositionGetDouble(POSITION_VOLUME);
             double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+            double sl      = PositionGetDouble(POSITION_SL);
+            double tp      = PositionGetDouble(POSITION_TP);
             if(count > 0) openTradesJson += ",";
             openTradesJson += "{\"id\":\"" + IntegerToString(ticket) +
                               "\",\"pair\":\"" + sym +
                               "\",\"direction\":\"" + dir +
                               "\",\"profit\":" + DoubleToString(profit, 2) +
                               ",\"lotSize\":" + DoubleToString(lot, 2) +
-                              ",\"openPrice\":" + DoubleToString(openPrice, 5) + "}";
+                              ",\"openPrice\":" + DoubleToString(openPrice, 5) +
+                              ",\"sl\":" + DoubleToString(sl, 5) +
+                              ",\"tp\":" + DoubleToString(tp, 5) + "}";
             count++;
          }
       }

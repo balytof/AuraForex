@@ -3566,9 +3566,9 @@ function renderActivePositions(positions) {
   }
 
   list.innerHTML = positions.map(pos => {
-    const pnlVal = pos.pnl || 0;
+    const pnlVal = pos.profit !== undefined ? pos.profit : (pos.pnl || 0);
     const pnlClass = pnlVal >= 0 ? 'bull' : 'bear';
-    const direction = (pos.type && pos.type.includes('BUY')) ? 'BUY' : 'SELL';
+    const direction = (pos.type && pos.type.includes('BUY')) || (pos.direction === 'BUY') ? 'BUY' : 'SELL';
     const dirColor = direction === 'BUY' ? 'var(--bull)' : 'var(--bear)';
 
     const peak = maxProfitTrack[pos.id] || (pnlVal > 0 ? pnlVal : 0);
