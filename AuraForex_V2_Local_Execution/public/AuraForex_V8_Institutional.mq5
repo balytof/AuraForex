@@ -338,7 +338,8 @@ int OnInit()
 {
    // --- AURA GUI INIT (REMOVED) ---
 
-   if(MQLInfoInteger(MQL_TESTER) || !FileIsExist("AuraForexConfig.txt", FILE_COMMON)) {
+   // Carrega as variáveis do painel de inputs do MT5 diretamente para as variáveis globais
+   // Já não depende de AuraForexConfig.txt (GUI Removida)
        g_LicenseKey  = Tester_LicenseKey;
        g_ServerUrl   = Tester_ServerUrl;
        g_IsCentAccount = Tester_IsCentAccount;
@@ -394,7 +395,6 @@ int OnInit()
        g_MaxSpreadPips = Tester_MaxSpreadPips;
        g_SessionFilter = Tester_SessionFilter;
        g_ManageManualOrders = Tester_ManageManualOrders;
-   }
 
    Print("🚀 AURA V8 INSTITUCIONAL v8.1 - Execution Engine (FIXED)");
 
