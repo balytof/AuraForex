@@ -407,7 +407,7 @@
       if (token) {
         try {
           const res = await fetch("/api/auth/me", { headers: { "Authorization": "Bearer " + token }});
-          if(res.ok) window.location.href = "/dashboard";
+          if(res.ok) window.location.href = "/hub";
         } catch(e) {}
       }
     }
@@ -455,7 +455,7 @@
         if (!res.ok) throw new Error(data.error || "Login Error");
         
         localStorage.setItem("aura_token", data.token);
-        window.location.href = "/dashboard";
+        window.location.href = "/hub";
       } catch(e) {
         showErr(e.message);
       } finally {

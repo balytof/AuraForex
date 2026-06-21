@@ -779,6 +779,13 @@
             <input type="text" id="planName" class="form-input">
         </div>
         <div class="form-group">
+            <label class="form-label">Tipo de Sistema</label>
+            <select id="planType" class="form-input">
+                <option value="FOREX">AuraForex Bot</option>
+                <option value="CRYPTO">AuraCrypto AI</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label class="form-label">Preço (USD)</label>
             <input type="number" id="planPrice" class="form-input">
         </div>
@@ -1058,13 +1065,13 @@
         const tbody = document.getElementById('plansTable');
         tbody.innerHTML = data.plans.map(p => `
             <tr>
-                <td><strong>${p.name}</strong></td>
+                <td><strong>${p.name}</strong> <span class="badge" style="background:var(--accent);margin-left:5px;font-size:0.7em;">${p.planType === 'CRYPTO' ? 'CRIPTO' : 'FOREX'}</span></td>
                 <td>$${p.price.toFixed(2)}</td>
                 <td>${p.durationDays} dias</td>
                 <td><span class="badge ${p.isActive ? 'badge-active' : ''}">${p.isActive ? 'Ativo' : 'Inativo'}</span></td>
                 <td>
                     <button class="btn" style="color: ${p.isActive ? 'var(--warn)' : 'var(--success)'}" onclick="togglePlan('${p.id}', ${p.isActive})">${p.isActive ? 'Desativar' : 'Ativar'}</button>
-                    <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays}, '${p.lemonSqueezyUrl || ''}')">✏️</button>
+                    <button class="btn" onclick="openPlanModal('${p.id}', '${p.name}', ${p.price}, ${p.durationDays}, '${p.lemonSqueezyUrl || ''}', '${p.planType || 'FOREX'}')">✏️</button>
                     <button class="btn" style="color:var(--bear)" onclick="deletePlan('${p.id}')">🗑️</button>
                 </td>
             </tr>
@@ -1072,13 +1079,14 @@
     }
 
     let currentPlanId = null;
-    function openPlanModal(id = null, name = '', price = '', days = '', lsUrl = '') {
+    function openPlanModal(id = null, name = '', price = '', days = '', lsUrl = '', planType = 'FOREX') {
         currentPlanId = id;
         document.getElementById('planModalTitle').textContent = id ? 'Editar Plano' : 'Novo Plano de Licença';
         document.getElementById('planName').value = name;
+        document.getElementById('planType').value = planType;
         document.getElementById('planPrice').value = price;
         document.getElementById('planDays').value = days;
-          document.getElementById('planLemonSqueezyUrl').value = lsUrl || '';
+        document.getElementById('planLemonSqueezyUrl').value = lsUrl || '';
         document.getElementById('savePlanBtn').onclick = savePlan;
         document.getElementById('planModal').classList.add('active');
     }
@@ -1086,9 +1094,10 @@
     async function savePlan() {
         const payload = {
             name: document.getElementById('planName').value,
+            planType: document.getElementById('planType').value,
             price: document.getElementById('planPrice').value,
             durationDays: document.getElementById('planDays').value,
-              lemonSqueezyUrl: document.getElementById('planLemonSqueezyUrl').value
+            lemonSqueezyUrl: document.getElementById('planLemonSqueezyUrl').value
         };
         const method = currentPlanId ? "PUT" : "POST";
         const url = "/api/admin/plans" + (currentPlanId ? "/" + currentPlanId : "");

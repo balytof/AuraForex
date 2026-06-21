@@ -1,14 +1,17 @@
 const { Client } = require('ssh2');
+
 const conn = new Client();
+
 conn.on('ready', () => {
-    conn.exec('pm2 logs server --lines 100 --nostream', (err, stream) => {
+    console.log('Client :: ready');
+    conn.exec('pm2 logs aura-v2-elite --lines 100 --nostream', (err, stream) => {
         if (err) throw err;
         stream.on('close', (code, signal) => {
             conn.end();
         }).on('data', (data) => {
-            console.log(data.toString());
+            console.log('' + data);
         }).stderr.on('data', (data) => {
-            console.log(data.toString());
+            console.error('' + data);
         });
     });
 }).connect({

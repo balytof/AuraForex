@@ -375,6 +375,23 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// Gera Token SSO para o ecossistema Cripto
+app.get("/api/auth/sso-token", requireAuth, async (req, res) => {
+  try {
+    const userDb = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const ssoToken = jwt.sign({
+      email: req.user.email,
+      role: req.user.role,
+      referral_code: userDb ? userDb.referralCode : null,
+      source: "auraforex"
+    }, JWT_SECRET, { expiresIn: '1m' }); // Token expira em 1 minuto (segurança)
+    
+    res.json({ success: true, ssoToken });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao gerar token SSO." });
+  }
+});
+
 // Verifica se token do cache UI ainda está ativo
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   try {
@@ -1603,10 +1620,10 @@ app.get("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
 });
 
 app.post("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
-  const { name, price, durationDays, lemonSqueezyUrl } = req.body;
+  const { name, price, durationDays, lemonSqueezyUrl, planType } = req.body;
   try {
     const plan = await prisma.licensePlan.create({
-      data: { name, price: parseFloat(price), durationDays: parseInt(durationDays), lemonSqueezyUrl }
+      data: { name, price: parseFloat(price), durationDays: parseInt(durationDays), lemonSqueezyUrl, planType: planType || "FOREX" }
     });
     res.json({ success: true, plan });
   } catch (err) {
@@ -1616,14 +1633,15 @@ app.post("/api/admin/plans", requireAuth, requireAdmin, async (req, res) => {
 
 app.put("/api/admin/plans/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, price, durationDays, isActive, lemonSqueezyUrl } = req.body;
+  const { name, price, durationDays, isActive, lemonSqueezyUrl, planType } = req.body;
   try {
     const dataToUpdate = {};
     if (name !== undefined) dataToUpdate.name = name;
     if (price !== undefined) dataToUpdate.price = parseFloat(price);
     if (durationDays !== undefined) dataToUpdate.durationDays = parseInt(durationDays);
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
-      if (lemonSqueezyUrl !== undefined) dataToUpdate.lemonSqueezyUrl = lemonSqueezyUrl;
+    if (lemonSqueezyUrl !== undefined) dataToUpdate.lemonSqueezyUrl = lemonSqueezyUrl;
+    if (planType !== undefined) dataToUpdate.planType = planType;
 
     const plan = await prisma.licensePlan.update({
       where: { id },
@@ -1965,7 +1983,11 @@ app.delete("/api/admin/payment-methods/:id", requireAuth, requireAdmin, async (r
 
 app.get("/api/plans", requireAuth, async (req, res) => {
   try {
-    const plans = await prisma.licensePlan.findMany({ where: { isActive: true } });
+    const whereClause = { isActive: true };
+    if (req.query.type) {
+      whereClause.planType = req.query.type;
+    }
+    const plans = await prisma.licensePlan.findMany({ where: whereClause });
     res.json({ success: true, plans });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3351,6 +3373,8 @@ app.use((req, res) => {
     urlPath = "/login.html";
   } else if (urlPath === "/dashboard") {
     urlPath = "/smc_bot_dashboard.html";
+  } else if (urlPath === "/hub") {
+    urlPath = "/hub.html";
   } else if (urlPath === "/affiliate") {
     urlPath = "/affiliate_dashboard.html";
   }

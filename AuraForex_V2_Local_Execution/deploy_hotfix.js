@@ -1,46 +1,36 @@
 const { Client } = require('ssh2');
-const path = require('path');
+const fs = require('fs');
 
 const conn = new Client();
 
-const filesToUpload = [
-    { local: './server.js', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/server.js' },
-    { local: './fix_db.js', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/fix_db_vps.js' },
-    { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/smc_bot_dashboard_v3.html' },
-    { local: './admin_dashboard.html', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/admin_dashboard.html' }
+const files = [
+    { local: './AuraForex_V2_Local_Execution/workers/paymentMonitor.js', remote: '/root/AuraForex/workers/paymentMonitor.js' },
+    { local: './AuraForex_V2_Local_Execution/payments/cryptoGateway.js', remote: '/root/AuraForex/payments/cryptoGateway.js' }
 ];
 
 conn.on('ready', () => {
-    console.log('🚀 Conectado ao VPS. Iniciando Upload do Hotfix...');
-    
-    conn.sftp((err, sftp) => {
-        if (err) throw err;
-        
-        let completed = 0;
-        filesToUpload.forEach(file => {
-            const localPath = path.resolve(__dirname, file.local);
-            console.log(`📤 Enviando: ${localPath} -> ${file.remote}`);
-            
-            sftp.fastPut(localPath, file.remote, (err) => {
-                if (err) {
-                    console.error(`❌ Erro ao enviar ${file.local}:`, err.message);
-                } else {
-                    console.log(`✅ ${file.local} enviado.`);
-                }
+    console.log('Client ready. Deploying hotfix...');
+    conn.exec('mkdir -p /root/AuraForex/workers /root/AuraForex/payments', (err, stream) => {
+        stream.on('close', () => {
+            conn.sftp((err, sftp) => {
+                if (err) throw err;
                 
-                completed++;
-                if (completed === filesToUpload.length) {
-                    console.log('🔄 Reiniciando o servidor PM2...');
-                    conn.exec('cd /root/AuraForex && npx pm2 restart all', (err, stream) => {
-                        if (err) throw err;
-                        stream.on('close', () => {
-                            console.log('🎉 HOTFIX APLICADO COM SUCESSO!');
-                            conn.end();
-                            process.exit(0);
-                        }).on('data', (data) => console.log('STDOUT: ' + data))
-                          .stderr.on('data', (data) => console.log('STDERR: ' + data));
+                let completed = 0;
+                files.forEach(f => {
+                    sftp.fastPut(f.local, f.remote, err => {
+                        if (err) console.error(err);
+                        else console.log('Uploaded ' + f.local);
+                        completed++;
+                        if (completed === files.length) {
+                            conn.exec('npx pm2 restart aura-v2-elite', (err, stream) => {
+                                stream.on('close', () => {
+                                    console.log('PM2 restarted.');
+                                    conn.end();
+                                });
+                            });
+                        }
                     });
-                }
+                });
             });
         });
     });

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Ecosystem - Hub</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --forex-color: #3b82f6;
+            --crypto-color: #10b981;
+            --hover-glow: rgba(59, 130, 246, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Fundo Dinâmico Minimalista */
+        .bg-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--hover-glow) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.15;
+            z-index: 0;
+            filter: blur(60px);
+            animation: pulseGlow 8s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.2; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            width: 100%;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 4rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #f8fafc, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: transparent;
+            transition: 0.4s;
+        }
+
+        .card-forex::before { background: var(--forex-color); }
+        .card-crypto::before { background: var(--crypto-color); }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .card-forex:hover { box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); }
+        .card-crypto:hover { box-shadow: 0 20px 40px rgba(16, 185, 129, 0.15); }
+
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            transition: 0.4s;
+        }
+
+        .card-forex .icon-wrapper {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--forex-color);
+        }
+
+        .card-crypto .icon-wrapper {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--crypto-color);
+        }
+
+        .card:hover .icon-wrapper {
+            transform: scale(1.1);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 2rem;
+            flex-grow: 1;
+        }
+
+        .btn-launch {
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .card-forex .btn-launch {
+            background: var(--forex-color);
+            color: white;
+        }
+
+        .card-crypto .btn-launch {
+            background: var(--crypto-color);
+            color: white;
+        }
+
+        .card-forex:hover .btn-launch { background: #2563eb; }
+        .card-crypto:hover .btn-launch { background: #059669; }
+
+        .logout-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .logout-link:hover {
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2.2rem; }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Aura Ecosystem</h1>
+            <p>Selecione o ambiente de negociação que deseja aceder hoje.</p>
+        </div>
+
+        <div class="cards-grid">
+            <!-- Forex Card -->
+            <a href="/smc_bot_dashboard.html" class="card card-forex">
+                <div class="icon-wrapper">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h2>AuraForex Bot</h2>
+                <p>O seu robô institucional focado em SMC para o mercado cambial tradicional. Ouro, EURUSD, GBPJPY e testes em contas de prop firms.</p>
+                <button class="btn-launch">Aceder Painel Forex</button>
+            </a>
+
+            <!-- Crypto Card -->
+            <a href="#" onclick="launchCrypto()" class="card card-crypto">
+                <div class="icon-wrapper">
+                    <i class="fab fa-bitcoin"></i>
+                </div>
+                <h2>AuraCrypto AI</h2>
+                <p>Estratégias avançadas de Inteligência Artificial para o mercado de criptomoedas. Integração nativa com Binance e Kraken via Web3.</p>
+                <button class="btn-launch">Aceder Painel Cripto</button>
+            </a>
+        </div>
+
+        <a href="#" onclick="logout()" class="logout-link">
+            <i class="fas fa-sign-out-alt"></i> Terminar Sessão
+        </a>
+    </div>
+
+    <script>
+        // Verificação de segurança simples
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        async function launchCrypto() {
+            try {
+                const btn = document.querySelector('.card-crypto .btn-launch');
+                btn.textContent = "A iniciar SSO...";
+                
+                const res = await fetch('/api/auth/sso-token', { 
+                    headers: { 'Authorization': 'Bearer ' + token } 
+                });
+                
+                if (!res.ok) throw new Error("Falha ao gerar token SSO");
+                
+                const data = await res.json();
+                
+                // Redirecionar para o frontend do Crypto com o ssoToken
+                // O URL base do crypto pode ser configurado de forma dinâmica. Para desenvolvimento, localhost:5173
+                const cryptoAppUrl = "https://crypto.auratradebots.com"; 
+                window.location.href = cryptoAppUrl + '/?sso_token=' + data.ssoToken;
+                
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao iniciar sessão no AuraCrypto: " + err.message);
+                const btn = document.querySelector('.card-crypto .btn-launch');
+                btn.textContent = "Aceder Painel Cripto";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
