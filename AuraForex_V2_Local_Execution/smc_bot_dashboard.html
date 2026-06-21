@@ -1313,6 +1313,10 @@
         <i class="fas fa-user-shield"></i>
         <span>Admin Panel</span>
       </a>
+      <a href="#" class="nav-item" onclick="goToCrypto()" id="btnNavCrypto">
+        <i class="fab fa-bitcoin"></i>
+        <span>Crypto Hub</span>
+      </a>
       <a href="#" class="nav-item" id="providerLink" style="display: none;" onclick="switchTab('provider')">
         <i class="fas fa-briefcase"></i>
         <span>Provedor</span>
@@ -2426,6 +2430,23 @@ if (document.readyState === 'complete') {
   checkAuth();
 } else {
   window.addEventListener('load', checkAuth);
+}
+
+async function goToCrypto() {
+  try {
+    const btn = document.getElementById('btnNavCrypto');
+    if (btn) btn.innerHTML = '<i class="fab fa-bitcoin"></i><span>A iniciar...</span>';
+    const token = localStorage.getItem('aura_token');
+    const res = await fetch('/api/auth/sso-token', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error("Falha ao gerar token SSO");
+    const data = await res.json();
+    window.location.href = 'https://crypto.auratradebots.com/?sso_token=' + data.ssoToken;
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao iniciar sessão no AuraCrypto: " + err.message);
+    const btn = document.getElementById('btnNavCrypto');
+    if (btn) btn.innerHTML = '<i class="fab fa-bitcoin"></i><span>Crypto Hub</span>';
+  }
 }
 
 let userLicense = null;
@@ -4236,6 +4257,11 @@ async function finishPurchase() {
   btn.textContent = "Finalizar Solicitação";
 
   if (res.success) {
+    if (window.buySource === 'crypto') {
+      document.getElementById("buyStep3").innerHTML = "<h3>Sucesso!</h3><p style='color:var(--bull);'>Licença adquirida com sucesso.<br>A redirecionar de volta para o Crypto Hub...</p>";
+      setTimeout(() => { window.location.href = 'https://crypto.auratradebots.com'; }, 2000);
+      return;
+    }
     document.getElementById("buyStep3").style.display = "none";
     document.getElementById("buyStep4").style.display = "block";
     document.getElementById("buyBackBtn").style.display = "none";
@@ -5510,8 +5536,11 @@ async function loadPerformanceHistory() {
     console.error('Falha ao carregar performance', e);
   }
 }
-<script>
+
 setInterval(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('source')) window.buySource = params.get('source');
+
   if ((window.location.hash.includes('buy_license') || window.location.search.includes('buy_license=true')) && !window.buyModalTriggered) {
     if (typeof openBuyModal === 'function' && document.getElementById('buyModal')) {
       window.buyModalTriggered = true;
