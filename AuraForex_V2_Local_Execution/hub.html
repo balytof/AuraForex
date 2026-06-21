@@ -253,7 +253,7 @@
 
     <script>
         // Verificação de segurança simples
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('aura_token');
         if (!token) {
             window.location.href = '/login.html';
         }
@@ -285,7 +285,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('token');
+            localStorage.removeItem('aura_token');
             localStorage.removeItem('user');
             window.location.href = '/login.html';
         }
