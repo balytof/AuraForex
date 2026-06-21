@@ -5510,6 +5510,18 @@ async function loadPerformanceHistory() {
     console.error('Falha ao carregar performance', e);
   }
 }
+<script>
+setInterval(() => {
+  if ((window.location.hash.includes('buy_license') || window.location.search.includes('buy_license=true')) && !window.buyModalTriggered) {
+    if (typeof openBuyModal === 'function' && document.getElementById('buyModal')) {
+      window.buyModalTriggered = true;
+      openBuyModal();
+      
+      const newUrl = window.location.pathname;
+      window.history.replaceState(null, null, newUrl);
+    }
+  }
+}, 500);
 </script>
 <script src="/i18n_dashboard_v3.js?v=6"></script>
 </body>
