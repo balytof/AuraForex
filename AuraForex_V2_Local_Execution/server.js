@@ -379,11 +379,16 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/sso-token", requireAuth, async (req, res) => {
   try {
     const userDb = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const activeLicense = await prisma.license.findFirst({
+      where: { userId: req.user.id, status: 'ACTIVE' }
+    });
+    
     const ssoToken = jwt.sign({
       email: req.user.email,
       role: req.user.role,
       referral_code: userDb ? userDb.referralCode : null,
-      source: "auraforex"
+      source: "auraforex",
+      license_key: activeLicense ? activeLicense.id : null
     }, JWT_SECRET, { expiresIn: '7d' }); // Token expira em 7 dias para uso no React
     
     res.json({ success: true, ssoToken });
