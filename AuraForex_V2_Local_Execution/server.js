@@ -384,7 +384,7 @@ app.get("/api/auth/sso-token", requireAuth, async (req, res) => {
       role: req.user.role,
       referral_code: userDb ? userDb.referralCode : null,
       source: "auraforex"
-    }, JWT_SECRET, { expiresIn: '1m' }); // Token expira em 1 minuto (segurança)
+    }, JWT_SECRET, { expiresIn: '7d' }); // Token expira em 7 dias para uso no React
     
     res.json({ success: true, ssoToken });
   } catch (err) {

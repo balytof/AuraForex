@@ -14,7 +14,7 @@ conn.on('ready', () => {
     writeStream.on('close', () => {
       console.log('Upload successful. Executing extraction and restart...');
       
-      const cmd = `cd /root/AuraCrypto && rm -rf dist && unzip -o dist.zip -d dist && pm2 restart aura-crypto`;
+      const cmd = `cd /root/AuraCrypto && rm -rf dist && unzip -o dist.zip && pm2 restart aura-crypto`;
       conn.exec(cmd, (err, stream) => {
         if (err) throw err;
         stream.on('close', (code, signal) => {
