@@ -1483,8 +1483,10 @@ void ValidateLicense()
    }
 
    static datetime lastValidate = 0;
-   if(TimeCurrent() - lastValidate < 300 && IsAuthorized)  return;
-   if(TimeCurrent() - lastValidate < 30  && !IsAuthorized) return;
+   static datetime lastSuccessTime = 0;
+   
+   if(TimeCurrent() - lastValidate < 5 && IsAuthorized)  return; // Verifica a cada 5 segundos para resposta rápida ao Dashboard
+   if(TimeCurrent() - lastValidate < 5  && !IsAuthorized) return; // Tenta a cada 5s se falhou
    lastValidate = TimeCurrent();
 
    string url = g_ServerUrl + "/ea/validate";
@@ -1497,6 +1499,7 @@ void ValidateLicense()
    {
       if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
       IsAuthorized = true;
+      lastSuccessTime = TimeCurrent(); // Registra o momento da última validação com sucesso
       
       int apIndex = StringFind(res, "\"activePairs\":\"");
       if(apIndex >= 0) {
@@ -1507,11 +1510,33 @@ void ValidateLicense()
          }
       }
    }
-   else
+   else if(StringFind(res, "\"status\":\"STOPPED\"") >= 0)
    {
       IsAuthorized = false;
-      if(res == "") Print("❌ ERRO DE CONEXÃO: Servidor Offline ou URL Inválida.");
-      else          Print("❌ FALHA NA LICENÇA: ", res);
+      Print("⏸️ BOT PARADO PELO DASHBOARD. A aguardar início...");
+   }
+   else if(res == "")
+   {
+      // Erro de rede: Tolerância de 24 horas (86400 segundos) para proteger contra quedas do servidor
+      if(IsAuthorized && (TimeCurrent() - lastSuccessTime < 86400))
+      {
+         static datetime lastWarn = 0;
+         if(TimeCurrent() - lastWarn > 3600) { // Avisa apenas a cada 1 hora
+            Print("⚠️ Servidor inacessível. O Bot continuará a operar (Modo Tolerância Ativo: 24h).");
+            lastWarn = TimeCurrent();
+         }
+      }
+      else
+      {
+         IsAuthorized = false;
+         Print("❌ ERRO DE CONEXÃO CRÍTICO: Servidor Offline há mais de 24h ou URL Inválida.");
+      }
+   }
+   else
+   {
+      // Outro erro qualquer retornado pelo servidor (ex: licença expirada)
+      IsAuthorized = false;
+      Print("❌ FALHA NA LICENÇA: ", res);
    }
 }
 

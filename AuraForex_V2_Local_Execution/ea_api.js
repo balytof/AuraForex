@@ -43,6 +43,17 @@ router.post("/validate", async (req, res) => {
       return res.status(403).json({ status: "BLOCKED", error: "Esta licença está vinculada a outra conta MetaTrader." });
     }
 
+    // 🛡️ NOVO: Verifica se o botão "Parar Bot" foi clicado no Dashboard
+    if (license.user.settings?.botStatus === "stopped") {
+      return res.json({
+        status: "STOPPED",
+        error: "Bot desligado no Dashboard (Painel de Controle).",
+        message: "Bot desligado no Dashboard (Painel de Controle).",
+        user: license.user.email,
+        expiresAt: license.expiresAt
+      });
+    }
+
     return res.json({
       status: "OK",
       message: "Licença validada com sucesso.",

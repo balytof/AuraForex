@@ -13,26 +13,51 @@ conn.on('ready', () => {
         
         distWrite.on('close', () => {
             console.log('AuraCrypto frontend uploaded. Unzipping...');
-            conn.exec('cd /root/AuraCrypto && rm -rf dist && unzip -o dist.zip && npx pm2 restart aura-crypto', (err, stream) => {
+            conn.exec('cd /root/AuraCrypto && rm -rf dist && unzip -o dist.zip', (err, stream) => {
                 if (err) throw err;
                 stream.on('data', d => console.log(d.toString()));
                 stream.on('close', () => {
-                    console.log('AuraCrypto restarted.');
+                    console.log('AuraCrypto unzipped.');
                     
-                    // Upload smc_bot_dashboard.html for AuraForex
-                    const htmlRead = fs.createReadStream('AuraForex_V2_Local_Execution/smc_bot_dashboard.html');
-                    const htmlWrite = sftp.createWriteStream('/root/AuraForex/smc_bot_dashboard.html');
+                    const cryptoServerRead = fs.createReadStream('AuraCrypto_Temp/server.ts');
+                    const cryptoServerWrite = sftp.createWriteStream('/root/AuraCrypto/server.ts');
                     
-                    htmlWrite.on('close', () => {
-                        console.log('AuraForex dashboard uploaded.');
-                        conn.end();
+                    cryptoServerWrite.on('close', () => {
+                        console.log('AuraCrypto server.ts uploaded.');
+                        conn.exec('cd /root/AuraCrypto && npx pm2 restart aura-crypto', (err2, stream2) => {
+                            if (err2) throw err2;
+                            stream2.on('data', d => console.log(d.toString()));
+                            stream2.on('close', () => {
+                                console.log('AuraCrypto restarted.');
+                                
+                                const htmlRead = fs.createReadStream('AuraForex_V2_Local_Execution/smc_bot_dashboard.html');
+                                const htmlWrite = sftp.createWriteStream('/root/AuraForex/smc_bot_dashboard.html');
+                                
+                                htmlWrite.on('close', () => {
+                                    console.log('AuraForex dashboard uploaded.');
+                                    const serverRead = fs.createReadStream('AuraForex_V2_Local_Execution/server.js');
+                                    const serverWrite = sftp.createWriteStream('/root/AuraForex/server.js');
+                                    serverWrite.on('close', () => {
+                                        console.log('AuraForex server.js uploaded.');
+                                        conn.exec('cd /root/AuraForex && npx pm2 restart aura-v2-elite', (err, stream) => {
+                                            if (err) throw err;
+                                            stream.on('data', d => console.log(d.toString()));
+                                            stream.on('close', () => {
+                                                console.log('AuraForex server restarted.');
+                                                conn.end();
+                                            });
+                                        });
+                                    });
+                                    serverRead.pipe(serverWrite);
+                                });
+                                htmlRead.pipe(htmlWrite);
+                            });
+                        });
                     });
-                    
-                    htmlRead.pipe(htmlWrite);
+                    cryptoServerRead.pipe(cryptoServerWrite);
                 });
             });
         });
-        
         distRead.pipe(distWrite);
     });
 }).connect({

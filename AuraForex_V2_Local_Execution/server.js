@@ -392,6 +392,39 @@ app.get("/api/auth/sso-token", requireAuth, async (req, res) => {
   }
 });
 
+// Verifica Token SSO e faz login
+app.post("/api/auth/sso", async (req, res) => {
+  try {
+    const { token: ssoToken } = req.body;
+    if (!ssoToken) return res.status(400).json({ error: "Token não fornecido." });
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(ssoToken, JWT_SECRET);
+    } catch(err) {
+      return res.status(401).json({ error: "Token SSO inválido ou expirado." });
+    }
+    
+    const user = await prisma.user.findUnique({ where: { email: decoded.email } });
+    if (!user) return res.status(404).json({ error: "Utilizador não encontrado." });
+    
+    const token = jwt.sign({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({ 
+      success: true, 
+      token, 
+      user: { id: user.id, email: user.email, role: user.role } 
+    });
+  } catch (err) {
+    console.error("SSO Verify Error:", err);
+    res.status(500).json({ error: "Erro interno no servidor." });
+  }
+});
+
 // Verifica se token do cache UI ainda está ativo
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   try {
@@ -2530,7 +2563,7 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
 });
 
 app.post("/api/user/settings", requireAuth, async (req, res) => {
-  const { risk, score, interval, activePairs, geminiKey } = req.body;
+  const { risk, score, interval, activePairs, geminiKey, botRunning } = req.body;
   try {
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },
@@ -2539,7 +2572,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: score !== undefined ? parseInt(score) : undefined,
         interval: interval !== undefined ? parseInt(interval) : undefined,
         activePairs: activePairs || undefined,
-        geminiKey: geminiKey || undefined
+        geminiKey: geminiKey || undefined,
+        botStatus: botRunning ? "running" : "stopped"
       },
       create: {
         userId: req.user.id,
@@ -2547,7 +2581,8 @@ app.post("/api/user/settings", requireAuth, async (req, res) => {
         score: parseInt(score) || 55,
         interval: parseInt(interval) || 60,
         activePairs: activePairs || "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY",
-        geminiKey: geminiKey || null
+        geminiKey: geminiKey || null,
+        botStatus: botRunning ? "running" : "stopped"
       }
     });
     res.json({ success: true, settings });
