@@ -1,7 +1,7 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-    conn.exec('echo "GAS_WALLET_PRIVATE_KEY=0xc49a9f5ff6d8938a29d627278e12b54b789a46a572bccb9bb4ebc6934fa66b11" >> /root/AuraForex/.env && pm2 restart aura-v2-elite --update-env', (err, stream) => {
+    conn.exec('pm2 restart aura-v2-elite --update-env', (err, stream) => {
         let data = '';
         stream.on('close', () => {
             console.log('Done:', data);
