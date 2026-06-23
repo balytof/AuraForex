@@ -5568,7 +5568,10 @@ function saveAdvancedConfig() {
     dailyLossLimit: dailyLoss,
     runnerMode: document.getElementById("advRunnerMode").value,
     profitLockMin: document.getElementById("advProfitLockMin").value,
-    profitLockDrop: document.getElementById("advProfitLockDrop").value
+    profitLockDrop: document.getElementById("advProfitLockDrop").value,
+    exitMode: document.getElementById("advExitMode").value,
+    holdSeconds: document.getElementById("advHoldSeconds").value,
+    negativeHoldSeconds: document.getElementById("advNegativeHoldSeconds").value
   };
   
   apiFetch("/api/user/advanced-settings", "POST", advConfig)
@@ -5599,7 +5602,13 @@ function loadAdvancedConfig() {
       document.getElementById("advProfitLockMin").value = res.profitLockMin !== undefined ? res.profitLockMin : 10;
       document.getElementById("advProfitLockDrop").value = res.profitLockDrop !== undefined ? res.profitLockDrop : 30;
       
+      const eMode = res.exitMode || "take_profit";
+      document.getElementById("advExitMode").value = eMode;
+      document.getElementById("advHoldSeconds").value = res.holdSeconds !== undefined ? res.holdSeconds : 180;
+      document.getElementById("advNegativeHoldSeconds").value = res.negativeHoldSeconds !== undefined ? res.negativeHoldSeconds : 120;
+      
       toggleProfitLockFields();
+      toggleExitStrategyFields();
     })
     .catch(e => console.warn("Failed to load advanced settings"));
 }
@@ -5672,12 +5681,45 @@ setTimeout(loadAdvancedConfig, 1500);
           </div>
         </div>
       </div>
+
+      <!-- SEÇÃO ESTRATÉGIA DE FECHO -->
+      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Estratégia de Fecho (TP vs Tempo)</h4>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Modo de saída padrão das ordens.</p>
+        
+        <div style="margin-bottom: 15px;">
+          <select id="advExitMode" class="form-input" onchange="toggleExitStrategyFields()">
+            <option value="take_profit">Alvo Fixo (Take Profit)</option>
+            <option value="time_limit">Tempo Limite (Exaustão)</option>
+          </select>
+        </div>
+
+        <div id="timeLimitOptions" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Limite no Lucro (Segundos)</label>
+            <input type="number" id="advHoldSeconds" class="form-input" value="180" step="1">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Limite na Perda (Segundos)</label>
+            <input type="number" id="advNegativeHoldSeconds" class="form-input" value="120" step="1">
+          </div>
+        </div>
+      </div>
       
       <script>
         function toggleProfitLockFields() {
           const mode = document.getElementById("advRunnerMode").value;
           const container = document.getElementById("profitLockOptions");
           if(mode === "profit_lock") {
+            container.style.display = "grid";
+          } else {
+            container.style.display = "none";
+          }
+        }
+        function toggleExitStrategyFields() {
+          const mode = document.getElementById("advExitMode").value;
+          const container = document.getElementById("timeLimitOptions");
+          if(mode === "time_limit") {
             container.style.display = "grid";
           } else {
             container.style.display = "none";

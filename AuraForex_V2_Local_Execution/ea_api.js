@@ -369,7 +369,10 @@ router.post("/report-balance", async (req, res) => {
       riskPercent: userSettings?.risk || 1.5,
       runnerMode: userSettings?.runnerMode || "none",
       profitLockMin: userSettings?.profitLockMin || 10.0,
-      profitLockDrop: userSettings?.profitLockDrop || 30.0
+      profitLockDrop: userSettings?.profitLockDrop || 30.0,
+      exitMode: userSettings?.exitMode || "take_profit",
+      holdSeconds: userSettings?.holdSeconds || 180,
+      negativeHoldSeconds: userSettings?.negativeHoldSeconds || 120
     });
   } catch (err) {
     console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);

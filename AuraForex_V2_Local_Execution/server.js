@@ -2586,7 +2586,10 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
       advDailyLossPct: settings.dailyLossLimit,
       runnerMode: settings.runnerMode,
       profitLockMin: settings.profitLockMin,
-      profitLockDrop: settings.profitLockDrop
+      profitLockDrop: settings.profitLockDrop,
+      exitMode: settings.exitMode,
+      holdSeconds: settings.holdSeconds,
+      negativeHoldSeconds: settings.negativeHoldSeconds
     });
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar advanced settings." });
@@ -2595,7 +2598,7 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
 
 // POST /api/user/advanced-settings
 app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
-  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop } = req.body;
+  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds } = req.body;
   try {
     const data = {};
     if (emaMode !== undefined) data.emaMode = emaMode;
@@ -2604,6 +2607,9 @@ app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
     if (runnerMode !== undefined) data.runnerMode = runnerMode;
     if (profitLockMin !== undefined) data.profitLockMin = parseFloat(profitLockMin) || 10.0;
     if (profitLockDrop !== undefined) data.profitLockDrop = parseFloat(profitLockDrop) || 30.0;
+    if (exitMode !== undefined) data.exitMode = exitMode;
+    if (holdSeconds !== undefined) data.holdSeconds = parseInt(holdSeconds) || 180;
+    if (negativeHoldSeconds !== undefined) data.negativeHoldSeconds = parseInt(negativeHoldSeconds) || 120;
 
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },

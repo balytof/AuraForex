@@ -214,6 +214,11 @@ model UserSettings {
   profitLockMin         Float    @default(10.0)
   profitLockDrop        Float    @default(30.0)
   
+  // Exit Strategy
+  exitMode              String   @default("take_profit") // "take_profit", "time_limit"
+  holdSeconds           Int      @default(180)
+  negativeHoldSeconds   Int      @default(120)
+  
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

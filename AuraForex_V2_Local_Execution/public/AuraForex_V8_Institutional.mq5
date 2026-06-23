@@ -33,8 +33,6 @@ input bool Tester_XAU_Enabled          = true; // Ativar Bot Autónomo do Ouro (
 input int Tester_XAU_StepDistance      = 200; // XAU: Distância para Abrir Nova Ordem (Pts)
 input int Tester_XAU_TargetPoints      = 3000; // XAU: Alvo Fixo de Lucro (Pts)
 input int Tester_XAU_ReversalPoints    = 150; // XAU: Reversão para Fechar Lucros (Pts)
-input int Tester_XAU_HoldSeconds       = 180;  // XAU: Tempo Limite no Lucro (Seg)
-input int Tester_XAU_NegativeHoldSeconds= 120; // XAU: Tempo Limite na Perda (Seg)
 input bool Tester_XAU_TrendFilter      = true; // XAU: Filtro de Tendencia EMA
 input int Tester_XAU_EmaPeriod         = 50;  // XAU: Periodo EMA
 input int Tester_XAU_EmaTimeframe      = 15;  // XAU: Timeframe EMA (1,5,15,60)
@@ -43,8 +41,6 @@ input int Tester_XAU_EmaTimeframe      = 15;  // XAU: Timeframe EMA (1,5,15,60)
 input int Tester_Forex_StepDistance      = 150; // FOREX: Distância para Abrir Nova Ordem (Pts)
 input int Tester_Forex_TargetPoints      = 1500; // FOREX: Alvo Fixo de Lucro (Pts)
 input int Tester_Forex_ReversalPoints    = 100; // FOREX: Reversão para Fechar Lucros (Pts)
-input int Tester_Forex_HoldSeconds       = 180;  // FOREX: Tempo Limite no Lucro (Seg)
-input int Tester_Forex_NegativeHoldSeconds= 120; // FOREX: Tempo Limite na Perda (Seg)
 input bool Tester_Forex_TrendFilter      = true; // FOREX: Filtro de Tendencia EMA
 input int Tester_Forex_EmaPeriod         = 50;  // FOREX: Periodo EMA
 input int Tester_Forex_EmaTimeframe      = 15;  // FOREX: Timeframe EMA (1,5,15,60)
@@ -53,8 +49,6 @@ input int Tester_Forex_EmaTimeframe      = 15;  // FOREX: Timeframe EMA (1,5,15,
 input int Tester_JPY_StepDistance      = 200; // JPY: Distância para Abrir Nova Ordem (Pts)
 input int Tester_JPY_TargetPoints      = 2000; // JPY: Alvo Fixo de Lucro (Pts)
 input int Tester_JPY_ReversalPoints    = 150; // JPY: Reversão para Fechar Lucros (Pts)
-input int Tester_JPY_HoldSeconds       = 180;  // JPY: Tempo Limite no Lucro (Seg)
-input int Tester_JPY_NegativeHoldSeconds= 120; // JPY: Tempo Limite na Perda (Seg)
 input bool Tester_JPY_TrendFilter      = true; // JPY: Filtro de Tendencia EMA
 input int Tester_JPY_EmaPeriod         = 50;  // JPY: Periodo EMA
 input int Tester_JPY_EmaTimeframe      = 15;  // JPY: Timeframe EMA (1,5,15,60)
@@ -137,6 +131,9 @@ double            g_RiskPercent = 1.0;
 int               g_MagicNumber = 888222;
 bool              g_TrailingEnabled = false;
 string            g_RunnerMode = "none";
+string            g_ExitMode = "take_profit";
+int               g_HoldSeconds = 180;
+int               g_NegativeHoldSeconds = 120;
 int               g_TrailingStart_JPY = 0;
 int               g_TrailingDistance_JPY = 0;
 int               g_TrailingStep_JPY = 0;
@@ -155,8 +152,6 @@ int               g_MaxOrders = 0;
 int               g_XAU_StepDistance = 0;
 int               g_XAU_TargetPoints = 0;
 int               g_XAU_ReversalPoints = 0;
-int               g_XAU_HoldSeconds = 0;
-int               g_XAU_NegativeHoldSeconds = 0;
 bool              g_XAU_TrendFilter = false;
 int               g_XAU_EmaPeriod = 0;
 int               g_XAU_EmaTimeframe = 0;
@@ -373,8 +368,6 @@ int OnInit()
        g_XAU_StepDistance = Tester_XAU_StepDistance;
        g_XAU_TargetPoints = Tester_XAU_TargetPoints;
        g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
-       g_XAU_HoldSeconds = Tester_XAU_HoldSeconds;
-       g_XAU_NegativeHoldSeconds = Tester_XAU_NegativeHoldSeconds;
        g_XAU_TrendFilter = Tester_XAU_TrendFilter;
        g_XAU_EmaPeriod = Tester_XAU_EmaPeriod;
        g_XAU_EmaTimeframe = Tester_XAU_EmaTimeframe;
@@ -472,27 +465,24 @@ void ProcessInstitutionalScalper(string sym)
 
    if(!SymbolSelect(sym, true)) return;
 
-   int stepDistance = 0, targetPoints = 0, reversalPoints = 0, holdSeconds = 0, negativeHoldSeconds = 0, emaPeriod = 0, emaTimeframe = 0;
+   int stepDistance = 0, targetPoints = 0, reversalPoints = 0, emaPeriod = 0, emaTimeframe = 0;
    bool trendFilter = false;
    int maxSL = 0;
 
    if(IsXAU(sym)) {
       if(!Tester_XAU_Enabled) return;
       stepDistance = Tester_XAU_StepDistance; targetPoints = Tester_XAU_TargetPoints;
-      reversalPoints = Tester_XAU_ReversalPoints; holdSeconds = Tester_XAU_HoldSeconds;
-      negativeHoldSeconds = Tester_XAU_NegativeHoldSeconds; trendFilter = Tester_XAU_TrendFilter;
+      reversalPoints = Tester_XAU_ReversalPoints; trendFilter = Tester_XAU_TrendFilter;
       emaPeriod = Tester_XAU_EmaPeriod; emaTimeframe = Tester_XAU_EmaTimeframe;
       maxSL = g_MaxSLOuro;
    } else if(StringFind(sym, "JPY") >= 0) {
       stepDistance = Tester_JPY_StepDistance; targetPoints = Tester_JPY_TargetPoints;
-      reversalPoints = Tester_JPY_ReversalPoints; holdSeconds = Tester_JPY_HoldSeconds;
-      negativeHoldSeconds = Tester_JPY_NegativeHoldSeconds; trendFilter = Tester_JPY_TrendFilter;
+      reversalPoints = Tester_JPY_ReversalPoints; trendFilter = Tester_JPY_TrendFilter;
       emaPeriod = Tester_JPY_EmaPeriod; emaTimeframe = Tester_JPY_EmaTimeframe;
       maxSL = g_MaxSLJPY;
    } else {
       stepDistance = Tester_Forex_StepDistance; targetPoints = Tester_Forex_TargetPoints;
-      reversalPoints = Tester_Forex_ReversalPoints; holdSeconds = Tester_Forex_HoldSeconds;
-      negativeHoldSeconds = Tester_Forex_NegativeHoldSeconds; trendFilter = Tester_Forex_TrendFilter;
+      reversalPoints = Tester_Forex_ReversalPoints; trendFilter = Tester_Forex_TrendFilter;
       emaPeriod = Tester_Forex_EmaPeriod; emaTimeframe = Tester_Forex_EmaTimeframe;
       maxSL = g_MaxSLForex;
    }
@@ -616,15 +606,36 @@ void ProcessInstitutionalScalper(string sym)
       bool closeIt = false;
       string closeReason = "";
 
-      if(type == POSITION_TYPE_BUY && bid >= openPrice + (targetPoints * point))
+      // === LÓGICA DE FECHO MÚTUO EXCLUSIVO ===
+      if(g_ExitMode == "take_profit")
       {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+         // 4.1 Apenas Take Profit Fixo
+         if(type == POSITION_TYPE_BUY && bid >= openPrice + (targetPoints * point))
+         {
+            closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+         }
+         else if(type == POSITION_TYPE_SELL && ask <= openPrice - (targetPoints * point))
+         {
+            closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+         }
       }
-      else if(type == POSITION_TYPE_SELL && ask <= openPrice - (targetPoints * point))
+      else if(g_ExitMode == "time_limit")
       {
-         closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
+         // 4.2 Apenas Tempo Limite (Sem TP Fixo)
+         long timeOpen = PositionGetInteger(POSITION_TIME);
+         long secondsOpen = TimeCurrent() - timeOpen;
+         
+         if(profit > 0 && g_HoldSeconds > 0 && secondsOpen > g_HoldSeconds)
+         {
+            closeIt = true; closeReason = "Exaustão de Tempo no Lucro (Hold Seconds)";
+         }
+         else if(profit < 0 && g_NegativeHoldSeconds > 0 && secondsOpen > g_NegativeHoldSeconds)
+         {
+            closeIt = true; closeReason = "Exaustão de Tempo na Perda (Negative Hold)";
+         }
       }
-
+      
+      // 4.3 Reversões (Atua em qualquer modo)
       if(!closeIt && profit > 0)
       {
          if(type == POSITION_TYPE_BUY && bid <= peak - (reversalPoints * point))
@@ -634,15 +645,6 @@ void ProcessInstitutionalScalper(string sym)
          else if(type == POSITION_TYPE_SELL && ask >= valley + (reversalPoints * point))
          {
             closeIt = true; closeReason = "Reversão de Mercado detetada (Proteção de Lucro)";
-         }
-      }
-
-      if(!closeIt && profit > 0 && holdSeconds > 0)
-      {
-         long timeOpen = PositionGetInteger(POSITION_TIME);
-         if(TimeCurrent() - timeOpen > holdSeconds)
-         {
-            closeIt = true; closeReason = "Exaustão de Tempo (Hold Seconds)";
          }
       }
 
@@ -1984,6 +1986,35 @@ void ReportBalance()
       runnerIdx += 14;
       int eIdx = StringFind(response, "\"", runnerIdx);
       if(eIdx > runnerIdx) g_RunnerMode = StringSubstr(response, runnerIdx, eIdx - runnerIdx);
+   }
+
+   int exitIdx = StringFind(response, "\"exitMode\":\"");
+   if(exitIdx >= 0) {
+      exitIdx += 12;
+      int eIdx = StringFind(response, "\"", exitIdx);
+      if(eIdx > exitIdx) g_ExitMode = StringSubstr(response, exitIdx, eIdx - exitIdx);
+   }
+
+   int hsIdx = StringFind(response, "\"holdSeconds\":");
+   if(hsIdx >= 0) {
+      hsIdx += 14;
+      int eIdx = StringFind(response, ",", hsIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", hsIdx);
+      if(eIdx > hsIdx) {
+         int v = (int)StringToInteger(StringSubstr(response, hsIdx, eIdx - hsIdx));
+         if(v > 0) g_HoldSeconds = v;
+      }
+   }
+
+   int nhsIdx = StringFind(response, "\"negativeHoldSeconds\":");
+   if(nhsIdx >= 0) {
+      nhsIdx += 22;
+      int eIdx = StringFind(response, ",", nhsIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", nhsIdx);
+      if(eIdx > nhsIdx) {
+         int v = (int)StringToInteger(StringSubstr(response, nhsIdx, eIdx - nhsIdx));
+         if(v > 0) g_NegativeHoldSeconds = v;
+      }
    }
 
    int plMinIdx = StringFind(response, "\"profitLockMin\":");
