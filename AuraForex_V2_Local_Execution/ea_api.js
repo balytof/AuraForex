@@ -341,6 +341,33 @@ router.post("/report-balance", async (req, res) => {
 
     console.log(`[EA-SYNC-DEBUG] User: ${lic.userId} | License: ${licenseKey} | OpenTrades: ${risk.openTrades.length} | isLocked: ${isLocked} | isLoss: ${isLossLocked}`);
 
+    // Transmitir para o dashboard (Via WebSocket)
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("balance_update", {
+        balance: balance,
+        equity: equity,
+        freeMargin: freeMargin,
+        marginLevel: marginLevel,
+        floatingPnL: floatingPnL,
+        drawdown: drawdown,
+        dailyPnl: dailyPnl,
+        dailyLossLimit: dailyLossLimit,
+        realizedPnl: realizedPnl,
+        isLossLocked: isLossLocked,
+        isLocked: isLocked, // Legacy
+        openTrades: openTrades,
+        closedTrades: closedTrades,
+        timestamp: new Date().toISOString(),
+        dynamicEmaLog: req.body.dynamicEmaLog || ""
+      });
+    }
+
+    // Guardar logs dinâmicos do EMA
+    if (req.body.dynamicEmaLog !== undefined) {
+      risk.dynamicEmaLog = req.body.dynamicEmaLog;
+    }
+
     // Sincroniza estados de trava vindo do EA
     if (isLocked !== undefined) {
       

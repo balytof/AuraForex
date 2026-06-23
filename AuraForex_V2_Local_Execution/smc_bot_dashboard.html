@@ -2018,7 +2018,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof switchDashboardView === 'function') {
         switchDashboardView(localStorage.getItem('aura_dashboard_tab') || 'vps');
       } else if (typeof updateLicenseUI === 'function') {
-        updateLicenseUI();
+       if(data.dynamicEmaLog) {
+        const emaLogBox = document.getElementById("dynamicEmaLogBox");
+        if (emaLogBox) emaLogBox.innerText = data.dynamicEmaLog;
+      }
       }
     } else if(tabId === 'provider') {
       document.getElementById('providerSection').style.display = 'block';
@@ -3326,6 +3329,11 @@ async function updateStats() {
       // 🛡️ CORREÇÃO CRÍTICA: Atualizar as openTrades globais com os dados do EA/Servidor!
       if (status.openTrades && Array.isArray(status.openTrades)) {
          openTrades = status.openTrades;
+      }
+
+      if (status.dynamicEmaLog) {
+         const emaLogBox = document.getElementById("dynamicEmaLogBox");
+         if (emaLogBox) emaLogBox.innerHTML = status.dynamicEmaLog.replace(/\n/g, '<br>');
       }
 
       // Saldo e Equity (Sincronizado via EA)
@@ -5618,89 +5626,94 @@ setTimeout(loadAdvancedConfig, 1500);
 
 <!-- OVERLAY DE CONFIGURAÇÕES AVANÇADAS -->
 <div class="modal-overlay" id="advancedSettingsOverlay" style="display: none; align-items: center; justify-content: center;">
-  <div class="modal" style="width: 550px; max-width: 95%;">
+  <div class="modal" style="width: 750px; max-width: 95%;">
     <div class="modal-header">
       <h3 style="margin:0;font-size:1.2rem;"><i class="fas fa-cogs" style="color:var(--accent);"></i> Configurações Avançadas</h3>
       <button class="modal-close" onclick="document.getElementById('advancedSettingsOverlay').style.display='none'"><i class="fas fa-times"></i></button>
     </div>
-    <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+    <div class="modal-body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; padding: 20px;">
       
       <!-- SEÇÃO EMA -->
-      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
         <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Filtro de Tendência (EMA)</h4>
-        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Controla como o robô decide operar a favor ou contra a tendência.</p>
-        <div style="display: flex; gap: 15px;">
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+        <p style="font-size: 0.75rem; color: var(--muted); margin-bottom: 12px;">Controla a tendência do bot.</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; cursor: pointer;">
             <input type="radio" name="emaMode" value="auto" checked> 🤖 Automático (ADX)
           </label>
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; cursor: pointer;">
             <input type="radio" name="emaMode" value="on"> ✅ Sempre LIGADO
           </label>
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; cursor: pointer;">
             <input type="radio" name="emaMode" value="off"> ❌ Sempre DESLIGADO
           </label>
+        </div>
+        <!-- LOG DINÂMICO VAMA -->
+        <div style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px dashed rgba(255,255,255,0.1);">
+          <div style="font-size: 0.65rem; color: var(--muted); margin-bottom: 3px; text-transform: uppercase;">Períodos Ajustados (VAMA)</div>
+          <div id="dynamicEmaLogBox" style="font-family: monospace; font-size: 0.75rem; color: var(--accent); min-height: 15px;">
+            A aguardar...
+          </div>
         </div>
       </div>
 
       <!-- SEÇÃO METAS -->
-      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Metas e Limites Diários (%)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Metas Diárias (%)</h4>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Meta de Lucro Diário (%)</label>
+            <label class="form-label" style="font-size:0.75rem;">Meta de Lucro Diário (%)</label>
             <input type="number" id="advDailyTarget" class="form-input" placeholder="Ex: 5.0" step="0.1">
           </div>
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Limite de Perda Diário (%)</label>
+            <label class="form-label" style="font-size:0.75rem;">Limite de Perda Diário (%)</label>
             <input type="number" id="advDailyLoss" class="form-input" placeholder="Ex: 10.0" step="0.1">
           </div>
         </div>
       </div>
 
       <!-- SEÇÃO RUNNERS -->
-      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
         <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Gestão de Ganhos (Runners)</h4>
-        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Escolhe apenas um método para evitar conflitos.</p>
         
-        <div style="margin-bottom: 15px;">
-          <select id="advRunnerMode" class="form-input" onchange="toggleProfitLockFields()">
+        <div style="margin-bottom: 10px;">
+          <select id="advRunnerMode" class="form-input" style="font-size:0.8rem;" onchange="toggleProfitLockFields()">
             <option value="none">Desativado</option>
             <option value="trailing">Trailing Stop (Padrão)</option>
             <option value="profit_lock">Profit Lock (Avançado)</option>
           </select>
         </div>
 
-        <div id="profitLockOptions" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div id="profitLockOptions" style="display: none; flex-direction: column; gap: 10px;">
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Ativação do Profit Lock ($)</label>
+            <label class="form-label" style="font-size:0.75rem;">Ativação ($)</label>
             <input type="number" id="advProfitLockMin" class="form-input" value="10.0" step="1">
           </div>
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Queda Tolerada (%)</label>
+            <label class="form-label" style="font-size:0.75rem;">Queda Tolerada (%)</label>
             <input type="number" id="advProfitLockDrop" class="form-input" value="30.0" step="1">
           </div>
         </div>
       </div>
 
       <!-- SEÇÃO ESTRATÉGIA DE FECHO -->
-      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Estratégia de Fecho (TP vs Tempo)</h4>
-        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Modo de saída padrão das ordens.</p>
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Estratégia de Fecho</h4>
         
-        <div style="margin-bottom: 15px;">
-          <select id="advExitMode" class="form-input" onchange="toggleExitStrategyFields()">
-            <option value="take_profit">Alvo Fixo (Take Profit)</option>
+        <div style="margin-bottom: 10px;">
+          <select id="advExitMode" class="form-input" style="font-size:0.8rem;" onchange="toggleExitStrategyFields()">
+            <option value="take_profit">Take Profit Fixo</option>
             <option value="time_limit">Tempo Limite (Exaustão)</option>
           </select>
         </div>
 
-        <div id="timeLimitOptions" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div id="timeLimitOptions" style="display: none; flex-direction: column; gap: 10px;">
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Limite no Lucro (Segundos)</label>
+            <label class="form-label" style="font-size:0.75rem;">Limite no Lucro (Segundos)</label>
             <input type="number" id="advHoldSeconds" class="form-input" value="180" step="1">
           </div>
           <div>
-            <label class="form-label" style="font-size:0.8rem;">Limite na Perda (Segundos)</label>
+            <label class="form-label" style="font-size:0.75rem;">Limite na Perda (Segundos)</label>
             <input type="number" id="advNegativeHoldSeconds" class="form-input" value="120" step="1">
           </div>
         </div>
@@ -5711,7 +5724,7 @@ setTimeout(loadAdvancedConfig, 1500);
           const mode = document.getElementById("advRunnerMode").value;
           const container = document.getElementById("profitLockOptions");
           if(mode === "profit_lock") {
-            container.style.display = "grid";
+            container.style.display = "flex";
           } else {
             container.style.display = "none";
           }
@@ -5720,7 +5733,7 @@ setTimeout(loadAdvancedConfig, 1500);
           const mode = document.getElementById("advExitMode").value;
           const container = document.getElementById("timeLimitOptions");
           if(mode === "time_limit") {
-            container.style.display = "grid";
+            container.style.display = "flex";
           } else {
             container.style.display = "none";
           }

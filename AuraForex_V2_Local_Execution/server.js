@@ -564,9 +564,6 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     }
 
     // Removida a busca cega à base de dados para evitar ordens fantasmas somarem até ao limite global.
-    const trueOpenTrades = risk.openTrades || [];
-
-    // Lógica Conta Cent
     const userSettings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
     const isCentAccount = userSettings?.isCentAccount || false;
 
@@ -617,7 +614,8 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       emaMode: userSettings?.emaMode || "auto",
       advDailyProfitPct: userSettings?.dailyProfitTarget || 0,
       advDailyLossPct: userSettings?.dailyLossLimit || 0,
-      riskPercent: userSettings?.risk || 1.5
+      riskPercent: userSettings?.risk || 1.5,
+      dynamicEmaLog: risk.dynamicEmaLog || ""
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });

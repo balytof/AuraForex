@@ -134,6 +134,7 @@ string            g_RunnerMode = "none";
 string            g_ExitMode = "take_profit";
 int               g_HoldSeconds = 180;
 int               g_NegativeHoldSeconds = 120;
+string            g_DynamicEmaLog = "";
 int               g_TrailingStart_JPY = 0;
 int               g_TrailingDistance_JPY = 0;
 int               g_TrailingStep_JPY = 0;
@@ -541,9 +542,13 @@ void ProcessInstitutionalScalper(string sym)
       else if(emaTimeframe == 240) tf = PERIOD_H4;
       else if(emaTimeframe == 1440) tf = PERIOD_D1;
 
+      // FILTRO DE TENDÊNCIA DINÂMICO (VAMA)
+      int dynamicEmaPeriod = GetDynamicEmaPeriod(sym, emaTimeframe);
+      g_DynamicEmaLog += sym + ": " + IntegerToString(dynamicEmaPeriod) + "\\n";
+
       double emaBuf[];
       ArraySetAsSeries(emaBuf, true);
-      int hEma = iMA(sym, tf, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+      int hEma = iMA(sym, tf, dynamicEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
       if(hEma != INVALID_HANDLE)
       {
          if(CopyBuffer(hEma, 0, 0, 1, emaBuf) > 0)
@@ -656,10 +661,19 @@ void ProcessInstitutionalScalper(string sym)
    }
 }
 
+int GetDynamicEmaPeriod(string sym, int basePeriod) {
+    double atr = iATR(sym, PERIOD_M15, 14);
+    double price = SymbolInfoDouble(sym, SYMBOL_BID);
+    if(atr == 0) return basePeriod;
+    // Lógica VAMA simplificada: aumenta período em volatilidade, diminui em calmaria
+    double vol = atr / price * 10000; 
+    return (int)(basePeriod * (1.0 + vol));
+}
 
 void OnTick()
 {
    if(!IsAuthorized) return;
+   
    string sym = _Symbol;
    if(IsXAU(sym))
    {
@@ -672,6 +686,10 @@ void OnTick()
 
 void OnTimer()
 {
+   if(!IsTradingSession()) return;
+   
+   g_DynamicEmaLog = ""; // Limpa o log no início do ciclo
+
    // ✅ FIX #2: ReportBalance() e UpdateChartVisuals() movidos para DENTRO
    //    do semáforo ExecutionBusy para evitar race condition no estado
    //    DailyLossLock / DailyTargetReached durante o processamento.
@@ -1915,7 +1933,8 @@ void ReportBalance()
       "\"isLocked\":"        + (DailyLossLock ? "true" : "false") + ","
       "\"isLossLocked\":"    + (DailyLossLock ? "true" : "false") + ","
       "\"openTrades\":"      + openTradesJson  + ","
-      "\"closedTrades\":"    + closedTradesJson +
+      "\"closedTrades\":"    + closedTradesJson + ","
+      "\"dynamicEmaLog\":\"" + g_DynamicEmaLog + "\""
    "}";
 
    string url = g_ServerUrl + "/ea/report-balance";
