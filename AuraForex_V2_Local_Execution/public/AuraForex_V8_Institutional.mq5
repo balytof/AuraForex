@@ -134,6 +134,7 @@ string            g_RunnerMode = "none";
 string            g_ExitMode = "take_profit";
 int               g_HoldSeconds = 180;
 int               g_NegativeHoldSeconds = 120;
+string            g_EmaMode = "auto";
 string            g_DynamicEmaLog = "";
 int               g_TrailingStart_JPY = 0;
 int               g_TrailingDistance_JPY = 0;
