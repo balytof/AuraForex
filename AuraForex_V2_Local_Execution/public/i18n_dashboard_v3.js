@@ -304,7 +304,33 @@ const dashboardTranslations = {
         "Valor": "Value",
         "Data": "Date",
         "Ações": "Actions",
-        "Aprovar Pagamento": "Approve Payment"
+        
+        "Aprovar Pagamento": "Approve Payment",
+        // Novas Configurações Avançadas
+        "Configurações Avançadas": "Advanced Settings",
+        "Filtro de Tendência (EMA)": "Trend Filter (EMA)",
+        "Períodos Ajustados (VAMA)": "Adjusted Periods (VAMA)",
+        "Estratégia de Fecho": "Close Strategy",
+        "Take Profit Fixo": "Fixed Take Profit",
+        "Tempo Limite (Exaustão)": "Time Limit (Exhaustion)",
+        "Limite no Lucro (Segundos)": "Profit Limit (Seconds)",
+        "Limite na Perda (Segundos)": "Loss Limit (Seconds)",
+        
+        "Controla a tendência do bot.": "Controls the bot's trend.",
+        "🤖 Automático (ADX)": "🤖 Automatic (ADX)",
+        "✅ Sempre LIGADO": "✅ Always ON",
+        "❌ Sempre DESLIGADO": "❌ Always OFF",
+        "A aguardar...": "Waiting...",
+        "Metas Diárias (%)": "Daily Targets (%)",
+        "Meta de Lucro Diário (%)": "Daily Profit Target (%)",
+        "Limite de Perda Diário (%)": "Daily Loss Limit (%)",
+        "Gestão de Ganhos (Runners)": "Earnings Management (Runners)",
+        "Desativado": "Disabled",
+        "Trailing Stop (Padrão)": "Trailing Stop (Default)",
+        "Profit Lock (Avançado)": "Profit Lock (Advanced)",
+        "Ativação ($)": "Activation ($)",
+        "Queda Tolerada (%)": "Tolerated Drop (%)",
+        "Guardar Configurações Avançadas": "Save Advanced Settings"
     },
     "fr": {
         "Guia de Instala\u00e7\u00e3o Aura V8 Institucional": "Guide d'Installation Aura V8 Institutionnel",
@@ -610,7 +636,33 @@ const dashboardTranslations = {
         "Valor": "Valeur",
         "Data": "Date",
         "Ações": "Actions",
-        "Aprovar Pagamento": "Approuver le Paiement"
+        
+        "Aprovar Pagamento": "Approuver le Paiement",
+        // Novas Configurações Avançadas
+        "Configurações Avançadas": "Paramètres Avancés",
+        "Filtro de Tendência (EMA)": "Filtre de Tendance (EMA)",
+        "Períodos Ajustados (VAMA)": "Périodes Ajustées (VAMA)",
+        "Estratégia de Fecho": "Stratégie de Clôture",
+        "Take Profit Fixo": "Take Profit Fixe",
+        "Tempo Limite (Exaustão)": "Limite de Temps (Épuisement)",
+        "Limite no Lucro (Segundos)": "Limite de Profit (Secondes)",
+        "Limite na Perda (Segundos)": "Limite de Perte (Secondes)",
+        
+        "Controla a tendência do bot.": "Contrôle la tendance du bot.",
+        "🤖 Automático (ADX)": "🤖 Automatique (ADX)",
+        "✅ Sempre LIGADO": "✅ Toujours ACTIVÉ",
+        "❌ Sempre DESLIGADO": "❌ Toujours DÉSACTIVÉ",
+        "A aguardar...": "En attente...",
+        "Metas Diárias (%)": "Objectifs Quotidiens (%)",
+        "Meta de Lucro Diário (%)": "Objectif de Profit Quotidien (%)",
+        "Limite de Perda Diário (%)": "Limite de Perte Quotidienne (%)",
+        "Gestão de Ganhos (Runners)": "Gestion des Gains (Runners)",
+        "Desativado": "Désactivé",
+        "Trailing Stop (Padrão)": "Trailing Stop (Par défaut)",
+        "Profit Lock (Avançado)": "Profit Lock (Avancé)",
+        "Ativação ($)": "Activation ($)",
+        "Queda Tolerada (%)": "Baisse Tolérée (%)",
+        "Guardar Configurações Avançadas": "Sauvegarder les Paramètres Avancés"
     },
     "es": {
         "Guia de Instala\u00e7\u00e3o Aura V8 Institucional": "Gu\u00eda de Instalaci\u00f3n Aura V8 Institucional",
@@ -916,7 +968,33 @@ const dashboardTranslations = {
         "Valor": "Valor",
         "Data": "Fecha",
         "Ações": "Acciones",
-        "Aprovar Pagamento": "Aprobar Pago"
+        
+        "Aprovar Pagamento": "Aprobar Pago",
+        // Novas Configurações Avançadas
+        "Configurações Avançadas": "Ajustes Avanzados",
+        "Filtro de Tendência (EMA)": "Filtro de Tendencia (EMA)",
+        "Períodos Ajustados (VAMA)": "Períodos Ajustados (VAMA)",
+        "Estratégia de Fecho": "Estrategia de Cierre",
+        "Take Profit Fixo": "Take Profit Fijo",
+        "Tempo Limite (Exaustão)": "Límite de Tiempo (Agotamiento)",
+        "Limite no Lucro (Segundos)": "Límite de Beneficio (Segundos)",
+        "Limite na Perda (Segundos)": "Límite de Pérdida (Segundos)",
+        
+        "Controla a tendência do bot.": "Controla la tendencia del bot.",
+        "🤖 Automático (ADX)": "🤖 Automático (ADX)",
+        "✅ Sempre LIGADO": "✅ Siempre ENCENDIDO",
+        "❌ Sempre DESLIGADO": "❌ Siempre APAGADO",
+        "A aguardar...": "Esperando...",
+        "Metas Diárias (%)": "Metas Diarias (%)",
+        "Meta de Lucro Diário (%)": "Meta de Beneficio Diario (%)",
+        "Limite de Perda Diário (%)": "Límite de Pérdida Diaria (%)",
+        "Gestão de Ganhos (Runners)": "Gestión de Ganancias (Runners)",
+        "Desativado": "Desactivado",
+        "Trailing Stop (Padrão)": "Trailing Stop (Por defecto)",
+        "Profit Lock (Avançado)": "Profit Lock (Avanzado)",
+        "Ativação ($)": "Activación ($)",
+        "Queda Tolerada (%)": "Caída Tolerada (%)",
+        "Guardar Configurações Avançadas": "Guardar Ajustes Avanzados"
     }
 };
 

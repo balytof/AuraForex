@@ -7,7 +7,8 @@ const filesToUpload = [
     { local: './smc_bot_dashboard.html', remote: '/root/AuraForex/smc_bot_dashboard.html' },
     { local: './server.js', remote: '/root/AuraForex/server.js' },
     { local: './ea_api.js', remote: '/root/AuraForex/ea_api.js' },
-    { local: './prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' }
+    { local: './prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' },
+    { local: './public/i18n_dashboard_v3.js', remote: '/root/AuraForex/public/i18n_dashboard_v3.js' }
 ];
 
 conn.on('ready', () => {
