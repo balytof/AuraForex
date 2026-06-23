@@ -686,12 +686,16 @@ void RunInstitutionalCore()
 
       MonitorTrailingStop();
       
-      string pairs[];
-      int count = StringSplit(g_ActivePairs, ',', pairs);
-      for(int i = 0; i < count; i++) {
-         string pair = pairs[i];
-         StringTrimLeft(pair); StringTrimRight(pair);
-         if(pair != "") ProcessInstitutionalScalper(pair);
+      if(g_ActivePairs == "") {
+         ProcessInstitutionalScalper(_Symbol);
+      } else {
+         string pairs[];
+         int count = StringSplit(g_ActivePairs, ',', pairs);
+         for(int i = 0; i < count; i++) {
+            string pair = pairs[i];
+            StringTrimLeft(pair); StringTrimRight(pair);
+            if(pair != "") ProcessInstitutionalScalper(pair);
+         }
       }
       MonitorPartialTP();
    }

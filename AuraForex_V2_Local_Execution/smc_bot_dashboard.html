@@ -3372,7 +3372,15 @@ async function updateStats() {
       if (btnResetDaily) btnResetDaily.style.display = status.canResetLocks ? "block" : "none";
       if (btnResetLoss) btnResetLoss.style.display = status.canResetLocks ? "block" : "none";
       
-      isDailyLocked = status.isLocked;
+      if (status.isProfitLocked && !isDailyLocked) {
+        addLog(`[SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando posições...`, "info");
+        addLog(`🏆 [DAILY] META ATINGIDA PELO BOT: $${(status.dailyPnl||0).toFixed(2)} >= Meta: $${(status.dailyTargetMoney||0).toFixed(2)} | Fechando posições...`, "success");
+        addLog(`[ACTION] Fechando TODAS as posições para garantir lucro diário...`, "warn");
+      } else if (!status.isProfitLocked && isDailyLocked) {
+        addLog(`🌅 [SERVER-SYNC] Reset de Meta Diária detectado. Desbloqueando...`, "info");
+      }
+
+      isDailyLocked = status.isProfitLocked;
 
       const now = new Date();
       const day = now.getDay();
@@ -3408,6 +3416,16 @@ async function updateStats() {
             if (isRunning) stopBot();
         }
         updateLockCountdown(status.timeUntilReset);
+      } else if (status.isProfitLocked) {
+        weekendOverlay.style.display = "none";
+        if(lossLockOverlay) lossLockOverlay.style.display = "none";
+        lockOverlay.style.display = "flex";
+        if (mainBtn) {
+            mainBtn.disabled = true;
+            if (mainBtn.dataset.state !== "profitlocked") { mainBtn.textContent = "Meta Diária Atingida"; mainBtn.dataset.state = "profitlocked"; }
+            mainBtn.style.opacity = "0.5";
+            if (isRunning) stopBot();
+        }
       } else {
         lockOverlay.style.display = "none";
         if(lossLockOverlay) lossLockOverlay.style.display = "none";
@@ -5092,9 +5110,9 @@ async function submitPammDeposit(btn) {
     <div class="modal-body">
       <div class="download-area">
         <h3 style="margin-bottom: 10px;">Passo Inicial: Baixe o seu Robô</h3>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.5 Institucional (Native MT5 Inputs) - Compilada para MetaTrader 5</p>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Versão v8.6 Institucional (Native MT5 Inputs) - Compilada para MetaTrader 5</p>
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <a href="/AuraForex_V8_Institutional.ex5?v=8.5" download class="btn btn-primary" style="padding: 12px 20px; font-size: 0.9rem;">
+          <a href="/AuraForex_V8_Institutional.ex5?v=8.6" download class="btn btn-primary" style="padding: 12px 20px; font-size: 0.9rem;">
             <i class="fas fa-file-download"></i> DOWNLOAD AURA V8 INSTITUCIONAL (.ex5)
           </a>
           <a href="/AuraCopier_Client.ex5" download class="btn" style="padding: 12px 20px; font-size: 0.9rem; background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid var(--accent);">

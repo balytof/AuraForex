@@ -605,7 +605,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       realizedPnl: finalRealizedPnl,
       dailyTargetMoney: finalDailyTargetMoney, // Valor 100% fixo baseado no Balance Inicial
       isLocked: risk.circuitBreaker,
-      
+      isProfitLocked: isProfitLocked,
       isLossLocked: risk.circuitBreaker, // Correção: Passar flag específica para o Card Vermelho
       timeUntilReset: timeUntilReset,
       updatedAt: license ? license.updatedAt : null,
