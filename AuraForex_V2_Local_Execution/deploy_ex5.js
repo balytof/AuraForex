@@ -4,8 +4,8 @@ const path = require('path');
 const conn = new Client();
 
 const filesToUpload = [
-    { local: './public/AuraForex_V8_Institutional.ex5', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/public/AuraForex_V8_Institutional.ex5' },
-    { local: './public/AuraForex_V8_Institutional.mq5', remote: '/root/AuraForex/AuraForex_V2_Local_Execution/public/AuraForex_V8_Institutional.mq5' }
+    { local: './public/AuraForex_V8_Institutional.ex5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.ex5' },
+    { local: './public/AuraForex_V8_Institutional.mq5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.mq5' }
 ];
 
 conn.on('ready', () => {

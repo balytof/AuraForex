@@ -354,12 +354,22 @@ router.post("/report-balance", async (req, res) => {
     // Verificar se bateu meta ou drawdown com os novos valores
     risk.checkDailyProfitTarget([]); 
 
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId: lic.userId }
+    });
+
     return res.json({ 
       success: true,
       isLocked: risk.circuitBreaker,
-      
       isLossLocked: risk.circuitBreaker,
-      dailyStartBalance: risk.dailyStartBalance
+      dailyStartBalance: risk.dailyStartBalance,
+      emaMode: userSettings?.emaMode || "auto",
+      advDailyProfitPct: userSettings?.dailyProfitTarget || 0,
+      advDailyLossPct: userSettings?.dailyLossLimit || 0,
+      riskPercent: userSettings?.risk || 1.5,
+      runnerMode: userSettings?.runnerMode || "none",
+      profitLockMin: userSettings?.profitLockMin || 10.0,
+      profitLockDrop: userSettings?.profitLockDrop || 30.0
     });
   } catch (err) {
     console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);

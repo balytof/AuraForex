@@ -1671,43 +1671,22 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
 
-      <!-- MINHA CARTEIRA AURATRADE [NEW] -->
-      <div class="panel glass-panel" style="margin-bottom: 20px;">
-        <div class="panel-header" style="background: rgba(0, 212, 255, 0.05);">
-          <div class="panel-title"><span class="icon"></span> Minha Carteira</div>
-          <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono', monospace;">Créditos Pré-Pagos</span>
-        </div>
-        <div style="padding: 20px;">
-          <!-- Saldo & Taxa Info -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <div>
-              <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Saldo Disponível</span>
-              <div id="userWalletBalance" style="font-size:1.8rem; font-weight:800; color:var(--bull);">$0.00</div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size:0.7rem; color:var(--muted); font-family:'Space Mono'; text-transform:uppercase;">Taxa de Performance</span>
-              <div id="userWalletFee" style="font-size:1.1rem; font-weight:700; color:var(--accent);">30%</div>
-            </div>
-          </div>
-
-          <!-- Alert Banner -->
-          <div id="userWalletAlert" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.78rem; margin-bottom: 15px; border: 1px solid transparent; font-family: inherit;">
-            <!-- Dynamic -->
-          </div>
-
-          <!-- Histórico Removido do Card para evitar Saturação (Movido para Modal) -->
-          <button onclick="openWalletHistoryModal()" class="btn-wallet-history">
-            <i class="fas fa-history"></i> Ver Extrato & Movimentações
-          </button>
-        </div>
-      </div>
-
       <!-- CONFIG -->
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><span class="icon"></span> Configuração</div>
         </div>
         <div class="config-panel">
+          
+          <button onclick="document.getElementById('advancedSettingsOverlay').style.display='flex'" class="pair-toggle active" style="
+            width: 100%;
+            margin-bottom: 5px;
+            font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; transition: all 0.3s ease;
+          " onmouseover="this.style.boxShadow='0 0 15px rgba(0,212,255,0.4)'" onmouseout="this.style.boxShadow='none'">
+            <i class="fas fa-cogs"></i> CONFIGURAÇÕES AVANÇADAS
+          </button>
+
 
           <div class="form-group">
             <label class="form-label">Gemini API Key</label>
@@ -5569,7 +5548,151 @@ setInterval(() => {
     }
   }
 }, 500);
+
+// Funções para Configurações Avançadas
+function saveAdvancedConfig() {
+  const emaModeRadios = document.getElementsByName("emaMode");
+  let emaMode = "auto";
+  for(const r of emaModeRadios) { if(r.checked) emaMode = r.value; }
+  
+  const dailyTarget = document.getElementById("advDailyTarget").value;
+  const dailyLoss = document.getElementById("advDailyLoss").value;
+  
+  // Guardamos estes valores na localStorage temporalmente (ou podíamos passar directo)
+  // Mas como a saveConfig() principal já sincroniza tudo, vamos chamar uma função dedicada ou adaptar a saveConfig
+  
+  // Vamos enviar para o Backend imediatamente:
+  const advConfig = {
+    emaMode: emaMode,
+    dailyProfitTarget: dailyTarget,
+    dailyLossLimit: dailyLoss,
+    runnerMode: document.getElementById("advRunnerMode").value,
+    profitLockMin: document.getElementById("advProfitLockMin").value,
+    profitLockDrop: document.getElementById("advProfitLockDrop").value
+  };
+  
+  apiFetch("/api/user/advanced-settings", "POST", advConfig)
+    .then(res => {
+      alert("Configurações Avançadas Guardadas com Sucesso!");
+      document.getElementById('advancedSettingsOverlay').style.display='none';
+    })
+    .catch(e => {
+      alert("Erro ao guardar definições: " + e.message);
+    });
+}
+
+function loadAdvancedConfig() {
+  // Vamos carregar ao iniciar a página
+  apiFetch("/api/user/advanced-settings", "GET")
+    .then(res => {
+      // O GET devolve res = { emaMode, advDailyProfitPct, advDailyLossPct, runnerMode, profitLockMin, profitLockDrop }
+      document.getElementById("advDailyTarget").value = res.advDailyProfitPct || "";
+      document.getElementById("advDailyLoss").value = res.advDailyLossPct || "";
+      const mode = res.emaMode || "auto";
+      const radios = document.getElementsByName("emaMode");
+      for(const r of radios) {
+        if(r.value === mode) r.checked = true;
+      }
+      
+      const rMode = res.runnerMode || "none";
+      document.getElementById("advRunnerMode").value = rMode;
+      document.getElementById("advProfitLockMin").value = res.profitLockMin !== undefined ? res.profitLockMin : 10;
+      document.getElementById("advProfitLockDrop").value = res.profitLockDrop !== undefined ? res.profitLockDrop : 30;
+      
+      toggleProfitLockFields();
+    })
+    .catch(e => console.warn("Failed to load advanced settings"));
+}
+// Chamar ao iniciar
+setTimeout(loadAdvancedConfig, 1500);
 </script>
+
+<!-- OVERLAY DE CONFIGURAÇÕES AVANÇADAS -->
+<div class="modal-overlay" id="advancedSettingsOverlay" style="display: none; align-items: center; justify-content: center;">
+  <div class="modal" style="width: 550px; max-width: 95%;">
+    <div class="modal-header">
+      <h3 style="margin:0;font-size:1.2rem;"><i class="fas fa-cogs" style="color:var(--accent);"></i> Configurações Avançadas</h3>
+      <button class="modal-close" onclick="document.getElementById('advancedSettingsOverlay').style.display='none'"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+      
+      <!-- SEÇÃO EMA -->
+      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Filtro de Tendência (EMA)</h4>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Controla como o robô decide operar a favor ou contra a tendência.</p>
+        <div style="display: flex; gap: 15px;">
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+            <input type="radio" name="emaMode" value="auto" checked> 🤖 Automático (ADX)
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+            <input type="radio" name="emaMode" value="on"> ✅ Sempre LIGADO
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer;">
+            <input type="radio" name="emaMode" value="off"> ❌ Sempre DESLIGADO
+          </label>
+        </div>
+      </div>
+
+      <!-- SEÇÃO METAS -->
+      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Metas e Limites Diários (%)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Meta de Lucro Diário (%)</label>
+            <input type="number" id="advDailyTarget" class="form-input" placeholder="Ex: 5.0" step="0.1">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Limite de Perda Diário (%)</label>
+            <input type="number" id="advDailyLoss" class="form-input" placeholder="Ex: 10.0" step="0.1">
+          </div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO RUNNERS -->
+      <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Gestão de Ganhos (Runners)</h4>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Escolhe apenas um método para evitar conflitos.</p>
+        
+        <div style="margin-bottom: 15px;">
+          <select id="advRunnerMode" class="form-input" onchange="toggleProfitLockFields()">
+            <option value="none">Desativado</option>
+            <option value="trailing">Trailing Stop (Padrão)</option>
+            <option value="profit_lock">Profit Lock (Avançado)</option>
+          </select>
+        </div>
+
+        <div id="profitLockOptions" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Ativação do Profit Lock ($)</label>
+            <input type="number" id="advProfitLockMin" class="form-input" value="10.0" step="1">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:0.8rem;">Queda Tolerada (%)</label>
+            <input type="number" id="advProfitLockDrop" class="form-input" value="30.0" step="1">
+          </div>
+        </div>
+      </div>
+      
+      <script>
+        function toggleProfitLockFields() {
+          const mode = document.getElementById("advRunnerMode").value;
+          const container = document.getElementById("profitLockOptions");
+          if(mode === "profit_lock") {
+            container.style.display = "grid";
+          } else {
+            container.style.display = "none";
+          }
+        }
+      </script>
+
+    </div>
+    <div class="modal-footer" style="margin-top: 20px;">
+      <button class="btn btn-primary" onclick="saveAdvancedConfig()" style="width: 100%; padding: 12px;">
+        <i class="fas fa-save"></i> Guardar Configurações Avançadas
+      </button>
+    </div>
+  </div>
+</div>
 <script src="/i18n_dashboard_v3.js?v=6"></script>
 </body>
 </html>

@@ -201,10 +201,18 @@ model UserSettings {
   activePairs           String   @default("EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY")
   geminiKey             String?
   botStatus             String   @default("stopped")
+  emaMode               String   @default("auto")
+  dailyProfitTarget     Float?   @default(0.0)
+  dailyLossLimit        Float?   @default(0.0)
   pammPerformanceFeePct Float?
   pammChangeApproved    Boolean  @default(false)
   isCentAccount         Boolean  @default(false)
   canResetLocks         Boolean  @default(false)
+  
+  // Advanced Runner Management
+  runnerMode            String   @default("none") // "none", "trailing", "profit_lock"
+  profitLockMin         Float    @default(10.0)
+  profitLockDrop        Float    @default(30.0)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

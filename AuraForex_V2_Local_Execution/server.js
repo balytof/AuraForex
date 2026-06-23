@@ -613,7 +613,11 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       sundayOpenHour: sundayOpenHour,
       openTrades: trueOpenTrades, // Retorna as trades abertas sincronizadas pelo EA/BD
       canResetLocks: userSettings?.canResetLocks || false,
-      dailyStartBalance: startCapital
+      dailyStartBalance: startCapital,
+      emaMode: userSettings?.emaMode || "auto",
+      advDailyProfitPct: userSettings?.dailyProfitTarget || 0,
+      advDailyLossPct: userSettings?.dailyLossLimit || 0,
+      riskPercent: userSettings?.risk || 1.5
     });
   } catch (err) {
     res.status(500).json({ success: false, error: "Erro ao carregar status institucional." });
@@ -2565,9 +2569,57 @@ app.get("/api/user/settings", requireAuth, async (req, res) => {
     res.json({ success: true, settings });
   } catch (err) {
     console.error("[SETTINGS-ERROR]", err);
-    res.status(500).json({ error: "Erro ao buscar configurações." });
+    res.status(500).json({ error: "Erro ao guardar configurações." });
   }
 });
+
+// GET /api/user/advanced-settings
+app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
+  try {
+    let settings = await prisma.userSettings.findUnique({ where: { userId: req.user.id } });
+    if (!settings) {
+      settings = await prisma.userSettings.create({ data: { userId: req.user.id } });
+    }
+    res.json({
+      emaMode: settings.emaMode,
+      advDailyProfitPct: settings.dailyProfitTarget,
+      advDailyLossPct: settings.dailyLossLimit,
+      runnerMode: settings.runnerMode,
+      profitLockMin: settings.profitLockMin,
+      profitLockDrop: settings.profitLockDrop
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar advanced settings." });
+  }
+});
+
+// POST /api/user/advanced-settings
+app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
+  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop } = req.body;
+  try {
+    const data = {};
+    if (emaMode !== undefined) data.emaMode = emaMode;
+    if (dailyProfitTarget !== undefined) data.dailyProfitTarget = parseFloat(dailyProfitTarget) || 0.0;
+    if (dailyLossLimit !== undefined) data.dailyLossLimit = parseFloat(dailyLossLimit) || 0.0;
+    if (runnerMode !== undefined) data.runnerMode = runnerMode;
+    if (profitLockMin !== undefined) data.profitLockMin = parseFloat(profitLockMin) || 10.0;
+    if (profitLockDrop !== undefined) data.profitLockDrop = parseFloat(profitLockDrop) || 30.0;
+
+    const settings = await prisma.userSettings.upsert({
+      where: { userId: req.user.id },
+      update: data,
+      create: {
+        userId: req.user.id,
+        ...data
+      }
+    });
+    res.json({ success: true, settings });
+  } catch (err) {
+    console.error("[ADV-SETTINGS-ERROR]", err);
+    res.status(500).json({ error: "Erro ao guardar advanced settings." });
+  }
+});
+
 
 app.post("/api/user/settings", requireAuth, async (req, res) => {
   const { risk, score, interval, activePairs, geminiKey, botRunning } = req.body;

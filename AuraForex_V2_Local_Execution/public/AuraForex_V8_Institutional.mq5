@@ -136,6 +136,7 @@ bool              g_IsCentAccount = false;
 double            g_RiskPercent = 1.0;
 int               g_MagicNumber = 888222;
 bool              g_TrailingEnabled = false;
+string            g_RunnerMode = "none";
 int               g_TrailingStart_JPY = 0;
 int               g_TrailingDistance_JPY = 0;
 int               g_TrailingStep_JPY = 0;
@@ -522,7 +523,24 @@ void ProcessInstitutionalScalper(string sym)
    bool allowBuy = true;
    bool allowSell = true;
    
-   if(trendFilter)
+   bool effectiveTrendFilter = trendFilter;
+   if(g_EmaMode == "on") effectiveTrendFilter = true;
+   else if(g_EmaMode == "off") effectiveTrendFilter = false;
+   else if(g_EmaMode == "auto") {
+      double adxBuf[];
+      ArraySetAsSeries(adxBuf, true);
+      int hAdx = iADX(sym, PERIOD_M15, 14);
+      if(hAdx != INVALID_HANDLE) {
+         if(CopyBuffer(hAdx, 0, 0, 1, adxBuf) > 0) {
+            // Se ADX < 25 mercado está lateral (choppy), então DESLIGA o filtro EMA para scalping bidirecional
+            // Se ADX >= 25 mercado tem tendência, então LIGA o filtro EMA para proteger contra a tendência
+            effectiveTrendFilter = (adxBuf[0] >= 25.0);
+         }
+         IndicatorRelease(hAdx);
+      }
+   }
+   
+   if(effectiveTrendFilter)
    {
       ENUM_TIMEFRAMES tf = PERIOD_M15;
       if(emaTimeframe == 1) tf = PERIOD_M1;
@@ -684,7 +702,8 @@ void RunInstitutionalCore()
 
       ProcessPendingProtections();
 
-      MonitorTrailingStop();
+      if(g_RunnerMode == "trailing") MonitorTrailingStop();
+      else if(g_RunnerMode == "profit_lock") MonitorProfitLock();
       
       if(g_ActivePairs == "") {
          ProcessInstitutionalScalper(_Symbol);
@@ -1916,6 +1935,76 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, ",", sIdx);
       if(eIdx > sIdx) {
          serverStartBalance = StringToDouble(StringSubstr(response, sIdx, eIdx - sIdx));
+      }
+   }
+
+   // --- PARSE ADVANCED SETTINGS ---
+   int emaIdx = StringFind(response, "\"emaMode\":\"");
+   if(emaIdx >= 0) {
+      emaIdx += 11;
+      int eIdx = StringFind(response, "\"", emaIdx);
+      if(eIdx > emaIdx) g_EmaMode = StringSubstr(response, emaIdx, eIdx - emaIdx);
+   }
+   
+   int profitPctIdx = StringFind(response, "\"advDailyProfitPct\":");
+   if(profitPctIdx >= 0) {
+      profitPctIdx += 20;
+      int eIdx = StringFind(response, ",", profitPctIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", profitPctIdx);
+      if(eIdx > profitPctIdx) {
+         double v = StringToDouble(StringSubstr(response, profitPctIdx, eIdx - profitPctIdx));
+         if(v > 0) g_DailyTargetPct = v;
+      }
+   }
+   
+   int lossPctIdx = StringFind(response, "\"advDailyLossPct\":");
+   if(lossPctIdx >= 0) {
+      lossPctIdx += 18;
+      int eIdx = StringFind(response, ",", lossPctIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", lossPctIdx);
+      if(eIdx > lossPctIdx) {
+         double v = StringToDouble(StringSubstr(response, lossPctIdx, eIdx - lossPctIdx));
+         if(v > 0) g_MaxDailyLossPct = v;
+      }
+   }
+
+   int riskIdx = StringFind(response, "\"riskPercent\":");
+   if(riskIdx >= 0) {
+      riskIdx += 14;
+      int eIdx = StringFind(response, "}", riskIdx);
+      if(eIdx < 0) eIdx = StringFind(response, ",", riskIdx);
+      if(eIdx > riskIdx) {
+         double v = StringToDouble(StringSubstr(response, riskIdx, eIdx - riskIdx));
+         if(v > 0) g_RiskPercent = v;
+      }
+   }
+
+   int runnerIdx = StringFind(response, "\"runnerMode\":\"");
+   if(runnerIdx >= 0) {
+      runnerIdx += 14;
+      int eIdx = StringFind(response, "\"", runnerIdx);
+      if(eIdx > runnerIdx) g_RunnerMode = StringSubstr(response, runnerIdx, eIdx - runnerIdx);
+   }
+
+   int plMinIdx = StringFind(response, "\"profitLockMin\":");
+   if(plMinIdx >= 0) {
+      plMinIdx += 16;
+      int eIdx = StringFind(response, ",", plMinIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", plMinIdx);
+      if(eIdx > plMinIdx) {
+         double v = StringToDouble(StringSubstr(response, plMinIdx, eIdx - plMinIdx));
+         if(v > 0) g_ProfitLockMin = v;
+      }
+   }
+
+   int plDropIdx = StringFind(response, "\"profitLockDrop\":");
+   if(plDropIdx >= 0) {
+      plDropIdx += 17;
+      int eIdx = StringFind(response, ",", plDropIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", plDropIdx);
+      if(eIdx > plDropIdx) {
+         double v = StringToDouble(StringSubstr(response, plDropIdx, eIdx - plDropIdx));
+         if(v > 0) g_ProfitLockDrop = v;
       }
    }
 
