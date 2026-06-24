@@ -2594,18 +2594,19 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
 
 // POST /api/user/advanced-settings
 app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
+  console.log("[ADV_SETTINGS_POST_DEBUG] req.body:", req.body);
   const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds } = req.body;
   try {
     const data = {};
     if (emaMode !== undefined) data.emaMode = emaMode;
-    if (dailyProfitTarget !== undefined) data.dailyProfitTarget = parseFloat(dailyProfitTarget) || 0.0;
-    if (dailyLossLimit !== undefined) data.dailyLossLimit = parseFloat(dailyLossLimit) || 0.0;
+    if (dailyProfitTarget !== undefined && dailyProfitTarget !== "") data.dailyProfitTarget = parseFloat(dailyProfitTarget);
+    if (dailyLossLimit !== undefined && dailyLossLimit !== "") data.dailyLossLimit = parseFloat(dailyLossLimit);
     if (runnerMode !== undefined) data.runnerMode = runnerMode;
-    if (profitLockMin !== undefined) data.profitLockMin = parseFloat(profitLockMin) || 10.0;
-    if (profitLockDrop !== undefined) data.profitLockDrop = parseFloat(profitLockDrop) || 30.0;
+    if (profitLockMin !== undefined && profitLockMin !== "") data.profitLockMin = parseFloat(profitLockMin);
+    if (profitLockDrop !== undefined && profitLockDrop !== "") data.profitLockDrop = parseFloat(profitLockDrop);
     if (exitMode !== undefined) data.exitMode = exitMode;
-    if (holdSeconds !== undefined) data.holdSeconds = parseInt(holdSeconds) || 180;
-    if (negativeHoldSeconds !== undefined) data.negativeHoldSeconds = parseInt(negativeHoldSeconds) || 120;
+    if (holdSeconds !== undefined && holdSeconds !== "") data.holdSeconds = parseInt(holdSeconds);
+    if (negativeHoldSeconds !== undefined && negativeHoldSeconds !== "") data.negativeHoldSeconds = parseInt(negativeHoldSeconds);
 
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },

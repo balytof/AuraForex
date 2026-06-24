@@ -160,7 +160,7 @@ int               g_XAU_EmaTimeframe = 0;
 int               g_MaxBuys = 0;
 int               g_MaxSells = 0;
 int               g_TradeCooldown = 0;
-bool              g_DailyTargetLockActive = false;
+bool              g_DailyTargetFeatureEnabled = false;
 double            g_DailyTargetPct = 0;
 double            g_DailyTargetLockPct = 0;
 double            g_DailyTargetFloorPct = 0;
@@ -185,7 +185,7 @@ double            DailyStartBalance  = 0;
 double            DailyStartEquity   = 0;
 bool              DailyTargetReached = false;
 bool              DailyLossLock         = false;
-bool              DailyTargetLockActive = false;
+bool              DailyTargetLockTriggered = false;
 double            DailyPeakPnL          = 0;
 double            DailyTargetProfit     = 0;
 int               LastTradingDay        = -1;
@@ -207,6 +207,26 @@ struct ATRCache {
    datetime        lastBar;
 };
 ATRCache g_atrCache[];
+
+struct ADXCache {
+   string          symbol;
+   ENUM_TIMEFRAMES tf;
+   int             period;
+   int             handle;
+   double          value;
+   datetime        lastBar;
+};
+ADXCache g_adxCache[];
+
+struct EMACache {
+   string          symbol;
+   ENUM_TIMEFRAMES tf;
+   int             period;
+   int             handle;
+   double          value;
+   datetime        lastBar;
+};
+EMACache g_emaCache[];
 
 //--- ESTRUTURA PROTECÇÃO ASSÍNCRONA ---
 struct PendingProtectionData {
@@ -365,7 +385,6 @@ int OnInit()
        g_TrailingStart_XAU = Tester_TrailingStart_XAU;
        g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
        g_TrailingStep_XAU = Tester_TrailingStep_XAU;
-       g_MaxSLJPY = Tester_MaxSLJPY;
        g_MaxOrders = Tester_MaxOrders;
        g_XAU_StepDistance = Tester_XAU_StepDistance;
        g_XAU_TargetPoints = Tester_XAU_TargetPoints;
@@ -376,7 +395,7 @@ int OnInit()
        g_MaxBuys = Tester_MaxBuys;
        g_MaxSells = Tester_MaxSells;
        g_TradeCooldown = Tester_TradeCooldown;
-       g_DailyTargetLockActive = Tester_DailyTargetLockActive;
+       g_DailyTargetFeatureEnabled = Tester_DailyTargetLockActive;
        g_DailyTargetPct = Tester_DailyTargetPct;
        g_DailyTargetLockPct = Tester_DailyTargetLockPct;
        g_DailyTargetFloorPct = Tester_DailyTargetFloorPct;
@@ -435,6 +454,7 @@ void OnDeinit(const int reason)
 {
    // GUI Removida
    EventKillTimer();
+   
    for(int i = 0; i < ArraySize(g_atrCache); i++)
    {
       if(g_atrCache[i].handle != INVALID_HANDLE)
@@ -444,8 +464,30 @@ void OnDeinit(const int reason)
       }
    }
    ArrayFree(g_atrCache);
-   Print("🧹 [CLEANUP] Handles de ATR libertados com sucesso.");
+
+   for(int i = 0; i < ArraySize(g_adxCache); i++)
+   {
+      if(g_adxCache[i].handle != INVALID_HANDLE)
+      {
+         IndicatorRelease(g_adxCache[i].handle);
+         g_adxCache[i].handle = INVALID_HANDLE;
+      }
+   }
+   ArrayFree(g_adxCache);
+
+   for(int i = 0; i < ArraySize(g_emaCache); i++)
+   {
+      if(g_emaCache[i].handle != INVALID_HANDLE)
+      {
+         IndicatorRelease(g_emaCache[i].handle);
+         g_emaCache[i].handle = INVALID_HANDLE;
+      }
+   }
+   ArrayFree(g_emaCache);
+
+   Print("🛡️ [CLEANUP] Handles de Indicadores (ATR, ADX, EMA) libertados com sucesso.");
 }
+
 int CountOrdersBySymbol(string sym) {
    int c=0;
    for(int i=PositionsTotal()-1; i>=0; i--) {
@@ -519,16 +561,11 @@ void ProcessInstitutionalScalper(string sym)
    if(g_EmaMode == "on") effectiveTrendFilter = true;
    else if(g_EmaMode == "off") effectiveTrendFilter = false;
    else if(g_EmaMode == "auto") {
-      double adxBuf[];
-      ArraySetAsSeries(adxBuf, true);
-      int hAdx = iADX(sym, PERIOD_M15, 14);
-      if(hAdx != INVALID_HANDLE) {
-         if(CopyBuffer(hAdx, 0, 0, 1, adxBuf) > 0) {
-            // Se ADX < 25 mercado está lateral (choppy), então DESLIGA o filtro EMA para scalping bidirecional
-            // Se ADX >= 25 mercado tem tendência, então LIGA o filtro EMA para proteger contra a tendência
-            effectiveTrendFilter = (adxBuf[0] >= 25.0);
-         }
-         IndicatorRelease(hAdx);
+      double adxVal = GetADX(sym, PERIOD_M15, 14);
+      if(adxVal > 0) {
+         // Se ADX < 25 mercado está lateral (choppy), então DESLIGA o filtro EMA para scalping bidirecional
+         // Se ADX >= 25 mercado tem tendência, então LIGA o filtro EMA para proteger contra a tendência
+         effectiveTrendFilter = (adxVal >= 25.0);
       }
    }
    
@@ -547,17 +584,11 @@ void ProcessInstitutionalScalper(string sym)
       int dynamicEmaPeriod = GetDynamicEmaPeriod(sym, emaTimeframe);
       g_DynamicEmaLog += sym + ": " + IntegerToString(dynamicEmaPeriod) + "\\n";
 
-      double emaBuf[];
-      ArraySetAsSeries(emaBuf, true);
-      int hEma = iMA(sym, tf, dynamicEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-      if(hEma != INVALID_HANDLE)
+      double emaVal = GetEMA(sym, tf, dynamicEmaPeriod);
+      if(emaVal > 0)
       {
-         if(CopyBuffer(hEma, 0, 0, 1, emaBuf) > 0)
-         {
-            if(midPrice > emaBuf[0]) allowSell = false; // Tendência de Alta: Bloqueia Vendas
-            if(midPrice < emaBuf[0]) allowBuy = false;  // Tendência de Baixa: Bloqueia Compras
-         }
-         IndicatorRelease(hEma);
+         if(midPrice > emaVal) allowSell = false; // Tendência de Alta: Bloqueia Vendas
+         if(midPrice < emaVal) allowBuy = false;  // Tendência de Baixa: Bloqueia Compras
       }
    }
 
@@ -663,7 +694,7 @@ void ProcessInstitutionalScalper(string sym)
 }
 
 int GetDynamicEmaPeriod(string sym, int basePeriod) {
-    double atr = iATR(sym, PERIOD_M15, 14);
+    double atr = GetATR(sym, PERIOD_M15);
     double price = SymbolInfoDouble(sym, SYMBOL_BID);
     if(atr == 0) return basePeriod;
     // Lógica VAMA simplificada: aumenta período em volatilidade, diminui em calmaria
@@ -888,24 +919,24 @@ void CheckDailyTarget()
       DailyTargetReached = true;
       Print("🏆 [DAILY] META ATINGIDA: $", DoubleToString(dailyPnL, 2));
       CloseAllPositions();
-      DailyTargetLockActive = false;
+      DailyTargetLockTriggered = false;
       DailyPeakPnL = 0;
       return;
    }
 
-   if(g_DailyTargetLockActive)
+   if(g_DailyTargetFeatureEnabled)
    {
       double activationThreshold = DailyTargetProfit * (g_DailyTargetLockPct / 100.0);
       double floorProfit         = DailyTargetProfit * (g_DailyTargetFloorPct / 100.0);
 
-      if(!DailyTargetLockActive && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
+      if(!DailyTargetLockTriggered && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
       {
-         DailyTargetLockActive = true;
+         DailyTargetLockTriggered = true;
          DailyPeakPnL = dailyPnL;
          Print("🛡️ [DAILY LOCK] Ativado! Lucro: $", DoubleToString(dailyPnL, 2));
       }
 
-      if(DailyTargetLockActive)
+      if(DailyTargetLockTriggered)
       {
          if(dailyPnL > DailyPeakPnL) DailyPeakPnL = dailyPnL;
          if(dailyPnL <= floorProfit)
@@ -913,7 +944,7 @@ void CheckDailyTarget()
             DailyTargetReached = true;
             Print("🛑 [DAILY LOCK] Limite mínimo atingido. Fechando tudo.");
             CloseAllPositions();
-            DailyTargetLockActive = false;
+            DailyTargetLockTriggered = false;
             DailyPeakPnL = 0;
          }
       }
@@ -1125,8 +1156,7 @@ void ApplyBreakeven()
             double targetSL = NormalizeDouble(bePrice, digits);
             if(currentSL < targetSL)
             {
-               ResetLastError();
-               if(trade.PositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
+               if(SafePositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
                   Print("🛡️ [BE SECURE] Breakeven ativado | Buy ", ticket,
                         " | SL: ", DoubleToString(targetSL, digits));
             }
@@ -1139,8 +1169,7 @@ void ApplyBreakeven()
             double targetSL = NormalizeDouble(bePrice, digits);
             if(currentSL > targetSL || currentSL == 0)
             {
-               ResetLastError();
-               if(trade.PositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
+               if(SafePositionModify(ticket, targetSL, PositionGetDouble(POSITION_TP)))
                   Print("🛡️ [BE SECURE] Breakeven ativado | Sell ", ticket,
                         " | SL: ", DoubleToString(targetSL, digits));
             }
@@ -1975,7 +2004,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", profitPctIdx);
       if(eIdx > profitPctIdx) {
          double v = StringToDouble(StringSubstr(response, profitPctIdx, eIdx - profitPctIdx));
-         if(v > 0) g_DailyTargetPct = v;
+         if(v >= 0) g_DailyTargetPct = v;
       }
    }
    
@@ -1986,7 +2015,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", lossPctIdx);
       if(eIdx > lossPctIdx) {
          double v = StringToDouble(StringSubstr(response, lossPctIdx, eIdx - lossPctIdx));
-         if(v > 0) g_MaxDailyLossPct = v;
+         if(v >= 0) g_MaxDailyLossPct = v;
       }
    }
 
@@ -1997,7 +2026,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, ",", riskIdx);
       if(eIdx > riskIdx) {
          double v = StringToDouble(StringSubstr(response, riskIdx, eIdx - riskIdx));
-         if(v > 0) g_RiskPercent = v;
+         if(v > 0) g_RiskPercent = v; // Risk should probably remain > 0
       }
    }
 
@@ -2022,7 +2051,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", hsIdx);
       if(eIdx > hsIdx) {
          int v = (int)StringToInteger(StringSubstr(response, hsIdx, eIdx - hsIdx));
-         if(v > 0) g_HoldSeconds = v;
+         if(v >= 0) g_HoldSeconds = v;
       }
    }
 
@@ -2033,7 +2062,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", nhsIdx);
       if(eIdx > nhsIdx) {
          int v = (int)StringToInteger(StringSubstr(response, nhsIdx, eIdx - nhsIdx));
-         if(v > 0) g_NegativeHoldSeconds = v;
+         if(v >= 0) g_NegativeHoldSeconds = v;
       }
    }
 
@@ -2044,7 +2073,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", plMinIdx);
       if(eIdx > plMinIdx) {
          double v = StringToDouble(StringSubstr(response, plMinIdx, eIdx - plMinIdx));
-         if(v > 0) g_ProfitLockMin = v;
+         if(v >= 0) g_ProfitLockMin = v;
       }
    }
 
@@ -2055,7 +2084,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", plDropIdx);
       if(eIdx > plDropIdx) {
          double v = StringToDouble(StringSubstr(response, plDropIdx, eIdx - plDropIdx));
-         if(v > 0) g_ProfitLockDrop = v;
+         if(v >= 0) g_ProfitLockDrop = v;
       }
    }
 
@@ -2366,7 +2395,7 @@ double GetATR(string sym, ENUM_TIMEFRAMES tf)
    g_atrCache[size].symbol  = sym;
    g_atrCache[size].tf      = tf;
    g_atrCache[size].handle  = handle;
-   g_atrCache[size].lastBar = currentBar;
+   g_atrCache[size].lastBar = 0;
    g_atrCache[size].value   = 0;
 
    double atrBuf2[];
