@@ -401,7 +401,12 @@ router.post("/report-balance", async (req, res) => {
       holdSeconds: userSettings?.holdSeconds || 180,
       negativeHoldSeconds: userSettings?.negativeHoldSeconds || 120,
       equityActivationPct: userSettings?.equityActivationPct || 3.0,
-      equityDropPct: userSettings?.equityDropPct || 0.5
+      equityDropPct: userSettings?.equityDropPct || 0.5,
+      useLossProtector: userSettings?.useLossProtector ?? false,
+      lossProtectorPct: userSettings?.lossProtectorPct || 0,
+      useGlobalEquity: userSettings?.useGlobalEquity ?? true,
+      useProfitLock: userSettings?.useProfitLock ?? true,
+      profitLockType: userSettings?.profitLockType || "usd"
     });
   } catch (err) {
     console.error("[EA-BALANCE] Erro ao atualizar saldo:", err);

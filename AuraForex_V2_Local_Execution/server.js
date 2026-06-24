@@ -2587,7 +2587,12 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
       holdSeconds: settings.holdSeconds,
       negativeHoldSeconds: settings.negativeHoldSeconds,
       equityActivationPct: settings.equityActivationPct,
-      equityDropPct: settings.equityDropPct
+      equityDropPct: settings.equityDropPct,
+      useLossProtector: settings.useLossProtector,
+      lossProtectorPct: settings.lossProtectorPct,
+      useGlobalEquity: settings.useGlobalEquity,
+      useProfitLock: settings.useProfitLock,
+      profitLockType: settings.profitLockType
     });
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar advanced settings." });
@@ -2597,7 +2602,7 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
 // POST /api/user/advanced-settings
 app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
   console.log("[ADV_SETTINGS_POST_DEBUG] req.body:", req.body);
-  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds, equityActivationPct, equityDropPct } = req.body;
+  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds, equityActivationPct, equityDropPct, useLossProtector, lossProtectorPct, useGlobalEquity, useProfitLock, profitLockType } = req.body;
   try {
     const data = {};
     if (emaMode !== undefined) data.emaMode = emaMode;
@@ -2611,6 +2616,11 @@ app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
     if (negativeHoldSeconds !== undefined && negativeHoldSeconds !== "") data.negativeHoldSeconds = parseInt(negativeHoldSeconds);
     if (equityActivationPct !== undefined && equityActivationPct !== "") data.equityActivationPct = parseFloat(equityActivationPct);
     if (equityDropPct !== undefined && equityDropPct !== "") data.equityDropPct = parseFloat(equityDropPct);
+    if (useLossProtector !== undefined) data.useLossProtector = useLossProtector;
+    if (lossProtectorPct !== undefined && lossProtectorPct !== "") data.lossProtectorPct = parseFloat(lossProtectorPct);
+    if (useGlobalEquity !== undefined) data.useGlobalEquity = useGlobalEquity;
+    if (useProfitLock !== undefined) data.useProfitLock = useProfitLock;
+    if (profitLockType !== undefined) data.profitLockType = profitLockType;
 
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },

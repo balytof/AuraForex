@@ -220,6 +220,15 @@ model UserSettings {
   negativeHoldSeconds   Int      @default(120)
   equityActivationPct   Float    @default(3.0)
   equityDropPct         Float    @default(0.5)
+  useGlobalEquity       Boolean  @default(true)
+  
+  // Loss Protector
+  useLossProtector      Boolean  @default(false)
+  lossProtectorPct      Float    @default(0)
+  
+  // Smart Profit Lock
+  useProfitLock         Boolean  @default(true)
+  profitLockType        String   @default("usd")
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

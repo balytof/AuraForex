@@ -1282,6 +1282,14 @@
     color: var(--accent);
     text-shadow: 0 0 10px rgba(0,255,204,0.3);
   }
+  
+  /* Switch Toggle */
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: #fff; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+  input:checked + .slider { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  input:checked + .slider:before { transform: translateX(20px); }
 </style>
 
 </head>
@@ -5581,11 +5589,17 @@ function saveAdvancedConfig() {
     runnerMode: document.getElementById("advRunnerMode").value,
     profitLockMin: document.getElementById("advProfitLockMin").value,
     profitLockDrop: document.getElementById("advProfitLockDrop").value,
+    profitLockType: document.getElementById("advProfitLockType").value,
     exitMode: document.getElementById("advExitMode").value,
     holdSeconds: document.getElementById("advHoldSeconds").value,
     negativeHoldSeconds: document.getElementById("advNegativeHoldSeconds").value,
     equityActivationPct: document.getElementById("advEquityActivationPct").value,
-    equityDropPct: document.getElementById("advEquityDropPct").value
+    equityDropPct: document.getElementById("advEquityDropPct").value,
+    useLossProtector: document.getElementById("advUseLossProtector").checked,
+    lossProtectorPct: document.getElementById("advLossProtectorPct").value,
+    useGlobalEquity: document.getElementById("advUseGlobalEquity").checked,
+    useProfitLock: document.getElementById("advUseProfitLock").checked,
+    useTimeLimit: document.getElementById("advUseTimeLimit").checked
   };
   
   apiFetch("/api/user/advanced-settings", "POST", advConfig)
@@ -5623,8 +5637,27 @@ function loadAdvancedConfig() {
       document.getElementById("advEquityActivationPct").value = res.equityActivationPct !== undefined ? res.equityActivationPct : 3.0;
       document.getElementById("advEquityDropPct").value = res.equityDropPct !== undefined ? res.equityDropPct : 0.5;
       
+      document.getElementById("advProfitLockType").value = res.profitLockType || "usd";
+      
+      const uLP = res.useLossProtector !== undefined ? res.useLossProtector : false;
+      document.getElementById("advUseLossProtector").checked = uLP;
+      document.getElementById("advLossProtectorPct").value = res.lossProtectorPct !== undefined ? res.lossProtectorPct : 20.0;
+      
+      const uGE = res.useGlobalEquity !== undefined ? res.useGlobalEquity : true;
+      document.getElementById("advUseGlobalEquity").checked = uGE;
+      
+      const uPL = res.useProfitLock !== undefined ? res.useProfitLock : true;
+      document.getElementById("advUseProfitLock").checked = uPL;
+      
+      const uTL = res.useTimeLimit !== undefined ? res.useTimeLimit : true;
+      document.getElementById("advUseTimeLimit").checked = uTL;
+      
       toggleProfitLockFields();
       toggleExitStrategyFields();
+      toggleModule('advUseLossProtector', 'lossProtectorContainer');
+      toggleModule('advUseGlobalEquity', 'equityContainer');
+      toggleModule('advUseProfitLock', 'runnersContainer');
+      toggleModule('advUseTimeLimit', 'exitContainer');
     })
     .catch(e => console.warn("Failed to load advanced settings"));
 }
@@ -5682,7 +5715,14 @@ setTimeout(loadAdvancedConfig, 1500);
 
       <!-- SEÇÃO RUNNERS -->
       <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
-        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Gestão de Ganhos (Runners)</h4>
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+          Gestão de Ganhos (Runners)
+          <label class="switch">
+            <input type="checkbox" id="advUseProfitLock" onchange="toggleModule('advUseProfitLock', 'runnersContainer')">
+            <span class="slider"></span>
+          </label>
+        </h4>
+        <div id="runnersContainer" style="display: none;">
         
         <div style="margin-bottom: 10px;">
           <select id="advRunnerMode" class="form-input" style="font-size:0.8rem;" onchange="toggleProfitLockFields()">
@@ -5694,19 +5734,30 @@ setTimeout(loadAdvancedConfig, 1500);
 
         <div id="profitLockOptions" style="display: none; flex-direction: column; gap: 10px;">
           <div>
-            <label class="form-label" style="font-size:0.75rem;">Ativação ($)</label>
-            <input type="number" id="advProfitLockMin" class="form-input" value="10.0" step="1">
+            <label class="form-label" style="font-size:0.75rem;">Tipo de Ativação</label>
+            <select id="advProfitLockType" class="form-input" style="font-size:0.8rem;">
+              <option value="usd">Dólares ($)</option>
+              <option value="pct">Percentagem (%)</option>
+            </select>
           </div>
           <div>
             <label class="form-label" style="font-size:0.75rem;">Queda Tolerada (%)</label>
-            <input type="number" id="advProfitLockDrop" class="form-input" value="30.0" step="1">
+            <input type="number" id="advProfitLockDrop" class="form-input" value="30.0" step="1" style="width:100%; box-sizing:border-box;">
           </div>
+        </div>
         </div>
       </div>
 
       <!-- SEÇÃO ESTRATÉGIA DE FECHO -->
-      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
-        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Estratégia de Fecho</h4>
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02); margin-top: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+          Estratégia de Fecho
+          <label class="switch">
+            <input type="checkbox" id="advUseTimeLimit" onchange="toggleModule('advUseTimeLimit', 'exitContainer')">
+            <span class="slider"></span>
+          </label>
+        </h4>
+        <div id="exitContainer" style="display: none;">
         
         <div style="margin-bottom: 10px;">
           <select id="advExitMode" class="form-input" style="font-size:0.8rem;" onchange="toggleExitStrategyFields()">
@@ -5718,18 +5769,26 @@ setTimeout(loadAdvancedConfig, 1500);
         <div id="timeLimitOptions" style="display: none; flex-direction: column; gap: 10px;">
           <div>
             <label class="form-label" style="font-size:0.75rem;">Limite no Lucro (Segundos)</label>
-            <input type="number" id="advHoldSeconds" class="form-input" value="180" step="1">
+            <input type="number" id="advHoldSeconds" class="form-input" value="180" step="1" style="width:100%; box-sizing:border-box;">
           </div>
           <div>
             <label class="form-label" style="font-size:0.75rem;">Limite na Perda (Segundos)</label>
-            <input type="number" id="advNegativeHoldSeconds" class="form-input" value="120" step="1">
+            <input type="number" id="advNegativeHoldSeconds" class="form-input" value="120" step="1" style="width:100%; box-sizing:border-box;">
           </div>
+        </div>
         </div>
       </div>
       
       <!-- SEÇÃO GLOBAL EQUITY STOP -->
-      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02);">
-        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem;">Global Equity Stop</h4>
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02); margin-top: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+          Global Equity Stop
+          <label class="switch">
+            <input type="checkbox" id="advUseGlobalEquity" onchange="toggleModule('advUseGlobalEquity', 'equityContainer')">
+            <span class="slider"></span>
+          </label>
+        </h4>
+        <div id="equityContainer" style="display: none;">
         <p style="font-size:0.75rem; color:#888; margin-bottom: 10px; line-height:1.4;">Ativa um Trailing Stop baseado na Equity Total da conta.</p>
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1; min-width: 0;">
@@ -5741,8 +5800,31 @@ setTimeout(loadAdvancedConfig, 1500);
             <input type="number" id="advEquityDropPct" class="form-input" value="0.5" step="0.1" style="width: 100%; box-sizing: border-box;">
           </div>
         </div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO LOSS PROTECTOR -->
+      <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255,255,255,0.02); margin-top: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: var(--accent); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>Loss Protector Individual <span style="font-size: 0.7rem; color: #f44336; margin-left: 5px;">(NOVO)</span></span>
+          <label class="switch">
+            <input type="checkbox" id="advUseLossProtector" onchange="toggleModule('advUseLossProtector', 'lossProtectorContainer')">
+            <span class="slider"></span>
+          </label>
+        </h4>
+        <div id="lossProtectorContainer" style="display: none; flex-direction: column; gap: 10px;">
+          <p style="font-size:0.75rem; color:#888; margin-bottom: 0px; line-height:1.4;">Corta as ordens no negativo baseando-se numa % do lucro diário realizado (Se o lucro for $0, desativa para ganhar tração).</p>
+          <div>
+            <label class="form-label" style="font-size:0.75rem;">Perda Máx. (% do Lucro)</label>
+            <input type="number" id="advLossProtectorPct" class="form-input" value="20.0" step="1" style="width: 100%; box-sizing: border-box;">
+          </div>
+        </div>
       </div>
       <script>
+        function toggleModule(checkboxId, containerId) {
+          const isChecked = document.getElementById(checkboxId).checked;
+          document.getElementById(containerId).style.display = isChecked ? "block" : "none";
+        }
         function toggleProfitLockFields() {
           const mode = document.getElementById("advRunnerMode").value;
           const container = document.getElementById("profitLockOptions");
