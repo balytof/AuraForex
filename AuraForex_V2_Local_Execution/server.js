@@ -2590,6 +2590,7 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
       equityDropPct: settings.equityDropPct,
       useLossProtector: settings.useLossProtector,
       lossProtectorPct: settings.lossProtectorPct,
+      lossProtectorAbs: settings.lossProtectorAbs,
       useGlobalEquity: settings.useGlobalEquity,
       useProfitLock: settings.useProfitLock,
       profitLockType: settings.profitLockType
@@ -2602,7 +2603,7 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
 // POST /api/user/advanced-settings
 app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
   console.log("[ADV_SETTINGS_POST_DEBUG] req.body:", req.body);
-  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds, equityActivationPct, equityDropPct, useLossProtector, lossProtectorPct, useGlobalEquity, useProfitLock, profitLockType } = req.body;
+  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds, equityActivationPct, equityDropPct, useLossProtector, lossProtectorPct, lossProtectorAbs, useGlobalEquity, useProfitLock, profitLockType } = req.body;
   try {
     const data = {};
     if (emaMode !== undefined) data.emaMode = emaMode;
@@ -2618,6 +2619,7 @@ app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
     if (equityDropPct !== undefined && equityDropPct !== "") data.equityDropPct = parseFloat(equityDropPct);
     if (useLossProtector !== undefined) data.useLossProtector = useLossProtector;
     if (lossProtectorPct !== undefined && lossProtectorPct !== "") data.lossProtectorPct = parseFloat(lossProtectorPct);
+    if (lossProtectorAbs !== undefined && lossProtectorAbs !== "") data.lossProtectorAbs = parseFloat(lossProtectorAbs);
     if (useGlobalEquity !== undefined) data.useGlobalEquity = useGlobalEquity;
     if (useProfitLock !== undefined) data.useProfitLock = useProfitLock;
     if (profitLockType !== undefined) data.profitLockType = profitLockType;

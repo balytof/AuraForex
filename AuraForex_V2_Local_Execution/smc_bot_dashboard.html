@@ -5597,6 +5597,7 @@ function saveAdvancedConfig() {
     equityDropPct: document.getElementById("advEquityDropPct").value,
     useLossProtector: document.getElementById("advUseLossProtector").checked,
     lossProtectorPct: document.getElementById("advLossProtectorPct").value,
+    lossProtectorAbs: document.getElementById("advLossProtectorAbs").value,
     useGlobalEquity: document.getElementById("advUseGlobalEquity").checked,
     useProfitLock: document.getElementById("advUseProfitLock").checked,
     useTimeLimit: document.getElementById("advUseTimeLimit").checked
@@ -5642,6 +5643,7 @@ function loadAdvancedConfig() {
       const uLP = res.useLossProtector !== undefined ? res.useLossProtector : false;
       document.getElementById("advUseLossProtector").checked = uLP;
       document.getElementById("advLossProtectorPct").value = res.lossProtectorPct !== undefined ? res.lossProtectorPct : 20.0;
+      document.getElementById("advLossProtectorAbs").value = res.lossProtectorAbs !== undefined ? res.lossProtectorAbs : 0.0;
       
       const uGE = res.useGlobalEquity !== undefined ? res.useGlobalEquity : true;
       document.getElementById("advUseGlobalEquity").checked = uGE;
@@ -5733,12 +5735,18 @@ setTimeout(loadAdvancedConfig, 1500);
         </div>
 
         <div id="profitLockOptions" style="display: none; flex-direction: column; gap: 10px;">
-          <div>
-            <label class="form-label" style="font-size:0.75rem;">Tipo de Ativação</label>
-            <select id="advProfitLockType" class="form-input" style="font-size:0.8rem;">
-              <option value="usd">Dólares ($)</option>
-              <option value="pct">Percentagem (%)</option>
-            </select>
+          <div style="display: flex; gap: 10px;">
+            <div style="flex: 1; min-width: 0;">
+              <label class="form-label" style="font-size:0.75rem;">Ativação (Valor)</label>
+              <input type="number" id="advProfitLockMin" class="form-input" value="10.0" step="0.1" style="width:100%; box-sizing:border-box;">
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <label class="form-label" style="font-size:0.75rem;">Tipo de Ativação</label>
+              <select id="advProfitLockType" class="form-input" style="font-size:0.8rem; width:100%; box-sizing:border-box;">
+                <option value="usd">Dólares ($)</option>
+                <option value="pct">Percentagem (%)</option>
+              </select>
+            </div>
           </div>
           <div>
             <label class="form-label" style="font-size:0.75rem;">Queda Tolerada (%)</label>
@@ -5815,8 +5823,12 @@ setTimeout(loadAdvancedConfig, 1500);
         <div id="lossProtectorContainer" style="display: none; flex-direction: column; gap: 10px;">
           <p style="font-size:0.75rem; color:#888; margin-bottom: 0px; line-height:1.4;">Corta as ordens no negativo baseando-se numa % do lucro diário realizado (Se o lucro for $0, desativa para ganhar tração).</p>
           <div>
-            <label class="form-label" style="font-size:0.75rem;">Perda Máx. (% do Lucro)</label>
+            <label class="form-label" style="font-size:0.75rem;">Perda Máx. (% do Lucro Diário)</label>
             <input type="number" id="advLossProtectorPct" class="form-input" value="20.0" step="1" style="width: 100%; box-sizing: border-box;">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:0.75rem;" title="Limite rígido em valor monetário caso o lucro diário seja 0 ou negativo">Perda Máx. Absoluta ($)</label>
+            <input type="number" id="advLossProtectorAbs" class="form-input" value="0.0" step="1" style="width: 100%; box-sizing: border-box;">
           </div>
         </div>
       </div>

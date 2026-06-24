@@ -225,6 +225,7 @@ model UserSettings {
   // Loss Protector
   useLossProtector      Boolean  @default(false)
   lossProtectorPct      Float    @default(0)
+  lossProtectorAbs      Float    @default(0)
   
   // Smart Profit Lock
   useProfitLock         Boolean  @default(true)

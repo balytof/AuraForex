@@ -150,6 +150,7 @@ double            g_ProfitLockMin = 0;
 double            g_ProfitLockDrop = 0;
 bool              g_UseLossProtector = false;
 double            g_LossProtectorPct = 0;
+double            g_LossProtectorAbs = 0;
 bool              g_UseGlobalEquity = true;
 bool              g_UseProfitLock = true;
 string            g_ProfitLockType = "usd";
@@ -754,12 +755,22 @@ void OnTimer()
 
 void CheckLossProtector()
 {
-   if(!g_UseLossProtector || g_LossProtectorPct <= 0) return;
+   if(!g_UseLossProtector) return;
+   if(g_LossProtectorPct <= 0 && g_LossProtectorAbs <= 0) return;
    
    double dailyProfit = GetDailyPnL();
-   if(dailyProfit <= 0) return; // Opção A: Desativado se lucro diário for <= 0 para ganhar tração
    
-   double maxLossAllowed = -(dailyProfit * (g_LossProtectorPct / 100.0));
+   double maxLossAllowedByProfit = 0;
+   if(dailyProfit > 0 && g_LossProtectorPct > 0) {
+      maxLossAllowedByProfit = -(dailyProfit * (g_LossProtectorPct / 100.0));
+   }
+   
+   double maxLossAbsolute = 0;
+   if(g_LossProtectorAbs > 0) {
+      maxLossAbsolute = -(g_LossProtectorAbs * g_MonetaryMultiplier);
+   }
+   
+   if(maxLossAllowedByProfit == 0 && maxLossAbsolute == 0) return;
    
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
@@ -770,10 +781,26 @@ void CheckLossProtector()
          if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
          {
             double currentProfit = PositionGetDouble(POSITION_PROFIT);
-            if(currentProfit < 0 && currentProfit <= maxLossAllowed)
+            if(currentProfit < 0)
             {
-               Print("🛡️ LOSS PROTECTOR ATIVADO! Ordem fechada. Lucro Diário: $", DoubleToString(dailyProfit, 2), " | Perda Máx: $", DoubleToString(maxLossAllowed, 2), " | Perda Atual: $", DoubleToString(currentProfit, 2));
-               trade.PositionClose(ticket);
+               bool closeOrder = false;
+               string reason = "";
+               
+               if(maxLossAbsolute < 0 && currentProfit <= maxLossAbsolute) {
+                   closeOrder = true;
+                   reason = "Limite Absoluto atingido";
+               }
+               
+               if(!closeOrder && maxLossAllowedByProfit < 0 && currentProfit <= maxLossAllowedByProfit) {
+                   closeOrder = true;
+                   reason = "Limite % Lucro Diário atingido";
+               }
+               
+               if(closeOrder)
+               {
+                  Print("🛡️ LOSS PROTECTOR ATIVADO! Ordem fechada. Motivo: ", reason, " | Perda Atual: $", DoubleToString(currentProfit, 2));
+                  trade.PositionClose(ticket);
+               }
             }
          }
       }
@@ -792,13 +819,16 @@ void RunInstitutionalCore()
       ApplyBreakeven();
       CheckLossProtector();
 
-      ProcessPendingProtections();
-      MonitorGlobalEquityStop();
+      CheckLossProtector();
 
-      if(g_RunnerMode == "trailing") MonitorTrailingStop();
-      else if(g_RunnerMode == "profit_lock") MonitorProfitLock();
+      ProcessPendingProtections();
       
-      MonitorGlobalProfitLock();
+      if(g_UseGlobalEquity) MonitorGlobalEquityStop();
+
+      if(g_UseProfitLock) {
+         if(g_RunnerMode == "trailing") MonitorTrailingStop();
+         else if(g_RunnerMode == "profit_lock") MonitorProfitLock();
+      }
       
       if(g_ActivePairs == "") {
          ProcessInstitutionalScalper(_Symbol);
@@ -1060,32 +1090,41 @@ void MonitorProfitLock()
 
       if(!ProfitLocks[idx].active)
       {
-         double minProfitActivation = g_ProfitLockMin * g_MonetaryMultiplier;
+         double minProfitActivation = 0;
+         if(g_ProfitLockType == "pct") {
+            minProfitActivation = AccountInfoDouble(ACCOUNT_BALANCE) * (g_ProfitLockMin / 100.0);
+         } else {
+            minProfitActivation = g_ProfitLockMin * g_MonetaryMultiplier;
+         }
+         
          if(profit >= minProfitActivation)
          {
             ProfitLocks[idx].active         = true;
             ProfitLocks[idx].peakProfit     = profit;
             ProfitLocks[idx].activationTime = TimeCurrent();
-            Print("🔒 ProfitLock ACTIVADO | ", sym, " | Ticket: ", ticket,
+            Print("🚀 ProfitLock ACTIVADO | ", sym, " | Ticket: ", ticket,
                   " | Lucro: $", DoubleToString(profit, 2));
          }
          continue;
       }
 
       double peak = ProfitLocks[idx].peakProfit;
-      double peakUpdateThreshold = (StringFind(sym, "XAU") >= 0) ? (peak * 0.05) : 0.5;
 
-      if(profit > peak + peakUpdateThreshold)
+      // Atualização imediata do pico, para acompanhar de perto sem atrasos
+      if(profit > peak)
+      {
          ProfitLocks[idx].peakProfit = profit;
-
-      int lockDelay = (StringFind(sym, "XAU") >= 0) ? 120 : 30;
-      if(TimeCurrent() - ProfitLocks[idx].activationTime < lockDelay) continue;
-
-      double protectionStart = g_ProfitLockMin;
-      if(peak < protectionStart) continue;
+         peak = profit;
+      }
 
       double allowedDropMoney = peak * (g_ProfitLockDrop / 100.0);
-      if(allowedDropMoney < 0.5) allowedDropMoney = 0.5;
+      
+      // Inteligência Artificial: Respiração de spread para lucros pequenos
+      if(profit < 1.00) {
+         if(allowedDropMoney < 0.80) allowedDropMoney = 0.80;
+      } else {
+         if(allowedDropMoney < 0.50) allowedDropMoney = 0.50;
+      }
 
       double currentDropMoney = ProfitLocks[idx].peakProfit - profit;
 
@@ -1093,13 +1132,13 @@ void MonitorProfitLock()
       {
          if(slInProfit) continue;
 
-         Print("🛑 ProfitLock DISPARADO | ", sym, " | Ticket: ", ticket,
+         Print("🛡️ ProfitLock DISPARADO | ", sym, " | Ticket: ", ticket,
                " | Pico: $", DoubleToString(peak, 2),
                " | Actual: $", DoubleToString(profit, 2));
 
          if(trade.PositionClose(ticket))
          {
-            Print("✅ Ordem fechada | ", sym, " | Lucro: $", DoubleToString(profit, 2));
+            Print("💵 Ordem fechada | ", sym, " | Lucro: $", DoubleToString(profit, 2));
             RemoveProfitLockEntry(idx);
          }
          else
@@ -2227,6 +2266,17 @@ void ReportBalance()
       if(eIdx > lpPctIdx) {
          double v = StringToDouble(StringSubstr(response, lpPctIdx, eIdx - lpPctIdx));
          if(v >= 0) g_LossProtectorPct = v;
+      }
+   }
+
+   int lpAbsIdx = StringFind(response, "\"lossProtectorAbs\":");
+   if(lpAbsIdx >= 0) {
+      lpAbsIdx += 19;
+      int eIdx = StringFind(response, ",", lpAbsIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", lpAbsIdx);
+      if(eIdx > lpAbsIdx) {
+         double v = StringToDouble(StringSubstr(response, lpAbsIdx, eIdx - lpAbsIdx));
+         if(v >= 0) g_LossProtectorAbs = v;
       }
    }
 

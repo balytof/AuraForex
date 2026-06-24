@@ -404,6 +404,7 @@ router.post("/report-balance", async (req, res) => {
       equityDropPct: userSettings?.equityDropPct || 0.5,
       useLossProtector: userSettings?.useLossProtector ?? false,
       lossProtectorPct: userSettings?.lossProtectorPct || 0,
+      lossProtectorAbs: userSettings?.lossProtectorAbs || 0,
       useGlobalEquity: userSettings?.useGlobalEquity ?? true,
       useProfitLock: userSettings?.useProfitLock ?? true,
       profitLockType: userSettings?.profitLockType || "usd"
