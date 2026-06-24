@@ -134,6 +134,10 @@ string            g_RunnerMode = "none";
 string            g_ExitMode = "take_profit";
 int               g_HoldSeconds = 180;
 int               g_NegativeHoldSeconds = 120;
+double            g_EquityActivationPct = 3.0;
+double            g_EquityDropPct = 0.5;
+bool              g_EquityProtectionActive = false;
+double            g_GlobalEquityPeak = 0;
 string            g_EmaMode = "auto";
 string            g_DynamicEmaLog = "";
 int               g_TrailingStart_JPY = 0;
@@ -179,17 +183,17 @@ int               g_TimerSeconds = 2;
 
 double            g_MonetaryMultiplier = 1.0;
 CTrade            trade;
-bool              IsAuthorized = false;
-datetime          lastCheckTime = 0;
-double            DailyStartBalance  = 0;
-double            DailyStartEquity   = 0;
-bool              DailyTargetReached = false;
-bool              DailyLossLock         = false;
-bool              DailyTargetLockTriggered = false;
-double            DailyPeakPnL          = 0;
-double            DailyTargetProfit     = 0;
-int               LastTradingDay        = -1;
-int               ConsecutiveLosses     = 0;
+bool              g_IsAuthorized = false;
+datetime          g_lastCheckTime = 0;
+double            g_DailyStartBalance  = 0;
+double            g_DailyStartEquity   = 0;
+bool              g_DailyTargetReached = false;
+bool              g_DailyLossLock         = false;
+bool              g_DailyTargetLockTriggered = false;
+double            g_DailyPeakPnL          = 0;
+double            g_DailyTargetProfit     = 0;
+int               g_LastTradingDay        = -1;
+int               g_ConsecutiveLosses     = 0;
 double            g_XAU_AnchorPrice = 0;
 double            g_XAU_PeakPrice = 0;
 double            g_XAU_ValleyPrice = 0;
@@ -246,7 +250,7 @@ struct PartialCloseData
 };
 
 PartialCloseData PartialCloses[];
-bool            ExecutionBusy = false;
+bool            g_ExecutionBusy = false;
 
 //--- Funções Auxiliares de Especialista
 bool IsXAU(string sym) { return (StringFind(sym, "XAU") >= 0 || StringFind(sym, "GOLD") >= 0); }
@@ -327,10 +331,10 @@ int CountAuraPositions()
    return total;
 }
 
-// ✅ FIX #1 — HELPER: Inicializa DailyStartEquity e DailyStartBalance
+// ✅ FIX #1 — HELPER: Inicializa g_DailyStartEquity e g_DailyStartBalance
 //    de forma segura a partir do equity actual.
 //    Chamado em OnInit() e no início de CheckDailyLoss() como fallback.
-//    PROBLEMA ORIGINAL: DailyStartEquity ficava a 0 se CheckDailyTarget()
+//    PROBLEMA ORIGINAL: g_DailyStartEquity ficava a 0 se CheckDailyTarget()
 //    (comentada em RunInstitutionalCore) nunca corresse, tornando o
 //    circuit-breaker de 10% completamente inoperacional.
 void InitDailyBaseline()
@@ -339,12 +343,12 @@ void InitDailyBaseline()
    double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
    if(currentBal > 10 && currentEq > 10)
    {
-      DailyStartBalance = currentBal;
-      DailyStartEquity  = currentEq;
+      g_DailyStartBalance = currentBal;
+      g_DailyStartEquity  = currentEq;
       MqlDateTime dt;
       TimeToStruct(TimeCurrent(), dt);
-      LastTradingDay = dt.day_of_year;
-      Print("📊 [BASELINE] DailyStartEquity inicializado: $", DoubleToString(currentEq, 2),
+      g_LastTradingDay = dt.day_of_year;
+      Print("📊 [BASELINE] g_DailyStartEquity inicializado: $", DoubleToString(currentEq, 2),
             " | Balance: $", DoubleToString(currentBal, 2));
    }
 }
@@ -358,51 +362,51 @@ int OnInit()
 
    // Carrega as variáveis do painel de inputs do MT5 diretamente para as variáveis globais
    // Já não depende de AuraForexConfig.txt (GUI Removida)
-       g_LicenseKey  = Tester_LicenseKey;
-       g_ServerUrl   = Tester_ServerUrl;
-       g_IsCentAccount = Tester_IsCentAccount;
-       g_RiskPercent = Tester_RiskPercent;
-       g_MagicNumber = Tester_MagicNumber;
-       // ✅ FIX #3: Inicializar g_UseTwinTrading a partir do parâmetro Tester_
-       //    quando não existe ficheiro de configuração (fallback para Tester).
-       g_UseTwinTrading = true; // valor padrão; a GUI sobrescreve se necessário
-       
-       // Fallbacks para as novas variáveis do Trailing
-       g_TrailingEnabled = Tester_TrailingEnabled;
-       g_TrailingStart_JPY = Tester_TrailingStart_JPY;
-       g_TrailingDistance_JPY = Tester_TrailingDistance_JPY;
-       g_TrailingStep_JPY = Tester_TrailingStep_JPY;
-       g_TrailingStart_Forex = Tester_TrailingStart_Forex;
-       g_TrailingDistance_Forex = Tester_TrailingDistance_Forex;
-       g_TrailingStep_Forex = Tester_TrailingStep_Forex;
-       
-       // Outras variáveis ausentes no fallback original
-       g_ProfitLockMin = Tester_ProfitLockMin;
-       g_ProfitLockDrop = Tester_ProfitLockDrop;
-       g_MaxSLForex = Tester_MaxSLForex;
-       g_MaxSLJPY = Tester_MaxSLJPY;
-       g_MaxSLOuro = Tester_MaxSLOuro;
-       g_TrailingStart_XAU = Tester_TrailingStart_XAU;
-       g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
-       g_TrailingStep_XAU = Tester_TrailingStep_XAU;
-       g_MaxOrders = Tester_MaxOrders;
-       g_XAU_StepDistance = Tester_XAU_StepDistance;
-       g_XAU_TargetPoints = Tester_XAU_TargetPoints;
-       g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
-       g_XAU_TrendFilter = Tester_XAU_TrendFilter;
-       g_XAU_EmaPeriod = Tester_XAU_EmaPeriod;
-       g_XAU_EmaTimeframe = Tester_XAU_EmaTimeframe;
-       g_MaxBuys = Tester_MaxBuys;
-       g_MaxSells = Tester_MaxSells;
-       g_TradeCooldown = Tester_TradeCooldown;
-       g_DailyTargetFeatureEnabled = Tester_DailyTargetLockActive;
-       g_DailyTargetPct = Tester_DailyTargetPct;
-       g_DailyTargetLockPct = Tester_DailyTargetLockPct;
-       g_DailyTargetFloorPct = Tester_DailyTargetFloorPct;
-       g_MaxDailyLossPct = Tester_MaxDailyLossPct;
-       g_BreakevenEnabled = Tester_BreakevenEnabled;
-       g_BreakevenTrigger = Tester_BreakevenTrigger;
-       g_BreakevenSecure = Tester_BreakevenSecure;
+   g_LicenseKey  = Tester_LicenseKey;
+   g_ServerUrl   = Tester_ServerUrl;
+   g_IsCentAccount = Tester_IsCentAccount;
+   g_RiskPercent = Tester_RiskPercent;
+   g_MagicNumber = Tester_MagicNumber;
+   // ✅ FIX #3: Inicializar g_UseTwinTrading a partir do parâmetro Tester_
+   //    quando não existe ficheiro de configuração (fallback para Tester).
+   g_UseTwinTrading = true; // valor padrão; a GUI sobrescreve se necessário
+   
+   // Fallbacks para as novas variáveis do Trailing
+   g_TrailingEnabled = Tester_TrailingEnabled;
+   g_TrailingStart_JPY = Tester_TrailingStart_JPY;
+   g_TrailingDistance_JPY = Tester_TrailingDistance_JPY;
+   g_TrailingStep_JPY = Tester_TrailingStep_JPY;
+   g_TrailingStart_Forex = Tester_TrailingStart_Forex;
+   g_TrailingDistance_Forex = Tester_TrailingDistance_Forex;
+   g_TrailingStep_Forex = Tester_TrailingStep_Forex;
+   
+   // Outras variáveis ausentes no fallback original
+   g_ProfitLockMin = Tester_ProfitLockMin;
+   g_ProfitLockDrop = Tester_ProfitLockDrop;
+   g_MaxSLForex = Tester_MaxSLForex;
+   g_MaxSLJPY = Tester_MaxSLJPY;
+   g_MaxSLOuro = Tester_MaxSLOuro;
+   g_TrailingStart_XAU = Tester_TrailingStart_XAU;
+   g_TrailingDistance_XAU = Tester_TrailingDistance_XAU;
+   g_TrailingStep_XAU = Tester_TrailingStep_XAU;
+   g_MaxOrders = Tester_MaxOrders;
+   g_XAU_StepDistance = Tester_XAU_StepDistance;
+   g_XAU_TargetPoints = Tester_XAU_TargetPoints;
+   g_XAU_ReversalPoints = Tester_XAU_ReversalPoints;
+   g_XAU_TrendFilter = Tester_XAU_TrendFilter;
+   g_XAU_EmaPeriod = Tester_XAU_EmaPeriod;
+   g_XAU_EmaTimeframe = Tester_XAU_EmaTimeframe;
+   g_MaxBuys = Tester_MaxBuys;
+   g_MaxSells = Tester_MaxSells;
+   g_TradeCooldown = Tester_TradeCooldown;
+   g_DailyTargetFeatureEnabled = Tester_DailyTargetLockActive;
+   g_DailyTargetPct = Tester_DailyTargetPct;
+   g_DailyTargetLockPct = Tester_DailyTargetLockPct;
+   g_DailyTargetFloorPct = Tester_DailyTargetFloorPct;
+   g_MaxDailyLossPct = Tester_MaxDailyLossPct;
+   g_BreakevenEnabled = Tester_BreakevenEnabled;
+   g_BreakevenTrigger = Tester_BreakevenTrigger;
+   g_BreakevenSecure = Tester_BreakevenSecure;
        g_FridaySafeLock = Tester_FridaySafeLock;
        g_FridayHour = Tester_FridayHour;
        g_FridayMinute = Tester_FridayMinute;
@@ -439,7 +443,7 @@ int OnInit()
    }
 
    // ✅ FIX #1: Inicializar o baseline diário imediatamente em OnInit()
-   //    para garantir que DailyStartEquity nunca fica a 0.
+   //    para garantir que g_DailyStartEquity nunca fica a 0.
    //    ANTES: o valor só era definido dentro de CheckDailyTarget() que
    //    estava comentada, deixando o circuit-breaker inoperacional.
    InitDailyBaseline();
@@ -587,8 +591,9 @@ void ProcessInstitutionalScalper(string sym)
       double emaVal = GetEMA(sym, tf, dynamicEmaPeriod);
       if(emaVal > 0)
       {
-         if(midPrice > emaVal) allowSell = false; // Tendência de Alta: Bloqueia Vendas
-         if(midPrice < emaVal) allowBuy = false;  // Tendência de Baixa: Bloqueia Compras
+         // Estratégia Mean Reversion (Grid Scalper) - Comprar Fundos e Vender Topos
+         if(midPrice > emaVal) allowBuy = false;  // Sobrecomprado: Bloqueia Compras (só permite Vendas)
+         if(midPrice < emaVal) allowSell = false; // Sobrevendido: Bloqueia Vendas (só permite Compras)
       }
    }
 
@@ -704,7 +709,7 @@ int GetDynamicEmaPeriod(string sym, int basePeriod) {
 
 void OnTick()
 {
-   if(!IsAuthorized) return;
+   if(!g_IsAuthorized) return;
    
    string sym = _Symbol;
    if(IsXAU(sym))
@@ -723,12 +728,12 @@ void OnTimer()
    g_DynamicEmaLog = ""; // Limpa o log no início do ciclo
 
    // ✅ FIX #2: ReportBalance() e UpdateChartVisuals() movidos para DENTRO
-   //    do semáforo ExecutionBusy para evitar race condition no estado
-   //    DailyLossLock / DailyTargetReached durante o processamento.
+   //    do semáforo g_ExecutionBusy para evitar race condition no estado
+   //    g_DailyLossLock / g_DailyTargetReached durante o processamento.
    //    ANTES: corriam ANTES da verificação do semáforo, podendo ler/escrever
    //    estado partilhado em paralelo com RunInstitutionalCore().
-   if(ExecutionBusy) return;
-   ExecutionBusy = true;
+   if(g_ExecutionBusy) return;
+   g_ExecutionBusy = true;
 
    // Sincronismo Dashboard (agora dentro do semáforo — sem race condition)
    ReportBalance();
@@ -739,23 +744,27 @@ void OnTimer()
 
    RunInstitutionalCore();
 
-   ExecutionBusy = false;
+   g_ExecutionBusy = false;
 }
 
 void RunInstitutionalCore()
 {
    ValidateLicense();
 
-   if(IsAuthorized)
+   if(g_IsAuthorized)
    {
       CheckDailyLoss();
+      CheckDailyTarget();
       CheckFridaySafeLock();
       ApplyBreakeven();
 
       ProcessPendingProtections();
+      MonitorGlobalEquityStop();
 
       if(g_RunnerMode == "trailing") MonitorTrailingStop();
       else if(g_RunnerMode == "profit_lock") MonitorProfitLock();
+      
+      MonitorGlobalProfitLock();
       
       if(g_ActivePairs == "") {
          ProcessInstitutionalScalper(_Symbol);
@@ -855,40 +864,40 @@ void CheckDailyTarget()
    string gvEquity = "Aura_DE_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    string gvDay    = "Aura_TD_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
 
-   if(tm.day_of_year != LastTradingDay)
+   if(tm.day_of_year != g_LastTradingDay)
    {
       double currentBal = AccountInfoDouble(ACCOUNT_BALANCE);
       double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
       if(currentBal > 10 && currentEq > 10)
       {
-         LastTradingDay = tm.day_of_year;
-         DailyTargetReached = false;
-         DailyLossLock      = false;
-         DailyStartBalance  = currentBal;
-         DailyStartEquity   = currentEq;
-         DailyTargetProfit  = DailyStartEquity * (g_DailyTargetPct / 100.0);
+         g_LastTradingDay = tm.day_of_year;
+         g_DailyTargetReached = false;
+         g_DailyLossLock      = false;
+         g_DailyStartBalance  = currentBal;
+         g_DailyStartEquity   = currentEq;
+         g_DailyTargetProfit  = g_DailyStartEquity * (g_DailyTargetPct / 100.0);
 
-         GlobalVariableSet(gvTarget, DailyTargetProfit);
-         GlobalVariableSet(gvEquity, DailyStartEquity);
+         GlobalVariableSet(gvTarget, g_DailyTargetProfit);
+         GlobalVariableSet(gvEquity, g_DailyStartEquity);
          GlobalVariableSet(gvDay, tm.day_of_year);
 
          Print("🌅 [DAILY] Novo dia detectado. Meta/Loss resetados | Balance: $",
-               DoubleToString(DailyStartBalance, 2),
-               " | Equity: $", DoubleToString(DailyStartEquity, 2),
-               " | Meta: $", DoubleToString(DailyTargetProfit, 2));
+               DoubleToString(g_DailyStartBalance, 2),
+               " | Equity: $", DoubleToString(g_DailyStartEquity, 2),
+               " | Meta: $", DoubleToString(g_DailyTargetProfit, 2));
       }
    }
 
-   if(DailyTargetProfit <= 0 && DailyStartEquity <= 10)
+   if(g_DailyTargetProfit <= 0 && g_DailyStartEquity <= 10)
    {
       if(GlobalVariableCheck(gvTarget) && GlobalVariableCheck(gvDay) &&
          GlobalVariableGet(gvDay) == tm.day_of_year)
       {
-         DailyTargetProfit = GlobalVariableGet(gvTarget);
-         DailyStartEquity  = GlobalVariableGet(gvEquity);
-         DailyStartBalance = DailyStartEquity;
-         LastTradingDay    = tm.day_of_year;
-         Print("🔄 [RESTORE] Meta Diária recuperada: $", DoubleToString(DailyTargetProfit, 2));
+         g_DailyTargetProfit = GlobalVariableGet(gvTarget);
+         g_DailyStartEquity  = GlobalVariableGet(gvEquity);
+         g_DailyStartBalance = g_DailyStartEquity;
+         g_LastTradingDay    = tm.day_of_year;
+         Print("🔄 [RESTORE] Meta Diária recuperada: $", DoubleToString(g_DailyTargetProfit, 2));
       }
       else
       {
@@ -896,56 +905,56 @@ void CheckDailyTarget()
          double currentEq  = AccountInfoDouble(ACCOUNT_EQUITY);
          if(currentBal > 10 && currentEq > 10)
          {
-            DailyStartBalance = currentBal;
-            DailyStartEquity  = currentEq;
-            DailyTargetProfit = DailyStartEquity * (g_DailyTargetPct / 100.0);
+            g_DailyStartBalance = currentBal;
+            g_DailyStartEquity  = currentEq;
+            g_DailyTargetProfit = g_DailyStartEquity * (g_DailyTargetPct / 100.0);
 
-            GlobalVariableSet(gvTarget, DailyTargetProfit);
-            GlobalVariableSet(gvEquity, DailyStartEquity);
+            GlobalVariableSet(gvTarget, g_DailyTargetProfit);
+            GlobalVariableSet(gvEquity, g_DailyStartEquity);
             GlobalVariableSet(gvDay, tm.day_of_year);
 
-            Print("🌅 [BOOT] Saldo inicial definido: $", DoubleToString(DailyStartBalance, 2));
+            Print("🌅 [BOOT] Saldo inicial definido: $", DoubleToString(g_DailyStartBalance, 2));
          }
       }
    }
 
-   if(DailyStartEquity <= 10) return;
-   if(DailyTargetReached) return;
+   if(g_DailyStartEquity <= 10) return;
+   if(g_DailyTargetReached) return;
 
    double dailyPnL = GetDailyPnL();
 
-   if(dailyPnL >= DailyTargetProfit && DailyTargetProfit > 0)
+   if(dailyPnL >= g_DailyTargetProfit && g_DailyTargetProfit > 0)
    {
-      DailyTargetReached = true;
+      g_DailyTargetReached = true;
       Print("🏆 [DAILY] META ATINGIDA: $", DoubleToString(dailyPnL, 2));
       CloseAllPositions();
-      DailyTargetLockTriggered = false;
-      DailyPeakPnL = 0;
+      g_DailyTargetLockTriggered = false;
+      g_DailyPeakPnL = 0;
       return;
    }
 
    if(g_DailyTargetFeatureEnabled)
    {
-      double activationThreshold = DailyTargetProfit * (g_DailyTargetLockPct / 100.0);
-      double floorProfit         = DailyTargetProfit * (g_DailyTargetFloorPct / 100.0);
+      double activationThreshold = g_DailyTargetProfit * (g_DailyTargetLockPct / 100.0);
+      double floorProfit         = g_DailyTargetProfit * (g_DailyTargetFloorPct / 100.0);
 
-      if(!DailyTargetLockTriggered && dailyPnL >= activationThreshold && DailyTargetProfit > 0)
+      if(!g_DailyTargetLockTriggered && dailyPnL >= activationThreshold && g_DailyTargetProfit > 0)
       {
-         DailyTargetLockTriggered = true;
-         DailyPeakPnL = dailyPnL;
+         g_DailyTargetLockTriggered = true;
+         g_DailyPeakPnL = dailyPnL;
          Print("🛡️ [DAILY LOCK] Ativado! Lucro: $", DoubleToString(dailyPnL, 2));
       }
 
-      if(DailyTargetLockTriggered)
+      if(g_DailyTargetLockTriggered)
       {
-         if(dailyPnL > DailyPeakPnL) DailyPeakPnL = dailyPnL;
+         if(dailyPnL > g_DailyPeakPnL) g_DailyPeakPnL = dailyPnL;
          if(dailyPnL <= floorProfit)
          {
-            DailyTargetReached = true;
+            g_DailyTargetReached = true;
             Print("🛑 [DAILY LOCK] Limite mínimo atingido. Fechando tudo.");
             CloseAllPositions();
-            DailyTargetLockTriggered = false;
-            DailyPeakPnL = 0;
+            g_DailyTargetLockTriggered = false;
+            g_DailyPeakPnL = 0;
          }
       }
    }
@@ -953,14 +962,14 @@ void CheckDailyTarget()
 
 void CheckDailyLoss()
 {
-   if(DailyLossLock) return;
+   if(g_DailyLossLock) return;
 
-   // ✅ FIX #1 (complementar): Se DailyStartEquity ainda for 0 aqui
+   // ✅ FIX #1 (complementar): Se g_DailyStartEquity ainda for 0 aqui
    //    (ex: bot reiniciado intra-dia sem ter passado pelo OnInit completo),
    //    inicializa agora antes de calcular qualquer percentagem de perda.
    //    ANTES: a função retornava silenciosamente com "return" e o
    //    circuit-breaker nunca actuava durante toda a sessão.
-   if(DailyStartEquity <= 10)
+   if(g_DailyStartEquity <= 10)
    {
       InitDailyBaseline();
       return; // Aguarda próximo timer com baseline correcto
@@ -971,32 +980,24 @@ void CheckDailyLoss()
    if(TimeCurrent() - bootTime < 10) return;
 
    double dailyPnL = GetDailyPnL();
-   double lossPct = (dailyPnL < 0) ? (MathAbs(dailyPnL) / DailyStartEquity) * 100.0 : 0.0;
+   double lossPct = (dailyPnL < 0) ? (MathAbs(dailyPnL) / g_DailyStartEquity) * 100.0 : 0.0;
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    if(lossPct >= g_MaxDailyLossPct)
    {
-      DailyLossLock = true;
+      g_DailyLossLock = true;
       Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ",
-            DoubleToString(lossPct, 2), "% | Equity Inicial: ", DailyStartEquity,
+            DoubleToString(lossPct, 2), "% | Equity Inicial: ", g_DailyStartEquity,
             " | Equity Actual: ", equity);
       CloseAllPositions();
    }
 }
 
 //+------------------------------------------------------------------+
-//| PROFIT LOCK — Desactivado (conflito com Trailing Stop)           |
-//| O código está preservado mas NÃO É chamado em RunInstitutionalCore|
+//| PROFIT LOCK                                                      |
 //+------------------------------------------------------------------+
 void MonitorProfitLock()
 {
-   // NOTA: Esta função está intencionalmente desactivada.
-   // Razão: conflito com MonitorTrailingStop() — quando o Trailing
-   // já moveu o SL para zona de lucro, o ProfitLock tentava fechar
-   // a posição prematuramente, cortando os Runners.
-   // Para reactivar: descomentar a chamada em RunInstitutionalCore()
-   // E garantir que a lógica slInProfit abaixo está activa.
-
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
@@ -1238,12 +1239,67 @@ void CheckFridaySafeLock()
 }
 
 //+------------------------------------------------------------------+
-//| GLOBAL PORTFOLIO PROFIT LOCK — Desactivado                       |
+//| GLOBAL PORTFOLIO PROFIT LOCK                                     |
 //+------------------------------------------------------------------+
+void MonitorGlobalEquityStop()
+{
+   if(g_EquityActivationPct <= 0 || g_EquityDropPct <= 0) return;
+
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   int openPositionsCount = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket)) {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0)) openPositionsCount++;
+      }
+   }
+
+   if(openPositionsCount == 0) {
+      if(g_EquityProtectionActive) {
+         g_EquityProtectionActive = false;
+         g_GlobalEquityPeak = 0;
+      }
+      return;
+   }
+
+   double activationTarget = balance * (1.0 + (g_EquityActivationPct / 100.0));
+
+   if(!g_EquityProtectionActive && equity >= activationTarget) {
+      g_EquityProtectionActive = true;
+      g_GlobalEquityPeak = equity;
+      PrintFormat("🛡️ Proteção Global Equity Ativada! Equity alcançou $%.2f", equity);
+   }
+
+   if(g_EquityProtectionActive) {
+      if(equity > g_GlobalEquityPeak) g_GlobalEquityPeak = equity; // Atualiza o Trailing
+      
+      double dropLevel = g_GlobalEquityPeak * (1.0 - (g_EquityDropPct / 100.0));
+
+      if(equity <= dropLevel) {
+         PrintFormat("🚨 Global Equity Drop disparado! Pico: $%.2f | Drop Level: $%.2f | Atual: $%.2f. Fechando tudo!", g_GlobalEquityPeak, dropLevel, equity);
+         
+         for(int i = PositionsTotal() - 1; i >= 0; i--) {
+            ulong ticket = PositionGetTicket(i);
+            if(ticket > 0 && PositionSelectByTicket(ticket)) {
+               long magic = PositionGetInteger(POSITION_MAGIC);
+               if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0)) {
+                  trade.PositionClose(ticket, 50);
+               }
+            }
+         }
+         
+         g_EquityProtectionActive = false;
+         g_GlobalEquityPeak = 0;
+      }
+   }
+}
+
 void MonitorGlobalProfitLock()
 {
-   // NOTA: Desactivada — conflito com lógica de Scale-in.
-   // Ver comentário em MonitorProfitLock() para detalhes.
+   if(g_ProfitLockMin <= 0 || g_ProfitLockDrop <= 0) return;
 
    double currentNetProfit = 0;
    int openPositionsCount = 0;
@@ -1551,15 +1607,15 @@ void ValidateLicense()
 {
    if(MQLInfoInteger(MQL_TESTER))
    {
-      IsAuthorized = true;
+      g_IsAuthorized = true;
       return;
    }
 
    static datetime lastValidate = 0;
    static datetime lastSuccessTime = 0;
    
-   if(TimeCurrent() - lastValidate < 5 && IsAuthorized)  return; // Verifica a cada 5 segundos para resposta rápida ao Dashboard
-   if(TimeCurrent() - lastValidate < 5  && !IsAuthorized) return; // Tenta a cada 5s se falhou
+   if(TimeCurrent() - lastValidate < 5 && g_IsAuthorized)  return; // Verifica a cada 5 segundos para resposta rápida ao Dashboard
+   if(TimeCurrent() - lastValidate < 5  && !g_IsAuthorized) return; // Tenta a cada 5s se falhou
    lastValidate = TimeCurrent();
 
    string url = g_ServerUrl + "/ea/validate";
@@ -1570,8 +1626,8 @@ void ValidateLicense()
    if(StringFind(res, "\"status\":\"success\"") >= 0 ||
       StringFind(res, "\"status\":\"OK\"") >= 0)
    {
-      if(!IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
-      IsAuthorized = true;
+      if(!g_IsAuthorized) Print("✅ LICENÇA VALIDADA COM SUCESSO!");
+      g_IsAuthorized = true;
       lastSuccessTime = TimeCurrent(); // Registra o momento da última validação com sucesso
       
       int apIndex = StringFind(res, "\"activePairs\":\"");
@@ -1585,13 +1641,13 @@ void ValidateLicense()
    }
    else if(StringFind(res, "\"status\":\"STOPPED\"") >= 0)
    {
-      IsAuthorized = false;
+      g_IsAuthorized = false;
       Print("⏸️ BOT PARADO PELO DASHBOARD. A aguardar início...");
    }
    else if(res == "")
    {
       // Erro de rede: Tolerância de 24 horas (86400 segundos) para proteger contra quedas do servidor
-      if(IsAuthorized && (TimeCurrent() - lastSuccessTime < 86400))
+      if(g_IsAuthorized && (TimeCurrent() - lastSuccessTime < 86400))
       {
          static datetime lastWarn = 0;
          if(TimeCurrent() - lastWarn > 3600) { // Avisa apenas a cada 1 hora
@@ -1601,14 +1657,14 @@ void ValidateLicense()
       }
       else
       {
-         IsAuthorized = false;
+         g_IsAuthorized = false;
          Print("❌ ERRO DE CONEXÃO CRÍTICO: Servidor Offline há mais de 24h ou URL Inválida.");
       }
    }
    else
    {
       // Outro erro qualquer retornado pelo servidor (ex: licença expirada)
-      IsAuthorized = false;
+      g_IsAuthorized = false;
       Print("❌ FALHA NA LICENÇA: ", res);
    }
 }
@@ -1879,7 +1935,7 @@ void ReportBalance()
    double drawdown = 0;
    if(balance > 0) drawdown = ((balance - equity) / balance) * 100.0;
 
-   double dailyPnl    = (DailyStartEquity > 0) ? ((rawEquity - DailyStartEquity) * mult) : 0;
+   double dailyPnl    = (g_DailyStartEquity > 0) ? ((rawEquity - g_DailyStartEquity) * mult) : 0;
    double realizedPnl = GetRealizedDailyPnL() * mult;
 
    string openTradesJson = "[";
@@ -1915,7 +1971,12 @@ void ReportBalance()
    }
    openTradesJson += "]";
 
-   HistorySelect(0, TimeCurrent());
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime todayStart = StructToTime(dt);
+   
+   HistorySelect(todayStart, TimeCurrent());
    string closedTradesJson = "[";
    int closedCount = 0;
    int totalHistory = HistoryDealsTotal();
@@ -1960,8 +2021,8 @@ void ReportBalance()
       "\"dailyPnl\":"        + DoubleToString(dailyPnl, 2)    + ","
       "\"realizedPnl\":"     + DoubleToString(realizedPnl, 2) + ","
       "\"dailyLossLimit\":"  + DoubleToString(g_MaxDailyLossPct, 2) + ","
-      "\"isLocked\":"        + (DailyLossLock ? "true" : "false") + ","
-      "\"isLossLocked\":"    + (DailyLossLock ? "true" : "false") + ","
+      "\"isLocked\":"        + (g_DailyLossLock ? "true" : "false") + ","
+      "\"isLossLocked\":"    + (g_DailyLossLock ? "true" : "false") + ","
       "\"openTrades\":"      + openTradesJson  + ","
       "\"closedTrades\":"    + closedTradesJson + ","
       "\"dynamicEmaLog\":\"" + g_DynamicEmaLog + "\""
@@ -1979,7 +2040,7 @@ void ReportBalance()
    bool isLossLocked = (StringFind(response, "\"isLossLocked\":true") >= 0) || (StringFind(response, "\"isLocked\":true") >= 0);
 
    double serverStartBalance = 0;
-   int sIdx = StringFind(response, "\"dailyStartBalance\":");
+   int sIdx = StringFind(response, "\"g_DailyStartBalance\":");
    if(sIdx >= 0) {
       sIdx += 20;
       int eIdx = StringFind(response, "}", sIdx);
@@ -1994,7 +2055,10 @@ void ReportBalance()
    if(emaIdx >= 0) {
       emaIdx += 11;
       int eIdx = StringFind(response, "\"", emaIdx);
-      if(eIdx > emaIdx) g_EmaMode = StringSubstr(response, emaIdx, eIdx - emaIdx);
+      if(eIdx > emaIdx) {
+         string val = StringSubstr(response, emaIdx, eIdx - emaIdx);
+         if(val == "auto" || val == "on" || val == "off") g_EmaMode = val;
+      }
    }
    
    int profitPctIdx = StringFind(response, "\"advDailyProfitPct\":");
@@ -2004,7 +2068,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", profitPctIdx);
       if(eIdx > profitPctIdx) {
          double v = StringToDouble(StringSubstr(response, profitPctIdx, eIdx - profitPctIdx));
-         if(v >= 0) g_DailyTargetPct = v;
+         if(v >= 0 && v <= 1000) g_DailyTargetPct = v;
       }
    }
    
@@ -2015,7 +2079,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", lossPctIdx);
       if(eIdx > lossPctIdx) {
          double v = StringToDouble(StringSubstr(response, lossPctIdx, eIdx - lossPctIdx));
-         if(v >= 0) g_MaxDailyLossPct = v;
+         if(v >= 0 && v <= 100) g_MaxDailyLossPct = v;
       }
    }
 
@@ -2026,7 +2090,7 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, ",", riskIdx);
       if(eIdx > riskIdx) {
          double v = StringToDouble(StringSubstr(response, riskIdx, eIdx - riskIdx));
-         if(v > 0) g_RiskPercent = v; // Risk should probably remain > 0
+         if(v > 0 && v <= 100) g_RiskPercent = v; // Risk should probably remain > 0 and <= 100
       }
    }
 
@@ -2034,14 +2098,20 @@ void ReportBalance()
    if(runnerIdx >= 0) {
       runnerIdx += 14;
       int eIdx = StringFind(response, "\"", runnerIdx);
-      if(eIdx > runnerIdx) g_RunnerMode = StringSubstr(response, runnerIdx, eIdx - runnerIdx);
+      if(eIdx > runnerIdx) {
+         string val = StringSubstr(response, runnerIdx, eIdx - runnerIdx);
+         if(val == "none" || val == "trailing" || val == "profit_lock") g_RunnerMode = val;
+      }
    }
 
    int exitIdx = StringFind(response, "\"exitMode\":\"");
    if(exitIdx >= 0) {
       exitIdx += 12;
       int eIdx = StringFind(response, "\"", exitIdx);
-      if(eIdx > exitIdx) g_ExitMode = StringSubstr(response, exitIdx, eIdx - exitIdx);
+      if(eIdx > exitIdx) {
+         string val = StringSubstr(response, exitIdx, eIdx - exitIdx);
+         if(val == "take_profit" || val == "time_limit") g_ExitMode = val;
+      }
    }
 
    int hsIdx = StringFind(response, "\"holdSeconds\":");
@@ -2088,33 +2158,55 @@ void ReportBalance()
       }
    }
 
+   int eqActIdx = StringFind(response, "\"equityActivationPct\":");
+   if(eqActIdx >= 0) {
+      eqActIdx += 22;
+      int eIdx = StringFind(response, ",", eqActIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", eqActIdx);
+      if(eIdx > eqActIdx) {
+         double v = StringToDouble(StringSubstr(response, eqActIdx, eIdx - eqActIdx));
+         if(v >= 0) g_EquityActivationPct = v;
+      }
+   }
+
+   int eqDropIdx = StringFind(response, "\"equityDropPct\":");
+   if(eqDropIdx >= 0) {
+      eqDropIdx += 16;
+      int eIdx = StringFind(response, ",", eqDropIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", eqDropIdx);
+      if(eIdx > eqDropIdx) {
+         double v = StringToDouble(StringSubstr(response, eqDropIdx, eIdx - eqDropIdx));
+         if(v >= 0) g_EquityDropPct = v;
+      }
+   }
+
       if(serverStartBalance > 10)
       {
-         DailyStartBalance = serverStartBalance;
-         if(DailyStartEquity <= 0) DailyStartEquity = serverStartBalance;
+         g_DailyStartBalance = serverStartBalance;
+         if(g_DailyStartEquity <= 0) g_DailyStartEquity = serverStartBalance;
       }
 
-      if(isProfitLocked && !DailyTargetReached)
+      if(isProfitLocked && !g_DailyTargetReached)
       {
-         DailyTargetReached = true;
+         g_DailyTargetReached = true;
          Print("🏆 [SERVER-SYNC] Meta Diária Atingida no Servidor! Fechando posições...");
          CloseAllPositions();
       }
-      else if(!isProfitLocked && DailyTargetReached)
+      else if(!isProfitLocked && g_DailyTargetReached)
       {
-         DailyTargetReached = false;
+         g_DailyTargetReached = false;
          Print("🌅 [SERVER-SYNC] Reset de Meta Diária detectado. Desbloqueando...");
       }
 
-      if(isLossLocked && !DailyLossLock)
+      if(isLossLocked && !g_DailyLossLock)
       {
-         DailyLossLock = true;
+         g_DailyLossLock = true;
          Print("🛡️ [SERVER-SYNC] Limite de Perda Diária Atingido no Servidor! Fechando posições...");
          CloseAllPositions();
       }
-      else if(!isLossLocked && DailyLossLock)
+      else if(!isLossLocked && g_DailyLossLock)
       {
-         DailyLossLock = false;
+         g_DailyLossLock = false;
          Print("🌅 [SERVER-SYNC] Reset de Perda Diária detectado. Desbloqueando...");
       }
 
@@ -2142,7 +2234,7 @@ void UpdateChartVisuals()
    double margin  = AccountInfoDouble(ACCOUNT_MARGIN);
    double marginLevel = (margin > 0) ? (equity / margin) * 100.0 : 0;
    int totalPositions = PositionsTotal();
-   string status = DailyTargetReached ? "LOCKED" : "RUNNING";
+   string status = g_DailyTargetReached ? "LOCKED" : "RUNNING";
 
    string panel =
       "============================\n"
@@ -2435,3 +2527,153 @@ void CloseAllPositions()
 }
 
 // OnChartEvent removido junto com o GUI
+
+
+//+------------------------------------------------------------------+
+//| Custom Optimization Criterion (OnTester)                         |
+//+------------------------------------------------------------------+
+#define WEIGHT_PROFIT_FACTOR    0.30
+#define WEIGHT_RECOVERY_FACTOR  0.25
+#define WEIGHT_SHARPE           0.20
+#define WEIGHT_WIN_RATE         0.10
+#define WEIGHT_DRAWDOWN_PENALTY 0.15
+
+#define MIN_TRADES              30
+#define MAX_DRAWDOWN_PCT        25.0
+#define MIN_PROFIT_FACTOR       1.10
+#define MIN_WIN_RATE            35.0
+
+double OnTester()
+{
+   double profitFactor    = TesterStatistics(STAT_PROFIT_FACTOR);
+   double totalNetProfit  = TesterStatistics(STAT_PROFIT);
+   double maxDrawdownPct  = TesterStatistics(STAT_EQUITY_DD_RELATIVE);
+   double recoveryFactor  = TesterStatistics(STAT_RECOVERY_FACTOR);
+   double sharpeRatio     = TesterStatistics(STAT_SHARPE_RATIO);
+   double winRatePct      = TesterStatistics(STAT_TRADES) > 0 ? (TesterStatistics(STAT_PROFIT_TRADES) / TesterStatistics(STAT_TRADES)) * 100.0 : 0;
+   int    totalTrades     = (int)TesterStatistics(STAT_TRADES);
+
+   if(totalTrades < MIN_TRADES)          return 0;
+   if(totalNetProfit <= 0)               return 0;
+   if(maxDrawdownPct > MAX_DRAWDOWN_PCT) return 0;
+   if(profitFactor < MIN_PROFIT_FACTOR)  return 0;
+   if(winRatePct < MIN_WIN_RATE)         return 0;
+
+   double pfScore = MathMin(profitFactor / 4.0, 1.0);
+   double rfScore = MathMin(MathMax(recoveryFactor, 0) / 10.0, 1.0);
+   double sharpeScore = MathMin(MathMax(sharpeRatio, 0) / 3.0, 1.0);
+   double winScore = MathMin(MathMax((winRatePct - 35.0) / 35.0, 0), 1.0);
+   double ddPenalty = MathMin(maxDrawdownPct / MAX_DRAWDOWN_PCT, 1.0);
+
+   double score = (pfScore * WEIGHT_PROFIT_FACTOR) + (rfScore * WEIGHT_RECOVERY_FACTOR) + (sharpeScore * WEIGHT_SHARPE) + (winScore * WEIGHT_WIN_RATE) - (ddPenalty * WEIGHT_DRAWDOWN_PENALTY);
+   score = MathMax(score, 0);
+
+   double initialBalance = TesterStatistics(STAT_INITIAL_DEPOSIT);
+   if(initialBalance > 0) score *= (1.0 + MathMin(totalNetProfit / initialBalance, 1.0));
+
+   PrintFormat("[OPT] Score: %.4f | PF: %.2f | RF: %.2f | Sharpe: %.2f | WR: %.1f%% | DD: %.1f%% | Trades: %d | Lucro: $%.2f", score, profitFactor, recoveryFactor, sharpeRatio, winRatePct, maxDrawdownPct, totalTrades, totalNetProfit);
+
+   return score;
+}
+
+//+------------------------------------------------------------------+
+//| INDICADORES FALTANTES (GetADX, GetEMA)                           |
+//+------------------------------------------------------------------+
+double GetADX(string sym, ENUM_TIMEFRAMES tf, int period)
+{
+   if(sym == "" || StringLen(sym) < 3) return 0;
+   datetime currentBar = iTime(sym, tf, 0);
+   if(currentBar <= 0) return 0;
+
+   int size = ArraySize(g_adxCache);
+   for(int i = 0; i < size; i++)
+   {
+      if(g_adxCache[i].symbol == sym && g_adxCache[i].tf == tf && g_adxCache[i].period == period)
+      {
+         if(g_adxCache[i].lastBar == currentBar && g_adxCache[i].value > 0)
+            return g_adxCache[i].value;
+
+         double adxBuf[];
+         ArraySetAsSeries(adxBuf, true);
+         if(CopyBuffer(g_adxCache[i].handle, 0, 0, 1, adxBuf) > 0)
+         {
+            g_adxCache[i].value   = adxBuf[0];
+            g_adxCache[i].lastBar = currentBar;
+            return adxBuf[0];
+         }
+         return 0;
+      }
+   }
+
+   int newIdx = size;
+   ArrayResize(g_adxCache, newIdx + 1);
+   g_adxCache[newIdx].symbol = sym;
+   g_adxCache[newIdx].tf     = tf;
+   g_adxCache[newIdx].period = period;
+   g_adxCache[newIdx].handle = iADX(sym, tf, period);
+   g_adxCache[newIdx].value  = 0;
+   g_adxCache[newIdx].lastBar= 0;
+
+   if(g_adxCache[newIdx].handle == INVALID_HANDLE) return 0;
+
+   double adxBuf[];
+   ArraySetAsSeries(adxBuf, true);
+   if(CopyBuffer(g_adxCache[newIdx].handle, 0, 0, 1, adxBuf) > 0)
+   {
+      g_adxCache[newIdx].value   = adxBuf[0];
+      g_adxCache[newIdx].lastBar = currentBar;
+      return adxBuf[0];
+   }
+
+   return 0;
+}
+
+double GetEMA(string sym, ENUM_TIMEFRAMES tf, int period)
+{
+   if(sym == "" || StringLen(sym) < 3) return 0;
+   datetime currentBar = iTime(sym, tf, 0);
+   if(currentBar <= 0) return 0;
+
+   int size = ArraySize(g_emaCache);
+   for(int i = 0; i < size; i++)
+   {
+      if(g_emaCache[i].symbol == sym && g_emaCache[i].tf == tf && g_emaCache[i].period == period)
+      {
+         if(g_emaCache[i].lastBar == currentBar && g_emaCache[i].value > 0)
+            return g_emaCache[i].value;
+
+         double emaBuf[];
+         ArraySetAsSeries(emaBuf, true);
+         if(CopyBuffer(g_emaCache[i].handle, 0, 0, 1, emaBuf) > 0)
+         {
+            g_emaCache[i].value   = emaBuf[0];
+            g_emaCache[i].lastBar = currentBar;
+            return emaBuf[0];
+         }
+         return 0;
+      }
+   }
+
+   int newIdx = size;
+   ArrayResize(g_emaCache, newIdx + 1);
+   g_emaCache[newIdx].symbol = sym;
+   g_emaCache[newIdx].tf     = tf;
+   g_emaCache[newIdx].period = period;
+   g_emaCache[newIdx].handle = iMA(sym, tf, period, 0, MODE_EMA, PRICE_CLOSE);
+   g_emaCache[newIdx].value  = 0;
+   g_emaCache[newIdx].lastBar= 0;
+
+   if(g_emaCache[newIdx].handle == INVALID_HANDLE) return 0;
+
+   double emaBuf[];
+   ArraySetAsSeries(emaBuf, true);
+   if(CopyBuffer(g_emaCache[newIdx].handle, 0, 0, 1, emaBuf) > 0)
+   {
+      g_emaCache[newIdx].value   = emaBuf[0];
+      g_emaCache[newIdx].lastBar = currentBar;
+      return emaBuf[0];
+   }
+
+   return 0;
+}
+

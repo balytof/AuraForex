@@ -9,6 +9,7 @@ const filesToUpload = [
     { local: './ea_api.js', remote: '/root/AuraForex/ea_api.js' },
     { local: './prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' },
     { local: './public/i18n_dashboard_v3.js', remote: '/root/AuraForex/public/i18n_dashboard_v3.js' },
+    { local: './public/AuraForex_V8_Institutional.mq5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.mq5' },
     { local: './public/AuraForex_V8_Institutional.ex5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.ex5' }
 ];
 

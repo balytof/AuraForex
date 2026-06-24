@@ -2585,7 +2585,9 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
       profitLockDrop: settings.profitLockDrop,
       exitMode: settings.exitMode,
       holdSeconds: settings.holdSeconds,
-      negativeHoldSeconds: settings.negativeHoldSeconds
+      negativeHoldSeconds: settings.negativeHoldSeconds,
+      equityActivationPct: settings.equityActivationPct,
+      equityDropPct: settings.equityDropPct
     });
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar advanced settings." });
@@ -2595,7 +2597,7 @@ app.get("/api/user/advanced-settings", requireAuth, async (req, res) => {
 // POST /api/user/advanced-settings
 app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
   console.log("[ADV_SETTINGS_POST_DEBUG] req.body:", req.body);
-  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds } = req.body;
+  const { emaMode, dailyProfitTarget, dailyLossLimit, runnerMode, profitLockMin, profitLockDrop, exitMode, holdSeconds, negativeHoldSeconds, equityActivationPct, equityDropPct } = req.body;
   try {
     const data = {};
     if (emaMode !== undefined) data.emaMode = emaMode;
@@ -2607,6 +2609,8 @@ app.post("/api/user/advanced-settings", requireAuth, async (req, res) => {
     if (exitMode !== undefined) data.exitMode = exitMode;
     if (holdSeconds !== undefined && holdSeconds !== "") data.holdSeconds = parseInt(holdSeconds);
     if (negativeHoldSeconds !== undefined && negativeHoldSeconds !== "") data.negativeHoldSeconds = parseInt(negativeHoldSeconds);
+    if (equityActivationPct !== undefined && equityActivationPct !== "") data.equityActivationPct = parseFloat(equityActivationPct);
+    if (equityDropPct !== undefined && equityDropPct !== "") data.equityDropPct = parseFloat(equityDropPct);
 
     const settings = await prisma.userSettings.upsert({
       where: { userId: req.user.id },
@@ -3470,6 +3474,8 @@ app.use((req, res) => {
     urlPath = "/login.html";
   } else if (urlPath === "/dashboard") {
     urlPath = "/smc_bot_dashboard.html";
+  } else if (urlPath === "/optimizer") {
+    urlPath = "/optimization_report.html";
   } else if (urlPath === "/hub") {
     urlPath = "/hub.html";
   } else if (urlPath === "/affiliate") {

@@ -218,6 +218,8 @@ model UserSettings {
   exitMode              String   @default("take_profit") // "take_profit", "time_limit"
   holdSeconds           Int      @default(180)
   negativeHoldSeconds   Int      @default(120)
+  equityActivationPct   Float    @default(3.0)
+  equityDropPct         Float    @default(0.5)
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

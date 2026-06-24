@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuraForex V8 — Relatório de Optimização</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#f7f7f5;color:#1a1a18;font-size:15px;line-height:1.6}
+  header{background:#1a1a18;color:#f7f7f5;padding:2rem 2.5rem;display:flex;align-items:center;justify-content:space-between}
+  header h1{font-size:20px;font-weight:500;letter-spacing:-.01em}
+  header span{font-size:13px;color:#888;font-variant-numeric:tabular-nums}
+  .container{max-width:1100px;margin:0 auto;padding:2rem 2.5rem}
+  .section-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:.75rem;margin-top:2rem}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.5rem}
+  .metric{background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:1rem 1.25rem}
+  .metric-val{font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;color:#1a1a18}
+  .metric-lbl{font-size:12px;color:#888;margin-top:4px}
+  .metric-sub{font-size:11px;margin-top:2px}
+  .green{color:#2d7a3a}.red{color:#c0392b}.amber{color:#b45309}
+  table{width:100%;border-collapse:collapse;background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;overflow:hidden;font-size:14px}
+  th{text-align:left;padding:10px 14px;font-weight:500;font-size:12px;color:#888;border-bottom:0.5px solid #e0ddd6;text-transform:uppercase;letter-spacing:.04em}
+  td{padding:10px 14px;border-bottom:0.5px solid #f0ede6}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafaf8}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+  .badge-green{background:#dcf5e3;color:#1a5c28}
+  .badge-amber{background:#fef3c7;color:#78350f}
+  .badge-red{background:#fee2e2;color:#7f1d1d}
+  .score-bar{background:#f0ede6;border-radius:3px;height:6px;width:100px;display:inline-block;vertical-align:middle;margin-left:8px}
+  .score-fill{height:100%;border-radius:3px;background:#2d7a3a}
+  .tip{background:#fff8e1;border-left:3px solid #f59e0b;padding:.75rem 1rem;border-radius:0 6px 6px 0;font-size:13px;color:#78350f;margin-bottom:12px}
+  .tip strong{font-weight:500}
+  .card{background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:12px}
+  .card h3{font-size:14px;font-weight:500;margin-bottom:.5rem}
+  .params-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+  .param-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-bottom:0.5px solid #f0ede6}
+  .param-row:last-child{border-bottom:none}
+  .param-name{color:#555}
+  .param-val{font-weight:500;font-variant-numeric:tabular-nums}
+  input[type=number],input[type=text]{border:0.5px solid #d0cdc6;border-radius:6px;padding:5px 8px;font-size:13px;width:100%;background:#fafaf8;color:#1a1a18}
+  input:focus{outline:2px solid #2d7a3a;border-color:transparent}
+  .btn{padding:7px 16px;border-radius:6px;border:0.5px solid #d0cdc6;background:#fff;cursor:pointer;font-size:13px;color:#1a1a18;text-decoration:none}
+  .btn:hover{background:#f0ede6}
+  .btn-primary{background:#1a1a18;color:#f7f7f5;border-color:#1a1a18}
+  .btn-primary:hover{background:#333}
+  .add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:1rem}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#888;flex:1;min-width:100px}
+  #empty-msg{text-align:center;padding:2rem;color:#aaa;font-size:14px;display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AuraForex V8 &mdash; Optimização de Parâmetros</h1>
+  <div>
+    <span id="date-display" style="margin-right: 15px;"></span>
+    <a href="/" class="btn" style="padding: 5px 10px;">Voltar ao Dashboard</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <p class="section-label">Sumário do melhor resultado</p>
+  <div class="metrics-grid" id="summary-metrics">
+    <div class="metric"><div class="metric-val" id="best-score">—</div><div class="metric-lbl">Score composto</div><div class="metric-sub" style="color:#888">Critério customizado</div></div>
+    <div class="metric"><div class="metric-val" id="best-profit">—</div><div class="metric-lbl">Lucro líquido</div></div>
+    <div class="metric"><div class="metric-val" id="best-pf">—</div><div class="metric-lbl">Profit Factor</div></div>
+    <div class="metric"><div class="metric-val" id="best-dd">—</div><div class="metric-lbl">Drawdown máx.</div></div>
+    <div class="metric"><div class="metric-val" id="best-wr">—</div><div class="metric-lbl">Win Rate</div></div>
+    <div class="metric"><div class="metric-val" id="best-trades">—</div><div class="metric-lbl">Total trades</div></div>
+  </div>
+
+  <div class="tip"><strong>Como interpretar o score:</strong> Acima de 0.60 = excelente. 0.40–0.60 = bom. Abaixo de 0.40 = marginal. Scores acima de 0.85 em backtest são suspeitos de over-fitting — valida sempre com forward test.</div>
+
+  <p class="section-label">Configuração óptima encontrada</p>
+  <div class="card">
+    <h3>Parâmetros a usar no EA</h3>
+    <div class="params-grid" id="best-params-display">
+      <div style="color:#aaa;font-size:13px;padding:1rem 0">Ainda sem resultados. Adiciona runs abaixo.</div>
+    </div>
+  </div>
+
+  <p class="section-label">Resultados dos backtests</p>
+  <div class="card">
+    <table id="results-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Score</th>
+          <th>Lucro ($)</th>
+          <th>Profit Factor</th>
+          <th>Drawdown %</th>
+          <th>Win Rate %</th>
+          <th>Trades</th>
+          <th>Sharpe</th>
+          <th>Risk %</th>
+          <th>XAU Step</th>
+          <th>XAU Target</th>
+          <th>FX Step</th>
+          <th>MaxOrders</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="results-body">
+        <tr><td colspan="14" id="empty-msg" style="display:table-cell;text-align:center;padding:2rem;color:#aaa">Sem resultados ainda. Adiciona o primeiro run abaixo.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="section-label">Adicionar resultado de backtest</p>
+  <div class="card">
+    <h3>Novo run</h3>
+    <div class="add-row" style="margin-top:.75rem">
+      <div class="field"><label>Score</label><input type="number" id="in-score" step="0.001" min="0" max="1" placeholder="0.000"></div>
+      <div class="field"><label>Lucro ($)</label><input type="number" id="in-profit" step="0.01" placeholder="0.00"></div>
+      <div class="field"><label>Profit Factor</label><input type="number" id="in-pf" step="0.01" placeholder="1.00"></div>
+      <div class="field"><label>Drawdown %</label><input type="number" id="in-dd" step="0.1" placeholder="0.0"></div>
+      <div class="field"><label>Win Rate %</label><input type="number" id="in-wr" step="0.1" placeholder="0.0"></div>
+      <div class="field"><label>Trades</label><input type="number" id="in-trades" placeholder="0"></div>
+      <div class="field"><label>Sharpe</label><input type="number" id="in-sharpe" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="add-row">
+      <div class="field"><label>Risk %</label><input type="number" id="in-risk" step="0.5" placeholder="1.0"></div>
+      <div class="field"><label>XAU Step</label><input type="number" id="in-xau-step" placeholder="200"></div>
+      <div class="field"><label>XAU Target</label><input type="number" id="in-xau-target" placeholder="3000"></div>
+      <div class="field"><label>FX Step</label><input type="number" id="in-fx-step" placeholder="150"></div>
+      <div class="field"><label>MaxOrders</label><input type="number" id="in-maxorders" placeholder="6"></div>
+      <div class="field" style="justify-content:flex-end"><button class="btn btn-primary" onclick="addRun()">Adicionar run</button></div>
+    </div>
+  </div>
+
+  <p class="section-label">Guia de interpretação</p>
+  <div class="card">
+    <h3>Referências rápidas</h3>
+    <div class="params-grid">
+      <div>
+        <div class="param-row"><span class="param-name">Profit Factor</span><span class="param-val">≥ 1.5 = bom · ≥ 2.0 = excelente</span></div>
+        <div class="param-row"><span class="param-name">Recovery Factor</span><span class="param-val">≥ 3.0 = robusto</span></div>
+        <div class="param-row"><span class="param-name">Sharpe Ratio</span><span class="param-val">≥ 1.0 = aceitável · ≥ 2.0 = bom</span></div>
+      </div>
+      <div>
+        <div class="param-row"><span class="param-name">Drawdown máx.</span><span class="param-val">≤ 15% = conservador · ≤ 25% = agressivo</span></div>
+        <div class="param-row"><span class="param-name">Win Rate</span><span class="param-val">≥ 50% = bom para scalping</span></div>
+        <div class="param-row"><span class="param-name">Trades mínimos</span><span class="param-val">≥ 30 para validade estatística</span></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="section-label">Notas do teste</p>
+  <div class="card">
+    <textarea id="notes" style="width:100%;min-height:100px;border:0.5px solid #d0cdc6;border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;resize:vertical;background:#fafaf8;color:#1a1a18" placeholder="Período testado, broker, observações sobre o mercado, próximas etapas..."></textarea>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="exportData()">Exportar JSON</button>
+      <button class="btn" onclick="clearAll()">Limpar tudo</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let runs = JSON.parse(localStorage.getItem('aura_runs') || '[]');
+let notes = localStorage.getItem('aura_notes') || '';
+document.getElementById('notes').value = notes;
+document.getElementById('notes').addEventListener('input', () => {
+  localStorage.setItem('aura_notes', document.getElementById('notes').value);
+});
+document.getElementById('date-display').textContent = new Date().toLocaleDateString('pt-PT', {day:'2-digit',month:'long',year:'numeric'});
+
+function getBadge(score) {
+  if(score >= 0.60) return '<span class="badge badge-green">Excelente</span>';
+  if(score >= 0.40) return '<span class="badge badge-amber">Bom</span>';
+  return '<span class="badge badge-red">Marginal</span>';
+}
+
+function render() {
+  const tbody = document.getElementById('results-body');
+  if(runs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:2rem;color:#aaa;font-size:14px">Sem resultados ainda. Adiciona o primeiro run abaixo.</td></tr>';
+    document.getElementById('best-params-display').innerHTML = '<div style="color:#aaa;font-size:13px;padding:1rem 0">Ainda sem resultados. Adiciona runs abaixo.</div>';
+    ['best-score','best-profit','best-pf','best-dd','best-wr','best-trades'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+
+  const sorted = [...runs].sort((a,b) => b.score - a.score);
+  const best = sorted[0];
+
+  // Update summary
+  document.getElementById('best-score').textContent = best.score.toFixed(3);
+  document.getElementById('best-score').className = 'metric-val ' + (best.score >= 0.60 ? 'green' : best.score >= 0.40 ? 'amber' : 'red');
+  document.getElementById('best-profit').textContent = '$' + best.profit.toFixed(2);
+  document.getElementById('best-profit').className = 'metric-val ' + (best.profit > 0 ? 'green' : 'red');
+  document.getElementById('best-pf').textContent = best.pf.toFixed(2);
+  document.getElementById('best-pf').className = 'metric-val ' + (best.pf >= 1.5 ? 'green' : best.pf >= 1.1 ? 'amber' : 'red');
+  document.getElementById('best-dd').textContent = best.dd.toFixed(1) + '%';
+  document.getElementById('best-dd').className = 'metric-val ' + (best.dd <= 15 ? 'green' : best.dd <= 25 ? 'amber' : 'red');
+  document.getElementById('best-wr').textContent = best.wr.toFixed(1) + '%';
+  document.getElementById('best-wr').className = 'metric-val ' + (best.wr >= 50 ? 'green' : best.wr >= 35 ? 'amber' : 'red');
+  document.getElementById('best-trades').textContent = best.trades;
+
+  // Best params
+  document.getElementById('best-params-display').innerHTML = `
+    <div>
+      <div class="param-row"><span class="param-name">Tester_RiskPercent</span><span class="param-val">${best.risk}</span></div>
+      <div class="param-row"><span class="param-name">Tester_XAU_StepDistance</span><span class="param-val">${best.xauStep}</span></div>
+      <div class="param-row"><span class="param-name">Tester_XAU_TargetPoints</span><span class="param-val">${best.xauTarget}</span></div>
+    </div>
+    <div>
+      <div class="param-row"><span class="param-name">Tester_Forex_StepDistance</span><span class="param-val">${best.fxStep}</span></div>
+      <div class="param-row"><span class="param-name">Tester_MaxOrders</span><span class="param-val">${best.maxOrders}</span></div>
+      <div class="param-row"><span class="param-name">Score composto</span><span class="param-val green">${best.score.toFixed(4)}</span></div>
+    </div>`;
+
+  // Table
+  tbody.innerHTML = sorted.map((r, i) => {
+    const fillW = Math.round(r.score * 100);
+    return `<tr>
+      <td style="color:#888;font-size:12px">${i+1}</td>
+      <td><span style="font-variant-numeric:tabular-nums;font-weight:500">${r.score.toFixed(3)}</span><span class="score-bar"><span class="score-fill" style="width:${fillW}%"></span></span></td>
+      <td class="${r.profit>0?'green':'red'}">$${r.profit.toFixed(2)}</td>
+      <td class="${r.pf>=1.5?'green':r.pf>=1.1?'amber':'red'}">${r.pf.toFixed(2)}</td>
+      <td class="${r.dd<=15?'green':r.dd<=25?'amber':'red'}">${r.dd.toFixed(1)}%</td>
+      <td class="${r.wr>=50?'green':r.wr>=35?'amber':'red'}">${r.wr.toFixed(1)}%</td>
+      <td>${r.trades}</td>
+      <td>${r.sharpe.toFixed(2)}</td>
+      <td>${r.risk}</td>
+      <td>${r.xauStep}</td>
+      <td>${r.xauTarget}</td>
+      <td>${r.fxStep}</td>
+      <td>${r.maxOrders}</td>
+      <td>${getBadge(r.score)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function addRun() {
+  const get = id => parseFloat(document.getElementById(id).value) || 0;
+  const getI = id => parseInt(document.getElementById(id).value) || 0;
+  const run = {
+    score: get('in-score'), profit: get('in-profit'), pf: get('in-pf'),
+    dd: get('in-dd'), wr: get('in-wr'), trades: getI('in-trades'),
+    sharpe: get('in-sharpe'), risk: get('in-risk'),
+    xauStep: getI('in-xau-step'), xauTarget: getI('in-xau-target'),
+    fxStep: getI('in-fx-step'), maxOrders: getI('in-maxorders')
+  };
+  if(run.trades === 0) { alert('Introduz pelo menos o número de trades.'); return; }
+  runs.push(run);
+  localStorage.setItem('aura_runs', JSON.stringify(runs));
+  ['in-score','in-profit','in-pf','in-dd','in-wr','in-trades','in-sharpe','in-risk','in-xau-step','in-xau-target','in-fx-step','in-maxorders'].forEach(id => document.getElementById(id).value = '');
+  render();
+}
+
+function exportData() {
+  const data = { generated: new Date().toISOString(), runs, notes: document.getElementById('notes').value };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'AuraForex_Backtest_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function clearAll() {
+  if(!confirm('Apagar todos os resultados?')) return;
+  runs = []; localStorage.removeItem('aura_runs'); render();
+}
+
+render();
+</script>
+</body>
+</html>
