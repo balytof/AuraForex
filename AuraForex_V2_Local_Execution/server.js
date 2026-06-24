@@ -555,12 +555,10 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
     if (!isProfitLocked && dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
       isProfitLocked = true;
       risk.dailyProfitLocked = true;
-      risk._safeSaveState();
     } else if (isProfitLocked && dailyTargetMoney > 0 && netEvolution < dailyTargetMoney) {
       // 🛡️ CORREÇÃO DE BUG: Se a evolução caiu abaixo da meta (ex: correção de ghost equity), destrava o bot.
       isProfitLocked = false;
       risk.dailyProfitLocked = false;
-      risk._safeSaveState();
     }
 
     // Removida a busca cega à base de dados para evitar ordens fantasmas somarem até ao limite global.
@@ -608,7 +606,7 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
       updatedAt: license ? license.updatedAt : null,
       fridayBlockHour: fridayBlockHour,
       sundayOpenHour: sundayOpenHour,
-      openTrades: trueOpenTrades, // Retorna as trades abertas sincronizadas pelo EA/BD
+      openTrades: risk.openTrades || [], // Retorna as trades abertas sincronizadas pelo EA/BD
       canResetLocks: userSettings?.canResetLocks || false,
       dailyStartBalance: startCapital,
       emaMode: userSettings?.emaMode || "auto",
