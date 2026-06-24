@@ -2185,6 +2185,41 @@ void ReportBalance()
       }
    }
 
+   int ulpIdx = StringFind(response, "\"useLossProtector\":");
+   if(ulpIdx >= 0) {
+      g_UseLossProtector = (StringFind(response, "true", ulpIdx) < StringFind(response, ",", ulpIdx));
+   }
+   
+   int lpPctIdx = StringFind(response, "\"lossProtectorPct\":");
+   if(lpPctIdx >= 0) {
+      lpPctIdx += 19;
+      int eIdx = StringFind(response, ",", lpPctIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", lpPctIdx);
+      if(eIdx > lpPctIdx) {
+         double v = StringToDouble(StringSubstr(response, lpPctIdx, eIdx - lpPctIdx));
+         if(v >= 0) g_LossProtectorPct = v;
+      }
+   }
+
+   int ugeIdx = StringFind(response, "\"useGlobalEquity\":");
+   if(ugeIdx >= 0) {
+      g_UseGlobalEquity = (StringFind(response, "true", ugeIdx) < StringFind(response, ",", ugeIdx));
+   }
+
+   int uplIdx = StringFind(response, "\"useProfitLock\":");
+   if(uplIdx >= 0) {
+      g_UseProfitLock = (StringFind(response, "true", uplIdx) < StringFind(response, ",", uplIdx));
+   }
+
+   int pltIdx = StringFind(response, "\"profitLockType\":");
+   if(pltIdx >= 0) {
+      pltIdx += 17;
+      int eIdx = StringFind(response, "\"", pltIdx + 1);
+      if(eIdx > pltIdx) {
+         g_ProfitLockType = StringSubstr(response, pltIdx + 1, eIdx - pltIdx - 1);
+      }
+   }
+
       if(serverStartBalance > 10)
       {
          g_DailyStartBalance = serverStartBalance;
