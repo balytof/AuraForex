@@ -752,6 +752,34 @@ void OnTimer()
    g_ExecutionBusy = false;
 }
 
+void CheckLossProtector()
+{
+   if(!g_UseLossProtector || g_LossProtectorPct <= 0) return;
+   
+   double dailyProfit = GetDailyPnL();
+   if(dailyProfit <= 0) return; // Opção A: Desativado se lucro diário for <= 0 para ganhar tração
+   
+   double maxLossAllowed = -(dailyProfit * (g_LossProtectorPct / 100.0));
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket > 0 && PositionSelectByTicket(ticket))
+      {
+         long magic = PositionGetInteger(POSITION_MAGIC);
+         if(magic == GetAuraMagic() || (g_ManageManualOrders && magic == 0))
+         {
+            double currentProfit = PositionGetDouble(POSITION_PROFIT);
+            if(currentProfit < 0 && currentProfit <= maxLossAllowed)
+            {
+               Print("🛡️ LOSS PROTECTOR ATIVADO! Ordem fechada. Lucro Diário: $", DoubleToString(dailyProfit, 2), " | Perda Máx: $", DoubleToString(maxLossAllowed, 2), " | Perda Atual: $", DoubleToString(currentProfit, 2));
+               trade.PositionClose(ticket);
+            }
+         }
+      }
+   }
+}
+
 void RunInstitutionalCore()
 {
    ValidateLicense();
@@ -762,6 +790,7 @@ void RunInstitutionalCore()
       CheckDailyTarget();
       CheckFridaySafeLock();
       ApplyBreakeven();
+      CheckLossProtector();
 
       ProcessPendingProtections();
       MonitorGlobalEquityStop();
