@@ -10,7 +10,8 @@ const filesToUpload = [
     { local: './prisma/schema.prisma', remote: '/root/AuraForex/prisma/schema.prisma' },
     { local: './public/i18n_dashboard_v3.js', remote: '/root/AuraForex/public/i18n_dashboard_v3.js' },
     { local: './public/AuraForex_V8_Institutional.mq5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.mq5' },
-    { local: './public/AuraForex_V8_Institutional.ex5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.ex5' }
+    { local: './public/AuraForex_V8_Institutional.ex5', remote: '/root/AuraForex/public/AuraForex_V8_Institutional.ex5' },
+    { local: './risk/risk.js', remote: '/root/AuraForex/risk/risk.js' }
 ];
 
 conn.on('ready', () => {

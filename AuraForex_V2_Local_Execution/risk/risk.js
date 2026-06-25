@@ -296,11 +296,14 @@ class RiskManager {
       const currentCapital = (this.equity && this.equity > 0) ? this.equity : this.balance;
       const realizedProfit = currentCapital - this.dailyStartBalance;
       
+      const targetProfit = this.dailyStartBalance * ((this.dailyProfitTarget || 0) / 100);
+      const isTargetReached = (this.dailyProfitTarget > 0 && realizedProfit >= targetProfit) || this.profitTargetLocked;
+      
       history.push({
         date: this.dailyDate,
         startBalance: this.dailyStartBalance,
         realizedProfit: realizedProfit,
-        targetReached: false
+        targetReached: isTargetReached
       });
       
       fs.writeFileSync(perfFile, JSON.stringify(history, null, 2));

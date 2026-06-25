@@ -1,15 +1,18 @@
 const fs = require('fs');
-const filePath = 'smc_bot_dashboard.html';
-let content = fs.readFileSync(filePath, 'utf8');
+let html = fs.readFileSync('smc_bot_dashboard.html', 'utf8');
 
-const targetRegex = /<div class="setup-step">\s*<div class="setup-step">\s*<h3><div class="step-number">3<\/div> Autorizar WebRequest \(OBRIGATÓRIO\)<\/h3>/;
-const fixedDiv = `<div class="setup-step">
-          <h3><div class="step-number">2</div> Autorizar WebRequest (OBRIGATÓRIO)</h3>`;
+html = html.replace(
+    /if \(mainBtn\.dataset\.state !== "profitlocked"\) \{ mainBtn\.textContent = ".*?";/g,
+    'if (mainBtn.dataset.state !== "profitlocked") { mainBtn.textContent = `Meta Atingida: $${(status.dailyPnl||0).toFixed(2)}`;'
+);
 
-if (targetRegex.test(content)) {
-    content = content.replace(targetRegex, fixedDiv);
-    fs.writeFileSync(filePath, content, 'utf8');
-    console.log("Regex Fix OK!");
-} else {
-    console.log("Regex Target Not Found!");
-}
+html = html.replace(
+    /lockOverlay\.style\.display = "flex";/g,
+    `lockOverlay.style.display = "flex";
+        const lockText = document.getElementById("dailyLockText");
+        if(lockText) {
+            lockText.innerHTML = \`O bot atingiu a meta de lucro definida.<br><br><span style="font-size: 1.5rem; color: var(--bull); font-weight: bold;">Lucro do Dia: $\${(status.dailyPnl||0).toFixed(2)}</span><br><br>As operações automáticas estão bloqueadas para proteger os seus ganhos de hoje.\`;
+        }`
+);
+
+fs.writeFileSync('smc_bot_dashboard.html', html, 'utf8');

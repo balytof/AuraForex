@@ -217,7 +217,8 @@ model UserSettings {
   // Exit Strategy
   exitMode              String   @default("take_profit") // "take_profit", "time_limit"
   holdSeconds           Int      @default(180)
-  negativeHoldSeconds   Int      @default(120)
+  negativeProfitLimit   Float    @default(10.0)
+  useTimeLimit          Boolean  @default(false)
   equityActivationPct   Float    @default(3.0)
   equityDropPct         Float    @default(0.5)
   useGlobalEquity       Boolean  @default(true)

@@ -133,7 +133,7 @@ bool              g_TrailingEnabled = false;
 string            g_RunnerMode = "none";
 string            g_ExitMode = "take_profit";
 int               g_HoldSeconds = 180;
-int               g_NegativeHoldSeconds = 120;
+double            g_NegativeProfitLimit = 10.0;
 double            g_EquityActivationPct = 3.0;
 double            g_EquityDropPct = 0.5;
 bool              g_EquityProtectionActive = false;
@@ -153,6 +153,7 @@ double            g_LossProtectorPct = 0;
 double            g_LossProtectorAbs = 0;
 bool              g_UseGlobalEquity = true;
 bool              g_UseProfitLock = true;
+bool              g_UseTimeLimit = false;
 string            g_ProfitLockType = "usd";
 int               g_MaxSLForex = 0;
 int               g_MaxSLJPY = 0;
@@ -509,6 +510,28 @@ int CountOrdersBySymbol(string sym) {
    return c;
 }
 
+int CountBuysBySymbol(string sym) {
+   int c=0;
+   for(int i=PositionsTotal()-1; i>=0; i--) {
+      ulong t=PositionGetTicket(i);
+      if(t>0 && PositionSelectByTicket(t)) {
+         if(PositionGetString(POSITION_SYMBOL)==sym && PositionGetInteger(POSITION_MAGIC)==GetAuraMagic() && PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY) c++;
+      }
+   }
+   return c;
+}
+
+int CountSellsBySymbol(string sym) {
+   int c=0;
+   for(int i=PositionsTotal()-1; i>=0; i--) {
+      ulong t=PositionGetTicket(i);
+      if(t>0 && PositionSelectByTicket(t)) {
+         if(PositionGetString(POSITION_SYMBOL)==sym && PositionGetInteger(POSITION_MAGIC)==GetAuraMagic() && PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_SELL) c++;
+      }
+   }
+   return c;
+}
+
 //+------------------------------------------------------------------+
 //| INSTITUTIONAL CONTINUOUS DISTANCE SCALPER                        |
 //+------------------------------------------------------------------+
@@ -604,7 +627,7 @@ void ProcessInstitutionalScalper(string sym)
    }
 
    // 3. REGRA DE ABERTURA DE ORDENS (Por Distância da Âncora)
-   if(allowBuy && midPrice >= anchor + (stepDistance * point))
+   if(allowBuy && CountBuysBySymbol(sym) < g_MaxBuys && midPrice >= anchor + (stepDistance * point))
    {
       double sLot = CalculateLot(sym, GetDynamicRisk(maxSL), maxSL * point, ORDER_TYPE_BUY); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
       trade.SetTypeFillingBySymbol(sym);
@@ -621,7 +644,7 @@ void ProcessInstitutionalScalper(string sym)
          GlobalVariableSet("VAL_"+sym, midPrice);
       }
    }
-   else if(allowSell && midPrice <= anchor - (stepDistance * point))
+   else if(allowSell && CountSellsBySymbol(sym) < g_MaxSells && midPrice <= anchor - (stepDistance * point))
    {
       double sLot = CalculateLot(sym, GetDynamicRisk(maxSL), maxSL * point, ORDER_TYPE_SELL); if(sLot <= 0) sLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
       trade.SetTypeFillingBySymbol(sym);
@@ -655,7 +678,7 @@ void ProcessInstitutionalScalper(string sym)
       string closeReason = "";
 
       // === LÓGICA DE FECHO MÚTUO EXCLUSIVO ===
-      if(g_ExitMode == "take_profit")
+      if(g_ExitMode == "take_profit" || !g_UseTimeLimit)
       {
          // 4.1 Apenas Take Profit Fixo
          if(type == POSITION_TYPE_BUY && bid >= openPrice + (targetPoints * point))
@@ -667,7 +690,7 @@ void ProcessInstitutionalScalper(string sym)
             closeIt = true; closeReason = "Alvo de Lucro Atingido (Take Profit)";
          }
       }
-      else if(g_ExitMode == "time_limit")
+      else if(g_ExitMode == "time_limit" && g_UseTimeLimit)
       {
          // 4.2 Apenas Tempo Limite (Sem TP Fixo)
          long timeOpen = PositionGetInteger(POSITION_TIME);
@@ -677,10 +700,12 @@ void ProcessInstitutionalScalper(string sym)
          {
             closeIt = true; closeReason = "Exaustão de Tempo no Lucro (Hold Seconds)";
          }
-         else if(profit < 0 && g_NegativeHoldSeconds > 0 && secondsOpen > g_NegativeHoldSeconds)
-         {
-            closeIt = true; closeReason = "Exaustão de Tempo na Perda (Negative Hold)";
-         }
+      }
+      
+      // 4.2.1 Fecho por Perda Financeira Individual (Atua em qualquer modo de Saída se ativado)
+      if(!closeIt && profit < 0 && g_NegativeProfitLimit > 0 && profit <= -g_NegativeProfitLimit)
+      {
+         closeIt = true; closeReason = "Limite de Perda Individual Atingido ($)";
       }
       
       // 4.3 Reversões (Atua em qualquer modo)
@@ -1047,7 +1072,7 @@ void CheckDailyLoss()
    double lossPct = (dailyPnL < 0) ? (MathAbs(dailyPnL) / g_DailyStartEquity) * 100.0 : 0.0;
    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
 
-   if(lossPct >= g_MaxDailyLossPct)
+   if(g_MaxDailyLossPct > 0 && lossPct >= g_MaxDailyLossPct)
    {
       g_DailyLossLock = true;
       Print("🛑 [CIRCUIT-BREAKER] LIMITE DE PERDA DIÁRIA ATINGIDO: ",
@@ -2141,7 +2166,17 @@ void ReportBalance()
       if(eIdx < 0) eIdx = StringFind(response, "}", profitPctIdx);
       if(eIdx > profitPctIdx) {
          double v = StringToDouble(StringSubstr(response, profitPctIdx, eIdx - profitPctIdx));
-         if(v >= 0 && v <= 1000) g_DailyTargetPct = v;
+         if(v >= 0 && v <= 1000) {
+            if(g_DailyTargetPct != v) {
+               g_DailyTargetPct = v;
+               if(g_DailyStartEquity > 10) {
+                  g_DailyTargetProfit = g_DailyStartEquity * (g_DailyTargetPct / 100.0);
+                  string gvTarget = "AuraDayTarget_" + IntegerToString(GetAuraMagic());
+                  GlobalVariableSet(gvTarget, g_DailyTargetProfit);
+                  Print("?? [SYNC] Meta de Lucro Diária atualizada pelo Dashboard: ", v, "% ($", DoubleToString(g_DailyTargetProfit, 2), ")");
+               }
+            }
+         }
       }
    }
    
@@ -2198,14 +2233,14 @@ void ReportBalance()
       }
    }
 
-   int nhsIdx = StringFind(response, "\"negativeHoldSeconds\":");
+   int nhsIdx = StringFind(response, "\"negativeProfitLimit\":");
    if(nhsIdx >= 0) {
       nhsIdx += 22;
       int eIdx = StringFind(response, ",", nhsIdx);
       if(eIdx < 0) eIdx = StringFind(response, "}", nhsIdx);
       if(eIdx > nhsIdx) {
-         int v = (int)StringToInteger(StringSubstr(response, nhsIdx, eIdx - nhsIdx));
-         if(v >= 0) g_NegativeHoldSeconds = v;
+         double v = StringToDouble(StringSubstr(response, nhsIdx, eIdx - nhsIdx));
+         if(v >= 0) g_NegativeProfitLimit = v;
       }
    }
 
@@ -2255,7 +2290,9 @@ void ReportBalance()
 
    int ulpIdx = StringFind(response, "\"useLossProtector\":");
    if(ulpIdx >= 0) {
-      g_UseLossProtector = (StringFind(response, "true", ulpIdx) < StringFind(response, ",", ulpIdx));
+      int eIdx = StringFind(response, ",", ulpIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", ulpIdx);
+      g_UseLossProtector = (StringFind(StringSubstr(response, ulpIdx, eIdx - ulpIdx), "true") >= 0);
    }
    
    int lpPctIdx = StringFind(response, "\"lossProtectorPct\":");
@@ -2282,12 +2319,23 @@ void ReportBalance()
 
    int ugeIdx = StringFind(response, "\"useGlobalEquity\":");
    if(ugeIdx >= 0) {
-      g_UseGlobalEquity = (StringFind(response, "true", ugeIdx) < StringFind(response, ",", ugeIdx));
+      int eIdx = StringFind(response, ",", ugeIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", ugeIdx);
+      g_UseGlobalEquity = (StringFind(StringSubstr(response, ugeIdx, eIdx - ugeIdx), "true") >= 0);
    }
 
    int uplIdx = StringFind(response, "\"useProfitLock\":");
    if(uplIdx >= 0) {
-      g_UseProfitLock = (StringFind(response, "true", uplIdx) < StringFind(response, ",", uplIdx));
+      int eIdx = StringFind(response, ",", uplIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", uplIdx);
+      g_UseProfitLock = (StringFind(StringSubstr(response, uplIdx, eIdx - uplIdx), "true") >= 0);
+   }
+
+   int utlIdx = StringFind(response, "\"useTimeLimit\":");
+   if(utlIdx >= 0) {
+      int eIdx = StringFind(response, ",", utlIdx);
+      if(eIdx < 0) eIdx = StringFind(response, "}", utlIdx);
+      g_UseTimeLimit = (StringFind(StringSubstr(response, utlIdx, eIdx - utlIdx), "true") >= 0);
    }
 
    int pltIdx = StringFind(response, "\"profitLockType\":");

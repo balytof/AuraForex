@@ -399,7 +399,7 @@ router.post("/report-balance", async (req, res) => {
       profitLockDrop: userSettings?.profitLockDrop || 30.0,
       exitMode: userSettings?.exitMode || "take_profit",
       holdSeconds: userSettings?.holdSeconds || 180,
-      negativeHoldSeconds: userSettings?.negativeHoldSeconds || 120,
+      negativeProfitLimit: userSettings?.negativeProfitLimit || 120,
       equityActivationPct: userSettings?.equityActivationPct || 3.0,
       equityDropPct: userSettings?.equityDropPct || 0.5,
       useLossProtector: userSettings?.useLossProtector ?? false,
@@ -407,6 +407,7 @@ router.post("/report-balance", async (req, res) => {
       lossProtectorAbs: userSettings?.lossProtectorAbs || 0,
       useGlobalEquity: userSettings?.useGlobalEquity ?? true,
       useProfitLock: userSettings?.useProfitLock ?? true,
+      useTimeLimit: userSettings?.useTimeLimit ?? false,
       profitLockType: userSettings?.profitLockType || "usd"
     });
   } catch (err) {

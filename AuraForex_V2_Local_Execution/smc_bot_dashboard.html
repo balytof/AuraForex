@@ -1593,7 +1593,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div id="dailyLockOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
         <div style="background:var(--surface); border:1px solid var(--bull); border-radius:16px; padding:40px; max-width:500px; width:100%; box-shadow: 0 10px 30px rgba(0,230,118,0.2);">
           <h2 style="color: var(--bull); margin-bottom: 15px; font-size:1.8rem;">META DIÁRIA ATINGIDA 🎯</h2>
-          <p style="color: var(--muted); margin-bottom: 25px; line-height:1.5;">O bot atingiu a meta de lucro definida. As operações automáticas estão bloqueadas para proteger os seus ganhos de hoje.</p>
+          <p id="dailyLockText" style="color: var(--muted); margin-bottom: 25px; line-height:1.5;">O bot atingiu a meta de lucro definida. As operações automáticas estão bloqueadas para proteger os seus ganhos de hoje.</p>
           <button id="btnResetDaily" onclick="resetClientLocks()" style="display:none; margin: 0 auto; padding: 14px 24px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 800; font-size:1rem; cursor: pointer; transition: transform 0.2s;">Redefinir Limites (Reset)</button>
         </div>
       </div>
@@ -3422,9 +3422,13 @@ async function updateStats() {
         weekendOverlay.style.display = "none";
         if(lossLockOverlay) lossLockOverlay.style.display = "none";
         lockOverlay.style.display = "flex";
+        const lockText = document.getElementById("dailyLockText");
+        if(lockText) {
+            lockText.innerHTML = `O bot atingiu a meta de lucro definida.<br><br><span style="font-size: 1.5rem; color: var(--bull); font-weight: bold;">Lucro do Dia: ${(status.dailyPnl||0).toFixed(2)}</span><br><br>As operações automáticas estão bloqueadas para proteger os seus ganhos de hoje.`;
+        }
         if (mainBtn) {
             mainBtn.disabled = true;
-            if (mainBtn.dataset.state !== "profitlocked") { mainBtn.textContent = "Meta Diária Atingida"; mainBtn.dataset.state = "profitlocked"; }
+            if (mainBtn.dataset.state !== "profitlocked") { mainBtn.textContent = `Meta Atingida: ${(status.dailyPnl||0).toFixed(2)}`; mainBtn.dataset.state = "profitlocked"; }
             mainBtn.style.opacity = "0.5";
             if (isRunning) stopBot();
         }
@@ -5522,7 +5526,7 @@ async function loadPerformanceHistory() {
       const profitColor = isProfit ? 'var(--bull)' : 'var(--bear)';
       const targetBg = perf.targetReached ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 255, 255, 0.05)';
       const targetColor = perf.targetReached ? 'var(--bull)' : 'var(--muted)';
-      const targetIcon = perf.targetReached ? '<i class="fas fa-trophy"></i> Meta Batida' : '<i class="fas fa-tasks"></i> Meta Pendente';
+      const targetIcon = perf.targetReached ? `<i class="fas fa-trophy"></i> Meta Batida: $${Number(perf.realizedProfit).toFixed(2)}` : '<i class="fas fa-tasks"></i> Meta Pendente';
       
       const card = document.createElement('div');
       card.style.background = 'var(--surface2)';
@@ -5592,7 +5596,7 @@ function saveAdvancedConfig() {
     profitLockType: document.getElementById("advProfitLockType").value,
     exitMode: document.getElementById("advExitMode").value,
     holdSeconds: document.getElementById("advHoldSeconds").value,
-    negativeHoldSeconds: document.getElementById("advNegativeHoldSeconds").value,
+    negativeProfitLimit: document.getElementById("advNegativeProfitLimit").value,
     equityActivationPct: document.getElementById("advEquityActivationPct").value,
     equityDropPct: document.getElementById("advEquityDropPct").value,
     useLossProtector: document.getElementById("advUseLossProtector").checked,
@@ -5634,7 +5638,7 @@ function loadAdvancedConfig() {
       const eMode = res.exitMode || "take_profit";
       document.getElementById("advExitMode").value = eMode;
       document.getElementById("advHoldSeconds").value = res.holdSeconds !== undefined ? res.holdSeconds : 180;
-      document.getElementById("advNegativeHoldSeconds").value = res.negativeHoldSeconds !== undefined ? res.negativeHoldSeconds : 120;
+      document.getElementById("advNegativeProfitLimit").value = res.negativeProfitLimit !== undefined ? res.negativeProfitLimit : 120;
       document.getElementById("advEquityActivationPct").value = res.equityActivationPct !== undefined ? res.equityActivationPct : 3.0;
       document.getElementById("advEquityDropPct").value = res.equityDropPct !== undefined ? res.equityDropPct : 0.5;
       
@@ -5781,7 +5785,7 @@ setTimeout(loadAdvancedConfig, 1500);
           </div>
           <div>
             <label class="form-label" style="font-size:0.75rem;">Limite na Perda (Segundos)</label>
-            <input type="number" id="advNegativeHoldSeconds" class="form-input" value="120" step="1" style="width:100%; box-sizing:border-box;">
+            <input type="number" id="advNegativeProfitLimit" class="form-input" value="120" step="1" style="width:100%; box-sizing:border-box;">
           </div>
         </div>
         </div>
