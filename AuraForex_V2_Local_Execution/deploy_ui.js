@@ -36,7 +36,7 @@ conn.on('ready', () => {
                 if (completed === filesToUpload.length) {
                     console.log('✨ UPLOAD CONCLUÍDO! Atualizando Base de Dados no VPS...');
                     
-                    conn.exec('cd /root/AuraForex && npx prisma db push && npx prisma generate && pm2 restart all', (err, stream) => {
+                    conn.exec('cd /root/AuraForex && npx prisma db push --accept-data-loss && npx prisma generate && pm2 restart all', (err, stream) => {
                         if (err) throw err;
                         stream.on('close', (code, signal) => {
                             console.log('🔄 Prisma Push, Generate e PM2 Restart concluídos. Código:', code);

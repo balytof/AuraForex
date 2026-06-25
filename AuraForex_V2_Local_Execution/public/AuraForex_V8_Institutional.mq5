@@ -626,6 +626,12 @@ void ProcessInstitutionalScalper(string sym)
       }
    }
 
+   // Bloquear novas ordens se a meta diária de lucro ou perda foi atingida
+   if(g_DailyTargetReached || g_DailyLossLock) {
+      allowBuy = false;
+      allowSell = false;
+   }
+
    // 3. REGRA DE ABERTURA DE ORDENS (Por Distância da Âncora)
    if(allowBuy && CountBuysBySymbol(sym) < g_MaxBuys && midPrice >= anchor + (stepDistance * point))
    {
