@@ -27,8 +27,10 @@ class RiskManager {
     this.dailyStartEquity = 0;
     this.dailyPnl = 0;
     this.dailyDate = null;
+    this.manualUnlockDate = null;
     this.circuitBreaker = false;  // true = bot parado por perda diária
-    this.dailyProfitLocked = false; // true = meta diária atingida
+    this.dailyProfitLocked = false;
+      this.manualUnlockDate = null; // true = meta diária atingida
     this.lastStateSave = 0;       // Throttle para gravação em disco
     
     // Pasta de logs por utilizador
@@ -62,6 +64,7 @@ class RiskManager {
       this.dailyPnl = 0;
       this.circuitBreaker = false;
       this.dailyProfitLocked = false;
+      this.manualUnlockDate = null;
       log.info(`[RISK-NEW-DAY] Novo dia de trading | Saldo: $${balance.toFixed(2)} | Equity: $${(equity || balance).toFixed(2)} | Locks Resetados.`);
     }
   }
@@ -217,6 +220,8 @@ class RiskManager {
   }
 
   checkDailyProfitTarget(brokerPositions = []) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (this.manualUnlockDate === todayStr) return { hit: false };
     if (this.dailyProfitLocked) return { hit: true, alreadyLocked: true };
     if (this.dailyStartBalance <= 10) return { hit: false };
 
@@ -349,6 +354,7 @@ class RiskManager {
         balance: this.balance,
         equity: this.equity || this.balance || 0,
         circuitBreaker: this.circuitBreaker,
+        manualUnlockDate: this.manualUnlockDate,
         
         dailyDate: this.dailyDate,
         lastUpdate: new Date().toISOString()
@@ -372,6 +378,7 @@ class RiskManager {
         this.balance = state.balance || 0;
         this.equity = state.equity || state.balance || 0;
         this.circuitBreaker = state.circuitBreaker || false;
+        this.manualUnlockDate = state.manualUnlockDate || null;
         
         this.dailyDate = state.dailyDate || null;
       }

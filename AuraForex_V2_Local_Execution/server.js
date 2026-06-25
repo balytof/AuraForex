@@ -118,6 +118,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use((req, res, next) => { res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private'); next(); });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -552,10 +553,15 @@ app.get("/api/user/status", requireAuth, async (req, res) => {
 
     // Sincroniza estado de trava se já bateu a meta baseada na Evolução Líquida (Equity - StartBalance)
     let isProfitLocked = risk.dailyProfitLocked;
-    if (!isProfitLocked && dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (risk.manualUnlockDate === todayStr) {
+      isProfitLocked = false;
+      risk.dailyProfitLocked = false;
+      risk.circuitBreaker = false;
+    } else if (!isProfitLocked && dailyTargetMoney > 0 && netEvolution >= dailyTargetMoney) {
       isProfitLocked = true;
       risk.dailyProfitLocked = true;
-    } else if (isProfitLocked && dailyTargetMoney > 0 && netEvolution < dailyTargetMoney) {
+    } else if (isProfitLocked && (dailyTargetMoney === 0 || netEvolution < dailyTargetMoney)) {
       // 🛡️ CORREÇÃO DE BUG: Se a evolução caiu abaixo da meta (ex: correção de ghost equity), destrava o bot.
       isProfitLocked = false;
       risk.dailyProfitLocked = false;
